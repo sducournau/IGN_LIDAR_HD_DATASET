@@ -1,14 +1,19 @@
-facebook:
-  label: Facebook
-  permalink: /facebook
-  description: Facebook tag description
+release:
+  label: Release
+  permalink: /release
+  description: Product releases and announcements
 
-hello:
-  label: Hello
-  permalink: /hello
-  description: Hello tag description
+lidar:
+  label: LiDAR
+  permalink: /lidar
+  description: LiDAR processing and analysis
 
-docusaurus:
-  label: Docusaurus
-  permalink: /docusaurus
-  description: Docusaurus tag description
+machine-learning:
+  label: Machine Learning
+  permalink: /machine-learning
+  description: ML applications and datasets
+
+first-release:
+  label: First Release
+  permalink: /first-release
+  description: Initial product release

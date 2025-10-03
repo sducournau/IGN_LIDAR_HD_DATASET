@@ -1,0 +1,19 @@
+version:
+  label: Version
+  permalink: /version
+  description: Versions et annonces de produit
+
+lidar:
+  label: LiDAR
+  permalink: /lidar
+  description: Traitement et analyse LiDAR
+
+apprentissage-automatique:
+  label: Apprentissage automatique
+  permalink: /apprentissage-automatique
+  description: Applications ML et jeux de données
+
+premiere-version:
+  label: Première version
+  permalink: /premiere-version
+  description: Version initiale du produit

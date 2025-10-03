@@ -1,0 +1,18 @@
+{
+  "title": {
+    "message": "IGN LiDAR HD",
+    "description": "The title in the navbar"
+  },
+  "item.label.Documentation": {
+    "message": "Documentation",
+    "description": "Navbar item with label Documentation"
+  },
+  "item.label.📢 First Release!": {
+    "message": "📢 Première version !",
+    "description": "Navbar item with label First Release"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}
