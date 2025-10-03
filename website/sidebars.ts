@@ -1,4 +1,4 @@
-import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -14,31 +14,30 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
  */
 const sidebars: SidebarsConfig = {
   tutorialSidebar: [
-    'intro',
+    "intro",
     {
-      type: 'category',
-      label: 'Installation',
-      items: ['installation/quick-start'],
+      type: "category",
+      label: "Installation",
+      items: ["installation/quick-start"],
     },
     {
-      type: 'category',
-      label: 'User Guides',
+      type: "category",
+      label: "User Guides",
       items: [
-        'guides/basic-usage',
-        'guides/cli-commands',
-        'guides/qgis-integration',
-        'guides/qgis-troubleshooting',
+        "guides/basic-usage",
+        "guides/cli-commands",
+        "guides/qgis-integration",
       ],
     },
     {
-      type: 'category',
-      label: 'Features',
-      items: ['features/smart-skip', 'features/format-preferences'],
+      type: "category",
+      label: "Features",
+      items: ["features/smart-skip", "features/format-preferences"],
     },
     {
-      type: 'category',
-      label: 'Technical Reference',
-      items: ['reference/memory-optimization'],
+      type: "category",
+      label: "Technical Reference",
+      items: ["reference/memory-optimization"],
     },
   ],
 };
