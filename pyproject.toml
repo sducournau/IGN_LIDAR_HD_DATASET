@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ign-lidar-hd"
-version = "1.2.0"
+version = "1.5.0"
 description = "IGN LiDAR HD Dataset Processing Library for Building LOD Classification"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -49,12 +49,20 @@ pipeline = [
     "PyYAML>=6.0",
 ]
 
-# GPU acceleration support
+# GPU acceleration support (basic)
 gpu = [
     "cupy>=10.0.0",
 ]
 
-# All optional features
+# Advanced GPU acceleration with RAPIDS cuML
+# Note: RAPIDS may require conda installation for best compatibility
+# conda install -c rapidsai -c conda-forge -c nvidia cuml
+gpu-full = [
+    "cupy>=10.0.0",
+    "cuml>=23.10.0",  # RAPIDS cuML for GPU-accelerated ML
+]
+
+# All optional features (basic GPU only, not RAPIDS)
 all = [
     "requests>=2.25.0",
     "Pillow>=9.0.0",

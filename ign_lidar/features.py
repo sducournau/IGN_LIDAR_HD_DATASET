@@ -934,3 +934,85 @@ def compute_all_features_optimized(
     
     return normals, curvature, height, geo_features
 
+
+def compute_all_features_with_gpu(
+    points: np.ndarray,
+    classification: np.ndarray,
+    k: int = None,
+    auto_k: bool = True,
+    use_gpu: bool = False
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
+    """
+    Compute all features with optional GPU acceleration.
+    
+    This is a wrapper around compute_all_features_optimized() that optionally
+    uses GPU acceleration if available and requested.
+    
+    Args:
+        points: [N, 3] point coordinates
+        classification: [N] ASPRS classification codes
+        k: number of neighbors for KNN (if None, auto-computed)
+        auto_k: if True, automatically estimate optimal k based on density
+        use_gpu: if True, attempt to use GPU acceleration
+        
+    Returns:
+        normals: [N, 3] surface normals
+        curvature: [N] curvature values
+        height: [N] height above ground
+        geo_features: dict with all geometric features
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    if use_gpu:
+        try:
+            from .features_gpu import GPUFeatureComputer, GPU_AVAILABLE
+            
+            if not GPU_AVAILABLE:
+                logger.warning(
+                    "GPU requested but CuPy not available. Using CPU."
+                )
+                return compute_all_features_optimized(
+                    points, classification, k, auto_k,
+                    include_extra=False, patch_center=None, chunk_size=None
+                )
+            
+            logger.info("Using GPU acceleration for feature computation")
+            
+            # Auto-estimate k if needed
+            if auto_k and k is None:
+                k = estimate_optimal_k(points, target_radius=0.5)
+                logger.info(
+                    f"Auto-estimated k={k} neighbors based on density"
+                )
+            elif k is None:
+                k = 10
+            
+            # Use GPU computer
+            computer = GPUFeatureComputer(use_gpu=True)
+            
+            # Compute features on GPU
+            normals = computer.compute_normals(points, k=k)
+            curvature = computer.compute_curvature(points, normals, k=k)
+            height = computer.compute_height_above_ground(
+                points, classification
+            )
+            geo_features = computer.extract_geometric_features(
+                points, normals, k=k
+            )
+            
+            return normals, curvature, height, geo_features
+            
+        except ImportError as e:
+            logger.warning(f"GPU requested but not available: {e}")
+            logger.warning("Falling back to CPU processing")
+        except Exception as e:
+            logger.error(f"GPU processing failed: {e}")
+            logger.warning("Falling back to CPU processing")
+    
+    # CPU fallback
+    return compute_all_features_optimized(
+        points, classification, k, auto_k,
+        include_extra=False
+    )
+

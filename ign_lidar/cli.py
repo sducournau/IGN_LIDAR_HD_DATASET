@@ -116,32 +116,8 @@ def _enrich_single_file(args_tuple):
         )
         return 'skipped'
     
-    # Import features (GPU if available)
-    try:
-        if use_gpu:
-            from .features_gpu import (
-                compute_normals, compute_curvature,
-                compute_height_above_ground, extract_geometric_features,
-                GPU_AVAILABLE
-            )
-            if not GPU_AVAILABLE:
-                worker_logger.warning(
-                    "GPU requested but not available, falling back to CPU"
-                )
-                from .features import (
-                    compute_normals, compute_curvature,
-                    compute_height_above_ground, extract_geometric_features
-                )
-        else:
-            from .features import (
-                compute_normals, compute_curvature,
-                compute_height_above_ground, extract_geometric_features
-            )
-    except ImportError:
-        from .features import (
-            compute_normals, compute_curvature,
-            compute_height_above_ground, extract_geometric_features
-        )
+    # Import feature computation function
+    from .features import compute_all_features_with_gpu
     
     try:
         worker_logger.info(f"Processing {laz_path.name}...")
@@ -256,20 +232,30 @@ def _enrich_single_file(args_tuple):
                 f"  Computing CORE features for {len(points):,} points..."
             )
         
-        # Use optimized all-in-one function with chunking support
-        try:
+        # Compute features with optional GPU acceleration
+        # Note: chunk_size not yet supported in GPU path
+        if chunk_size is None:
+            # Use GPU-enabled function
+            normals, curvature, height_above_ground, geometric_features = \
+                compute_all_features_with_gpu(
+                    points, classification,
+                    k=k_neighbors,
+                    auto_k=False,
+                    use_gpu=use_gpu
+                )
+        else:
+            # Chunked processing (CPU only for now)
+            if use_gpu:
+                worker_logger.warning(
+                    "  GPU not supported with chunked processing, using CPU"
+                )
             from .features import compute_all_features_optimized
             normals, curvature, height_above_ground, geometric_features = \
                 compute_all_features_optimized(
-                    points, classification, k=k_neighbors,
-                    include_extra=False, chunk_size=chunk_size
+                    points, classification,
+                    k=k_neighbors,
+                    include_extra=False
                 )
-        except ImportError:
-            # Fallback to individual functions (old code)
-            normals = compute_normals(points, k=k_neighbors)
-            curvature = compute_curvature(points, normals, k=k_neighbors)
-            height_above_ground = compute_height_above_ground(points, classification)
-            geometric_features = extract_geometric_features(points, normals, k=k_neighbors)
         
         # Output path is already set (preserves directory structure)
         # Ensure output directory exists
@@ -321,17 +307,11 @@ def _enrich_single_file(args_tuple):
         # Add extra building-specific features if in building mode
         if mode == 'building':
             try:
-                # Import building-specific feature functions
-                if use_gpu:
-                    from .features_gpu import (
-                        compute_verticality, compute_wall_score,
-                        compute_roof_score, compute_num_points_in_radius
-                    )
-                else:
-                    from .features import (
-                        compute_verticality, compute_wall_score,
-                        compute_roof_score, compute_num_points_in_radius
-                    )
+                # Import building-specific feature functions (CPU only)
+                from .features import (
+                    compute_verticality, compute_wall_score,
+                    compute_roof_score, compute_num_points_in_radius
+                )
                 
                 worker_logger.info("  Computing building-specific features...")
                 

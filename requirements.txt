@@ -12,6 +12,10 @@ Pillow>=9.0.0
 # For AI dataset creation and processing
 h5py>=3.0.0
 
+# Optional: For GPU acceleration (comment if not needed)
+# cupy-cuda11x>=12.0.0  # For CUDA 11.x
+# cupy-cuda12x>=12.0.0  # For CUDA 12.x
+
 # Optional: For PyTorch models (comment if not needed)
 # torch>=2.0.0
 # torchvision>=0.15.0

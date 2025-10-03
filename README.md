@@ -60,8 +60,36 @@ flowchart TD
 ### Installation
 
 ```bash
+# Standard installation
 pip install ign-lidar-hd
+
+# Optional: GPU acceleration (requires NVIDIA GPU + CUDA)
+pip install ign-lidar-hd[gpu]  # Basic GPU support with CuPy
+
+# Advanced GPU with RAPIDS cuML (best performance, conda recommended)
+pip install ign-lidar-hd[gpu-full]  # Includes RAPIDS cuML
+# Or via conda for better compatibility:
+# conda install -c rapidsai -c conda-forge -c nvidia cuml
+
+# Manual GPU setup:
+# pip install cupy-cuda11x  # For CUDA 11.x
+# pip install cupy-cuda12x  # For CUDA 12.x
+# pip install cuml-cu11     # RAPIDS for CUDA 11.x (optional)
 ```
+
+**GPU Requirements** (optional):
+
+- NVIDIA GPU with CUDA support
+- CUDA Toolkit 11.0 or higher
+- CuPy package matching your CUDA version
+- Optional: RAPIDS cuML for advanced GPU-accelerated algorithms
+- Expected speedup: 5-6x faster than CPU (CuPy), up to 10x with RAPIDS
+
+📖 **GPU Documentation:**
+
+- 📘 [Complete GPU Guide](website/docs/gpu-guide.md) - Full documentation
+- 🚀 [Quick Start](GPU_QUICKSTART.md) - Get started in 30 seconds
+- 📊 [Performance Benchmarks](GPU_COMPLETE.md#performance-expectations) - Expected speedups
 
 ### Basic Usage
 
@@ -90,8 +118,8 @@ ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --num-workers 4
 # Enrich with geometric features
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/
 
-# Enrich with GPU acceleration (⚠️ Note: GPU integration coming in v1.3.0)
-# Currently the --use-gpu flag is non-functional (uses CPU fallback)
+# Enrich with GPU acceleration (requires CuPy)
+# Automatically falls back to CPU if GPU unavailable
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --use-gpu
 
 # Enrich with RGB augmentation from IGN orthophotos
@@ -164,7 +192,7 @@ patch:
 
 ### ⚡ **Performance & Optimization**
 
-- **GPU acceleration**: ⚠️ Planned for v1.3.0 (module exists but not yet integrated)
+- **GPU acceleration**: CUDA-accelerated feature computation with automatic CPU fallback
 - **Parallel processing**: Multi-worker support with automatic CPU core detection
 - **Memory optimization**: Chunked processing for large datasets
 - **Smart skip detection**: ⏭️ Automatically skip existing files and resume interrupted workflows

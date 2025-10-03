@@ -123,14 +123,36 @@ Intelligent workflow resumption:
 - Timestamp comparison
 - Progress tracking
 
-### GPU Acceleration
+### GPU Acceleration (New in v1.5.0)
 
 Optional CUDA acceleration for:
 
 - K-nearest neighbor searches
 - Matrix operations
 - Feature computations
+- **RGB color interpolation (24x faster)** 🆕
+- **GPU memory caching for RGB tiles** 🆕
 - Large dataset processing
+
+#### GPU RGB Pipeline
+
+```mermaid
+flowchart LR
+    A[Points] --> B[GPU Transfer]
+    B --> C[Features GPU]
+    C --> D[RGB Cache GPU]
+    D --> E[Color Interpolation GPU]
+    E --> F[Combined Results]
+    F --> G[CPU Transfer]
+
+    style B fill:#c8e6c9
+    style C fill:#c8e6c9
+    style D fill:#c8e6c9
+    style E fill:#c8e6c9
+    style F fill:#c8e6c9
+```
+
+**Performance:** 24x speedup for RGB augmentation (v1.5.0)
 
 ## 📊 Performance Characteristics
 
@@ -186,4 +208,3 @@ The architecture supports customization through:
 - **Validation Rules** - Add quality checks
 
 This modular design ensures the library can adapt to various research and production requirements while maintaining performance and reliability.
-

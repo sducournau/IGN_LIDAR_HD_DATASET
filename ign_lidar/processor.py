@@ -13,7 +13,10 @@ import numpy as np
 import laspy
 from tqdm import tqdm
 
-from .features import compute_all_features_optimized
+from .features import (
+    compute_all_features_optimized,
+    compute_all_features_with_gpu
+)
 from .classes import ASPRS_TO_LOD2, ASPRS_TO_LOD3
 from .utils import extract_patches, augment_patch, save_patch
 from .metadata import MetadataManager
@@ -43,7 +46,8 @@ class LiDARProcessor:
                  include_architectural_style: bool = False,
                  style_encoding: str = 'constant',
                  include_rgb: bool = False,
-                 rgb_cache_dir: Path = None):
+                 rgb_cache_dir: Path = None,
+                 use_gpu: bool = False):
         """
         Initialize processor.
         
@@ -66,6 +70,8 @@ class LiDARProcessor:
                            - 'multihot': Multi-label with weights [N, 13]
             include_rgb: If True, add RGB from IGN orthophotos
             rgb_cache_dir: Directory to cache orthophoto tiles
+            use_gpu: If True, use GPU acceleration for feature computation
+                    (requires CuPy and RAPIDS cuML)
         """
         self.lod_level = lod_level
         self.augment = augment
@@ -80,6 +86,7 @@ class LiDARProcessor:
         self.style_encoding = style_encoding
         self.include_rgb = include_rgb
         self.rgb_cache_dir = rgb_cache_dir
+        self.use_gpu = use_gpu
         
         # Initialize RGB fetcher if needed
         self.rgb_fetcher = None
@@ -94,6 +101,22 @@ class LiDARProcessor:
                 )
                 logger.error("Install with: pip install requests Pillow")
                 self.include_rgb = False
+
+        # Validate GPU availability if requested
+        if use_gpu:
+            try:
+                from .features_gpu import GPU_AVAILABLE
+                if not GPU_AVAILABLE:
+                    logger.warning(
+                        "GPU requested but CuPy not available. "
+                        "Using CPU."
+                    )
+                    self.use_gpu = False
+                else:
+                    logger.info("GPU acceleration enabled")
+            except ImportError:
+                logger.warning("GPU module not available. Using CPU.")
+                self.use_gpu = False
         
         # Set class mapping
         if lod_level == 'LOD2':
@@ -212,14 +235,28 @@ class LiDARProcessor:
         use_auto_k = self.k_neighbors is None
         k_value = self.k_neighbors if self.k_neighbors is not None else None
         
-        normals, curvature, height, geo_features = compute_all_features_optimized(
-            points=points,
-            classification=classification,
-            k=k_value,
-            auto_k=use_auto_k,
-            include_extra=self.include_extra_features,
-            patch_center=patch_center
-        )
+        # Choose GPU or CPU based on configuration
+        if self.use_gpu:
+            normals, curvature, height, geo_features = (
+                compute_all_features_with_gpu(
+                    points=points,
+                    classification=classification,
+                    k=k_value,
+                    auto_k=use_auto_k,
+                    use_gpu=True
+                )
+            )
+        else:
+            normals, curvature, height, geo_features = (
+                compute_all_features_optimized(
+                    points=points,
+                    classification=classification,
+                    k=k_value,
+                    auto_k=use_auto_k,
+                    include_extra=self.include_extra_features,
+                    patch_center=patch_center
+                )
+            )
         
         feature_time = time.time() - feature_start
         logger.info(f"  ⏱️  Features computed in {feature_time:.1f}s")

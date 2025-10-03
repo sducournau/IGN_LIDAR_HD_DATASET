@@ -5,15 +5,20 @@
 
 # CuPy: NumPy-like API pour GPU NVIDIA
 # Choisir selon version CUDA:
-# cupy-cuda11x>=12.0.0  # Pour CUDA 11.x
+cupy-cuda11x>=12.0.0  # Pour CUDA 11.x (décommentez celle qui correspond à votre CUDA)
 # cupy-cuda12x>=12.0.0  # Pour CUDA 12.x
 
-# Note: Installer manuellement selon votre CUDA:
+# Note: Installer la version correspondant à votre CUDA:
 # pip install cupy-cuda11x  # ou cupy-cuda12x
 
-# RAPIDS cuML: scikit-learn pour GPU (optimal)
-# Note: Recommandé via conda plutôt que pip
+# RAPIDS cuML: scikit-learn pour GPU (optimal - optionnel)
+# Note: Recommandé via conda plutôt que pip pour meilleure compatibilité
 # conda install -c rapidsai -c conda-forge -c nvidia cuml=24.02
+#
+# OU via pip (peut nécessiter plus de configuration):
+# pip install cuml-cu11  # Pour CUDA 11.x
+# pip install cuml-cu12  # Pour CUDA 12.x
+cuml>=23.10.0  # Décommentez si vous avez configuré RAPIDS
 
 # ===== CPU Dependencies (Incluses dans requirements.txt) =====
 # Déjà présentes, aucune action nécessaire si venv configuré
