@@ -119,15 +119,15 @@ const config: Config = {
           items: [
             {
               label: "Getting Started",
-              to: "/docs/intro",
+              to: "/intro",
             },
             {
               label: "Installation",
-              to: "/docs/installation/quick-start",
+              to: "/installation/quick-start",
             },
             {
               label: "Basic Usage",
-              to: "/docs/guides/basic-usage",
+              to: "/guides/basic-usage",
             },
           ],
         },
