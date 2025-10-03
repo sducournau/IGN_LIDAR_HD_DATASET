@@ -6,13 +6,34 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 1.6.2** | Python 3.8+ | MIT License
+**Version 1.6.4** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🎉 Latest Release: v1.6.2
+## 📺 Video Demo
+
+<div align="center">
+  <iframe width="800" height="450" src="https://www.youtube.com/embed/ksBWEhkVqQI" title="IGN LiDAR HD Processing Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+  <p><em>Learn how to process LiDAR data for machine learning applications</em></p>
+</div>
+
+---
+
+## 🎉 Latest Release: v1.6.4
+
+**Documentation & Presentation Improvements**
+
+✨ **What's New:**
+
+- 📺 **Enhanced Documentation**: Updated README with embedded YouTube player for better video experience
+- 🎨 **Improved Presentation**: Better visual integration of demo content
+- 🔧 **Minor Updates**: Documentation improvements and refinements
+
+---
+
+## Previous Release: v1.6.2
 
 **Geometric Features Quality & GPU Consistency**
 
@@ -27,7 +48,7 @@ title: IGN LiDAR HD Processing Library
 If you use `use_gpu=True`, feature values have changed (old formulas were incorrect). You'll need to retrain models or switch to CPU.
 :::
 
-📺 **[Watch our demo video](https://youtu.be/ksBWEhkVqQI)** | [📖 v1.6.2 Notes](/docs/release-notes/v1.6.2) | [📖 v1.6.0 Notes](/docs/release-notes/v1.6.0)
+📖 [v1.6.2 Notes](/docs/release-notes/v1.6.2) | [v1.6.0 Notes](/docs/release-notes/v1.6.0)
 
 ---
 

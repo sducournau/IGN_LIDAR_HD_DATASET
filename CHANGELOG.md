@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.4] - 2025-10-03
+
+### Changed
+
+- **Enhanced Documentation** 📺
+  - Updated README with embedded YouTube player for better video experience
+  - Improved visual integration of demo content in Docusaurus documentation
+  - Better presentation of video tutorials and demos
+
 ## [1.6.3] - 2025-10-03
 
 ### Fixed

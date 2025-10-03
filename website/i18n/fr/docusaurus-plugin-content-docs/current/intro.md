@@ -6,15 +6,36 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 # Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Version 1.6.2** | Python 3.8+ | Licence MIT
+**Version 1.6.4** | Python 3.8+ | Licence MIT
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🎉 Dernière Version : v1.6.2
+## 📺 Vidéo de Démonstration
 
-### Qualité des Caractéristiques Géométriques & Cohérence GPU
+<div align="center">
+  <iframe width="800" height="450" src="https://www.youtube.com/embed/ksBWEhkVqQI" title="Démonstration du Traitement LiDAR HD de l'IGN" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+  <p><em>Apprenez à traiter les données LiDAR pour les applications d'apprentissage automatique</em></p>
+</div>
+
+---
+
+## 🎉 Dernière Version : v1.6.4
+
+**Améliorations de la Documentation & Présentation**
+
+✨ **Nouveautés :**
+
+- 📺 **Documentation Améliorée** : README mis à jour avec lecteur YouTube intégré pour une meilleure expérience vidéo
+- 🎨 **Présentation Améliorée** : Meilleure intégration visuelle du contenu de démonstration
+- 🔧 **Mises à jour Mineures** : Améliorations et raffinements de la documentation
+
+---
+
+## Version Précédente : v1.6.2
+
+**Qualité des Caractéristiques Géométriques & Cohérence GPU**
 
 :::warning Changement Important pour les Utilisateurs GPU
 La v1.6.2 corrige des **bugs critiques** dans les formules GPU. Si vous avez utilisé `use_gpu=True` en v1.6.1 ou antérieure, vous devrez réentraîner vos modèles ou passer au CPU pour la compatibilité. [En savoir plus →](/docs/release-notes/v1.6.2)
@@ -24,11 +45,11 @@ La v1.6.2 corrige des **bugs critiques** dans les formules GPU. Si vous avez uti
 
 - 🔧 **Correction Formules GPU** : Normalisation des valeurs propres corrigée (GPU = CPU maintenant)
 - 🛡️ **Gestion Cas Dégénérés** : Plus de NaN/Inf - les cas limites retournent 0.0
-- � **Courbure Robuste** : Utilise MAD au lieu de std pour résister aux valeurs aberrantes
+- 📐 **Courbure Robuste** : Utilise MAD au lieu de std pour résister aux valeurs aberrantes
 - ✅ **Validation Complète** : Suite de tests garantissant GPU/CPU cohérents (< 0.0001% diff)
 - 📚 **Documentation Étendue** : Analyse technique détaillée dans le dépôt
 
-📺 **[Regardez notre vidéo de démonstration](https://youtu.be/ksBWEhkVqQI)** | [📖 Notes de Version v1.6.2](/docs/release-notes/v1.6.2)
+📖 [Notes de Version v1.6.2](/docs/release-notes/v1.6.2)
 
 ---
 
