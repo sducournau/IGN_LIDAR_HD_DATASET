@@ -1,53 +1,104 @@
 ---
 sidebar_position: 2
-title: "GPU Feature Computation"
-description: "Technical details of GPU-accelerated feature extraction"
-keywords: [gpu, features, performance, cupy, benchmarks, api]
+title: "Calcul de Caractéristiques GPU"
+description: "Détails techniques de l'extraction de caractéristiques accélérée par GPU"
+keywords: [gpu, caractéristiques, performance, cupy, benchmarks, api]
 ---
 
-# GPU Feature Computation
+# Calcul de Caractéristiques GPU
 
-**Available in:** v1.3.0+  
-**Acceleration:** 5-10x speedup over CPU
+**Disponible depuis :** v1.3.0+  
+**Accélération :** 5-10x plus rapide que CPU  
+**Corrigé en v1.6.2 :** Les formules GPU correspondent maintenant au CPU (voir changements breaking ci-dessous)
 
-This guide covers the technical details of GPU-accelerated feature computation, including which features are accelerated, API reference, and advanced optimization techniques.
+:::warning Changement Breaking en v1.6.2
+Les formules de caractéristiques GPU ont été corrigées pour correspondre au CPU et à la littérature standard (Weinmann et al., 2015). Si vous avez utilisé l'accélération GPU en v1.6.1 ou antérieure, les valeurs de caractéristiques ont changé. Vous devrez réentraîner les modèles ou passer au CPU pour la compatibilité avec les anciens modèles.
+:::
 
-## Features Accelerated
+Ce guide couvre les détails techniques du calcul de caractéristiques accéléré par GPU, incluant quelles caractéristiques sont accélérées, la référence API, et les techniques d'optimisation avancées.
 
-The following features are computed on GPU when GPU acceleration is enabled:
+## Caractéristiques Accélérées
 
-### Core Geometric Features
+Les caractéristiques suivantes sont calculées sur GPU lorsque l'accélération GPU est activée :
 
-- ✅ **Surface normals** (nx, ny, nz) - Normal vectors for each point
-- ✅ **Curvature** values - Surface curvature at each point
-- ✅ **Height above ground** - Normalized height values
+### Caractéristiques Géométriques de Base
 
-### Advanced Geometric Features
+- ✅ **Normales de surface** (nx, ny, nz) - Vecteurs normaux pour chaque point
+- ✅ **Valeurs de courbure** - Courbure de surface à chaque point
+- ✅ **Hauteur au-dessus du sol** - Valeurs de hauteur normalisées
 
-- ✅ **Planarity** - Measure of how flat a surface is (useful for roofs, roads)
-- ✅ **Linearity** - Measure of linear structures (useful for edges, cables)
-- ✅ **Sphericity** - Measure of spherical structures (useful for vegetation)
-- ✅ **Anisotropy** - Directional structure measure
-- ✅ **Roughness** - Surface texture and irregularity
-- ✅ **Local density** - Point density in local neighborhood
+### Caractéristiques Géométriques Avancées
 
-### Building-Specific Features
+- ✅ **Planarité** - Mesure de la planéité d'une surface (utile pour toits, routes)
+- ✅ **Linéarité** - Mesure des structures linéaires (utile pour bords, câbles)
+- ✅ **Sphéricité** - Mesure des structures sphériques (utile pour végétation)
+- ✅ **Anisotropie** - Mesure de structure directionnelle
+- ✅ **Rugosité** - Texture et irrégularité de surface
+- ✅ **Densité locale** - Densité de points dans le voisinage local
 
-- ✅ **Verticality** - Measure of vertical alignment (walls)
-- ✅ **Horizontality** - Measure of horizontal alignment (roofs, floors)
-- ✅ **Wall score** - Probability of being a wall element
-- ✅ **Roof score** - Probability of being a roof element
+### Caractéristiques Spécifiques aux Bâtiments
 
-### Performance by Feature Type
+- ✅ **Verticalité** - Mesure d'alignement vertical (murs)
+- ✅ **Horizontalité** - Mesure d'alignement horizontal (toits, planchers)
+- ✅ **Score de mur** - Probabilité d'être un élément de mur
+- ✅ **Score de toit** - Probabilité d'être un élément de toit
 
-| Feature Type          | CPU Time | GPU Time | Speedup |
-| --------------------- | -------- | -------- | ------- |
-| Surface Normals       | 2.5s     | 0.3s     | 8.3x    |
-| Curvature             | 3.0s     | 0.4s     | 7.5x    |
-| Height Above Ground   | 1.5s     | 0.2s     | 7.5x    |
-| Geometric Features    | 4.0s     | 0.6s     | 6.7x    |
-| Building Features     | 5.0s     | 0.8s     | 6.3x    |
-| **Total (1M points)** | **16s**  | **2.3s** | **7x**  |
+### Performance par Type de Caractéristique
+
+| Type de Caractéristique | Temps CPU | Temps GPU | Accélération |
+| ----------------------- | --------- | --------- | ------------ |
+| Normales de Surface     | 2,5s      | 0,3s      | 8,3x         |
+| Courbure                | 3,0s      | 0,4s      | 7,5x         |
+| Hauteur au-dessus Sol   | 1,5s      | 0,2s      | 7,5x         |
+| Caractéristiques Géo    | 4,0s      | 0,6s      | 6,7x         |
+| Caractéristiques Bât.   | 5,0s      | 0,8s      | 6,3x         |
+| **Total (1M points)**   | **16s**   | **2,3s**  | **7x**       |
+
+## Ce Qui a Changé en v1.6.2
+
+### Corrections de Formules
+
+Les formules GPU ont été corrigées pour correspondre au CPU et à la littérature standard :
+
+**Avant v1.6.2** (INCORRECT) :
+
+```python
+planarity = (λ1 - λ2) / λ0  # Mauvaise normalisation
+linearity = (λ0 - λ1) / λ0  # Mauvaise normalisation
+sphericity = λ2 / λ0         # Mauvaise normalisation
+```
+
+**v1.6.2+** (CORRECT - correspond à [Weinmann et al., 2015](https://www.sciencedirect.com/science/article/pii/S0924271615001842)) :
+
+```python
+sum_λ = λ0 + λ1 + λ2
+planarity = (λ1 - λ2) / sum_λ   # Formulation standard
+linearity = (λ0 - λ1) / sum_λ   # Formulation standard
+sphericity = λ2 / sum_λ          # Formulation standard
+```
+
+### Nouvelles Fonctionnalités de Robustesse
+
+1. **Filtrage des Cas Dégénérés** : Les points avec des voisins insuffisants ou des valeurs propres proches de zéro retournent maintenant 0,0 au lieu de NaN/Inf
+2. **Courbure Robuste** : Utilise la Déviation Absolue Médiane (MAD) au lieu de std pour la résistance aux valeurs aberrantes
+3. **Support de Recherche par Rayon** : Recherche de voisins optionnelle basée sur le rayon (repli sur CPU)
+
+### Validation
+
+Le GPU produit maintenant des résultats identiques au CPU (validé : différence max < 0,0001%) :
+
+```python
+# Exécuter le test de validation
+python tests/test_feature_fixes.py
+# Attendu : ✓✓✓ TOUS LES TESTS RÉUSSIS ✓✓✓
+```
+
+Pour plus de détails, voir :
+
+- [Notes de Version v1.6.2](/docs/release-notes/v1.6.2)
+- Fichiers du dépôt : `GEOMETRIC_FEATURES_ANALYSIS.md`, `IMPLEMENTATION_SUMMARY.md`
+
+---
 
 ## API Reference
 

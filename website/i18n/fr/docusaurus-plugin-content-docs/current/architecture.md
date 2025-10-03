@@ -2,41 +2,41 @@
 sidebar_position: 3
 ---
 
-# System Architecture
+# Architecture du Système
 
-Understanding the library's architecture helps you make the most of its capabilities and customize it for your specific needs.
+Comprendre l'architecture de la bibliothèque vous aide à tirer le meilleur parti de ses capacités et à la personnaliser selon vos besoins spécifiques.
 
-## 🏗️ Core Architecture
+## 🏗️ Architecture de Base
 
 ```mermaid
 graph TB
-    subgraph "User Interface Layer"
-        CLI[Command Line Interface]
-        API[Python API]
+    subgraph "Couche Interface Utilisateur"
+        CLI[Interface Ligne de Commande]
+        API[API Python]
     end
 
-    subgraph "Processing Core"
-        PROC[LiDAR Processor]
-        FEAT[Feature Engine]
-        GPU[GPU Accelerator]
+    subgraph "Noyau de Traitement"
+        PROC[Processeur LiDAR]
+        FEAT[Moteur de Caractéristiques]
+        GPU[Accélérateur GPU]
     end
 
-    subgraph "Data Management"
-        DOWN[IGN Downloader]
-        TILE[Tile Manager]
-        META[Metadata Store]
+    subgraph "Gestion des Données"
+        DOWN[Téléchargeur IGN]
+        TILE[Gestionnaire de Dalles]
+        META[Stockage Métadonnées]
     end
 
-    subgraph "Classification Layer"
-        LOD2[LOD2 Schema<br/>15 Classes]
-        LOD3[LOD3 Schema<br/>30+ Classes]
-        ARCH[Architectural Styles]
+    subgraph "Couche Classification"
+        LOD2[Schéma LOD2<br/>15 Classes]
+        LOD3[Schéma LOD3<br/>30+ Classes]
+        ARCH[Styles Architecturaux]
     end
 
-    subgraph "Output Formats"
-        NPZ[NPZ Patches]
-        LAZ[Enriched LAZ]
-        QGIS[QGIS Compatible]
+    subgraph "Formats de Sortie"
+        NPZ[Patches NPZ]
+        LAZ[LAZ Enrichi]
+        QGIS[Compatible QGIS]
     end
 
     CLI --> PROC
@@ -60,94 +60,94 @@ graph TB
     style GPU fill:#ffebee
 ```
 
-## 🔄 Data Flow Architecture
+## 🔄 Architecture de Flux de Données
 
 ```mermaid
 sequenceDiagram
-    participant U as User
+    participant U as Utilisateur
     participant C as CLI/API
-    participant D as Downloader
-    participant F as Feature Engine
-    participant P as Processor
-    participant S as Storage
+    participant D as Téléchargeur
+    participant F as Moteur Caractéristiques
+    participant P as Processeur
+    participant S as Stockage
 
-    U->>C: Request processing
-    C->>D: Download tiles
-    D->>D: Check existing files
-    D->>S: Store raw LAZ
-    D-->>C: Tiles available
+    U->>C: Demande de traitement
+    C->>D: Télécharger dalles
+    D->>D: Vérifier fichiers existants
+    D->>S: Stocker LAZ brut
+    D-->>C: Dalles disponibles
 
-    C->>F: Enrich with features
-    F->>F: Compute normals
-    F->>F: Extract curvature
-    F->>F: Analyze geometry
-    F->>S: Store enriched LAZ
-    F-->>C: Features ready
+    C->>F: Enrichir avec caractéristiques
+    F->>F: Calculer normales
+    F->>F: Extraire courbure
+    F->>F: Analyser géométrie
+    F->>S: Stocker LAZ enrichi
+    F-->>C: Caractéristiques prêtes
 
-    C->>P: Create patches
-    P->>P: Extract patches
-    P->>P: Apply augmentation
-    P->>P: Assign LOD labels
-    P->>S: Store NPZ patches
-    P-->>C: Dataset ready
-    C-->>U: Processing complete
+    C->>P: Créer patches
+    P->>P: Extraire patches
+    P->>P: Appliquer augmentation
+    P->>P: Assigner labels LOD
+    P->>S: Stocker patches NPZ
+    P-->>C: Dataset prêt
+    C-->>U: Traitement terminé
 ```
 
-## 🧩 Component Details
+## 🧩 Détails des Composants
 
-### Core Processor
+### Processeur Principal
 
-The `LiDARProcessor` class orchestrates the entire pipeline:
+La classe `LiDARProcessor` orchestre l'ensemble du pipeline :
 
-- Manages workflow execution
-- Handles parallel processing
-- Coordinates smart skip detection
-- Applies data augmentation
+- Gère l'exécution du workflow
+- Gère le traitement parallèle
+- Coordonne la détection de saut intelligent
+- Applique l'augmentation de données
 
-### Feature Engine
+### Moteur de Caractéristiques
 
-Advanced geometric analysis:
+Analyse géométrique avancée :
 
-- Surface normal computation
-- Principal curvature calculation
-- Planarity and verticality measures
-- Local density estimation
-- Architectural style inference
+- Calcul des normales de surface
+- Calcul de la courbure principale
+- Mesures de planarité et verticalité
+- Estimation de la densité locale
+- Inférence du style architectural
 
-### Smart Skip System
+### Système de Saut Intelligent
 
-Intelligent workflow resumption:
+Reprise intelligente du workflow :
 
-- File existence checking
-- Metadata validation
-- Timestamp comparison
-- Progress tracking
+- Vérification de l'existence des fichiers
+- Validation des métadonnées
+- Comparaison des horodatages
+- Suivi de la progression
 
-### GPU Acceleration (New in v1.5.0)
+### Accélération GPU (Nouveau en v1.5.0, Corrigé en v1.6.2)
 
-Optional CUDA acceleration for:
+Accélération CUDA optionnelle pour :
 
-- K-nearest neighbor searches
-- Matrix operations
-- Feature computations
-- **RGB color interpolation (24x faster)** 🆕
-- **GPU memory caching for RGB tiles** 🆕
-- Large dataset processing
+- Recherches k plus proches voisins
+- Opérations matricielles
+- Calculs de caractéristiques (formules corrigées en v1.6.2)
+- **Interpolation de couleurs RGB (24x plus rapide)** 🆕
+- **Mise en cache mémoire GPU pour dalles RGB** 🆕
+- Traitement de grands jeux de données
 
-:::tip Learn More
-See [GPU Acceleration Guide](gpu/overview.md) for complete setup instructions and [GPU RGB Guide](gpu/rgb-augmentation.md) for RGB-specific details.
+:::tip En Savoir Plus
+Voir le [Guide d'Accélération GPU](gpu/overview.md) pour les instructions complètes et le [Guide RGB GPU](gpu/rgb-augmentation.md) pour les détails spécifiques RGB.
 :::
 
-#### GPU RGB Pipeline
+#### Pipeline RGB GPU
 
 ```mermaid
 flowchart LR
-    A[Points] --> B[GPU Transfer]
-    B --> C[Features GPU]
-    C --> D[RGB Cache GPU]
-    D --> E[Color Interpolation GPU]
-    E --> F[Combined Results]
-    F --> G[CPU Transfer]
+    A[Points] --> B[Transfert GPU]
+    B --> C[Caractéristiques GPU]
+    C --> D[Cache RGB GPU]
+    D --> E[Interpolation Couleur GPU]
+    E --> F[Résultats Combinés]
+    F --> G[Transfert CPU]
 
     style B fill:#c8e6c9
     style C fill:#c8e6c9
@@ -156,26 +156,26 @@ flowchart LR
     style F fill:#c8e6c9
 ```
 
-**Performance:** 24x speedup for RGB augmentation (v1.5.0)
+**Performance :** Accélération 24x pour l'augmentation RGB (v1.5.0)
 
-## 📊 Performance Characteristics
+## 📊 Caractéristiques de Performance
 
 ```mermaid
 graph LR
-    subgraph "Processing Speed"
-        CPU[CPU Mode<br/>~1-2 tiles/min]
-        GPU_ACC[GPU Mode<br/>~5-10 tiles/min]
+    subgraph "Vitesse de Traitement"
+        CPU[Mode CPU<br/>~1-2 dalles/min]
+        GPU_ACC[Mode GPU<br/>~5-10 dalles/min]
     end
 
-    subgraph "Memory Usage"
-        SMALL[Small Tiles<br/>~512MB RAM]
-        LARGE[Large Tiles<br/>~2-4GB RAM]
+    subgraph "Utilisation Mémoire"
+        SMALL[Petites Dalles<br/>~512MB RAM]
+        LARGE[Grandes Dalles<br/>~2-4GB RAM]
     end
 
-    subgraph "Output Size"
-        INPUT[Raw LAZ<br/>~50-200MB]
-        OUTPUT[Enriched LAZ<br/>~80-300MB]
-        PATCHES[NPZ Patches<br/>~10-50MB each]
+    subgraph "Taille de Sortie"
+        INPUT[LAZ Brut<br/>~50-200MB]
+        OUTPUT[LAZ Enrichi<br/>~80-300MB]
+        PATCHES[Patches NPZ<br/>~10-50MB chacun]
     end
 
     style GPU_ACC fill:#e8f5e8
@@ -183,32 +183,32 @@ graph LR
     style OUTPUT fill:#e3f2fd
 ```
 
-## 🔧 Configuration System
+## 🔧 Système de Configuration
 
-The library uses a hierarchical configuration approach:
+La bibliothèque utilise une approche de configuration hiérarchique :
 
-1. **Default Settings** - Built-in optimal defaults
-2. **Configuration Files** - Project-specific settings
-3. **Environment Variables** - Runtime overrides
-4. **Command Arguments** - Immediate parameters
+1. **Paramètres par Défaut** - Valeurs optimales intégrées
+2. **Fichiers de Configuration** - Paramètres spécifiques au projet
+3. **Variables d'Environnement** - Remplacements à l'exécution
+4. **Arguments de Commande** - Paramètres immédiats
 
-### Key Configuration Options
+### Options de Configuration Clés
 
-| Category    | Options                          | Impact                  |
-| ----------- | -------------------------------- | ----------------------- |
-| Performance | `num_workers`, `use_gpu`         | Processing speed        |
-| Quality     | `k_neighbors`, `patch_size`      | Feature accuracy        |
-| Output      | `lod_level`, `format_preference` | Dataset characteristics |
-| Workflow    | `skip_existing`, `force`         | Resumability behavior   |
+| Catégorie   | Options                          | Impact                         |
+| ----------- | -------------------------------- | ------------------------------ |
+| Performance | `num_workers`, `use_gpu`         | Vitesse de traitement          |
+| Qualité     | `k_neighbors`, `patch_size`      | Précision des caractéristiques |
+| Sortie      | `lod_level`, `format_preference` | Caractéristiques du dataset    |
+| Workflow    | `skip_existing`, `force`         | Comportement de reprise        |
 
-## 🚀 Extension Points
+## 🚀 Points d'Extension
 
-The architecture supports customization through:
+L'architecture supporte la personnalisation via :
 
-- **Custom Feature Extractors** - Add domain-specific features
-- **Classification Schemas** - Define new LOD levels
-- **Output Formats** - Support additional file formats
-- **Processing Hooks** - Insert custom processing steps
-- **Validation Rules** - Add quality checks
+- **Extracteurs de Caractéristiques Personnalisés** - Ajouter des caractéristiques spécifiques au domaine
+- **Schémas de Classification** - Définir de nouveaux niveaux LOD
+- **Formats de Sortie** - Supporter des formats de fichiers supplémentaires
+- **Hooks de Traitement** - Insérer des étapes de traitement personnalisées
+- **Règles de Validation** - Ajouter des vérifications de qualité
 
-This modular design ensures the library can adapt to various research and production requirements while maintaining performance and reliability.
+Cette conception modulaire garantit que la bibliothèque peut s'adapter à diverses exigences de recherche et de production tout en maintenant performance et fiabilité.

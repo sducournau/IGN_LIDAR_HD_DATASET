@@ -6,26 +6,29 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 # Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Version 1.6.0** | Python 3.8+ | Licence MIT
+**Version 1.6.2** | Python 3.8+ | Licence MIT
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🎉 Dernière Version : v1.6.0
+## 🎉 Dernière Version : v1.6.2
 
-### Amélioration de l'Augmentation de Données & RGB
+### Qualité des Caractéristiques Géométriques & Cohérence GPU
 
-✨ **Nouveautés :**
+:::warning Changement Important pour les Utilisateurs GPU
+La v1.6.2 corrige des **bugs critiques** dans les formules GPU. Si vous avez utilisé `use_gpu=True` en v1.6.1 ou antérieure, vous devrez réentraîner vos modèles ou passer au CPU pour la compatibilité. [En savoir plus →](/docs/release-notes/v1.6.2)
+:::
 
-- 🎯 **Augmentation Améliorée** : Les caractéristiques sont maintenant calculées sur la géométrie augmentée pour une meilleure cohérence
-- 🎨 **Correction RGB CloudCompare** : Affichage parfait des couleurs avec mise à l'échelle 16-bit corrigée (plage 0-65535)
-- ⚡ **Accélération GPU** : Support complet pour le traitement accéléré par CUDA (accélération 5-10x)
-- 📦 **Configuration Pipeline** : Workflows reproductibles basés sur YAML
-- 🔄 **Reprise Intelligente** : Ne retraite jamais les fichiers existants
-- 📚 **Documentation Complète** : Guides en anglais et en français
+✨ **Nouveautés v1.6.2 :**
 
-📺 **[Regardez notre vidéo de démonstration](https://youtu.be/ksBWEhkVqQI)** | [📖 Notes de Version](/docs/release-notes/v1.6.0)
+- 🔧 **Correction Formules GPU** : Normalisation des valeurs propres corrigée (GPU = CPU maintenant)
+- 🛡️ **Gestion Cas Dégénérés** : Plus de NaN/Inf - les cas limites retournent 0.0
+- � **Courbure Robuste** : Utilise MAD au lieu de std pour résister aux valeurs aberrantes
+- ✅ **Validation Complète** : Suite de tests garantissant GPU/CPU cohérents (< 0.0001% diff)
+- 📚 **Documentation Étendue** : Analyse technique détaillée dans le dépôt
+
+📺 **[Regardez notre vidéo de démonstration](https://youtu.be/ksBWEhkVqQI)** | [📖 Notes de Version v1.6.2](/docs/release-notes/v1.6.2)
 
 ---
 

@@ -1,54 +1,54 @@
 ---
 sidebar_position: 4
-title: Workflow Guide
-description: Common LiDAR processing workflows with visual diagrams
-keywords: [workflow, pipeline, processing, gpu, parallel, lod]
+title: Guide des Workflows
+description: Workflows courants de traitement LiDAR avec diagrammes visuels
+keywords: [workflow, pipeline, traitement, gpu, parallèle, lod]
 ---
 
-# Workflow Guide
+# Guide des Workflows
 
-This guide demonstrates common processing workflows with visual representations to help you understand the data flow and decision points.
+Ce guide présente les workflows de traitement courants avec des représentations visuelles pour vous aider à comprendre le flux de données et les points de décision.
 
 :::tip Navigation
 
-- [Basic Workflow](#-basic-workflow) - Standard processing pipeline
-- [GPU-Accelerated Workflow](#-gpu-accelerated-workflow) - High-performance GPU processing
-- [Smart Skip Workflow](#-smart-skip-workflow) - Resume interrupted jobs
-- [Parallel Processing](#-parallel-processing-workflow) - Multi-worker processing
-- [Best Practices](#-best-practice-workflows) - Optimized workflows for different scenarios
+- [Workflow de Base](#-workflow-de-base) - Pipeline de traitement standard
+- [Workflow Accéléré GPU](#-workflow-accéléré-gpu) - Traitement GPU haute performance
+- [Workflow Saut Intelligent](#-workflow-saut-intelligent) - Reprendre les tâches interrompues
+- [Traitement Parallèle](#-workflow-de-traitement-parallèle) - Traitement multi-worker
+- [Bonnes Pratiques](#-workflows-de-bonnes-pratiques) - Workflows optimisés pour différents scénarios
   :::
 
-## 🚀 Basic Workflow
+## 🚀 Workflow de Base
 
-The most common workflow for processing LiDAR data into ML-ready datasets.
+Le workflow le plus courant pour traiter les données LiDAR en datasets prêts pour le ML.
 
 ```mermaid
 flowchart TD
-    Start([Start Processing]) --> Check{Data Available?}
-    Check -->|No| Download[Download LiDAR Tiles]
-    Check -->|Yes| Skip1[Skip Download]
+    Start([Démarrer Traitement]) --> Check{Données Disponibles?}
+    Check -->|Non| Download[Télécharger Dalles LiDAR]
+    Check -->|Oui| Skip1[Ignorer Téléchargement]
 
-    Download --> Validate{Files Valid?}
+    Download --> Validate{Fichiers Valides?}
     Skip1 --> Validate
-    Validate -->|No| Error1[Report Error]
-    Validate -->|Yes| Enrich[Enrich with Features]
+    Validate -->|Non| Error1[Signaler Erreur]
+    Validate -->|Oui| Enrich[Enrichir avec Caractéristiques]
 
-    Enrich --> GPU{Use GPU?}
-    GPU -->|Yes| GPU_Process[GPU Feature Computation]
-    GPU -->|No| CPU_Process[CPU Feature Computation]
+    Enrich --> GPU{Utiliser GPU?}
+    GPU -->|Oui| GPU_Process[Calcul Caractéristiques GPU]
+    GPU -->|Non| CPU_Process[Calcul Caractéristiques CPU]
 
-    GPU_Process --> Features[Geometric Features Ready]
+    GPU_Process --> Features[Caractéristiques Géométriques Prêtes]
     CPU_Process --> Features
 
-    Features --> Process[Create Training Patches]
-    Process --> Augment{Apply Augmentation?}
+    Features --> Process[Créer Patches d'Entraînement]
+    Process --> Augment{Appliquer Augmentation?}
 
-    Augment -->|Yes| Aug_Process[Apply Data Augmentation]
-    Augment -->|No| NoAug[Skip Augmentation]
+    Augment -->|Oui| Aug_Process[Appliquer Augmentation de Données]
+    Augment -->|Non| NoAug[Ignorer Augmentation]
 
-    Aug_Process --> Output[ML Dataset Ready]
+    Aug_Process --> Output[Dataset ML Prêt]
     NoAug --> Output
-    Output --> End([Process Complete])
+    Output --> End([Traitement Terminé])
 
     Error1 --> End
 
@@ -60,9 +60,9 @@ flowchart TD
     style Output fill:#e8f5e8
 ```
 
-## ⚡ GPU-Accelerated Workflow
+## ⚡ Workflow Accéléré GPU
 
-Workflow for processing large datasets with GPU acceleration (v1.3.0+).
+Workflow pour traiter de grands datasets avec l'accélération GPU (v1.3.0+, corrigé en v1.6.2).
 
 ```mermaid
 flowchart TD

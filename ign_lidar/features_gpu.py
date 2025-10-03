@@ -259,7 +259,7 @@ class GPUFeatureComputer:
             # Query KNN
             _, indices = tree.query(batch_points, k=k)
             
-            # Vectorized curvature computation
+            # Vectorized curvature computation with robust MAD
             for i, point_indices in enumerate(indices):
                 neighbors = points[point_indices]
                 center = points[start_idx + i]
@@ -267,7 +267,11 @@ class GPUFeatureComputer:
                 
                 relative_pos = neighbors - center
                 distances_along_normal = np.dot(relative_pos, normal)
-                curvature[start_idx + i] = np.std(distances_along_normal)
+                
+                # Use Median Absolute Deviation (MAD) for robustness
+                median_dist = np.median(distances_along_normal)
+                mad = np.median(np.abs(distances_along_normal - median_dist))
+                curvature[start_idx + i] = mad * 1.4826  # Scale to std
         
         return curvature
     
@@ -297,27 +301,39 @@ class GPUFeatureComputer:
     
     def extract_geometric_features(self, points: np.ndarray,
                                   normals: np.ndarray,
-                                  k: int = 10) -> Dict[str, np.ndarray]:
+                                  k: int = 10,
+                                  radius: float = None) -> Dict[str, np.ndarray]:
         """
         Extract comprehensive geometric features for each point.
         Version vectorisée optimale - aligned with features.py.
         
         Features computed (eigenvalue-based):
-        - Planarity: (λ1-λ2)/λ0 - surfaces planes
-        - Linearity: (λ0-λ1)/λ0 - structures linéaires
-        - Sphericity: λ2/λ0 - structures sphériques
+        - Planarity: (λ1-λ2)/Σλ - surfaces planes
+        - Linearity: (λ0-λ1)/Σλ - structures linéaires
+        - Sphericity: λ2/Σλ - structures sphériques
         - Anisotropy: (λ0-λ2)/λ0 - anisotropie
-        - Roughness: λ2/(λ0+λ1+λ2) - rugosité
+        - Roughness: λ2/Σλ - rugosité
         - Density: local point density
         
         Args:
             points: [N, 3] point coordinates
             normals: [N, 3] normal vectors (not used, kept for compat)
-            k: number of neighbors
+            k: number of neighbors (used if radius=None)
+            radius: search radius in meters (RECOMMENDED, avoids scan artifacts)
             
         Returns:
             features: dictionary of geometric features
         """
+        # If radius requested, use CPU implementation (GPU radius not yet impl)
+        if radius is not None:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Radius search (r={radius:.2f}m) requested but GPU "
+                f"radius search not implemented yet. Using CPU fallback."
+            )
+            from .features import extract_geometric_features as cpu_extract
+            return cpu_extract(points, normals, k=k, radius=radius)
         # Build KDTree
         tree = KDTree(points, metric='euclidean', leaf_size=30)
         distances, indices = tree.query(points, k=k)
@@ -346,15 +362,32 @@ class GPUFeatureComputer:
         λ0_safe = λ0 + 1e-8
         sum_λ = λ0 + λ1 + λ2 + 1e-8
         
-        # Compute features
-        planarity = ((λ1 - λ2) / λ0_safe).astype(np.float32)
-        linearity = ((λ0 - λ1) / λ0_safe).astype(np.float32)
-        sphericity = (λ2 / λ0_safe).astype(np.float32)
+        # Compute features (CORRECTED to match CPU formulas - Weinmann et al.)
+        # Using sum_λ normalization for standard eigenvalue-based features
+        planarity = ((λ1 - λ2) / sum_λ).astype(np.float32)
+        linearity = ((λ0 - λ1) / sum_λ).astype(np.float32)
+        sphericity = (λ2 / sum_λ).astype(np.float32)
         anisotropy = ((λ0 - λ2) / λ0_safe).astype(np.float32)
         roughness = (λ2 / sum_λ).astype(np.float32)
         
         mean_distances = np.mean(distances[:, 1:], axis=1)
         density = (1.0 / (mean_distances + 1e-8)).astype(np.float32)
+        
+        # === VALIDATE AND FILTER DEGENERATE FEATURES ===
+        # Points with insufficient/degenerate eigenvalues
+        valid_features = (
+            (eigenvalues[:, 0] >= 1e-6) &  # Non-degenerate eigenvalue
+            (eigenvalues[:, 2] >= 1e-8) &  # Non-zero smallest eigenvalue
+            ~np.isnan(linearity) &         # Check for NaN
+            ~np.isinf(linearity)           # Check for Inf
+        )
+        
+        # Set invalid features to zero
+        planarity[~valid_features] = 0.0
+        linearity[~valid_features] = 0.0
+        sphericity[~valid_features] = 0.0
+        anisotropy[~valid_features] = 0.0
+        roughness[~valid_features] = 0.0
         
         features = {
             'planarity': planarity,

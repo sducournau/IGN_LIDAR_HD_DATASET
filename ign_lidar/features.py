@@ -853,7 +853,12 @@ def compute_all_features_optimized(
     relative_pos = neighbors_all - centers
     normals_expanded = normals[:, np.newaxis, :]
     distances_along_normal = np.sum(relative_pos * normals_expanded, axis=2)
-    curvature = np.std(distances_along_normal, axis=1).astype(np.float32)
+    
+    # Use Median Absolute Deviation (MAD) for outlier-robust curvature
+    # MAD = median(|x - median(x)|) * 1.4826 (scaled to match std)
+    median_dist = np.median(distances_along_normal, axis=1, keepdims=True)
+    mad = np.median(np.abs(distances_along_normal - median_dist), axis=1)
+    curvature = (mad * 1.4826).astype(np.float32)
     
     # === FEATURE 3: HEIGHT ABOVE GROUND ===
     ground_mask = (classification == 2)
@@ -887,6 +892,24 @@ def compute_all_features_optimized(
     
     mean_distances = np.mean(distances[:, 1:], axis=1)
     density = (1.0 / (mean_distances + 1e-8)).astype(np.float32)
+    
+    # === VALIDATE AND FILTER DEGENERATE FEATURES ===
+    # Points with insufficient/degenerate eigenvalues produce invalid features
+    # Set to zero to distinguish from valid low values and prevent NaN propagation
+    valid_features = (
+        (eigenvalues_sorted[:, 0] >= 1e-6) &  # Non-degenerate largest eigenvalue
+        (eigenvalues_sorted[:, 2] >= 1e-8) &  # Non-zero smallest eigenvalue
+        ~np.isnan(linearity) &                 # Check for NaN
+        ~np.isinf(linearity)                   # Check for Inf
+    )
+    
+    # Set invalid features to zero (distinguishable from valid low values)
+    planarity[~valid_features] = 0.0
+    linearity[~valid_features] = 0.0
+    sphericity[~valid_features] = 0.0
+    anisotropy[~valid_features] = 0.0
+    roughness[~valid_features] = 0.0
+    # Density can remain (computed from distances, not eigenvalues)
     
     geo_features = {
         'planarity': planarity,

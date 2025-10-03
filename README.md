@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 1.6.0** | [🇫🇷 French](README.fr.md) | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 1.6.2** | [🇫🇷 French](README.fr.md) | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 </div>
 
@@ -17,7 +17,16 @@
 
 A comprehensive Python library for processing IGN (Institut National de l'Information Géographique et Forestière) LiDAR HD data into machine learning-ready datasets for Building Level of Detail (LOD) classification tasks.
 
-## ✨ What's New in v1.6.0
+## ✨ What's New in v1.6.2
+
+🔧 **Critical GPU Feature Fix** - Corrected eigenvalue normalization in GPU implementation (now matches CPU)  
+🛡️ **Robust Feature Computation** - Added degenerate case filtering and outlier-resistant curvature  
+🎯 **Enhanced Quality** - Radius search support and comprehensive validation suite  
+⚠️ **Breaking Change**: GPU feature values changed for users of GPU acceleration
+
+[📖 Analysis & Fixes](GEOMETRIC_FEATURES_ANALYSIS.md) | [✅ Implementation](IMPLEMENTATION_SUMMARY.md)
+
+### Previous Updates (v1.6.0)
 
 🎯 **Enhanced Data Augmentation** - Augmentation now happens during ENRICH phase (before feature computation) for better feature-geometry consistency  
 🎨 **RGB CloudCompare Fix** - Perfect RGB color display with corrected 16-bit scaling  

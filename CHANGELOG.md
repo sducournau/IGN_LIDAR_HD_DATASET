@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.2] - 2025-10-03
 
+### Fixed
+
+- **Critical: GPU Feature Formula Correction** 🔧
+
+  - Fixed inconsistent eigenvalue normalization between GPU and CPU implementations
+  - GPU now uses standard Σλ normalization (Weinmann et al., 2015) matching CPU
+  - Validated: GPU and CPU produce identical results (max_rel_diff < 1e-6)
+  - **Breaking change**: GPU feature values changed (were incorrect before)
+  - Users with GPU-trained models should retrain or switch to CPU
+
+- **Degenerate Case Handling** 🛡️
+
+  - Added robust filtering for points with insufficient neighbors
+  - Invalid features now set to 0.0 instead of NaN/Inf
+  - Prevents pipeline crashes from bad neighborhoods
+  - Handles collinear points and near-zero eigenvalues correctly
+
+- **Robust Curvature Computation** 📐
+  - Replaced std with Median Absolute Deviation (MAD \* 1.4826)
+  - Resistant to outlier points common in LIDAR data
+  - Maintains similar value ranges via standard scaling
+  - Better captures true surface curvature without noise influence
+
+### Added
+
+- **GPU Radius Search Support** 🎯
+
+  - Added radius parameter to GPU feature extraction
+  - Automatically falls back to CPU when radius requested
+  - Avoids LIDAR scan line artifacts with spatial radius search
+  - Clear warning messages about CPU fallback
+
+- **Comprehensive Validation Suite** ✅
+  - New test suite: `tests/test_feature_fixes.py`
+  - Tests GPU/CPU consistency, degenerate cases, robust curvature
+  - All validation tests passing
+
 ### Documentation
 
 - **Comprehensive Documentation Overhaul** 📚

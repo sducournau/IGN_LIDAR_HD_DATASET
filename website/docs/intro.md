@@ -6,13 +6,32 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 1.6.0** | Python 3.8+ | MIT License
+**Version 1.6.2** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🎉 Latest Release: v1.6.0
+## 🎉 Latest Release: v1.6.2
+
+**Geometric Features Quality & GPU Consistency**
+
+✨ **What's New:**
+
+- 🔧 **Critical GPU Fix**: Corrected feature formulas (GPU now matches CPU)
+- 🛡️ **Robust Computation**: Degenerate case filtering and outlier-resistant curvature
+- 🎯 **Enhanced Quality**: Radius search support and comprehensive validation
+- ⚠️ **Breaking Change**: GPU feature values changed for users with GPU acceleration
+
+:::warning Important for GPU Users
+If you use `use_gpu=True`, feature values have changed (old formulas were incorrect). You'll need to retrain models or switch to CPU.
+:::
+
+📺 **[Watch our demo video](https://youtu.be/ksBWEhkVqQI)** | [📖 v1.6.2 Notes](/docs/release-notes/v1.6.2) | [📖 v1.6.0 Notes](/docs/release-notes/v1.6.0)
+
+---
+
+## Previous Release: v1.6.0
 
 **Enhanced Data Augmentation & RGB Improvements**
 

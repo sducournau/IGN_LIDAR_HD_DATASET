@@ -2,46 +2,46 @@
 sidebar_position: 5
 ---
 
-# Mermaid Diagrams Reference
+# Référence des Diagrammes Mermaid
 
-This page demonstrates the various Mermaid diagrams used throughout the IGN LiDAR HD documentation to visualize workflows, architectures, and processes.
+Cette page démontre les différents diagrammes Mermaid utilisés dans la documentation IGN LiDAR HD pour visualiser les workflows, architectures et processus.
 
-## 🔄 Workflow Diagrams
+## 🔄 Diagrammes de Workflow
 
-### Basic Processing Flow
+### Flux de Traitement de Base
 
 ```mermaid
 flowchart TD
-    A[Start] --> B{Input Available?}
-    B -->|Yes| C[Process Data]
-    B -->|No| D[Download Data]
+    A[Début] --> B{Entrée Disponible?}
+    B -->|Oui| C[Traiter Données]
+    B -->|Non| D[Télécharger Données]
     D --> C
-    C --> E[Generate Output]
-    E --> F[End]
+    C --> E[Générer Sortie]
+    E --> F[Fin]
 
     style A fill:#e8f5e8
     style F fill:#e8f5e8
     style C fill:#e3f2fd
 ```
 
-### Complex Pipeline
+### Pipeline Complexe
 
 ```mermaid
 graph TB
-    subgraph "Input Layer"
-        I1[Raw LiDAR]
+    subgraph "Couche d'Entrée"
+        I1[LiDAR Brut]
         I2[Configuration]
     end
 
-    subgraph "Processing Layer"
-        P1[Download]
-        P2[Enrich]
-        P3[Process]
+    subgraph "Couche de Traitement"
+        P1[Téléchargement]
+        P2[Enrichissement]
+        P3[Traitement]
     end
 
-    subgraph "Output Layer"
-        O1[NPZ Files]
-        O2[Metadata]
+    subgraph "Couche de Sortie"
+        O1[Fichiers NPZ]
+        O2[Métadonnées]
     end
 
     I1 --> P1
@@ -55,28 +55,28 @@ graph TB
     style O1 fill:#e8f5e8
 ```
 
-## 📊 Performance Charts
+## 📊 Graphiques de Performance
 
-### Processing Speed Comparison
+### Comparaison de Vitesse de Traitement
 
 ```mermaid
 xychart-beta
-    title "Processing Performance by Hardware"
-    x-axis [CPU-4core, CPU-8core, CPU-16core, GPU-RTX3080, GPU-RTX4090]
-    y-axis "Tiles per Hour" 0 --> 100
-    bar "Small Tiles" [8, 15, 25, 60, 85]
-    bar "Large Tiles" [3, 6, 10, 25, 40]
+    title "Performance de Traitement par Matériel"
+    x-axis [CPU-4cœurs, CPU-8cœurs, CPU-16cœurs, GPU-RTX3080, GPU-RTX4090]
+    y-axis "Dalles par Heure" 0 --> 100
+    bar "Petites Dalles" [8, 15, 25, 60, 85]
+    bar "Grandes Dalles" [3, 6, 10, 25, 40]
 ```
 
-### Memory Usage Over Time
+### Utilisation Mémoire dans le Temps
 
 ```mermaid
 xychart-beta
-    title "Memory Usage During Processing"
+    title "Utilisation Mémoire Pendant le Traitement"
     x-axis [0min, 1min, 2min, 3min, 4min, 5min]
-    y-axis "Memory GB" 0 --> 16
-    line "RAM Usage" [2, 4, 8, 12, 8, 4]
-    line "GPU Memory" [0, 2, 6, 8, 6, 2]
+    y-axis "Mémoire GB" 0 --> 16
+    line "Utilisation RAM" [2, 4, 8, 12, 8, 4]
+    line "Mémoire GPU" [0, 2, 6, 8, 6, 2]
 ```
 
 ## 🔀 Sequence Diagrams
@@ -294,19 +294,18 @@ flowchart TD
     style Chart fill:#f3e5f5
 ```
 
-### Color Scheme Guidelines
+### Directives de Palette de Couleurs
 
-- 🟢 **Success/Completion**: `fill:#e8f5e8`
-- 🔵 **Processing/Active**: `fill:#e3f2fd`
-- 🟡 **Warning/Attention**: `fill:#fff3e0`
-- 🟣 **Configuration**: `fill:#f3e5f5`
-- 🔴 **Error/Problem**: `fill:#ffebee`
+- 🟢 **Succès/Complétion** : `fill:#e8f5e8`
+- 🔵 **Traitement/Actif** : `fill:#e3f2fd`
+- 🟡 **Avertissement/Attention** : `fill:#fff3e0`
+- 🟣 **Configuration** : `fill:#f3e5f5`
+- 🔴 **Erreur/Problème** : `fill:#ffebee`
 
-### Best Practices
+### Bonnes Pratiques
 
-1. **Keep diagrams focused** - One concept per diagram
-2. **Use consistent styling** - Same colors for similar elements
-3. **Add meaningful labels** - Clear, descriptive text
-4. **Optimize for readability** - Not too cluttered
-5. **Update regularly** - Keep diagrams current with code changes
-
+1. **Gardez les diagrammes ciblés** - Un concept par diagramme
+2. **Utilisez un style cohérent** - Mêmes couleurs pour éléments similaires
+3. **Ajoutez des étiquettes significatives** - Texte clair et descriptif
+4. **Optimisez pour la lisibilité** - Pas trop encombré
+5. **Mettez à jour régulièrement** - Gardez les diagrammes à jour avec les changements de code

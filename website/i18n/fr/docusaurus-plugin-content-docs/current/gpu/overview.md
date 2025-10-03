@@ -1,55 +1,60 @@
 ---
 sidebar_position: 1
-title: "GPU Acceleration Overview"
-description: "Setup and use GPU acceleration for faster LiDAR processing"
-keywords: [gpu, cuda, cupy, performance, acceleration]
+title: "Aperçu de l'Accélération GPU"
+description: "Configuration et utilisation de l'accélération GPU pour un traitement LiDAR plus rapide"
+keywords: [gpu, cuda, cupy, performance, accélération]
 ---
 
-# GPU Acceleration Overview
+# Aperçu de l'Accélération GPU
 
-**Available in:** v1.3.0+  
-**Performance:** 5-10x faster than CPU  
-**Requirements:** NVIDIA GPU, CUDA 11.0+
+**Disponible depuis :** v1.3.0+  
+**Performance :** 5-10x plus rapide que CPU  
+**Requis :** GPU NVIDIA, CUDA 11.0+  
+**Corrigé en v1.6.2 :** Formules GPU maintenant cohérentes avec CPU
 
-## Overview
-
-GPU acceleration can provide **4-10x speedup** for feature computation compared to CPU processing, making it essential for large-scale LiDAR datasets and production pipelines.
-
-### Benefits
-
-- ⚡ **4-10x faster** feature computation
-- 🔄 **Automatic CPU fallback** when GPU unavailable
-- 📦 **No code changes** required - just add a flag
-- 🎯 **Production-ready** with comprehensive error handling
-- 💾 **Memory efficient** with smart batching
-
-:::tip Performance Gains
-GPU acceleration is most beneficial for point clouds with >100K points. For smaller datasets, CPU processing may be faster due to GPU initialization overhead.
+:::warning Mise à Jour Importante v1.6.2
+Les formules de caractéristiques GPU ont été corrigées en v1.6.2 pour correspondre au CPU et à la littérature standard. Si vous avez utilisé GPU en v1.6.1 ou antérieure, réentraînez vos modèles. [En savoir plus →](/docs/release-notes/v1.6.2)
 :::
 
-## Requirements
+## Aperçu
 
-### Hardware Requirements
+L'accélération GPU peut fournir une **accélération de 4-10x** pour le calcul des caractéristiques par rapport au traitement CPU, ce qui la rend essentielle pour les grands jeux de données LiDAR et les pipelines de production.
 
-- **GPU:** NVIDIA GPU with CUDA support
-- **Memory:** 4GB+ GPU RAM recommended (8GB+ for large tiles)
-- **Compute Capability:** 3.5 or higher
+### Avantages
 
-### Software Requirements
+- ⚡ **4-10x plus rapide** calcul des caractéristiques
+- 🔄 **Repli automatique sur CPU** quand GPU indisponible
+- 📦 **Aucun changement de code** requis - juste un flag
+- 🎯 **Prêt pour la production** avec gestion complète des erreurs
+- 💾 **Efficace en mémoire** avec traitement par lots intelligent
 
-- **CUDA Toolkit:** 11.0 or higher (11.8 or 12.x recommended)
-- **Python:** 3.8 or higher
-- **Python packages:** CuPy (required), RAPIDS cuML (optional, better performance)
+:::tip Gains de Performance
+L'accélération GPU est plus bénéfique pour les nuages de points avec >100K points. Pour les petits datasets, le traitement CPU peut être plus rapide en raison de l'overhead d'initialisation GPU.
+:::
 
-### Tested GPU Models
+## Prérequis
 
-| GPU Model   | Memory | Performance | Notes                  |
-| ----------- | ------ | ----------- | ---------------------- |
-| RTX 4090    | 24 GB  | Excellent   | Best performance       |
-| RTX 3080    | 10 GB  | Very Good   | Good price/performance |
-| RTX 3060    | 12 GB  | Good        | Budget-friendly        |
-| Tesla V100  | 16 GB  | Very Good   | Server/cloud           |
-| GTX 1080 Ti | 11 GB  | Moderate    | Older generation       |
+### Prérequis Matériels
+
+- **GPU :** GPU NVIDIA avec support CUDA
+- **Mémoire :** 4GB+ RAM GPU recommandée (8GB+ pour grandes dalles)
+- **Capacité de Calcul :** 3.5 ou supérieur
+
+### Prérequis Logiciels
+
+- **CUDA Toolkit :** 11.0 ou supérieur (11.8 ou 12.x recommandé)
+- **Python :** 3.8 ou supérieur
+- **Packages Python :** CuPy (requis), RAPIDS cuML (optionnel, meilleures performances)
+
+### Modèles GPU Testés
+
+| Modèle GPU  | Mémoire | Performance | Notes                    |
+| ----------- | ------- | ----------- | ------------------------ |
+| RTX 4090    | 24 GB   | Excellente  | Meilleure performance    |
+| RTX 3080    | 10 GB   | Très Bonne  | Bon rapport qualité/prix |
+| RTX 3060    | 12 GB   | Bonne       | Économique               |
+| Tesla V100  | 16 GB   | Très Bonne  | Serveur/cloud            |
+| GTX 1080 Ti | 11 GB   | Modérée     | Ancienne génération      |
 
 ## Installation
 
