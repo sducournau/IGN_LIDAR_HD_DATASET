@@ -33,6 +33,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Features",
       items: [
+        "features/rgb-augmentation",
         "features/smart-skip",
         "features/format-preferences",
         "features/lod3-classification",

@@ -22,7 +22,7 @@ By default, the library preserves all geometric features using LAZ 1.4 format:
 
 ```bash
 # Default: Creates augmented LAZ with all features
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output enriched_tiles/ \
   --mode building
@@ -55,7 +55,7 @@ For QGIS compatibility, use the conversion utility:
 
 ```bash
 # Method 1: Convert after enrichment
-python -m ign_lidar.cli enrich --input-dir raw/ --output enriched/
+ign-lidar-hd enrich --input-dir raw/ --output enriched/
 python scripts/batch_convert_qgis.py enriched/
 
 # Method 2: Use QGIS converter directly
@@ -147,7 +147,7 @@ python -m ign_lidar.qgis_converter enriched/tile.laz
 
 ```bash
 # Full feature extraction for ML research
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output research_data/ \
   --mode building
@@ -160,7 +160,7 @@ python -m ign_lidar.cli enrich \
 
 ```bash
 # Basic enrichment
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output enriched_tiles/ \
   --mode building
@@ -178,7 +178,7 @@ ls enriched_tiles/
 
 ```bash
 # Process with smart skip detection
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir large_dataset/ \
   --output processed/ \
   --mode building

@@ -41,7 +41,7 @@ Automatically skips existing tiles during download:
 
 ```bash
 # Downloads only missing tiles
-python -m ign_lidar.cli download \
+ign-lidar-hd download \
   --bbox 2.0,48.8,2.5,49.0 \
   --output tiles/
 
@@ -63,7 +63,7 @@ Use `--force` flag to override skip behavior:
 
 ```bash
 # Force re-download all tiles
-python -m ign_lidar.cli download \
+ign-lidar-hd download \
   --bbox 2.0,48.8,2.5,49.0 \
   --output tiles/ \
   --force
@@ -75,7 +75,7 @@ Automatically skips LAZ files that are already enriched:
 
 ```bash
 # Enriches only files without building features
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir /path/to/raw_tiles/ \
   --output /path/to/enriched_tiles/ \
   --mode building
@@ -94,7 +94,7 @@ Use `--force` flag to re-enrich files:
 
 ```bash
 # Force re-enrichment of all files
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir /path/to/raw_tiles/ \
   --output /path/to/enriched_tiles/ \
   --mode building \
@@ -107,7 +107,7 @@ Automatically skips tiles with existing patches:
 
 ```bash
 # Processes only tiles without patches
-python -m ign_lidar.cli process \
+ign-lidar-hd process \
   --input enriched_tiles/ \
   --output patches/ \
   --lod-level LOD2
@@ -132,7 +132,7 @@ Use `--force` flag to reprocess all tiles:
 
 ```bash
 # Force reprocess all tiles
-python -m ign_lidar.cli process \
+ign-lidar-hd process \
   --input enriched_tiles/ \
   --output patches/ \
   --lod-level LOD2 \
@@ -145,27 +145,27 @@ python -m ign_lidar.cli process \
 
 ```bash
 # Start big job
-python -m ign_lidar.cli download --bbox ... --output tiles/ --max-tiles 100
-python -m ign_lidar.cli process --input tiles/ --output patches/
+ign-lidar-hd download --bbox ... --output tiles/ --max-tiles 100
+ign-lidar-hd process --input tiles/ --output patches/
 
 # System crashes at tile 45...
 
 # Resume - automatically skips completed work
-python -m ign_lidar.cli download --bbox ... --output tiles/ --max-tiles 100  # Skips 45 tiles
-python -m ign_lidar.cli process --input tiles/ --output patches/          # Skips 45 tiles
+ign-lidar-hd download --bbox ... --output tiles/ --max-tiles 100  # Skips 45 tiles
+ign-lidar-hd process --input tiles/ --output patches/          # Skips 45 tiles
 ```
 
 ### 2. Incremental Dataset Building
 
 ```bash
 # Week 1: Download Paris
-python -m ign_lidar.cli download --bbox 2.0,48.8,2.5,49.0 --output france_tiles/
-python -m ign_lidar.cli process --input france_tiles/ --output france_patches/
+ign-lidar-hd download --bbox 2.0,48.8,2.5,49.0 --output france_tiles/
+ign-lidar-hd process --input france_tiles/ --output france_patches/
 
 # Week 2: Add Lyon (some overlap)
-python -m ign_lidar.cli download --bbox 4.7,45.6,5.0,45.9 --output france_tiles/
+ign-lidar-hd download --bbox 4.7,45.6,5.0,45.9 --output france_tiles/
 # Skips any overlapping tiles
-python -m ign_lidar.cli process --input france_tiles/ --output france_patches/
+ign-lidar-hd process --input france_tiles/ --output france_patches/
 # Skips Paris tiles, processes only Lyon tiles
 ```
 
@@ -173,7 +173,7 @@ python -m ign_lidar.cli process --input france_tiles/ --output france_patches/
 
 ```bash
 # Process a directory with mixed completion status
-python -m ign_lidar.cli process --input mixed_tiles/ --output patches/
+ign-lidar-hd process --input mixed_tiles/ --output patches/
 
 # Output shows what's done vs what needs processing
 ⏭️  Tiles with existing patches: 15
@@ -263,10 +263,10 @@ Smart skip detection is **enabled by default** for all operations. You can contr
 
 ```bash
 # Default: Skip existing
-python -m ign_lidar.cli command [args]
+ign-lidar-hd command [args]
 
 # Force override: Process everything
-python -m ign_lidar.cli command [args] --force
+ign-lidar-hd command [args] --force
 ```
 
 ### Python Parameters
@@ -317,7 +317,7 @@ Use verbose logging to see skip decisions:
 
 ```bash
 # Enable debug logging
-python -m ign_lidar.cli process --input tiles/ --output patches/ --verbose
+ign-lidar-hd process --input tiles/ --output patches/ --verbose
 ```
 
 ### Force Reprocessing
@@ -326,11 +326,11 @@ When you need to reprocess everything:
 
 ```bash
 # Method 1: Use --force flag
-python -m ign_lidar.cli process --input tiles/ --output patches/ --force
+ign-lidar-hd process --input tiles/ --output patches/ --force
 
 # Method 2: Clear output directory
 rm -rf patches/*
-python -m ign_lidar.cli process --input tiles/ --output patches/
+ign-lidar-hd process --input tiles/ --output patches/
 ```
 
 ## See Also

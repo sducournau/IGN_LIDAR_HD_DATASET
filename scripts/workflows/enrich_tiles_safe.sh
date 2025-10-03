@@ -23,7 +23,7 @@ echo "Workers: ${NUM_WORKERS} (réduit pour éviter les problèmes mémoire)"
 echo "==================================================================="
 echo ""
 
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir "${INPUT_DIR}" \
   --output "${OUTPUT_DIR}" \
   --k-neighbors ${K_NEIGHBORS} \

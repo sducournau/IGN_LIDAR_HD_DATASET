@@ -116,7 +116,7 @@ def main():
     print("\nNext steps:")
     print("1. Install the library: pip install ign-lidar-hd")
     print("2. Download sample data or use your own LAS/LAZ files")
-    print("3. Try the CLI: ign-lidar-process --help")
+    print("3. Try the CLI: ign-lidar-hd --help")
 
 
 if __name__ == "__main__":

@@ -53,7 +53,7 @@ Before processing starts, the system:
 
 ```bash
 # System automatically adjusts based on available memory
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir /path/to/tiles/ \
   --output /path/to/enriched/ \
   --mode building \
@@ -98,21 +98,21 @@ Base your worker count on available RAM:
 
 ```bash
 # For 8GB RAM systems
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
   --mode building \
   --num-workers 2
 
 # For 16GB RAM systems
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
   --mode building \
   --num-workers 4
 
 # For 32GB+ RAM systems
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
   --mode building \
@@ -134,7 +134,7 @@ For maximum safety on constrained systems:
 
 ```bash
 # Guaranteed to work (slowest but safest)
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
   --mode building \
@@ -193,7 +193,7 @@ The system provides helpful log messages:
 1. **Reduce worker count:**
 
 ```bash
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
   --mode building \
@@ -205,7 +205,7 @@ python -m ign_lidar.cli enrich \
 ```bash
 # Process each file separately
 for file in tiles/*.laz; do
-    python -m ign_lidar.cli enrich \
+    ign-lidar-hd enrich \
       --input-dir "$file" \
       --output enriched/ \
       --mode building \
@@ -216,7 +216,7 @@ done
 3. **Use core mode instead of building mode:**
 
 ```bash
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
   --mode core \
@@ -248,7 +248,7 @@ sudo swapon /swapfile
 
 ```bash
 # Split large datasets into smaller chunks
-find tiles/ -name "*.laz" | head -10 | xargs -I {} python -m ign_lidar.cli enrich --input {}
+find tiles/ -name "*.laz" | head -10 | xargs -I {} ign-lidar-hd enrich --input {}
 ```
 
 ### Memory Leaks
@@ -265,15 +265,15 @@ find tiles/ -name "*.laz" | head -10 | xargs -I {} python -m ign_lidar.cli enric
 
 ```bash
 # Process in smaller batches
-python -m ign_lidar.cli enrich --input-dir batch1/ --output enriched/
-python -m ign_lidar.cli enrich --input-dir batch2/ --output enriched/
+ign-lidar-hd enrich --input-dir batch1/ --output enriched/
+ign-lidar-hd enrich --input-dir batch2/ --output enriched/
 ```
 
 2. **Use smart skip to resume:**
 
 ```bash
 # Safe to re-run - skips completed files
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
   --mode building
@@ -310,7 +310,7 @@ Test with a few files first:
 
 ```bash
 # Test with 2-3 files
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir sample_tiles/ \
   --output test_enriched/ \
   --mode building \
@@ -332,7 +332,7 @@ Let smart skip handle interrupted processing:
 
 ```bash
 # Safe to interrupt and restart
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir large_dataset/ \
   --output enriched/ \
   --mode building
@@ -355,12 +355,12 @@ For very large datasets:
 
 ```bash
 # Process by geographic region
-python -m ign_lidar.cli enrich --input-dir paris_tiles/ --output enriched/
-python -m ign_lidar.cli enrich --input-dir lyon_tiles/ --output enriched/
+ign-lidar-hd enrich --input-dir paris_tiles/ --output enriched/
+ign-lidar-hd enrich --input-dir lyon_tiles/ --output enriched/
 
 # Or process by file size
-python -m ign_lidar.cli enrich --input-dir small_tiles/ --output enriched/
-python -m ign_lidar.cli enrich --input-dir large_tiles/ --output enriched/
+ign-lidar-hd enrich --input-dir small_tiles/ --output enriched/
+ign-lidar-hd enrich --input-dir large_tiles/ --output enriched/
 ```
 
 ## Advanced Configuration
@@ -373,7 +373,7 @@ export MEMORY_LIMIT_GB=8
 export MAX_WORKERS=2
 
 # Then run processing
-python -m ign_lidar.cli enrich --input-dir tiles/ --output enriched/
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/
 ```
 
 ### Python Memory Settings

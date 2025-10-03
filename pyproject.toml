@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ign-lidar-hd"
-version = "1.1.0"
+version = "1.2.0"
 description = "IGN LiDAR HD Dataset Processing Library for Building LOD Classification"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -33,11 +33,36 @@ dependencies = [
     "laspy>=2.3.0",
     "scikit-learn>=1.0.0",
     "tqdm>=4.60.0",
-    "requests>=2.25.0",
     "click>=8.0.0",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
+# RGB augmentation support
+rgb = [
+    "requests>=2.25.0",
+    "Pillow>=9.0.0",
+]
+
+# YAML pipeline configuration support
+pipeline = [
+    "PyYAML>=6.0",
+]
+
+# GPU acceleration support
+gpu = [
+    "cupy>=10.0.0",
+]
+
+# All optional features
+all = [
+    "requests>=2.25.0",
+    "Pillow>=9.0.0",
+    "PyYAML>=6.0",
+    "cupy>=10.0.0",
+]
+
+# Development dependencies
 dev = [
     "pytest>=6.0",
     "pytest-cov>=4.0",
@@ -47,10 +72,13 @@ dev = [
     "build>=0.7.0",
     "twine>=4.0",
     "pre-commit>=2.20",
+    "requests>=2.25.0",
+    "Pillow>=9.0.0",
+    "PyYAML>=6.0",
 ]
 
 [project.scripts]
-ign-lidar-process = "ign_lidar.cli:main"
+ign-lidar-hd = "ign_lidar.cli:main"
 ign-lidar-qgis = "ign_lidar.qgis_converter:main"
 
 [project.urls]

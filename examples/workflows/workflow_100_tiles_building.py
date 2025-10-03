@@ -20,9 +20,9 @@ DEPRECATED: This script has been moved to examples for reference.
     Please use the unified CLI instead:
     
     Instead of: python workflow_100_tiles_building.py
-    Use: ign-lidar-process enrich [OPTIONS]
+    Use: ign-lidar-hd enrich [OPTIONS]
     
-    See: ign-lidar-process --help
+    See: ign-lidar-hd --help
     Or: https://github.com/your-username/ign-lidar-hd#readme
 
 Original script below:

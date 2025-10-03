@@ -57,13 +57,13 @@ Get started in just a few commands:
 pip install ign-lidar-hd
 
 # Download LiDAR tiles
-ign-lidar-process download --bbox 2.0,48.8,2.1,48.9 --output tiles/
+ign-lidar-hd download --bbox 2.0,48.8,2.1,48.9 --output tiles/
 
 # Enrich with features
-ign-lidar-process enrich --input-dir tiles/ --output enriched/
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/
 
 # Create training patches
-ign-lidar-process process --input-dir enriched/ --output patches/ --lod-level LOD2
+ign-lidar-hd process --input-dir enriched/ --output patches/ --lod-level LOD2
 ```
 
 ## 📊 What Makes This Special
@@ -124,10 +124,10 @@ Never waste time reprocessing:
 
 ```bash
 # First run - processes all files
-ign-lidar-process enrich --input tiles/ --output enriched/
+ign-lidar-hd enrich --input tiles/ --output enriched/
 
 # Second run - skips existing (instant)
-ign-lidar-process enrich --input tiles/ --output enriched/
+ign-lidar-hd enrich --input tiles/ --output enriched/
 # ✅ 0 processed, 25 skipped
 ```
 

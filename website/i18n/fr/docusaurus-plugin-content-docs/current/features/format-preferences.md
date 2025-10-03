@@ -22,7 +22,7 @@ Par défaut, la bibliothèque préserve toutes les caractéristiques géométriq
 
 ```bash
 # Par défaut : Crée un LAZ augmenté avec toutes les caractéristiques
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir tuiles_brutes/ \
   --output tuiles_enrichies/ \
   --mode building
@@ -172,7 +172,7 @@ output:
 ### Convertir LAZ Augmenté vers QGIS
 
 ```bash
-python -m ign_lidar.cli convert \
+ign-lidar-hd convert \
   --input enriched_augmented.laz \
   --output enriched_qgis.laz \
   --format qgis-compatible
@@ -182,7 +182,7 @@ python -m ign_lidar.cli convert \
 
 ```bash
 # Re-traitement complet pour récupérer tous les attributs
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input raw_tile.laz \
   --output enriched_full.laz \
   --format augmented \

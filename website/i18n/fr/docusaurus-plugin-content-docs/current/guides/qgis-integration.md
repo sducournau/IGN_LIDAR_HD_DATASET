@@ -38,7 +38,7 @@ D'abord, créer des fichiers LAZ enrichis avec des caractéristiques géométriq
 
 ```bash
 # Enrichir les tuiles avec les caractéristiques de bâtiment
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir /chemin/vers/tuiles_brutes/ \
   --output /chemin/vers/tuiles_enrichies/ \
   --mode building \

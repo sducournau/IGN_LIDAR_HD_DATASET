@@ -106,7 +106,7 @@ processor = LiDARProcessor(
 
 ```bash
 # Surveiller l'utilisation mémoire pendant le traitement
-python -m ign_lidar.cli process --input-dir data/ --output patches/ --verbose
+ign-lidar-hd process --input-dir data/ --output patches/ --verbose
 ```
 
 ### Messages d'erreur courants
@@ -122,7 +122,7 @@ processor = LiDARProcessor(chunk_size=500000)
 
 ```bash
 # Solution : Augmenter le swap ou utiliser moins de workers
-python -m ign_lidar.cli process --num-workers 1
+ign-lidar-hd process --num-workers 1
 ```
 
 ## Optimisations avancées

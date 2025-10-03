@@ -41,7 +41,9 @@ class LiDARProcessor:
                  include_extra_features: bool = False,
                  k_neighbors: int = None,
                  include_architectural_style: bool = False,
-                 style_encoding: str = 'constant'):
+                 style_encoding: str = 'constant',
+                 include_rgb: bool = False,
+                 rgb_cache_dir: Path = None):
         """
         Initialize processor.
         
@@ -62,6 +64,8 @@ class LiDARProcessor:
             style_encoding: Style encoding method:
                            - 'constant': Single dominant style [N]
                            - 'multihot': Multi-label with weights [N, 13]
+            include_rgb: If True, add RGB from IGN orthophotos
+            rgb_cache_dir: Directory to cache orthophoto tiles
         """
         self.lod_level = lod_level
         self.augment = augment
@@ -74,6 +78,22 @@ class LiDARProcessor:
         self.k_neighbors = k_neighbors
         self.include_architectural_style = include_architectural_style
         self.style_encoding = style_encoding
+        self.include_rgb = include_rgb
+        self.rgb_cache_dir = rgb_cache_dir
+        
+        # Initialize RGB fetcher if needed
+        self.rgb_fetcher = None
+        if include_rgb:
+            try:
+                from .rgb_augmentation import IGNOrthophotoFetcher
+                self.rgb_fetcher = IGNOrthophotoFetcher(cache_dir=rgb_cache_dir)
+                logger.info("RGB augmentation enabled (IGN orthophotos)")
+            except ImportError as e:
+                logger.error(
+                    f"RGB augmentation requires additional packages: {e}"
+                )
+                logger.error("Install with: pip install requests Pillow")
+                self.include_rgb = False
         
         # Set class mapping
         if lod_level == 'LOD2':
@@ -252,12 +272,50 @@ class LiDARProcessor:
             target_num_points=self.num_points
         )
         
+        # 5b. Add RGB if requested
+        if self.include_rgb and self.rgb_fetcher:
+            logger.info("  🎨 Augmenting patches with RGB from IGN orthophotos...")
+            # Get tile bounding box for orthophoto fetch
+            tile_bbox = (
+                points[:, 0].min(),
+                points[:, 1].min(),
+                points[:, 0].max(),
+                points[:, 1].max()
+            )
+            
+            for patch in patches:
+                try:
+                    # Get absolute coordinates for this patch
+                    patch_points_abs = patch['points'].copy()
+                    patch_center = np.array([
+                        (tile_bbox[0] + tile_bbox[2]) / 2,
+                        (tile_bbox[1] + tile_bbox[3]) / 2,
+                        0
+                    ])
+                    patch_points_abs[:, :2] += patch_center[:2]
+                    
+                    # Fetch RGB
+                    rgb = self.rgb_fetcher.augment_points_with_rgb(
+                        patch_points_abs,
+                        bbox=tile_bbox
+                    )
+                    patch['rgb'] = rgb.astype(np.float32) / 255.0
+                except Exception as e:
+                    logger.warning(f"  ⚠️  RGB augmentation failed: {e}")
+                    # Add default gray color
+                    patch['rgb'] = np.full(
+                        (len(patch['points']), 3),
+                        0.5,
+                        dtype=np.float32
+                    )
+        
         # 6. Save patches
         output_dir.mkdir(parents=True, exist_ok=True)
         num_saved = 0
         num_original = len(patches)
         
-        logger.info(f"  💾 Saving {num_original} patches" + 
+        rgb_suffix = " + RGB" if self.include_rgb else ""
+        logger.info(f"  💾 Saving {num_original} patches{rgb_suffix}" +
                    (f" + {num_original * self.num_augmentations} augmented" if self.augment else ""))
         
         for j, patch in enumerate(patches):
@@ -299,9 +357,47 @@ class LiDARProcessor:
         """
         start_time = time.time()
         
+        # Check system memory and adjust workers if needed
+        try:
+            import psutil
+            mem = psutil.virtual_memory()
+            swap = psutil.swap_memory()
+            
+            available_gb = mem.available / (1024**3)
+            swap_percent = swap.percent
+            
+            logger.info(f"System Memory: {available_gb:.1f}GB available")
+            
+            # If swap is heavily used, reduce workers automatically
+            if swap_percent > 50:
+                logger.warning(
+                    f"⚠️  High swap usage detected ({swap_percent:.0f}%)"
+                )
+                logger.warning(
+                    "⚠️  Memory pressure detected - reducing workers to 1"
+                )
+                num_workers = 1
+            
+            # Processing needs ~2-3GB per worker
+            min_gb_per_worker = 2.5
+            max_safe_workers = int(available_gb / min_gb_per_worker)
+            
+            if num_workers > max_safe_workers:
+                logger.warning(
+                    f"⚠️  Limited RAM ({available_gb:.1f}GB available)"
+                )
+                logger.warning(
+                    f"⚠️  Reducing workers from {num_workers} "
+                    f"to {max(1, max_safe_workers)}"
+                )
+                num_workers = max(1, max_safe_workers)
+                
+        except ImportError:
+            logger.debug("psutil not available - skipping memory checks")
+        
         # Find LAZ files (recursively)
-        laz_files = (list(input_dir.rglob("*.laz")) + 
-                    list(input_dir.rglob("*.LAZ")))
+        laz_files = (list(input_dir.rglob("*.laz")) +
+                     list(input_dir.rglob("*.LAZ")))
         
         if not laz_files:
             logger.error(f"No LAZ files found in {input_dir}")

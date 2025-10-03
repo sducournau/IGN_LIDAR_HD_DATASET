@@ -99,7 +99,7 @@ Download LiDAR tiles for your area of interest:
 
 ```bash
 # Download tiles for Paris center
-python -m ign_lidar.cli download \
+ign-lidar-hd download \
   --bbox 2.25,48.82,2.42,48.90 \
   --output /path/to/raw_tiles/ \
   --max-tiles 10
@@ -128,7 +128,7 @@ Add building component classification features to the point clouds:
 
 ```bash
 # Enrich tiles with building features
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir /path/to/raw_tiles/ \
   --output /path/to/enriched_tiles/ \
   --mode building \
@@ -161,7 +161,7 @@ Extract small patches suitable for machine learning:
 
 ```bash
 # Extract patches for LOD2 building classification
-python -m ign_lidar.cli process \
+ign-lidar-hd process \
   --input /path/to/enriched_tiles/ \
   --output /path/to/patches/ \
   --lod-level LOD2 \
@@ -223,20 +223,20 @@ Here's a complete example processing the 13th arrondissement of Paris:
 
 ```bash
 # 1. Download tiles
-python -m ign_lidar.cli download \
+ign-lidar-hd download \
   --bbox 2.32,48.82,2.38,48.86 \
   --output data/raw_tiles/ \
   --max-tiles 20
 
 # 2. Enrich with features
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir data/raw_tiles/ \
   --output data/enriched_tiles/ \
   --mode building \
   --num-workers 6
 
 # 3. Extract patches
-python -m ign_lidar.cli process \
+ign-lidar-hd process \
   --input data/enriched_tiles/ \
   --output data/patches/ \
   --lod-level LOD2 \
@@ -277,10 +277,10 @@ For large datasets, monitor memory usage:
 htop
 
 # Reduce workers if memory is limited
-python -m ign_lidar.cli process --num-workers 2
+ign-lidar-hd process --num-workers 2
 
 # Process tiles one by one for very large tiles
-python -m ign_lidar.cli process --num-workers 1
+ign-lidar-hd process --num-workers 1
 ```
 
 See the [Memory Optimization Guide](../reference/memory-optimization.md) for detailed memory management strategies.
@@ -291,12 +291,12 @@ All commands automatically skip existing outputs:
 
 ```bash
 # Run the same command twice - second run skips existing files
-python -m ign_lidar.cli download --bbox 2.32,48.82,2.38,48.86 --output data/raw_tiles/
+ign-lidar-hd download --bbox 2.32,48.82,2.38,48.86 --output data/raw_tiles/
 # First run: Downloads new tiles
 # Second run: Skips existing tiles automatically
 
 # Force reprocessing with --force flag
-python -m ign_lidar.cli process --input data/enriched/ --output data/patches/ --force
+ign-lidar-hd process --input data/enriched/ --output data/patches/ --force
 ```
 
 See the [Smart Skip Features](../features/smart-skip.md) guide for details.
@@ -323,7 +323,7 @@ ls -la /path/to/tiles/
 lasinfo tile.laz
 
 # Reduce workers if getting memory errors
-python -m ign_lidar.cli process --num-workers 1
+ign-lidar-hd process --num-workers 1
 ```
 
 ### Missing Features
@@ -333,7 +333,7 @@ python -m ign_lidar.cli process --num-workers 1
 lasinfo enriched_tile.laz | grep "extra bytes"
 
 # Re-enrich if features are missing
-python -m ign_lidar.cli enrich --input-dir raw/ --output enriched/ --force
+ign-lidar-hd enrich --input-dir raw/ --output enriched/ --force
 ```
 
 ## Next Steps

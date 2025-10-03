@@ -1,0 +1,38 @@
+# Enrich-Only Pipeline Configuration
+# This configuration only enriches existing LAZ files with geometric features and RGB
+
+# Global settings
+global:
+  num_workers: 4
+
+# Stage: Enrich tiles with geometric features and RGB
+enrich:
+  # Input directory with raw LAZ files
+  input_dir: "data/raw"
+
+  # Output directory for enriched tiles
+  output: "data/enriched"
+
+  # Feature mode: 'core' (basic) or 'building' (full features)
+  mode: "building"
+
+  # Number of neighbors for feature computation
+  k_neighbors: 10
+
+  # Use GPU acceleration if available
+  use_gpu: true
+
+  # Add RGB colors from IGN orthophotos
+  add_rgb: true
+
+  # Directory to cache downloaded orthophotos (recommended)
+  rgb_cache_dir: "cache/orthophotos"
+
+  # Number of parallel workers (overrides global)
+  num_workers: 4
+
+  # Auto-convert to QGIS-compatible format
+  auto_convert_qgis: false
+
+  # Force re-enrichment even if files exist
+  force: false

@@ -82,28 +82,77 @@ patches = processor.process_directory("data/", "output/", num_workers=4)
 
 ```bash
 # Download tiles
-ign-lidar-process download --bbox -2.0,47.0,-1.0,48.0 --output tiles/ --max-tiles 10
+ign-lidar-hd download --bbox -2.0,47.0,-1.0,48.0 --output tiles/ --max-tiles 10
 
 # Enrich LAZ files with geometric features
-ign-lidar-process enrich --input-dir tiles/ --output enriched/ --num-workers 4
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --num-workers 4
 
 # Enrich with GPU acceleration
-ign-lidar-process enrich --input-dir tiles/ --output enriched/ --use-gpu
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --use-gpu
+
+# Enrich with RGB augmentation from IGN orthophotos
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --add-rgb --rgb-cache-dir cache/
 
 # Create training patches
-ign-lidar-process process --input-dir enriched/ --output patches/ --lod-level LOD2
+ign-lidar-hd patch --input-dir enriched/ --output patches/ --lod-level LOD2
 
-# Full pipeline example
-ign-lidar-process download --bbox -2.0,47.0,-1.0,48.0 --output tiles/
-ign-lidar-process enrich --input-dir tiles/ --output enriched/ --num-workers 4
-ign-lidar-process process --input-dir enriched/ --output patches/ --lod-level LOD2
+# 🆕 Run complete workflow with YAML configuration
+ign-lidar-hd pipeline config.yaml
 ```
+
+### 🆕 Pipeline Configuration (Recommended)
+
+Use YAML configuration files for reproducible workflows:
+
+```bash
+# Create example configuration
+ign-lidar-hd pipeline my_config.yaml --create-example full
+
+# Edit configuration (my_config.yaml)
+# Then run complete pipeline
+ign-lidar-hd pipeline my_config.yaml
+```
+
+**Example YAML configuration:**
+
+```yaml
+global:
+  num_workers: 4
+
+download:
+  bbox: "2.3, 48.8, 2.4, 48.9"
+  output: "data/raw"
+  max_tiles: 10
+
+enrich:
+  input_dir: "data/raw"
+  output: "data/enriched"
+  mode: "building"
+  add_rgb: true
+  rgb_cache_dir: "cache/orthophotos"
+  use_gpu: true
+
+patch:
+  input_dir: "data/enriched"
+  output: "data/patches"
+  lod_level: "LOD2"
+  num_points: 16384
+  augment: true
+```
+
+**Benefits:**
+
+- ✅ **Reproducible** - Version control your workflows
+- ✅ **Declarative** - Define what you want, not how
+- ✅ **Flexible** - Run only the stages you need
+- ✅ **Shareable** - Easy team collaboration
 
 ## 📋 Key Features
 
 ### 🏗️ **Core Processing Capabilities**
 
 - **LiDAR-only processing**: Pure geometric analysis without RGB dependencies
+- **RGB augmentation**: Optional color enrichment from IGN BD ORTHO® orthophotos
 - **Multi-level classification**: Support for LOD2 (15 classes) and LOD3 (30+ classes)
 - **Rich feature extraction**: Surface normals, curvature, planarity, verticality, local density
 - **Architectural style inference**: Automatic building style classification
@@ -119,10 +168,11 @@ ign-lidar-process process --input-dir enriched/ --output patches/ --lod-level LO
 
 ### 🔧 **Workflow Automation**
 
+- **Pipeline configuration**: 🆕 YAML-based declarative workflows for reproducibility
 - **Integrated downloader**: IGN WFS tile discovery and batch downloading
 - **Format flexibility**: Choose between LAZ 1.4 (full features) or QGIS-compatible output
 - **Data augmentation**: Rotation, jitter, scaling, and dropout for ML training
-- **Unified CLI**: Single `ign-lidar-process` command with intuitive subcommands
+- **Unified CLI**: Single `ign-lidar-hd` command with intuitive subcommands
 - **Idempotent operations**: Safe to restart - never reprocesses existing data
 
 ### 🌍 **Geographic Intelligence**
@@ -200,19 +250,26 @@ examples/
 ├── 🔄 full_workflow_example.py # End-to-end pipeline
 ├── 🎨 multistyle_processing.py # Architecture analysis
 ├── 🧠 pytorch_dataloader.py    # ML integration
+├── 🆕 pipeline_example.py      # YAML pipeline usage
+├── 🆕 enrich_with_rgb.py       # RGB augmentation
 └── workflows/               # Production pipelines
+
+config_examples/
+├── 🆕 pipeline_full.yaml       # Complete workflow
+├── 🆕 pipeline_enrich.yaml     # Enrich-only
+└── 🆕 pipeline_patch.yaml      # Patch-only
 ```
 
 ## ⚙️ CLI Commands
 
-The package provides a unified `ign-lidar-process` command with three subcommands:
+The package provides a unified `ign-lidar-hd` command with four subcommands:
 
 ### 🔗 **CLI Workflow Chain**
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant CLI as ign-lidar-process
+    participant CLI as ign-lidar-hd
     participant D as Downloader
     participant E as Enricher
     participant P as Processor
@@ -227,24 +284,47 @@ sequenceDiagram
     User->>CLI: enrich --input-dir ...
     CLI->>E: Initialize enricher
     E->>E: Compute geometric features
+    E->>E: Optional RGB augmentation
     E->>E: GPU/CPU processing
     E-->>CLI: Enriched LAZ files
     CLI-->>User: ✓ Features computed
 
-    User->>CLI: process --input-dir ...
+    User->>CLI: patch --input-dir ...
     CLI->>P: Initialize processor
     P->>P: Create training patches
     P->>P: Apply augmentations
     P-->>CLI: ML-ready dataset
     CLI-->>User: ✓ Dataset ready
+
+    Note over User,CLI: 🆕 Or use pipeline command
+    User->>CLI: pipeline config.yaml
+    CLI->>CLI: Load YAML config
+    CLI->>D: Execute download stage
+    CLI->>E: Execute enrich stage
+    CLI->>P: Execute patch stage
+    CLI-->>User: ✓ Complete workflow
 ```
+
+### 🆕 Pipeline Command (Recommended)
+
+Execute complete workflows using YAML configuration:
+
+```bash
+# Create example configuration
+ign-lidar-hd pipeline my_config.yaml --create-example full
+
+# Run configured pipeline
+ign-lidar-hd pipeline my_config.yaml
+```
+
+See [Pipeline Configuration Guide](config_examples/) for detailed examples.
 
 ### Download Command
 
 Download LiDAR tiles from IGN:
 
 ```bash
-ign-lidar-process download \
+ign-lidar-hd download \
   --bbox lon_min,lat_min,lon_max,lat_max \
   --output tiles/ \
   --max-tiles 50
@@ -252,24 +332,31 @@ ign-lidar-process download \
 
 ### Enrich Command
 
-Enrich LAZ files with geometric features:
+Enrich LAZ files with geometric features and optional RGB:
 
 ```bash
 # CPU version (automatically skips existing enriched files)
-ign-lidar-process enrich \
+ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
   --num-workers 4 \
   --k-neighbors 10
 
+# 🆕 With RGB augmentation from IGN orthophotos
+ign-lidar-hd enrich \
+  --input-dir tiles/ \
+  --output enriched/ \
+  --add-rgb \
+  --rgb-cache-dir cache/orthophotos
+
 # Force re-enrichment (ignore existing files)
-ign-lidar-process enrich \
+ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
   --force
 
 # GPU version (requires CUDA)
-ign-lidar-process enrich \
+ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
   --use-gpu
@@ -277,13 +364,13 @@ ign-lidar-process enrich \
 
 > 💡 **Smart Skip**: By default, the enrich command skips files that have already been enriched, making it safe to resume interrupted operations.
 
-### Process Command
+### Patch Command
 
 Create training patches from enriched LAZ files:
 
 ```bash
 # Automatically skips tiles with existing patches
-ign-lidar-process process \
+ign-lidar-hd patch \
   --input-dir enriched/ \
   --output patches/ \
   --lod-level LOD2 \
@@ -292,13 +379,13 @@ ign-lidar-process process \
   --num-augmentations 3
 
 # Force reprocessing (ignore existing patches)
-ign-lidar-process process \
+ign-lidar-hd patch \
   --input-dir enriched/ \
   --output patches/ \
   --force
 ```
 
-> 💡 **Smart Skip**: The process command automatically detects existing patches and skips reprocessing, allowing you to resume interrupted batch jobs.
+> 💡 **Smart Skip**: The patch command automatically detects existing patches and skips reprocessing, allowing you to resume interrupted batch jobs.
 
 ## 🔧 Configuration
 
@@ -492,6 +579,8 @@ For comprehensive documentation, see the **[Documentation Hub](docs/README.md)**
 - **[Urban Processing](examples/example_urban_simple.py)** - City-specific workflows
 - **[Parallel Processing](examples/parallel_processing_example.py)** - Multi-worker optimization
 - **[Full Workflow](examples/full_workflow_example.py)** - End-to-end pipeline
+- **[🆕 Pipeline Configuration](examples/pipeline_example.py)** - YAML-based workflows
+- **[🆕 RGB Augmentation](examples/enrich_with_rgb.py)** - Orthophoto integration
 - **[PyTorch Integration](examples/pytorch_dataloader.py)** - ML training setup
 
 ### 🚀 Coming Soon: Interactive Documentation
@@ -530,6 +619,8 @@ See the [Docusaurus Plan](DOCUSAURUS_PLAN.md) for details.
 - scikit-learn >= 1.0.0
 - tqdm >= 4.60.0
 - requests >= 2.25.0
+- PyYAML >= 6.0 (for pipeline configuration)
+- Pillow >= 9.0.0 (for RGB augmentation)
 
 ## 📄 License
 

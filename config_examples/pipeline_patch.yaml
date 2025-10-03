@@ -1,0 +1,57 @@
+# Patch-Only Pipeline Configuration
+# This configuration creates training patches from already enriched tiles
+
+# Global settings
+global:
+  num_workers: 4
+
+# Stage: Create training patches
+patch:
+  # Input directory with enriched LAZ files
+  input_dir: "data/enriched"
+
+  # Output directory for patches
+  output: "data/patches"
+
+  # LOD level: 'LOD2' (simplified, 6 classes) or 'LOD3' (detailed, 30 classes)
+  lod_level: "LOD2"
+
+  # Patch size in meters
+  patch_size: 150.0
+
+  # Patch overlap ratio (0.0 to 1.0)
+  # Higher overlap = more patches, better coverage at edges
+  patch_overlap: 0.1
+
+  # Target number of points per patch
+  # Options: 4096 (4k), 8192 (8k), 16384 (16k)
+  # 16k is optimal for GPUs with ≥12GB VRAM
+  num_points: 16384
+
+  # Enable data augmentation (rotation, flip, scale)
+  augment: true
+
+  # Number of augmented versions per patch
+  num_augmentations: 3
+
+  # Number of parallel workers
+  num_workers: 4
+
+  # Include architectural style (0-12) as feature
+  include_architectural_style: false
+
+  # Style encoding method
+  # 'constant': single style ID
+  # 'multihot': multi-label with weights
+  style_encoding: "constant"
+
+  # Number of neighbors for feature computation
+  # Leave unset for automatic determination
+  # k_neighbors: 20
+
+  # Optional: Bounding box filter in LAMB93 coordinates
+  # Format: xmin,ymin,xmax,ymax
+  # bbox: "650000, 6860000, 660000, 6870000"
+
+  # Force reprocessing even if patches exist
+  force: false

@@ -38,7 +38,7 @@ First, create enriched LAZ files with geometric features:
 
 ```bash
 # Enrich tiles with building features
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir /path/to/raw_tiles/ \
   --output /path/to/enriched_tiles/ \
   --mode building \
@@ -301,7 +301,7 @@ print('Extra dimensions:', las.point_format.extra_dimension_names)
 
 ```bash
 # Process smaller tiles for better QGIS performance
-python -m ign_lidar.cli process \
+ign-lidar-hd process \
   --input large_tile.laz \
   --output patches/ \
   --patch-size 20.0  # Smaller patches

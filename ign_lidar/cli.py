@@ -83,7 +83,7 @@ def _enrich_single_file(args_tuple):
     
     Args:
         args_tuple: (laz_path, output_path, k_neighbors, use_gpu,
-                     mode, skip_existing)
+                     mode, skip_existing, add_rgb, rgb_cache_dir)
     
     Returns:
         str: 'skipped' if file already exists and skip_existing=True,
@@ -91,7 +91,7 @@ def _enrich_single_file(args_tuple):
              'error' if processing failed
     """
     (laz_path, output_path, k_neighbors,
-     use_gpu, mode, skip_existing) = args_tuple
+     use_gpu, mode, skip_existing, add_rgb, rgb_cache_dir) = args_tuple
     
     import numpy as np
     import laspy
@@ -384,6 +384,62 @@ def _enrich_single_file(args_tuple):
                     f"  Could not compute building features: {e}"
                 )
         
+        # Add RGB augmentation if requested
+        if add_rgb:
+            try:
+                from .rgb_augmentation import IGNOrthophotoFetcher
+                
+                worker_logger.info("  Fetching RGB colors from IGN orthophotos...")
+                
+                # Compute bbox
+                bbox = (
+                    points[:, 0].min(),
+                    points[:, 1].min(),
+                    points[:, 0].max(),
+                    points[:, 1].max()
+                )
+                
+                # Create fetcher with cache if specified
+                fetcher = IGNOrthophotoFetcher(cache_dir=rgb_cache_dir)
+                
+                # Fetch RGB colors
+                rgb = fetcher.augment_points_with_rgb(points, bbox=bbox)
+                
+                # Add RGB to LAZ
+                # Check if point format supports RGB
+                if las_out.header.point_format.id in [2, 3, 5, 7, 8, 10]:
+                    # Native RGB support - scale to 16-bit
+                    las_out.red = rgb[:, 0].astype(np.uint16) * 256
+                    las_out.green = rgb[:, 1].astype(np.uint16) * 256
+                    las_out.blue = rgb[:, 2].astype(np.uint16) * 256
+                else:
+                    # Add as extra dimensions if RGB not natively supported
+                    las_out.add_extra_dim(
+                        laspy.ExtraBytesParams(name='red', type=np.uint8)
+                    )
+                    las_out.add_extra_dim(
+                        laspy.ExtraBytesParams(name='green', type=np.uint8)
+                    )
+                    las_out.add_extra_dim(
+                        laspy.ExtraBytesParams(name='blue', type=np.uint8)
+                    )
+                    las_out.red = rgb[:, 0]
+                    las_out.green = rgb[:, 1]
+                    las_out.blue = rgb[:, 2]
+                
+                worker_logger.info(
+                    f"  ✓ Added RGB colors to {len(points):,} points"
+                )
+                
+            except ImportError as ie:
+                worker_logger.warning(
+                    f"  ⚠️  RGB augmentation requires 'requests' and 'Pillow': {ie}"
+                )
+            except Exception as e:
+                worker_logger.warning(
+                    f"  ⚠️  Could not add RGB colors: {e}"
+                )
+        
         # Save with LAZ compression (LASzip format for QGIS compatibility)
         # do_compress=True ensures LAZ compression is applied
         # laspy will automatically use the best available backend (laszip preferred)
@@ -562,6 +618,19 @@ def cmd_enrich(args):
     # Get skip_existing setting (default: True)
     skip_existing = not getattr(args, 'force', False)
     
+    # Get RGB augmentation settings
+    add_rgb = getattr(args, 'add_rgb', False)
+    rgb_cache_dir = getattr(args, 'rgb_cache_dir', None)
+    
+    # Log RGB settings
+    if add_rgb:
+        logger.info("RGB augmentation: ENABLED")
+        if rgb_cache_dir:
+            logger.info(f"RGB cache directory: {rgb_cache_dir}")
+            rgb_cache_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            logger.info("RGB cache: Disabled (orthophotos will be fetched each time)")
+    
     # Prepare arguments for worker function with preserved paths
     worker_args = []
     for laz in laz_files_sorted:
@@ -570,7 +639,7 @@ def cmd_enrich(args):
         output_path = output_dir / rel_path
         worker_args.append(
             (laz, output_path, args.k_neighbors, args.use_gpu,
-             mode, skip_existing)
+             mode, skip_existing, add_rgb, rgb_cache_dir)
         )
     
     # Process files with better error handling and batching
@@ -713,6 +782,173 @@ def cmd_enrich(args):
     return 0
 
 
+def cmd_pipeline(args):
+    """Execute full pipeline from YAML configuration."""
+    from .pipeline_config import PipelineConfig
+    import time
+    
+    # Load configuration
+    try:
+        config = PipelineConfig(args.config)
+    except Exception as e:
+        logger.error(f"Failed to load configuration: {e}")
+        return 1
+    
+    logger.info("="*70)
+    logger.info("🚀 Starting Pipeline Execution")
+    logger.info("="*70)
+    logger.info(f"Configuration: {args.config}")
+    logger.info(f"Stages: {config}")
+    logger.info("")
+    
+    start_time = time.time()
+    global_config = config.get_global_config()
+    
+    # Stage 1: Download
+    if config.has_download:
+        logger.info("📥 Stage 1: Download")
+        logger.info("-" * 70)
+        
+        download_cfg = config.get_download_config()
+        
+        # Parse bounding box
+        try:
+            bbox = [float(x) for x in download_cfg['bbox'].split(',')]
+            if len(bbox) != 4:
+                logger.error("Bounding box must have 4 values")
+                return 1
+        except Exception as e:
+            logger.error(f"Invalid bbox in config: {e}")
+            return 1
+        
+        output_dir = Path(download_cfg['output'])
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        num_workers = download_cfg.get('num_workers', 
+                                       global_config.get('num_workers', 3))
+        max_tiles = download_cfg.get('max_tiles', None)
+        
+        downloader = IGNLiDARDownloader(output_dir, max_concurrent=num_workers)
+        tiles_data = downloader.fetch_available_tiles(tuple(bbox))
+        
+        features = tiles_data.get('features', [])
+        if max_tiles:
+            features = features[:max_tiles]
+        
+        logger.info(f"Found {len(features)} tiles to download")
+        
+        tile_names = []
+        for feature in features:
+            props = feature.get('properties', {})
+            tile_name = props.get('name', '')
+            if tile_name:
+                tile_names.append(tile_name)
+        
+        if not tile_names:
+            logger.error("No valid tile names found")
+            return 1
+        
+        results = downloader.batch_download(
+            tile_list=tile_names,
+            bbox=tuple(bbox),
+            save_metadata=True,
+            num_workers=num_workers
+        )
+        
+        success_count = sum(1 for s in results.values() if s)
+        logger.info(f"✓ Downloaded {success_count}/{len(tile_names)} tiles")
+        logger.info("")
+    
+    # Stage 2: Enrich
+    if config.has_enrich:
+        logger.info("⚙️  Stage 2: Enrich")
+        logger.info("-" * 70)
+        
+        enrich_cfg = config.get_enrich_config()
+        
+        # Create args object for cmd_enrich
+        class EnrichArgs:
+            pass
+        
+        eargs = EnrichArgs()
+        eargs.input = None
+        eargs.input_dir = Path(enrich_cfg['input_dir'])
+        eargs.output = Path(enrich_cfg['output'])
+        eargs.num_workers = enrich_cfg.get('num_workers',
+                                           global_config.get('num_workers', 1))
+        eargs.k_neighbors = enrich_cfg.get('k_neighbors', 10)
+        eargs.use_gpu = enrich_cfg.get('use_gpu', False)
+        eargs.mode = enrich_cfg.get('mode', 'core')
+        eargs.auto_convert_qgis = enrich_cfg.get('auto_convert_qgis', False)
+        eargs.force = enrich_cfg.get('force', False)
+        eargs.add_rgb = enrich_cfg.get('add_rgb', False)
+        eargs.rgb_cache_dir = Path(enrich_cfg['rgb_cache_dir']) \
+            if 'rgb_cache_dir' in enrich_cfg else None
+        
+        result = cmd_enrich(eargs)
+        if result != 0:
+            logger.error("Enrich stage failed")
+            return result
+        logger.info("")
+    
+    # Stage 3: Patch
+    if config.has_patch:
+        logger.info("📦 Stage 3: Patch")
+        logger.info("-" * 70)
+        
+        patch_cfg = config.get_patch_config()
+        
+        # Create args object for cmd_process
+        class PatchArgs:
+            pass
+        
+        pargs = PatchArgs()
+        pargs.input = None
+        pargs.input_dir = Path(patch_cfg['input_dir'])
+        pargs.output = Path(patch_cfg['output'])
+        pargs.lod_level = patch_cfg.get('lod_level', 'LOD2')
+        pargs.no_augment = not patch_cfg.get('augment', True)
+        pargs.num_augmentations = patch_cfg.get('num_augmentations', 3)
+        pargs.num_workers = patch_cfg.get('num_workers',
+                                          global_config.get('num_workers', 1))
+        pargs.bbox = patch_cfg.get('bbox', None)
+        pargs.patch_size = patch_cfg.get('patch_size', 150.0)
+        pargs.patch_overlap = patch_cfg.get('patch_overlap', 0.1)
+        pargs.num_points = patch_cfg.get('num_points', 16384)
+        pargs.k_neighbors = patch_cfg.get('k_neighbors', None)
+        pargs.include_architectural_style = patch_cfg.get(
+            'include_architectural_style', False)
+        pargs.style_encoding = patch_cfg.get('style_encoding', 'constant')
+        pargs.force = patch_cfg.get('force', False)
+        
+        result = cmd_process(pargs)
+        if result != 0:
+            logger.error("Patch stage failed")
+            return result
+        logger.info("")
+    
+    # Summary
+    elapsed_time = time.time() - start_time
+    
+    logger.info("="*70)
+    logger.info("✅ Pipeline Complete!")
+    logger.info("="*70)
+    logger.info(f"Total time: {elapsed_time:.1f}s ({elapsed_time/60:.1f} min)")
+    
+    if config.has_download:
+        download_cfg = config.get_download_config()
+        logger.info(f"  Downloaded: {download_cfg['output']}")
+    if config.has_enrich:
+        enrich_cfg = config.get_enrich_config()
+        logger.info(f"  Enriched: {enrich_cfg['output']}")
+    if config.has_patch:
+        patch_cfg = config.get_patch_config()
+        logger.info(f"  Patches: {patch_cfg['output']}")
+    
+    logger.info("="*70)
+    return 0
+
+
 def cmd_download(args):
     """Download LiDAR tiles from IGN."""
     # Parse bounding box
@@ -728,7 +964,10 @@ def cmd_download(args):
     output_dir = args.output
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    downloader = IGNLiDARDownloader(output_dir)
+    # Get num_workers (default 3 if not specified)
+    num_workers = getattr(args, 'num_workers', 3)
+    
+    downloader = IGNLiDARDownloader(output_dir, max_concurrent=num_workers)
     tiles_data = downloader.fetch_available_tiles(tuple(bbox))
     
     features = tiles_data.get('features', [])
@@ -753,7 +992,8 @@ def cmd_download(args):
     results = downloader.batch_download(
         tile_list=tile_names,
         bbox=tuple(bbox),
-        save_metadata=True
+        save_metadata=True,
+        num_workers=num_workers
     )
     
     success_count = sum(1 for s in results.values() if s)
@@ -775,8 +1015,43 @@ def main():
     
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
-    # PROCESS command
-    process_parser = subparsers.add_parser('process', help='Process LAZ files to create training patches')
+    # PATCH command (renamed from process)
+    patch_parser = subparsers.add_parser('patch', help='Create training patches from LAZ files')
+    patch_parser.add_argument('--input', type=Path, help='Input LAZ file')
+    patch_parser.add_argument('--input-dir', type=Path, help='Input directory of LAZ files')
+    patch_parser.add_argument('--output', type=Path, required=True, help='Output directory')
+    patch_parser.add_argument('--lod-level', type=str, choices=['LOD2', 'LOD3'],
+                               default='LOD2', help='LOD level (default: LOD2)')
+    patch_parser.add_argument('--no-augment', action='store_true', help='Disable data augmentation')
+    patch_parser.add_argument('--num-augmentations', type=int, default=3,
+                               help='Number of augmentations per patch (default: 3)')
+    patch_parser.add_argument('--num-workers', type=int, default=1,
+                               help='Number of parallel workers (default: 1)')
+    patch_parser.add_argument('--bbox', type=str,
+                               help='Bounding box filter: xmin,ymin,xmax,ymax (LAMB93 coordinates)')
+    patch_parser.add_argument('--patch-size', type=float, default=150.0,
+                               help='Patch size in meters (default: 150.0)')
+    patch_parser.add_argument('--patch-overlap', type=float, default=0.1,
+                               help='Patch overlap ratio (default: 0.1)')
+    patch_parser.add_argument('--num-points', type=int, default=16384,
+                               choices=[4096, 8192, 16384],
+                               help='Target number of points per patch: 4k, 8k, or 16k (default: 16384)')
+    patch_parser.add_argument('--k-neighbors', type=int, default=None,
+                               help='Number of neighbors for feature computation (default: auto)')
+    patch_parser.add_argument('--include-architectural-style', action='store_true',
+                               help='Include architectural style (0-12) as a feature in patches')
+    patch_parser.add_argument('--style-encoding', type=str, 
+                               choices=['constant', 'multihot'],
+                               default='constant',
+                               help='Style encoding: constant (single ID) or multihot (multi-label with weights)')
+    patch_parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Force reprocessing even if patches already exist'
+    )
+    
+    # Keep PROCESS as alias for backwards compatibility
+    process_parser = subparsers.add_parser('process', help='Alias for "patch" command (deprecated)')
     process_parser.add_argument('--input', type=Path, help='Input LAZ file')
     process_parser.add_argument('--input-dir', type=Path, help='Input directory of LAZ files')
     process_parser.add_argument('--output', type=Path, required=True, help='Output directory')
@@ -834,6 +1109,33 @@ def main():
         action='store_true',
         help='Force re-enrichment even if enriched file exists'
     )
+    enrich_parser.add_argument(
+        '--add-rgb',
+        action='store_true',
+        help='Augment with RGB colors from IGN orthophotos (requires requests and Pillow)'
+    )
+    enrich_parser.add_argument(
+        '--rgb-cache-dir',
+        type=Path,
+        help='Directory to cache downloaded orthophotos (optional)'
+    )
+    
+    # PIPELINE command - Execute full workflow from YAML
+    pipeline_parser = subparsers.add_parser(
+        'pipeline',
+        help='Execute full pipeline from YAML configuration'
+    )
+    pipeline_parser.add_argument(
+        'config',
+        type=Path,
+        help='Path to YAML configuration file'
+    )
+    pipeline_parser.add_argument(
+        '--create-example',
+        type=str,
+        choices=['full', 'enrich', 'patch'],
+        help='Create example configuration file and exit'
+    )
     
     # DOWNLOAD command
     download_parser = subparsers.add_parser('download', help='Download LiDAR tiles from IGN')
@@ -841,6 +1143,8 @@ def main():
                                 help='Bounding box: lon_min,lat_min,lon_max,lat_max (WGS84)')
     download_parser.add_argument('--output', type=Path, required=True, help='Output directory')
     download_parser.add_argument('--max-tiles', type=int, help='Maximum number of tiles to download')
+    download_parser.add_argument('--num-workers', type=int, default=3,
+                                help='Number of parallel downloads (default: 3)')
     
     args = parser.parse_args()
     
@@ -848,18 +1152,33 @@ def main():
         parser.print_help()
         return 1
     
-    # Validate inputs for process and enrich commands
-    if args.command in ['process', 'enrich']:
+    # Validate inputs for patch, process and enrich commands
+    if args.command in ['patch', 'process', 'enrich']:
         if not args.input and not args.input_dir:
             parser.error(f"{args.command}: Either --input or --input-dir must be specified")
     
+    # Handle pipeline --create-example
+    if args.command == 'pipeline' and hasattr(args, 'create_example') and args.create_example:
+        from .pipeline_config import create_example_config
+        output_path = args.config if args.config else Path(f'pipeline_{args.create_example}.yaml')
+        create_example_config(output_path, args.create_example)
+        logger.info(f"✓ Created example configuration: {output_path}")
+        logger.info(f"  Edit the file and run: ign-lidar-hd pipeline {output_path}")
+        return 0
+    
     # Execute command
-    if args.command == 'process':
+    if args.command == 'patch':
+        return cmd_process(args)  # Uses same implementation
+    elif args.command == 'process':
+        # Show deprecation warning
+        logger.warning("⚠️  'process' command is deprecated, use 'patch' instead")
         return cmd_process(args)
     elif args.command == 'enrich':
         return cmd_enrich(args)
     elif args.command == 'download':
         return cmd_download(args)
+    elif args.command == 'pipeline':
+        return cmd_pipeline(args)
     
     return 0
 

@@ -73,7 +73,7 @@ Téléchargez les tuiles LiDAR pour votre zone d'intérêt :
 
 ```bash
 # Télécharger les tuiles pour le centre de Paris
-python -m ign_lidar.cli download \
+ign-lidar-hd download \
   --bbox 2.25,48.82,2.42,48.90 \
   --output /chemin/vers/tuiles_brutes/ \
   --max-tiles 10
@@ -102,7 +102,7 @@ Ajoutez des caractéristiques de classification des composants de bâtiment aux 
 
 ```bash
 # Enrichir les tuiles avec des caractéristiques de bâtiment
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir /chemin/vers/tuiles_brutes/ \
   --output /chemin/vers/tuiles_enrichies/ \
   --mode building \
@@ -122,7 +122,7 @@ Créez des patches d'entraînement depuis les tuiles enrichies :
 
 ```bash
 # Extraire des patches d'entraînement
-python -m ign_lidar.cli process \
+ign-lidar-hd process \
   --input-dir /chemin/vers/tuiles_enrichies/ \
   --output /chemin/vers/patches/ \
   --lod-level LOD2 \

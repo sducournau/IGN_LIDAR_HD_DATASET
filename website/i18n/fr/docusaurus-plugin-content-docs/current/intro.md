@@ -67,7 +67,8 @@ flowchart LR
 
 ## Caractéristiques principales
 
-- 🎯 **Traitement LiDAR uniquement** - Aucune dépendance RGB
+- 🎯 **Traitement LiDAR uniquement** - Aucune dépendance RGB requise
+- 🎨 **Augmentation RGB** - Enrichissement couleur optionnel depuis les orthophotos IGN (NOUVEAU !)
 - ⚡ **Détection intelligente de saut** - Reprendre les workflows interrompus
 - 🏗️ **Classification multi-niveaux** - Support LOD2 et LOD3
 - 🚀 **Accélération GPU** - Support CUDA optionnel
@@ -84,18 +85,29 @@ pip install ign-lidar-hd
 
 ```python
 from ign_lidar import LiDARProcessor
+from pathlib import Path
 
 # Initialiser le processeur
 processor = LiDARProcessor(lod_level="LOD2")
 
 # Traiter une seule tuile
 patches = processor.process_tile("data.laz", "output/")
+
+# NOUVEAU : Traiter avec augmentation RGB depuis les orthophotos IGN
+processor_rgb = LiDARProcessor(
+    lod_level="LOD2",
+    include_rgb=True,
+    rgb_cache_dir=Path("cache/")
+)
+patches_rgb = processor_rgb.process_tile("data.laz", "output/")
+print(f"Généré {len(patches_rgb)} patches avec couleurs RGB !")
 ```
 
 ## Prochaines étapes
 
 - 📖 Lire le [Guide d'installation](installation/quick-start.md)
 - 🎓 Suivre le [Guide d'utilisation de base](guides/basic-usage.md)
+- 🎨 **NOUVEAU :** Découvrir l'[Augmentation RGB](features/rgb-augmentation.md)
 - 🔍 Explorer les [Fonctionnalités de saut intelligent](features/smart-skip.md)
 - 📚 Consulter le [Guide d'optimisation mémoire](reference/memory-optimization.md)
 

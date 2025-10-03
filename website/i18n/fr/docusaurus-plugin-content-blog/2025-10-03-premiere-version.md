@@ -64,9 +64,9 @@ Cette bibliothèque est parfaite pour :
 pip install ign-lidar-hd
 
 # Traitement complet
-python -m ign_lidar.cli download --bbox 2.25,48.82,2.42,48.90 --output raw/
-python -m ign_lidar.cli enrich --input-dir raw/ --output enriched/
-python -m ign_lidar.cli process --input-dir enriched/ --output patches/
+ign-lidar-hd download --bbox 2.25,48.82,2.42,48.90 --output raw/
+ign-lidar-hd enrich --input-dir raw/ --output enriched/
+ign-lidar-hd process --input-dir enriched/ --output patches/
 ```
 
 ## 📊 Métriques du projet

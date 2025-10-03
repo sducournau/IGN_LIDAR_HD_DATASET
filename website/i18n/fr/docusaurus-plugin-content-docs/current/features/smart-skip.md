@@ -41,7 +41,7 @@ Ignore automatiquement les tuiles existantes lors du téléchargement :
 
 ```bash
 # Télécharge seulement les tuiles manquantes
-python -m ign_lidar.cli download \
+ign-lidar-hd download \
   --bbox 2.0,48.8,2.5,49.0 \
   --output tuiles/
 
@@ -63,7 +63,7 @@ Ignore automatiquement les fichiers déjà enrichis :
 
 ```bash
 # Enrichit seulement les nouveaux fichiers
-python -m ign_lidar.cli enrich \
+ign-lidar-hd enrich \
   --input-dir tuiles_brutes/ \
   --output tuiles_enrichies/
 
@@ -79,7 +79,7 @@ Ignore automatiquement les tuiles avec patches existants :
 
 ```bash
 # Traite seulement les nouvelles tuiles
-python -m ign_lidar.cli process \
+ign-lidar-hd process \
   --input-dir tuiles_enrichies/ \
   --output patches/
 
@@ -100,20 +100,20 @@ from ign_lidar import LiDARProcessor
 processor = LiDARProcessor(skip_existing=False)
 
 # Ou via CLI
-python -m ign_lidar.cli process --no-skip
+ign-lidar-hd process --no-skip
 ```
 
 ### Forcer le retraitement
 
 ```bash
 # Forcer le re-téléchargement
-python -m ign_lidar.cli download --force
+ign-lidar-hd download --force
 
 # Forcer le re-enrichissement
-python -m ign_lidar.cli enrich --force
+ign-lidar-hd enrich --force
 
 # Forcer le retraitement
-python -m ign_lidar.cli process --force
+ign-lidar-hd process --force
 ```
 
 ## Détection de fichiers
@@ -157,11 +157,11 @@ patches/
 
 ```bash
 # Le traitement initial s'arrête après 3 tuiles
-python -m ign_lidar.cli process --input-dir data/ --output patches/
+ign-lidar-hd process --input-dir data/ --output patches/
 # ❌ Erreur après tuile_003
 
 # Reprendre automatiquement depuis la tuile_004
-python -m ign_lidar.cli process --input-dir data/ --output patches/
+ign-lidar-hd process --input-dir data/ --output patches/
 # ⏭️  tuile_001 ignorée (patches existants)
 # ⏭️  tuile_002 ignorée (patches existants)
 # ⏭️  tuile_003 ignorée (patches existants)
@@ -172,10 +172,10 @@ python -m ign_lidar.cli process --input-dir data/ --output patches/
 
 ```bash
 # Traiter le lot initial
-python -m ign_lidar.cli process --input-dir lot1/ --output patches/
+ign-lidar-hd process --input-dir lot1/ --output patches/
 
 # Ajouter plus de données plus tard
-python -m ign_lidar.cli process --input-dir lot2/ --output patches/
+ign-lidar-hd process --input-dir lot2/ --output patches/
 # Traite seulement les nouvelles tuiles du lot2
 ```
 
@@ -208,7 +208,7 @@ ls -la tuiles/
 chmod 644 tuiles/*.laz
 
 # Forcer la régénération si nécessaire
-python -m ign_lidar.cli process --force
+ign-lidar-hd process --force
 ```
 
 ### Patches corrompus
@@ -220,5 +220,5 @@ Si des patches sont corrompus :
 rm -rf patches/tuile_problematique/
 
 # Retraiter cette tuile
-python -m ign_lidar.cli process --input-dir data/ --output patches/
+ign-lidar-hd process --input-dir data/ --output patches/
 ```

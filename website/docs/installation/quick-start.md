@@ -18,7 +18,7 @@ pip install ign-lidar-hd
 ## Verify Installation
 
 ```bash
-ign-lidar-process --version
+ign-lidar-hd --version
 ```
 
 ## Alternative Installation Methods
@@ -84,10 +84,10 @@ Test that everything works:
 
 ```bash
 # Check CLI access
-python -m ign_lidar.cli --help
+ign-lidar-hd --help
 
 # Or use the installed command
-ign-lidar-process --help
+ign-lidar-hd --help
 ```
 
 You should see the available commands:
@@ -106,11 +106,11 @@ You should see the available commands:
 
 ### Command Not Found
 
-If `ign-lidar-process` command is not found:
+If `ign-lidar-hd` command is not found:
 
 ```bash
 # Use Python module syntax instead
-python -m ign_lidar.cli --help
+ign-lidar-hd --help
 ```
 
 ### Import Errors

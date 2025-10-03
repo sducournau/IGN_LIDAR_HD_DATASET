@@ -60,7 +60,7 @@ sequenceDiagram
     participant FileSystem as File System
     participant Processor
 
-    User->>CLI: ign-lidar-process enrich
+    User->>CLI: ign-lidar-hd enrich
     CLI->>SkipChecker: Check existing files
     SkipChecker->>FileSystem: List output directory
     FileSystem-->>SkipChecker: File list
@@ -265,25 +265,24 @@ flowchart TD
 
 ```bash
 # Optimized for dense urban environments
-ign-lidar-process download --bbox 2.0,48.8,2.1,48.9 --output urban_tiles/
-ign-lidar-process enrich --input-dir urban_tiles/ --output urban_enriched/ --use-gpu --k-neighbors 30
-ign-lidar-process process --input-dir urban_enriched/ --output urban_patches/ --lod-level LOD3 --num-augmentations 5
+ign-lidar-hd download --bbox 2.0,48.8,2.1,48.9 --output urban_tiles/
+ign-lidar-hd enrich --input-dir urban_tiles/ --output urban_enriched/ --use-gpu --k-neighbors 30
+ign-lidar-hd process --input-dir urban_enriched/ --output urban_patches/ --lod-level LOD3 --num-augmentations 5
 ```
 
 ### Rural/Natural Area Processing
 
 ```bash
 # Optimized for sparse rural environments
-ign-lidar-process download --bbox -1.0,46.0,0.0,47.0 --output rural_tiles/
-ign-lidar-process enrich --input-dir rural_tiles/ --output rural_enriched/ --k-neighbors 15
-ign-lidar-process process --input-dir rural_enriched/ --output rural_patches/ --lod-level LOD2 --num-augmentations 2
+ign-lidar-hd download --bbox -1.0,46.0,0.0,47.0 --output rural_tiles/
+ign-lidar-hd enrich --input-dir rural_tiles/ --output rural_enriched/ --k-neighbors 15
+ign-lidar-hd process --input-dir rural_enriched/ --output rural_patches/ --lod-level LOD2 --num-augmentations 2
 ```
 
 ### High-Performance Batch Processing
 
 ```bash
 # Maximum throughput for large datasets
-ign-lidar-process enrich --input-dir tiles/ --output enriched/ --use-gpu --num-workers 8 --batch-size large
-ign-lidar-process process --input-dir enriched/ --output patches/ --num-workers 16 --skip-existing
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --use-gpu --num-workers 8 --batch-size large
+ign-lidar-hd process --input-dir enriched/ --output patches/ --num-workers 16 --skip-existing
 ```
-

@@ -67,7 +67,8 @@ flowchart LR
 
 ## Key Features
 
-- 🎯 **LiDAR-Only Processing** - No RGB dependency
+- 🎯 **LiDAR-Only Processing** - No RGB dependency required
+- 🎨 **RGB Augmentation** - Optional color enrichment from IGN orthophotos (NEW!)
 - ⚡ **Smart Skip Detection** - Resume interrupted workflows
 - 🏗️ **Multi-Level Classification** - LOD2 and LOD3 support
 - 🚀 **GPU Acceleration** - Optional CUDA support
@@ -96,12 +97,22 @@ output_dir = Path("output/")
 # Extract ML-ready patches
 patches = processor.process_tile(input_file, output_dir)
 print(f"Generated {len(patches)} training patches")
+
+# NEW: Process with RGB augmentation from IGN orthophotos
+processor_rgb = LiDARProcessor(
+    lod_level="LOD2",
+    include_rgb=True,
+    rgb_cache_dir=Path("cache/")
+)
+patches_rgb = processor_rgb.process_tile(input_file, output_dir)
+print(f"Generated {len(patches_rgb)} patches with RGB colors!")
 ```
 
 ## Next Steps
 
 - 📖 Read the [Installation Guide](./installation/quick-start)
 - 🎓 Follow the [Basic Usage Guide](./guides/basic-usage)
+- 🎨 **NEW:** Learn about [RGB Augmentation](./features/rgb-augmentation)
 - 🔍 Explore [Smart Skip Features](./features/smart-skip)
 - 📚 Check the [Memory Optimization Guide](./reference/memory-optimization)
 
