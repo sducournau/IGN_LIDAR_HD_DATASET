@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.3] - 2025-10-03
+
+### Added
+
+- **LAZ Compression Backend** 🔧
+  - Added `lazrs>=0.5.0` as a core dependency
+  - Provides LAZ compression/decompression backend for `laspy`
+  - Fixes "No LazBackend selected, cannot decompress data" errors
+  - Enables processing of compressed LAZ and COPC files out of the box
+
+### Fixed
+
+- **LAZ File Processing**
+  - Resolved issue where LAZ files could not be read without manual installation of compression backend
+  - All LAZ and COPC.LAZ files now work automatically after installation
+
+### Changed
+
+- `lazrs` is now a required dependency (added to both `pyproject.toml` and `requirements.txt`)
+- Users no longer need to manually install LAZ backend packages
+
 ## [1.5.2] - 2025-10-03
 
 ### Fixed
