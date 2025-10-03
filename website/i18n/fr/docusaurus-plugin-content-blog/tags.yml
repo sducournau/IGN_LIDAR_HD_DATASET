@@ -3,6 +3,11 @@ version:
   permalink: /version
   description: Versions et annonces de produit
 
+release:
+  label: Release
+  permalink: /release
+  description: Versions et annonces de produit
+
 lidar:
   label: LiDAR
   permalink: /lidar
@@ -13,7 +18,17 @@ apprentissage-automatique:
   permalink: /apprentissage-automatique
   description: Applications ML et jeux de données
 
+machine-learning:
+  label: Machine Learning
+  permalink: /machine-learning
+  description: Applications ML et jeux de données
+
 premiere-version:
   label: Première version
   permalink: /premiere-version
+  description: Version initiale du produit
+
+first-release:
+  label: First Release
+  permalink: /first-release
   description: Version initiale du produit

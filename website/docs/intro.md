@@ -1,8 +1,20 @@
 ---
+slug: /
 sidebar_position: 1
+title: IGN LiDAR HD Processing Library
 ---
 
-# Getting Started
+## 🎉 First Release Announcement
+
+**We're excited to announce the first official release of the IGN LiDAR HD Processing Library!**
+
+📺 **[Watch our release video](https://youtu.be/ksBWEhkVqQI)** to see the library in action!
+
+📖 **[Read the full release announcement](/blog/first-release)** in our blog!
+
+---
+
+## Getting Started
 
 Welcome to the **IGN LiDAR HD Processing Library** documentation!
 

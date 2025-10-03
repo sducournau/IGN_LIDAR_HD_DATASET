@@ -1,8 +1,10 @@
 ---
+slug: /
 sidebar_position: 1
+title: Bibliothèque de traitement IGN LiDAR HD
 ---
 
-# Commencer
+## Commencer
 
 Bienvenue dans la documentation de la bibliothèque de traitement IGN LiDAR HD !
 
