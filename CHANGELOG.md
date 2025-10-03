@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] - 2025-10-03
+
+### Documentation
+
+- **Comprehensive Documentation Overhaul** 📚
+  - Created complete codebase analysis with architecture documentation (`CODEBASE_ANALYSIS_2025.md`)
+  - Added 7 professional Mermaid diagrams for visual understanding:
+    - Core processing pipeline with GPU/CPU paths
+    - GPU integration architecture with automatic fallback
+    - RGB augmentation system with spatial indexing
+    - API design patterns (Factory, Strategy, Pipeline, Context Manager)
+    - Complete 3-stage workflow diagrams (English + French)
+    - Documentation navigation map
+  - Created comprehensive workflow guides (English + French):
+    - `website/docs/guides/complete-workflow.md`
+    - `website/i18n/fr/.../guides/complete-workflow.md`
+  - Added 8 summary and reference documents:
+    - `DOCUMENTATION_README.md` - Quick navigation
+    - `QUICK_REFERENCE.md` - 2-minute overview
+    - `DOCUMENTATION_COMPLETE_SUMMARY.md` - Executive summary
+    - `DOCUMENTATION_UPDATE_2025.md` - Detailed update log
+    - `DOCUMENTATION_INDEX.md` - Master index with navigation
+    - `MERMAID_DIAGRAMS_SUMMARY.md` - Diagram reference
+  - Enhanced intro pages with badges and expanded features (EN + FR)
+  - Updated README with latest features and improvements
+  - Added 40+ working code examples throughout documentation
+  - 100% bilingual coverage (English + French)
+  - Multiple learning paths (beginner to advanced)
+  - Comprehensive troubleshooting sections
+  - Professional formatting with badges and visual elements
+
+### Added
+
+- Quick start guides for new users (EN + FR)
+- Release notes for v1.6.0 (EN + FR)
+- Documentation navigation diagrams
+- Visual architecture documentation
+- Performance benchmarks and optimization guides
+
+### Improved
+
+- Documentation structure and organization
+- Code example quality and coverage
+- Visual communication with diagrams
+- Cross-referencing between documents
+- Search and navigation experience
+
 ## [1.6.1] - 2025-10-03
 
 ### Fixed

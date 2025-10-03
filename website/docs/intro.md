@@ -4,13 +4,28 @@ sidebar_position: 1
 title: IGN LiDAR HD Processing Library
 ---
 
-## 🎉 First Release Announcement
+# IGN LiDAR HD Processing Library
 
-**We're excited to announce the first official release of the IGN LiDAR HD Processing Library!**
+**Version 1.6.0** | Python 3.8+ | MIT License
 
-📺 **[Watch our release video](https://youtu.be/ksBWEhkVqQI)** to see the library in action!
+[![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-📖 **[Read the full release announcement](/blog/first-release)** in our blog!
+## 🎉 Latest Release: v1.6.0
+
+**Enhanced Data Augmentation & RGB Improvements**
+
+✨ **What's New:**
+
+- 🎯 **Enhanced Augmentation**: Features now computed on augmented geometry for better consistency
+- 🎨 **RGB CloudCompare Fix**: Perfect color display with corrected 16-bit scaling (0-65535 range)
+- ⚡ **GPU Acceleration**: Full support for CUDA-accelerated processing (5-10x speedup)
+- 📦 **Pipeline Configuration**: YAML-based workflows for reproducibility
+- 🔄 **Smart Resumability**: Never reprocess existing files
+- � **Comprehensive Documentation**: English and French guides
+
+�📺 **[Watch our demo video](https://youtu.be/ksBWEhkVqQI)** | [📖 Release Notes](/docs/release-notes/v1.6.0)
 
 ---
 
@@ -23,9 +38,13 @@ Transform French LiDAR data into machine learning-ready datasets for building cl
 :::tip Why use this library?
 
 - **🎯 Specialized for French LiDAR**: Optimized for IGN's LiDAR HD format and classification standards
-- **⚡ Production-ready**: Battle-tested with 50+ tile processing and comprehensive error handling
-- **🚀 GPU-accelerated**: Optional CUDA support for faster feature computation
+- **⚡ Production-ready**: Battle-tested with 50+ tiles and comprehensive error handling
+- **🚀 GPU-accelerated**: Optional CUDA support for 5-10x faster processing
 - **📦 Complete pipeline**: From raw downloads to training-ready patches in one workflow
+- **🔄 Smart resumability**: Automatically skip processed files and resume interrupted workflows
+- **🎨 RGB augmentation**: Optional color enrichment from IGN orthophotos
+- **🌍 Bilingual**: Full documentation in English and French
+- **📊 Well-tested**: Comprehensive test suite with 20+ test modules
   :::
 
 ## What is IGN LiDAR HD?
@@ -34,9 +53,11 @@ The IGN LiDAR HD Processing Library is a comprehensive Python toolkit for proces
 
 ![Building Level of Detail](../static/img/axonometry.png)
 
+### Key Capabilities
+
 This library enables researchers and developers to:
 
-- **Download** LiDAR tiles directly from IGN servers
+- **Download** LiDAR tiles directly from IGN servers with intelligent tile selection
 - **Enrich** point clouds with advanced geometric and architectural features
 - **Generate** training patches for deep learning models
 - **Classify** building components at LOD2 (15 classes) and LOD3 (30+ classes) levels

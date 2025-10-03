@@ -4,13 +4,28 @@ sidebar_position: 1
 title: Bibliothèque de Traitement LiDAR HD de l'IGN
 ---
 
-## 🎉 Annonce de la Première Version
+# Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Nous sommes ravis d'annoncer la première version officielle de la Bibliothèque de Traitement LiDAR HD de l'IGN !**
+**Version 1.6.0** | Python 3.8+ | Licence MIT
 
-📺 **[Regardez notre vidéo de lancement](https://youtu.be/ksBWEhkVqQI)** pour voir la bibliothèque en action !
+[![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-📖 **[Lisez l'annonce complète de la version](/blog/first-release)** sur notre blog !
+## 🎉 Dernière Version : v1.6.0
+
+### Amélioration de l'Augmentation de Données & RGB
+
+✨ **Nouveautés :**
+
+- 🎯 **Augmentation Améliorée** : Les caractéristiques sont maintenant calculées sur la géométrie augmentée pour une meilleure cohérence
+- 🎨 **Correction RGB CloudCompare** : Affichage parfait des couleurs avec mise à l'échelle 16-bit corrigée (plage 0-65535)
+- ⚡ **Accélération GPU** : Support complet pour le traitement accéléré par CUDA (accélération 5-10x)
+- 📦 **Configuration Pipeline** : Workflows reproductibles basés sur YAML
+- 🔄 **Reprise Intelligente** : Ne retraite jamais les fichiers existants
+- 📚 **Documentation Complète** : Guides en anglais et en français
+
+📺 **[Regardez notre vidéo de démonstration](https://youtu.be/ksBWEhkVqQI)** | [📖 Notes de Version](/docs/release-notes/v1.6.0)
 
 ---
 
@@ -23,10 +38,13 @@ Transformez les données LiDAR françaises en jeux de données prêts pour l'app
 :::tip Pourquoi utiliser cette bibliothèque ?
 
 - **🎯 Spécialisée pour le LiDAR français** : Optimisée pour le format LiDAR HD de l'IGN et les standards de classification
-- **⚡ Prête pour la production** : Testée en conditions réelles avec le traitement de plus de 50 dalles et une gestion complète des erreurs
-- **🚀 Accélération GPU** : Support CUDA optionnel pour un calcul jusqu'à 10x plus rapide des caractéristiques
-- **📦 Pipeline complet** : Du téléchargement brut aux patchs prêts pour l'entraînement en un seul flux de travail
-- **🔄 Reprise intelligente** : Ne retraite jamais les données déjà traitées
+- **⚡ Prête pour la production** : Testée en conditions réelles avec 50+ dalles et gestion complète des erreurs
+- **🚀 Accélération GPU** : Support CUDA optionnel pour un traitement 5-10x plus rapide
+- **📦 Pipeline complet** : Du téléchargement brut aux patchs d'entraînement en un seul workflow
+- **🔄 Reprise intelligente** : Saute automatiquement les fichiers traités et reprend les workflows interrompus
+- **🎨 Augmentation RGB** : Enrichissement couleur optionnel depuis les orthophotos IGN
+- **🌍 Bilingue** : Documentation complète en anglais et en français
+- **📊 Bien testé** : Suite de tests complète avec plus de 20 modules de test
   :::
 
 ## Qu'est-ce que le LiDAR HD de l'IGN ?

@@ -7,10 +7,24 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
+[![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+
+**Version 1.6.0** | [🇫🇷 French](README.fr.md) | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 </div>
-<img src="website/static/img/lod3.png" alt="LoD3 Building Model Icon">
+
+<img src="website/static/img/lod3.png" alt="LoD3 Building Model Icon" width="200">
+
 A comprehensive Python library for processing IGN (Institut National de l'Information Géographique et Forestière) LiDAR HD data into machine learning-ready datasets for Building Level of Detail (LOD) classification tasks.
+
+## ✨ What's New in v1.6.0
+
+🎯 **Enhanced Data Augmentation** - Augmentation now happens during ENRICH phase (before feature computation) for better feature-geometry consistency  
+🎨 **RGB CloudCompare Fix** - Perfect RGB color display with corrected 16-bit scaling  
+⚡ **40% Processing Trade-off** - Slightly longer processing time but significantly better training data quality  
+📚 **Improved Documentation** - Comprehensive guides and examples for all features
+
+[📖 Full Release Notes](RELEASE_v1.6.0_SUMMARY.md) | [🔄 Migration Guide](AUGMENTATION_IMPROVEMENT.md)
 
 ## 📺 Video Demo
 
