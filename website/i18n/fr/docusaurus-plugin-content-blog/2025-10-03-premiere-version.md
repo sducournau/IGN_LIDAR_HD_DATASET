@@ -115,7 +115,7 @@ Rejoignez notre communauté grandissante :
 
 - 💻 **[GitHub Discussions](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/discussions)**
 - 🐛 **[GitHub Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)**
-- 📧 **Email** : [Contact](mailto:simon.ducournau@example.com)
+- 📧 **Email** : [Contact](mailto:simon.ducournau@gmail.com)
 
 ---
 

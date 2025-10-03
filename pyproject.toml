@@ -8,16 +8,15 @@ version = "1.1.0"
 description = "IGN LiDAR HD Dataset Processing Library for Building LOD Classification"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
-    {name = "Simon", email = "contact@example.com"},
+    {name = "Simon Ducournau", email = "simon.ducournau@gmail.com"},
 ]
 keywords = ["lidar", "ign", "machine-learning", "gis", "building-classification"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -55,10 +54,10 @@ ign-lidar-process = "ign_lidar.cli:main"
 ign-lidar-qgis = "ign_lidar.qgis_converter:main"
 
 [project.urls]
-Homepage = "https://github.com/your-username/ign-lidar-hd"
-Repository = "https://github.com/your-username/ign-lidar-hd"
-Documentation = "https://github.com/your-username/ign-lidar-hd#readme"
-Issues = "https://github.com/your-username/ign-lidar-hd/issues"
+Homepage = "https://github.com/sducournau/IGN_LIDAR_HD_DATASET"
+Repository = "https://github.com/sducournau/IGN_LIDAR_HD_DATASET"
+Documentation = "https://github.com/sducournau/IGN_LIDAR_HD_DATASET#readme"
+Issues = "https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues"
 
 [tool.setuptools.packages.find]
 include = ["ign_lidar*"]
