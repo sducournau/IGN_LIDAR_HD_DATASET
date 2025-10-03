@@ -1,18 +1,45 @@
 ---
 slug: /
 sidebar_position: 1
-title: Bibliothèque de traitement IGN LiDAR HD
+title: Bibliothèque de Traitement LiDAR HD de l'IGN
 ---
 
-## Commencer
+## 🎉 Annonce de la Première Version
 
-Bienvenue dans la documentation de la bibliothèque de traitement IGN LiDAR HD !
+**Nous sommes ravis d'annoncer la première version officielle de la Bibliothèque de Traitement LiDAR HD de l'IGN !**
 
-## Qu'est-ce qu'IGN LiDAR HD ?
+📺 **[Regardez notre vidéo de lancement](https://youtu.be/ksBWEhkVqQI)** pour voir la bibliothèque en action !
 
-La bibliothèque de traitement IGN LiDAR HD est une boîte à outils Python pour traiter les données LiDAR haute densité de l'Institut national de l'information géographique et forestière (IGN) en jeux de données prêts pour l'apprentissage automatique.
+📖 **[Lisez l'annonce complète de la version](/blog/first-release)** sur notre blog !
+
+---
+
+## Pour Commencer
+
+Bienvenue dans la documentation de la **Bibliothèque de Traitement LiDAR HD de l'IGN** !
+
+Transformez les données LiDAR françaises en jeux de données prêts pour l'apprentissage automatique pour la classification des bâtiments avec cette boîte à outils Python complète. 🏗️
+
+:::tip Pourquoi utiliser cette bibliothèque ?
+
+- **🎯 Spécialisée pour le LiDAR français** : Optimisée pour le format LiDAR HD de l'IGN et les standards de classification
+- **⚡ Prête pour la production** : Testée en conditions réelles avec le traitement de plus de 50 dalles et une gestion complète des erreurs
+- **🚀 Accélération GPU** : Support CUDA optionnel pour un calcul plus rapide des caractéristiques
+- **📦 Pipeline complet** : Du téléchargement brut aux patchs prêts pour l'entraînement en un seul flux de travail
+  :::
+
+## Qu'est-ce que le LiDAR HD de l'IGN ?
+
+La Bibliothèque de Traitement LiDAR HD de l'IGN est une boîte à outils Python complète pour le traitement de données LiDAR haute densité de l'Institut national de l'information géographique et forestière (IGN). Elle transforme les nuages de points bruts en jeux de données prêts pour l'apprentissage automatique, spécifiquement conçus pour les tâches de **classification du Niveau de Détail (LOD) des bâtiments**.
 
 ![Niveaux de détail des bâtiments](../../../../static/img/axonometry.png)
+
+Cette bibliothèque permet aux chercheurs et développeurs de :
+
+- **Télécharger** les dalles LiDAR directement depuis les serveurs de l'IGN
+- **Enrichir** les nuages de points avec des caractéristiques géométriques et architecturales avancées
+- **Générer** des patchs d'entraînement pour les modèles d'apprentissage profond
+- **Classifier** les composants des bâtiments aux niveaux LOD2 (15 classes) et LOD3 (plus de 30 classes)
 
 ## 🔄 Aperçu du pipeline de traitement
 
