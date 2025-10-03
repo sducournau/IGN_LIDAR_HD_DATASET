@@ -265,9 +265,19 @@ def _enrich_single_file(args_tuple):
         if is_copc:
             # Create clean header for standard LAZ (preserving point format)
             from laspy import LasHeader
+            
+            # If RGB augmentation requested, ensure format supports RGB
+            # Format 6 may not initialize RGB properly, use format 7
+            target_format = las.header.point_format.id
+            if add_rgb and target_format == 6:
+                target_format = 7  # Format 7 has native RGB support
+                worker_logger.info(
+                    "  ℹ️ Converting to point format 7 for RGB support"
+                )
+            
             new_header = LasHeader(
                 version=las.header.version,
-                point_format=las.header.point_format.id
+                point_format=target_format
             )
             # Copy scale and offset
             new_header.scales = las.header.scales
@@ -285,9 +295,38 @@ def _enrich_single_file(args_tuple):
             if hasattr(las, 'number_of_returns'):
                 las_out.number_of_returns = las.number_of_returns
         else:
-            # Standard LAZ - preserve original header
-            las_out = laspy.LasData(las.header)
-            las_out.points = las.points
+            # Standard LAZ - may need format conversion for RGB
+            rgb_formats = [2, 3, 5, 7, 8, 10]
+            if add_rgb and las.header.point_format.id not in rgb_formats:
+                # Convert to format with RGB support
+                from laspy import LasHeader
+                target_format = 7 if las.header.version.minor >= 4 else 3
+                old_fmt = las.header.point_format.id
+                worker_logger.info(
+                    f"  ℹ️ Converting from format {old_fmt} "
+                    f"to format {target_format} for RGB support"
+                )
+                new_header = LasHeader(
+                    version=las.header.version,
+                    point_format=target_format
+                )
+                new_header.scales = las.header.scales
+                new_header.offsets = las.header.offsets
+                las_out = laspy.LasData(new_header)
+                las_out.x = las.x
+                las_out.y = las.y
+                las_out.z = las.z
+                las_out.classification = las.classification
+                if hasattr(las, 'intensity'):
+                    las_out.intensity = las.intensity
+                if hasattr(las, 'return_number'):
+                    las_out.return_number = las.return_number
+                if hasattr(las, 'number_of_returns'):
+                    las_out.number_of_returns = las.number_of_returns
+            else:
+                # Preserve original header
+                las_out = laspy.LasData(las.header)
+                las_out.points = las.points
         
         # Add extra dimensions
         for i, dim in enumerate(['normal_x', 'normal_y', 'normal_z']):

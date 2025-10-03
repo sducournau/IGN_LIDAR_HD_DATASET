@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2025-10-03
+
+### Fixed
+
+- **RGB Point Format Compatibility** 🎨
+  - Fixed "Point format does not support red dimension" error when using `--add-rgb` with COPC files
+  - Automatically converts point format 6 to format 7 (RGB+NIR) when RGB augmentation is requested
+  - Smart format conversion for non-RGB formats: format 7 for LAS 1.4+, format 3 for older versions
+  - Ensures RGB dimensions are properly initialized in laspy when converting from COPC to LAZ
+  - Files affected: `ign_lidar/cli.py`
+  - See `RGB_FORMAT_FIX.md` for technical details
+
 ## [1.6.0] - 2025-10-03
 
 ### Changed
