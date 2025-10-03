@@ -150,6 +150,21 @@ ign-lidar-hd enrich --input-dir raw/ --output enriched/ \
 - `process` command still functional (with deprecation notice)
 - No breaking changes to Python API
 
+### Known Issues
+
+#### GPU Acceleration Non-Functional
+
+The `--use-gpu` flag is currently **non-functional** in v1.2.0:
+
+- GPU module exists (`features_gpu.py`) but is not integrated with CLI/Processor
+- Flag is parsed but silently falls back to CPU processing
+- No functional impact (CPU processing works correctly)
+- Will be properly integrated in v1.3.0
+
+**Workaround:** None needed - CPU processing is fully functional and optimized.
+
+See `GPU_ANALYSIS.md` for detailed technical analysis.
+
 ### See Also
 
 - [RGB Augmentation Guide](https://igndataset.dev/docs/features/rgb-augmentation)

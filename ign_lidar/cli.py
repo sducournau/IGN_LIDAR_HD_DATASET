@@ -1094,8 +1094,10 @@ def main():
                               help='Number of parallel workers (default: 1)')
     enrich_parser.add_argument('--k-neighbors', type=int, default=10,
                               help='Number of neighbors for feature computation (default: 10)')
+    # TODO: GPU integration - currently non-functional, needs connection to features_gpu.py
+    # See GPU_ANALYSIS.md for implementation details
     enrich_parser.add_argument('--use-gpu', action='store_true',
-                              help='Use GPU acceleration if available')
+                              help='[Non-functional in v1.2.0] Use GPU acceleration if available')
     enrich_parser.add_argument('--mode', type=str, choices=['core', 'building'],
                               default='core',
                               help='Feature mode: core (basic) or building (full) (default: core)')

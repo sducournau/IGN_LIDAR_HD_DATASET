@@ -87,7 +87,11 @@ ign-lidar-hd download --bbox -2.0,47.0,-1.0,48.0 --output tiles/ --max-tiles 10
 # Enrich LAZ files with geometric features
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --num-workers 4
 
-# Enrich with GPU acceleration
+# Enrich with geometric features
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/
+
+# Enrich with GPU acceleration (⚠️ Note: GPU integration coming in v1.3.0)
+# Currently the --use-gpu flag is non-functional (uses CPU fallback)
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --use-gpu
 
 # Enrich with RGB augmentation from IGN orthophotos
@@ -160,7 +164,7 @@ patch:
 
 ### ⚡ **Performance & Optimization**
 
-- **GPU acceleration**: CUDA-enabled feature computation for faster processing
+- **GPU acceleration**: ⚠️ Planned for v1.3.0 (module exists but not yet integrated)
 - **Parallel processing**: Multi-worker support with automatic CPU core detection
 - **Memory optimization**: Chunked processing for large datasets
 - **Smart skip detection**: ⏭️ Automatically skip existing files and resume interrupted workflows
