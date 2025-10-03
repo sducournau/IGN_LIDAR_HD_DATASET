@@ -14,11 +14,13 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 ## 📺 Vidéo de Démonstration
 
-<div align="center">
-  <iframe width="800" height="450" src="https://www.youtube.com/embed/ksBWEhkVqQI" title="Démonstration du Traitement LiDAR HD de l'IGN" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+< align="center">
+<a href="https://www.youtube.com/watch?v=ksBWEhkVqQI" target="_blank">
+<img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/v1.6.3/website/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800">
+</a>
+
   <p><em>Apprenez à traiter les données LiDAR pour les applications d'apprentissage automatique</em></p>
 </div>
-
 ---
 
 ## 🎉 Dernière Version : v1.6.4

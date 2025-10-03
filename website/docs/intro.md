@@ -14,8 +14,9 @@ title: IGN LiDAR HD Processing Library
 
 ## 📺 Video Demo
 
-<div align="center">
-  <iframe width="800" height="450" src="https://www.youtube.com/embed/ksBWEhkVqQI" title="IGN LiDAR HD Processing Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<a href="https://www.youtube.com/watch?v=ksBWEhkVqQI" target="_blank">
+<img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/v1.6.3/website/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800">
+</a>
   <p><em>Learn how to process LiDAR data for machine learning applications</em></p>
 </div>
 
