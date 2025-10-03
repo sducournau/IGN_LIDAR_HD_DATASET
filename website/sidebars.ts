@@ -23,26 +23,52 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "User Guides",
-      items: [
-        "guides/basic-usage",
-        "guides/cli-commands",
-        "guides/qgis-integration",
-      ],
+      items: ["guides/basic-usage", "guides/cli-commands"],
     },
+
+    // Promote core documentation
+    "architecture",
+    "workflows",
+
+    // NEW: GPU Acceleration Section
+    {
+      type: "category",
+      label: "GPU Acceleration",
+      items: ["gpu/overview", "gpu/features", "gpu/rgb-augmentation"],
+    },
+
     {
       type: "category",
       label: "Features",
       items: [
-        "features/rgb-augmentation",
         "features/smart-skip",
         "features/format-preferences",
         "features/lod3-classification",
+        "features/rgb-augmentation",
+        "features/pipeline-configuration",
       ],
     },
+
+    {
+      type: "category",
+      label: "QGIS Integration",
+      items: ["guides/qgis-integration", "guides/qgis-troubleshooting"],
+    },
+
     {
       type: "category",
       label: "Technical Reference",
-      items: ["reference/memory-optimization"],
+      items: [
+        "reference/memory-optimization",
+        "mermaid-reference",
+        "api/processor",
+      ],
+    },
+
+    {
+      type: "category",
+      label: "Release Notes",
+      items: ["release-notes/v1.5.0"],
     },
   ],
 };

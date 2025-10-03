@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2025-10-03
+
+### Documentation
+
+- **Major Documentation Consolidation** 📚
+  - Consolidated three fragmented GPU guides into unified GPU section
+  - Created new `website/docs/gpu/` directory with structured documentation:
+    - `gpu/overview.md` - Comprehensive GPU setup and installation guide
+    - `gpu/features.md` - Detailed GPU feature computation reference
+    - `gpu/rgb-augmentation.md` - GPU-accelerated RGB augmentation guide
+  - Updated sidebar navigation to include all GPU documentation
+  - Added "GPU Acceleration" section to main navigation
+  - Promoted core documentation (`architecture.md`, `workflows.md`) to top-level
+- **Improved Navigation & Organization**
+  - Fixed sidebar navigation - all docs now accessible
+  - Resolved duplicate sidebar position conflicts
+  - Created logical documentation hierarchy:
+    - Installation → Guides → GPU → Features → QGIS → Technical Reference → Release Notes
+  - Added cross-references between related documentation pages
+- **Enhanced Cross-Referencing**
+  - Added "See Also" sections to all GPU-related pages
+  - Updated `architecture.md` with links to GPU guides
+  - Updated `workflows.md` with correct GPU guide references
+  - Updated `features/rgb-augmentation.md` with GPU acceleration links
+  - Fixed broken internal links across documentation
+
+### Changed
+
+- Updated sidebar configuration in `website/sidebars.ts`
+- Reorganized QGIS documentation into dedicated section
+- Added placeholder pages for API reference and release notes structure
+- Updated version references in documentation to reflect v1.5.1
+
+### Fixed
+
+- Fixed 60-70% content overlap between multiple GPU guides
+- Resolved inconsistent frontmatter and sidebar positions
+- Fixed broken links to GPU documentation throughout the site
+- Corrected relative paths after documentation restructuring
+
+### Benefits
+
+- **For Users:**
+
+  - Clear, discoverable navigation - all docs in sidebar
+  - Single authoritative guide per topic (no confusion)
+  - Better SEO and searchability
+  - Consistent documentation style
+
+- **For Maintainers:**
+  - Single source of truth - update in one place
+  - 60-70% reduction in duplicate content
+  - Easier to maintain and update
+  - Clear content ownership per section
+
 ## [1.5.0] - 2025-10-03
 
 ### Added

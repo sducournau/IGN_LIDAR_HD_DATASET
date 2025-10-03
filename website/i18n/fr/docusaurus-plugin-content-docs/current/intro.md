@@ -24,8 +24,9 @@ Transformez les données LiDAR françaises en jeux de données prêts pour l'app
 
 - **🎯 Spécialisée pour le LiDAR français** : Optimisée pour le format LiDAR HD de l'IGN et les standards de classification
 - **⚡ Prête pour la production** : Testée en conditions réelles avec le traitement de plus de 50 dalles et une gestion complète des erreurs
-- **🚀 Accélération GPU** : Support CUDA optionnel pour un calcul plus rapide des caractéristiques
+- **🚀 Accélération GPU** : Support CUDA optionnel pour un calcul jusqu'à 10x plus rapide des caractéristiques
 - **📦 Pipeline complet** : Du téléchargement brut aux patchs prêts pour l'entraînement en un seul flux de travail
+- **🔄 Reprise intelligente** : Ne retraite jamais les données déjà traitées
   :::
 
 ## Qu'est-ce que le LiDAR HD de l'IGN ?
@@ -41,7 +42,7 @@ Cette bibliothèque permet aux chercheurs et développeurs de :
 - **Générer** des patchs d'entraînement pour les modèles d'apprentissage profond
 - **Classifier** les composants des bâtiments aux niveaux LOD2 (15 classes) et LOD3 (plus de 30 classes)
 
-## 🔄 Aperçu du pipeline de traitement
+## 🔄 Aperçu du Pipeline de Traitement
 
 ```mermaid
 flowchart LR
@@ -65,39 +66,67 @@ flowchart LR
     style C fill:#e3f2fd
 ```
 
-## Caractéristiques principales
+## Caractéristiques Principales
 
 - 🎯 **Traitement LiDAR uniquement** - Aucune dépendance RGB requise
 - 🎨 **Augmentation RGB** - Enrichissement couleur optionnel depuis les orthophotos IGN (NOUVEAU !)
 - ⚡ **Détection intelligente de saut** - Reprendre les workflows interrompus
-- 🏗️ **Classification multi-niveaux** - Support LOD2 et LOD3
-- 🚀 **Accélération GPU** - Support CUDA optionnel
+- 🏗️ **Classification multi-niveaux** - Support LOD2 (15 classes) et LOD3 (30+ classes)
+- 🚀 **Accélération GPU** - Support CUDA optionnel avec accélération 5-10x
 - 🔄 **Traitement parallèle** - Traitement par lots multi-worker
 - 📊 **Caractéristiques riches** - Extraction complète de caractéristiques géométriques
+- 📋 **Configuration YAML** - Workflows reproductibles avec fichiers de configuration
 
-## Installation rapide
+## Installation Rapide
 
 ```bash
+# Installation standard
 pip install ign-lidar-hd
+
+# Installation avec support GPU (optionnel)
+pip install ign-lidar-hd[gpu]  # Support GPU basique avec CuPy
+
+# Installation GPU avancée avec RAPIDS (meilleures performances)
+pip install ign-lidar-hd[gpu-full]  # Inclut RAPIDS cuML
 ```
 
-## Exemple rapide
+**Configuration GPU requise** (optionnel) :
+
+- GPU NVIDIA avec support CUDA
+- CUDA Toolkit 11.0 ou supérieur
+- Paquet CuPy correspondant à votre version CUDA
+- Optionnel : RAPIDS cuML pour des algorithmes GPU avancés
+- Accélération attendue : 5-6x plus rapide que CPU (CuPy), jusqu'à 10x avec RAPIDS
+
+## Exemple Rapide
 
 ```python
 from ign_lidar import LiDARProcessor
 from pathlib import Path
 
-# Initialiser le processeur
+# Initialiser le processeur pour la classification LOD2 des bâtiments
 processor = LiDARProcessor(lod_level="LOD2")
 
-# Traiter une seule tuile
-patches = processor.process_tile("data.laz", "output/")
+# Traiter une seule dalle LiDAR
+input_file = Path("data/lidar_tile.laz")
+output_dir = Path("output/")
+
+# Extraire des patches prêts pour le ML
+patches = processor.process_tile(input_file, output_dir)
+print(f"Généré {len(patches)} patches d'entraînement")
 
 # NOUVEAU : Traiter avec augmentation RGB depuis les orthophotos IGN
 processor_rgb = LiDARProcessor(
     lod_level="LOD2",
     include_rgb=True,
     rgb_cache_dir=Path("cache/")
+)
+
+# Traitement parallèle de plusieurs fichiers
+patches = processor.process_directory(
+    "data/tiles/",
+    "output/patches/",
+    num_workers=4
 )
 patches_rgb = processor_rgb.process_tile("data.laz", "output/")
 print(f"Généré {len(patches_rgb)} patches avec couleurs RGB !")

@@ -1,9 +1,16 @@
-# GPU-Accelerated RGB Augmentation Guide
+---
+sidebar_position: 3
+title: "GPU RGB Augmentation"
+description: "24x faster RGB augmentation with GPU acceleration"
+keywords: [gpu, rgb, orthophoto, color, performance]
+---
+
+# GPU-Accelerated RGB Augmentation
 
 **Available in:** v1.5.0+  
 **Performance:** 24x faster than CPU  
 **Requirements:** NVIDIA GPU, CuPy  
-**Status:** ✅ Implemented (Phase 3.1 Complete)
+**Status:** ✅ Production Ready
 
 ---
 
@@ -493,11 +500,13 @@ Where:
 
 ---
 
-## 🔗 See Also
+## See Also
 
-- [GPU Guide](gpu-guide.md) - Main GPU documentation
-- [RGB Augmentation](features.md#rgb-augmentation) - RGB feature overview
-- [GPU Phase 3 Plan](../../../GPU_PHASE3_PLAN.md) - Implementation details
+- **[GPU Overview](overview.md)** - Setup GPU acceleration
+- **[GPU Features](features.md)** - Feature computation details
+- **[RGB Augmentation (CPU)](../features/rgb-augmentation.md)** - CPU version
+- **[Architecture](../architecture.md)** - System architecture
+- **[Workflows](../workflows.md)** - GPU workflow examples
 
 ---
 

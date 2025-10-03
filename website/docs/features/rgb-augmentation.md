@@ -480,3 +480,27 @@ A: Yes, IGN BD ORTHO® is 20cm resolution aligned with LiDAR HD. Some minor misa
 **Q: How much disk space for cache?**
 
 A: ~0.5-2MB per tile. For 100 tiles: ~50-200MB total.
+
+---
+
+## GPU Acceleration
+
+For 24x faster RGB augmentation using GPU acceleration, see:
+
+**[GPU-Accelerated RGB Augmentation Guide](../gpu/rgb-augmentation.md)**
+
+GPU acceleration (v1.5.0+) provides dramatic speedups:
+
+- **24x faster** color interpolation
+- GPU memory caching for orthophoto tiles
+- Seamless integration with GPU feature computation
+- Automatic CPU fallback
+
+---
+
+## See Also
+
+- **[GPU RGB Augmentation](../gpu/rgb-augmentation.md)** - 24x faster with GPU
+- **[GPU Overview](../gpu/overview.md)** - GPU setup and configuration
+- **[Workflows](../workflows.md)** - RGB augmentation workflows
+- **[Architecture](../architecture.md)** - System architecture
