@@ -26,7 +26,6 @@ const config: Config = {
   projectName: "IGN_LIDAR_HD_DATASET", // Usually your repo name.
 
   onBrokenLinks: "warn",
-  onBrokenMarkdownLinks: "warn",
 
   // GitHub Pages deployment config
   trailingSlash: false,
