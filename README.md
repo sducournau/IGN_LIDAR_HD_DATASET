@@ -37,9 +37,10 @@ A comprehensive Python library for processing IGN (Institut National de l'Inform
 
 ## 📺 Video Demo
 
-[![IGN LiDAR HD Processing Demo](https://img.youtube.com/vi/ksBWEhkVqQI/maxresdefault.jpg)](https://youtu.be/ksBWEhkVqQI)
-
-**[▶️ Watch the Demo Video](https://youtu.be/ksBWEhkVqQI)** - Learn how to process LiDAR data for machine learning applications
+<div align="center">
+  <iframe width="800" height="450" src="https://www.youtube.com/embed/ksBWEhkVqQI" title="IGN LiDAR HD Processing Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+  <p><em>Learn how to process LiDAR data for machine learning applications</em></p>
+</div>
 
 ## 📊 Project Overview
 
