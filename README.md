@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 1.6.2** | [🇫🇷 French](README.fr.md) | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 1.6.3** | [🇫🇷 French](README.fr.md) | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 </div>
 
