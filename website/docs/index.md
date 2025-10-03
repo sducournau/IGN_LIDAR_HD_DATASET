@@ -1,7 +1,6 @@
 ---
-slug: /
 title: IGN LiDAR HD Processing Library
-sidebar_position: 1
+sidebar_position: 0
 ---
 
 ## 🎉 First Release Announcement

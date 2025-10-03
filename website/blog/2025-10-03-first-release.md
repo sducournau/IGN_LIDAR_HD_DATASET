@@ -168,7 +168,7 @@ pip install ign-lidar-hd
 
 ### Connect With Us
 
-- **📖 Documentation**: [Full Docs Site](../docs/intro)
+- **📖 Documentation**: [Full Docs Site](../)
 - **🐛 Issues**: [GitHub Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)
 - **💡 Discussions**: [GitHub Discussions](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/discussions)
 - **📧 Contact**: Direct questions and collaboration ideas
