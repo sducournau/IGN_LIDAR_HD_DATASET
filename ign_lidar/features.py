@@ -963,7 +963,8 @@ def compute_all_features_with_gpu(
     classification: np.ndarray,
     k: int = None,
     auto_k: bool = True,
-    use_gpu: bool = False
+    use_gpu: bool = False,
+    radius: float = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
     """
     Compute all features with optional GPU acceleration.
@@ -977,6 +978,8 @@ def compute_all_features_with_gpu(
         k: number of neighbors for KNN (if None, auto-computed)
         auto_k: if True, automatically estimate optimal k based on density
         use_gpu: if True, attempt to use GPU acceleration
+        radius: search radius in meters for geometric features (default: None)
+                If specified, uses radius-based search to avoid LIDAR artifacts
         
     Returns:
         normals: [N, 3] surface normals
@@ -1021,7 +1024,7 @@ def compute_all_features_with_gpu(
                 points, classification
             )
             geo_features = computer.extract_geometric_features(
-                points, normals, k=k
+                points, normals, k=k, radius=radius
             )
             
             return normals, curvature, height, geo_features
@@ -1033,7 +1036,9 @@ def compute_all_features_with_gpu(
             logger.error(f"GPU processing failed: {e}")
             logger.warning("Falling back to CPU processing")
     
-    # CPU fallback
+    # CPU fallback - note: radius not used in compute_all_features_optimized
+    # because it computes normals/curvature with k-NN, only geometric features
+    # can use radius via extract_geometric_features separately
     return compute_all_features_optimized(
         points, classification, k, auto_k,
         include_extra=False

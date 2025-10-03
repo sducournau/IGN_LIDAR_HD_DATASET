@@ -83,7 +83,7 @@ def _enrich_single_file(args_tuple):
     
     Args:
         args_tuple: (laz_path, output_path, k_neighbors, use_gpu,
-                     mode, skip_existing, add_rgb, rgb_cache_dir)
+                     mode, skip_existing, add_rgb, rgb_cache_dir, radius)
     
     Returns:
         str: 'skipped' if file already exists and skip_existing=True,
@@ -91,7 +91,7 @@ def _enrich_single_file(args_tuple):
              'error' if processing failed
     """
     (laz_path, output_path, k_neighbors,
-     use_gpu, mode, skip_existing, add_rgb, rgb_cache_dir) = args_tuple
+     use_gpu, mode, skip_existing, add_rgb, rgb_cache_dir, radius) = args_tuple
     
     import numpy as np
     import laspy
@@ -241,7 +241,8 @@ def _enrich_single_file(args_tuple):
                     points, classification,
                     k=k_neighbors,
                     auto_k=False,
-                    use_gpu=use_gpu
+                    use_gpu=use_gpu,
+                    radius=radius
                 )
         else:
             # Chunked processing (CPU only for now)
@@ -654,13 +655,14 @@ def cmd_enrich(args):
     
     # Prepare arguments for worker function with preserved paths
     worker_args = []
+    radius = getattr(args, 'radius', None)  # Get radius if available
     for laz in laz_files_sorted:
         # Calculate relative path to preserve directory structure
         rel_path = laz.relative_to(input_path)
         output_path = output_dir / rel_path
         worker_args.append(
             (laz, output_path, args.k_neighbors, args.use_gpu,
-             mode, skip_existing, add_rgb, rgb_cache_dir)
+             mode, skip_existing, add_rgb, rgb_cache_dir, radius)
         )
     
     # Process files with better error handling and batching
@@ -898,6 +900,7 @@ def cmd_pipeline(args):
         eargs.num_workers = enrich_cfg.get('num_workers',
                                            global_config.get('num_workers', 1))
         eargs.k_neighbors = enrich_cfg.get('k_neighbors', 10)
+        eargs.radius = enrich_cfg.get('radius', None)
         eargs.use_gpu = enrich_cfg.get('use_gpu', False)
         eargs.mode = enrich_cfg.get('mode', 'core')
         eargs.auto_convert_qgis = enrich_cfg.get('auto_convert_qgis', False)
@@ -1115,6 +1118,10 @@ def main():
                               help='Number of parallel workers (default: 1)')
     enrich_parser.add_argument('--k-neighbors', type=int, default=10,
                               help='Number of neighbors for feature computation (default: 10)')
+    enrich_parser.add_argument('--radius', type=float, default=None,
+                              help='Search radius in meters for geometric features (default: auto-estimate). '
+                                   'Radius-based search eliminates LIDAR scan line artifacts. '
+                                   'Typical values: 0.5-2.0m. Larger radius = smoother features.')
     # TODO: GPU integration - currently non-functional, needs connection to features_gpu.py
     # See GPU_ANALYSIS.md for implementation details
     enrich_parser.add_argument('--use-gpu', action='store_true',

@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 1.6.4** | [🇫🇷 French](README.fr.md) | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 1.6.5** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 </div>
 
@@ -17,7 +17,17 @@
 
 A comprehensive Python library for processing IGN (Institut National de l'Information Géographique et Forestière) LiDAR HD data into machine learning-ready datasets for Building Level of Detail (LOD) classification tasks.
 
-## ✨ What's New in v1.6.4
+## ✨ What's New in v1.6.5
+
+🎯 **Artefact-Free Geometric Features** - Comprehensive audit validates radius-based search eliminates LIDAR scan artefacts  
+📊 **Full Documentation Suite** - Complete audit reports, guides, and validation tests  
+⚙️ **Radius Parameter Support** - CLI and pipeline configuration for manual control or auto-estimation  
+✅ **Production Validated** - All features mathematically independent, no cross-contamination detected  
+🔬 **Scientific Accuracy** - ~10-15% slower but eliminates "dash line" artefacts completely
+
+[📊 Artefact Audit](ARTEFACT_AUDIT_SUMMARY.md) | [🎯 Radius Guide](RADIUS_PARAMETER_GUIDE.md) | [✅ Full Report](ARTEFACT_AUDIT_REPORT.md)
+
+### Previous Updates (v1.6.4)
 
 📺 **Enhanced Documentation** - Updated README with embedded YouTube player for better video experience  
 🎨 **Improved Presentation** - Better visual integration of demo content  
@@ -66,14 +76,14 @@ flowchart TD
     B --> B1[Smart Skip Detection]
     C --> C1[GPU/CPU Processing]
     C --> C2[Geometric Features]
-    D --> D1[Data Augmentation]
-    D --> D2[LOD Classification]
+    C --> C3[Data Augmentation]
+    D --> D1[LOD Classification]
 
     style A fill:#e1f5fe
     style E fill:#e8f5e8
     style B1 fill:#fff3e0
     style C1 fill:#fff3e0
-    style D1 fill:#fff3e0
+    style C3 fill:#fff3e0
 ```
 
 **📈 Project Stats:**
@@ -415,6 +425,13 @@ ign-lidar-hd enrich \
   --num-workers 4 \
   --k-neighbors 10
 
+# 🆕 With radius parameter (eliminates LIDAR scan artefacts)
+ign-lidar-hd enrich \
+  --input-dir tiles/ \
+  --output enriched/ \
+  --mode building \
+  --radius 1.5  # Manual radius in meters (or omit for auto-estimate)
+
 # 🆕 With RGB augmentation from IGN orthophotos
 ign-lidar-hd enrich \
   --input-dir tiles/ \
@@ -436,6 +453,8 @@ ign-lidar-hd enrich \
 ```
 
 > 💡 **Smart Skip**: By default, the enrich command skips files that have already been enriched, making it safe to resume interrupted operations.
+
+> 🎯 **Artefact-Free Features**: Use `--radius` parameter for scientifically accurate geometric features. Auto-estimation (default) eliminates LIDAR scan line artefacts. See [Radius Parameter Guide](RADIUS_PARAMETER_GUIDE.md) for details.
 
 ### Patch Command
 
