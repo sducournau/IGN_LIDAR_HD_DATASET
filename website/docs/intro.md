@@ -32,6 +32,8 @@ Transform French LiDAR data into machine learning-ready datasets for building cl
 
 The IGN LiDAR HD Processing Library is a comprehensive Python toolkit for processing high-density LiDAR data from the French National Institute of Geographic and Forest Information (IGN). It transforms raw point clouds into machine learning-ready datasets specifically designed for **Building Level of Detail (LOD) classification** tasks.
 
+![Building Level of Detail](../static/img/axonometry.png)
+
 This library enables researchers and developers to:
 
 - **Download** LiDAR tiles directly from IGN servers

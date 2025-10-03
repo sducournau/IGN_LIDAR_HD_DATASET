@@ -12,6 +12,8 @@ Bienvenue dans la documentation de la bibliothèque de traitement IGN LiDAR HD !
 
 La bibliothèque de traitement IGN LiDAR HD est une boîte à outils Python pour traiter les données LiDAR haute densité de l'Institut national de l'information géographique et forestière (IGN) en jeux de données prêts pour l'apprentissage automatique.
 
+![Niveaux de détail des bâtiments](../../../../static/img/axonometry.png)
+
 ## 🔄 Aperçu du pipeline de traitement
 
 ```mermaid
