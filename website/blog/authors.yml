@@ -1,25 +1,20 @@
-yangshun:
-  name: Yangshun Tay
-  title: Ex-Meta Staff Engineer, Co-founder GreatFrontEnd
-  url: https://linkedin.com/in/yangshun
+simon:
+  name: Simon Ducournau
+  title: Lead Developer & Researcher
+  url: https://linkedin.com/in/simon.ducournau
+  image_url: https://github.com/sducournau.png
+  page: true
+  socials:
+    linkedin: simon.ducournau
+    github: sducournau
+
+imagodata:
+  name: imagodata
+  title: Staff
+  url: https://linkedin.com/in/simon.ducournau
   image_url: https://github.com/yangshun.png
   page: true
   socials:
-    x: yangshunz
-    linkedin: yangshun
-    github: yangshun
-    newsletter: https://www.greatfrontend.com
-
-slorber:
-  name: Sébastien Lorber
-  title: Docusaurus maintainer
-  url: https://sebastienlorber.com
-  image_url: https://github.com/slorber.png
-  page:
-    # customize the url of the author page at /blog/authors/<permalink>
-    permalink: '/all-sebastien-lorber-articles'
-  socials:
-    x: sebastienlorber
-    linkedin: sebastienlorber
-    github: slorber
-    newsletter: https://thisweekinreact.com
+    linkedin: simon.ducournau
+    github: sducournau
+    newsletter: https://sducournau.github.io/IGN_LIDAR_HD_DATASET

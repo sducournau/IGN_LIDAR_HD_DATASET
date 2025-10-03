@@ -50,6 +50,7 @@ const config: Config = {
       "classic",
       {
         docs: {
+          routeBasePath: "/docs", // Serve the docs at /docs
           sidebarPath: "./sidebars.ts",
           editUrl:
             "https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/website/",
@@ -57,6 +58,7 @@ const config: Config = {
           showLastUpdateAuthor: true,
         },
         blog: {
+          routeBasePath: "/", // Serve the blog at the site's root
           showReadingTime: true,
           feedOptions: {
             type: ["rss", "atom"],
@@ -92,12 +94,16 @@ const config: Config = {
       },
       items: [
         {
+          to: "/",
+          label: "Blog",
+          position: "left",
+        },
+        {
           type: "docSidebar",
           sidebarId: "tutorialSidebar",
           position: "left",
           label: "Documentation",
         },
-        { to: "/blog", label: "Blog", position: "left" },
         {
           type: "localeDropdown",
           position: "right",
