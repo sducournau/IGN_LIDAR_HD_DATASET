@@ -13,7 +13,7 @@
 
 </div>
 
-<img src="website/static/img/lod3.png" alt="LoD3 Building Model Icon">
+<img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/website/static/img/lod3.png?raw=true" alt="LoD3 Building Model Icon">
 
 A comprehensive Python library for processing IGN (Institut National de l'Information Géographique et Forestière) LiDAR HD data into machine learning-ready datasets for Building Level of Detail (LOD) classification tasks.
 
