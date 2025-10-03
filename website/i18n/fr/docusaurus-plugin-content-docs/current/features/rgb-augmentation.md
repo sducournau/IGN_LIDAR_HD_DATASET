@@ -492,7 +492,7 @@ R : Pas directement, mais vous pouvez modifier `rgb_augmentation.py` pour utilis
 
 **Q : Les données RGB sont-elles précises ?**
 
-R : Oui, IGN BD ORTHO® est à résolution 20cm alignée avec LiDAR HD. Un léger désalignement (<0,5m) peut survenir dans les zones urbaines complexes.
+R : Oui, IGN BD ORTHO® est à résolution 20cm alignée avec LiDAR HD. Un léger désalignement (&lt;0,5m) peut survenir dans les zones urbaines complexes.
 
 **Q : Combien d'espace disque pour le cache ?**
 

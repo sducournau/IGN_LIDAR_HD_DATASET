@@ -87,31 +87,36 @@ See [NVIDIA WSL guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) f
 
 ### Step 3: Install Python GPU Dependencies
 
+:::warning CuPy Installation
+CuPy must be installed separately as it requires a specific version matching your CUDA Toolkit. Installing via `pip install ign-lidar-hd[gpu]` will **not work** as it would attempt to build CuPy from source.
+:::
+
 ```bash
 # Option 1: Basic GPU support with CuPy (recommended for most users)
-pip install ign-lidar-hd[gpu]
+pip install ign-lidar-hd
+pip install cupy-cuda11x  # For CUDA 11.x
+# OR
+pip install cupy-cuda12x  # For CUDA 12.x
 
 # Option 2: Advanced GPU with RAPIDS cuML (best performance)
-pip install ign-lidar-hd[gpu-full]
-
-# Option 3: RAPIDS via conda (recommended for RAPIDS cuML)
+pip install ign-lidar-hd
+pip install cupy-cuda12x  # Choose based on your CUDA version
 conda install -c rapidsai -c conda-forge -c nvidia cuml
-pip install ign-lidar-hd[gpu]
 
-# Option 4: Manual installation
-# For CUDA 11.x
-pip install cupy-cuda11x
-pip install cuml-cu11  # Optional: RAPIDS cuML
-
-# For CUDA 12.x
-pip install cupy-cuda12x
-pip install cuml-cu12  # Optional: RAPIDS cuML
+# Option 3: RAPIDS via pip (may require more configuration)
+pip install ign-lidar-hd
+pip install cupy-cuda11x  # For CUDA 11.x
+pip install cuml-cu11     # For CUDA 11.x
+# OR
+pip install cupy-cuda12x  # For CUDA 12.x
+pip install cuml-cu12     # For CUDA 12.x
 ```
 
 **Installation Recommendations:**
 
-- **CuPy only** (`[gpu]`): Easiest installation, 5-6x speedup
-- **CuPy + RAPIDS** (`[gpu-full]`): Best performance, up to 10x speedup
+- **Install CuPy separately**: Always choose `cupy-cuda11x` or `cupy-cuda12x` based on your CUDA version
+- **CuPy only**: Simplest installation, 5-6x speedup
+- **CuPy + RAPIDS**: Best performance, up to 10x speedup
 - **Conda for RAPIDS**: More reliable for RAPIDS cuML dependencies
 
 ### Step 4: Verify Installation
@@ -248,7 +253,7 @@ from ign_lidar.processor import LiDARProcessor
 
 ### ❌ Use CPU for:
 
-- Small point clouds (<10K points)
+- Small point clouds (&lt;10K points)
 - One-off processing tasks
 - Systems without NVIDIA GPU
 - Prototyping and debugging
@@ -405,7 +410,7 @@ computer = GPUFeatureComputer(use_gpu=True, batch_size=50000)
 **Possible causes:**
 
 1. **GPU not utilized**: Check with `nvidia-smi`
-2. **Small point clouds**: GPU overhead dominates (use CPU for <10K points)
+2. **Small point clouds**: GPU overhead dominates (use CPU for &lt;10K points)
 3. **Memory transfer bottleneck**: Batch multiple operations together
 
 **Solutions:**

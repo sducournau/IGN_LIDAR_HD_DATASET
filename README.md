@@ -60,21 +60,29 @@ flowchart TD
 ### Installation
 
 ```bash
-# Standard installation
+# Standard installation (CPU only)
 pip install ign-lidar-hd
 
-# Optional: GPU acceleration (requires NVIDIA GPU + CUDA)
-pip install ign-lidar-hd[gpu]  # Basic GPU support with CuPy
+# With RGB augmentation support
+pip install ign-lidar-hd[rgb]
+
+# With all non-GPU features
+pip install ign-lidar-hd[all]
+
+# GPU acceleration (requires NVIDIA GPU + CUDA)
+# Install base package first, then add GPU support separately:
+pip install ign-lidar-hd
+pip install cupy-cuda11x  # For CUDA 11.x
+# OR
+pip install cupy-cuda12x  # For CUDA 12.x
 
 # Advanced GPU with RAPIDS cuML (best performance, conda recommended)
-pip install ign-lidar-hd[gpu-full]  # Includes RAPIDS cuML
-# Or via conda for better compatibility:
-# conda install -c rapidsai -c conda-forge -c nvidia cuml
-
-# Manual GPU setup:
-# pip install cupy-cuda11x  # For CUDA 11.x
-# pip install cupy-cuda12x  # For CUDA 12.x
-# pip install cuml-cu11     # RAPIDS for CUDA 11.x (optional)
+pip install ign-lidar-hd
+pip install cupy-cuda12x  # Match your CUDA version
+conda install -c rapidsai -c conda-forge -c nvidia cuml
+# Or via pip (may require more configuration):
+# pip install cuml-cu11  # For CUDA 11.x
+# pip install cuml-cu12  # For CUDA 12.x
 ```
 
 **GPU Requirements** (optional):

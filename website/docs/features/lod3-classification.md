@@ -6,7 +6,7 @@ description: Understanding building detail levels for architectural analysis
 
 # Level of Detail (LOD) Classification
 
-![LOD3 Building Model](../../../static/img/lod3.png)
+![LOD3 Building Model](/img/lod3.png)
 
 ## Overview
 
@@ -132,7 +132,7 @@ print(f"Key features: {results['detected_features']}")
 
 - **High Confidence (>0.8)**: Clear architectural details, regular patterns
 - **Medium Confidence (0.5-0.8)**: Some architectural elements, moderate detail
-- **Low Confidence (<0.5)**: Minimal architectural detail, simple geometry
+- **Low Confidence (&lt;0.5)**: Minimal architectural detail, simple geometry
 
 ### Validation Criteria
 

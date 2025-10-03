@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2025-10-03
+
+### Fixed
+
+- **CuPy Installation Issue** 🔧
+  - Removed `cupy>=10.0.0` from optional dependencies `[gpu]`, `[gpu-full]`, and `[all]`
+  - CuPy now must be installed separately with the appropriate CUDA version:
+    - `pip install cupy-cuda11x` for CUDA 11.x
+    - `pip install cupy-cuda12x` for CUDA 12.x
+  - This prevents pip from attempting to build CuPy from source, which fails without CUDA toolkit headers
+  - Updated all installation documentation to reflect the new installation method
+
+### Documentation
+
+- Updated installation instructions in:
+  - `README.md` - Updated GPU installation section
+  - `website/docs/gpu/overview.md` - Added warning and corrected installation steps
+  - `website/docs/installation/quick-start.md` - Updated GPU support section
+  - `website/i18n/fr/docusaurus-plugin-content-docs/current/intro.md` - French documentation
+  - `website/i18n/fr/docusaurus-plugin-content-docs/current/guides/gpu-acceleration.md` - French GPU guide
+- All documentation now clearly states that CuPy must be installed separately
+
+### Changed
+
+- The `[all]` extra no longer includes GPU dependencies (CuPy)
+- Users with GPU support must now explicitly install CuPy after installing the base package
+- `[gpu]` and `[gpu-full]` extras are now empty/minimal (RAPIDS cuML only for gpu-full)
+
+### Migration Guide
+
+If you previously installed with `pip install ign-lidar-hd[gpu]` or `pip install ign-lidar-hd[all]`, you now need to:
+
+1. Install the base package: `pip install ign-lidar-hd`
+2. Install CuPy separately: `pip install cupy-cuda11x` (or `cupy-cuda12x`)
+3. Optionally install RAPIDS: `conda install -c rapidsai -c conda-forge -c nvidia cuml`
+
 ## [1.5.1] - 2025-10-03
 
 ### Documentation

@@ -50,32 +50,37 @@ Visitez [NVIDIA CUDA Downloads](https://developer.nvidia.com/cuda-downloads) et 
 
 ### Étape 3 : Installer les Dépendances GPU Python
 
+:::warning Installation CuPy
+CuPy doit être installé séparément car il nécessite une version spécifique correspondant à votre CUDA Toolkit. L'installation via `pip install ign-lidar-hd[gpu]` ne fonctionnera **pas** car elle tenterait de compiler CuPy depuis les sources.
+:::
+
 ```bash
 # Option 1 : Support GPU basique avec CuPy (recommandé pour la plupart des utilisateurs)
-pip install ign-lidar-hd[gpu]
+pip install ign-lidar-hd
+pip install cupy-cuda11x  # Pour CUDA 11.x
+# OU
+pip install cupy-cuda12x  # Pour CUDA 12.x
 
 # Option 2 : GPU avancé avec RAPIDS cuML (meilleures performances)
-pip install ign-lidar-hd[gpu-full]
-
-# Option 3 : RAPIDS via conda (recommandé pour RAPIDS cuML)
+pip install ign-lidar-hd
+pip install cupy-cuda12x  # Choisir selon votre version CUDA
 conda install -c rapidsai -c conda-forge -c nvidia cuml
-pip install ign-lidar-hd[gpu]
 
-# Option 4 : Installation manuelle
-# Pour CUDA 11.x
-pip install cupy-cuda11x
-pip install cuml-cu11  # Optionnel : RAPIDS cuML
-
-# Pour CUDA 12.x
-pip install cupy-cuda12x
-pip install cuml-cu12  # Optionnel : RAPIDS cuML
+# Option 3 : RAPIDS via pip (peut nécessiter plus de configuration)
+pip install ign-lidar-hd
+pip install cupy-cuda11x  # Pour CUDA 11.x
+pip install cuml-cu11     # Pour CUDA 11.x
+# OU
+pip install cupy-cuda12x  # Pour CUDA 12.x
+pip install cuml-cu12     # Pour CUDA 12.x
 ```
 
 **Recommandations d'Installation :**
 
-- **CuPy uniquement** (`[gpu]`): Installation la plus facile, accélération 5-6x
-- **CuPy + RAPIDS** (`[gpu-full]`): Meilleures performances, jusqu'à 10x d'accélération
-- **Conda pour RAPIDS**: Plus fiable pour les dépendances RAPIDS cuML
+- **Installer CuPy séparément** : Toujours choisir `cupy-cuda11x` ou `cupy-cuda12x` selon votre CUDA
+- **CuPy uniquement** : Installation la plus simple, accélération 5-6x
+- **CuPy + RAPIDS** : Meilleures performances, jusqu'à 10x d'accélération
+- **Conda pour RAPIDS** : Plus fiable pour les dépendances RAPIDS cuML
 
 ### Étape 4 : Vérifier l'Installation
 
@@ -175,7 +180,7 @@ Tests effectués sur un système avec :
 
 **Quand le CPU peut être compétitif :**
 
-- 📁 Petites dalles (<100K points)
+- 📁 Petites dalles (&lt;100K points)
 - 💾 Traitement limité par I/O
 - ⚡ Surcharge de transfert GPU
 

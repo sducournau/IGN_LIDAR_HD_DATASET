@@ -248,7 +248,7 @@ from ign_lidar.processor import LiDARProcessor
 
 ### ❌ Use CPU for:
 
-- Small point clouds (<10K points)
+- Small point clouds (&lt;10K points)
 - One-off processing tasks
 - Systems without NVIDIA GPU
 - Prototyping and debugging

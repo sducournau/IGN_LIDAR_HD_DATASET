@@ -40,13 +40,19 @@ pip install -e .
 
 ## Optional: GPU Support
 
-For GPU-accelerated feature computation:
+For GPU-accelerated feature computation, install CuPy separately after installing the base package:
 
 ```bash
-pip install ign-lidar-hd[gpu]
+# Install base package
+pip install ign-lidar-hd
+
+# Then install CuPy for your CUDA version
+pip install cupy-cuda11x  # For CUDA 11.x
+# OR
+pip install cupy-cuda12x  # For CUDA 12.x
 ```
 
-Or install GPU requirements manually:
+Or using the GPU requirements file:
 
 ```bash
 pip install -r requirements_gpu.txt
@@ -56,7 +62,7 @@ pip install -r requirements_gpu.txt
 
 - NVIDIA GPU with CUDA support
 - CUDA Toolkit 11.0 or higher
-- cupy-cuda11x package
+- CuPy package matching your CUDA version (`cupy-cuda11x` or `cupy-cuda12x`)
 
 ## Environment Setup
 

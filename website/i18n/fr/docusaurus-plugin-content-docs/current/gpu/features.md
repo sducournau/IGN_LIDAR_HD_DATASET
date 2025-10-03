@@ -385,8 +385,8 @@ GPU performance depends on:
 
 **Possible Causes**:
 
-1. Small point clouds (<10K points) - GPU overhead dominates
-2. Low k value (<10) - Not enough parallelizable work
+1. Small point clouds (&lt;10K points) - GPU overhead dominates
+2. Low k value (&lt;10) - Not enough parallelizable work
 3. Memory transfer bottleneck
 4. GPU not fully utilized
 

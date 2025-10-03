@@ -248,7 +248,7 @@ from ign_lidar.processor import LiDARProcessor
 
 ### ❌ Use CPU for:
 
-- Small point clouds (<10K points)
+- Small point clouds (&lt;10K points)
 - One-off processing tasks
 - Systems without NVIDIA GPU
 - Prototyping and debugging
@@ -405,7 +405,7 @@ computer = GPUFeatureComputer(use_gpu=True, batch_size=50000)
 **Possible causes:**
 
 1. **GPU not utilized**: Check with `nvidia-smi`
-2. **Small point clouds**: GPU overhead dominates (use CPU for <10K points)
+2. **Small point clouds**: GPU overhead dominates (use CPU for &lt;10K points)
 3. **Memory transfer bottleneck**: Batch multiple operations together
 
 **Solutions:**

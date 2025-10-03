@@ -80,21 +80,29 @@ flowchart LR
 ## Installation Rapide
 
 ```bash
-# Installation standard
+# Installation standard (CPU uniquement)
 pip install ign-lidar-hd
 
-# Installation avec support GPU (optionnel)
-pip install ign-lidar-hd[gpu]  # Support GPU basique avec CuPy
+# Installation avec toutes les fonctionnalités (RGB, configuration YAML, etc.)
+pip install ign-lidar-hd[all]
+
+# Installation avec support GPU (optionnel - nécessite installation séparée)
+pip install ign-lidar-hd
+pip install cupy-cuda11x  # Pour CUDA 11.x
+# OU
+pip install cupy-cuda12x  # Pour CUDA 12.x
 
 # Installation GPU avancée avec RAPIDS (meilleures performances)
-pip install ign-lidar-hd[gpu-full]  # Inclut RAPIDS cuML
+pip install ign-lidar-hd
+pip install cupy-cuda12x  # Choisir selon votre version CUDA
+conda install -c rapidsai -c conda-forge -c nvidia cuml
 ```
 
 **Configuration GPU requise** (optionnel) :
 
 - GPU NVIDIA avec support CUDA
 - CUDA Toolkit 11.0 ou supérieur
-- Paquet CuPy correspondant à votre version CUDA
+- **CuPy doit être installé séparément** : `cupy-cuda11x` ou `cupy-cuda12x`
 - Optionnel : RAPIDS cuML pour des algorithmes GPU avancés
 - Accélération attendue : 5-6x plus rapide que CPU (CuPy), jusqu'à 10x avec RAPIDS
 
