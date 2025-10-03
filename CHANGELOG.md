@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2025-10-03
+
+### Changed
+
+- **Data Augmentation Improvement** 🎯
+  - **MAJOR**: Moved data augmentation from PATCH phase to ENRICH phase
+  - Geometric features are now computed AFTER augmentation (rotation, jitter, scaling, dropout)
+  - Ensures feature-geometry consistency: normals, curvature, planarity, linearity all match augmented geometry
+  - **Benefits**:
+    - ✅ No more feature-geometry mismatch
+    - ✅ Better training data quality
+    - ✅ Expected improved model performance
+  - **Trade-off**: ~40% longer processing time (features computed per augmented version)
+  - **Migration**: No config changes needed - just reprocess data for better quality
+  - See `AUGMENTATION_IMPROVEMENT.md` for technical details
+
+### Fixed
+
+- **RGB CloudCompare Display** 🎨
+  - Fixed RGB scaling from 256 to 257 multiplier
+  - Now correctly produces full 16-bit range (0-65535) instead of 0-65280
+  - RGB colors now display correctly in CloudCompare and other viewers
+  - Files affected: `ign_lidar/cli.py`, `ign_lidar/rgb_augmentation.py`
+  - Added diagnostic/fix script: `scripts/fix_rgb_cloudcompare.py`
+  - See `RGB_CLOUDCOMPARE_FIX.md` for details and migration guide
+
+### Added
+
+- `augment_raw_points()` function in `ign_lidar/utils.py`
+  - Applies augmentation to raw point cloud before feature computation
+  - Transformations: rotation (Z-axis), jitter (σ=0.1m), scaling (0.95-1.05), dropout (5-15%)
+  - Returns all arrays filtered by dropout mask
+- `examples/demo_augmentation_enrich.py` - Demo script for new augmentation
+- `examples/compare_augmentation_approaches.py` - Visual comparison of old vs new approach
+- `tests/test_augmentation_enrich.py` - Unit tests for augmentation at ENRICH phase
+- `AUGMENTATION_IMPROVEMENT.md` - Comprehensive technical documentation
+- `AUGMENTATION_IMPLEMENTATION_SUMMARY.md` - Implementation summary
+- `AUGMENTATION_QUICK_GUIDE.md` - Quick guide for users
+
+### Removed
+
+- Patch-level augmentation logic from `utils.augment_patch()` (kept for backward compatibility but no longer used)
+- Import of `augment_patch()` from processor (no longer used in pipeline)
+
 ## [1.5.3] - 2025-10-03
 
 ### Added

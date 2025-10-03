@@ -18,7 +18,11 @@ from .features import (
     compute_all_features_with_gpu
 )
 from .classes import ASPRS_TO_LOD2, ASPRS_TO_LOD3
-from .utils import extract_patches, augment_patch, save_patch
+from .utils import (
+    extract_patches,
+    augment_raw_points,
+    save_patch
+)
 from .metadata import MetadataManager
 from .architectural_styles import (
     get_architectural_style_id,
@@ -221,159 +225,228 @@ class LiDARProcessor:
             classification = classification[mask]
             logger.info(f"  After bbox filter: {len(points):,} points")
         
-        # 2. Compute geometric features (optimized, single pass)
-        feature_mode = "BUILDING" if self.include_extra_features else "CORE"
-        k_display = self.k_neighbors if self.k_neighbors else "auto"
-        logger.info(f"  🔧 Computing features | k={k_display} | mode={feature_mode}")
-        
-        feature_start = time.time()
-        
-        # Compute patch center for distance_to_center feature
-        patch_center = np.mean(points, axis=0) if self.include_extra_features else None
-        
-        # Use manual k if specified, otherwise auto-estimate
-        use_auto_k = self.k_neighbors is None
-        k_value = self.k_neighbors if self.k_neighbors is not None else None
-        
-        # Choose GPU or CPU based on configuration
-        if self.use_gpu:
-            normals, curvature, height, geo_features = (
-                compute_all_features_with_gpu(
-                    points=points,
-                    classification=classification,
-                    k=k_value,
-                    auto_k=use_auto_k,
-                    use_gpu=True
-                )
-            )
-        else:
-            normals, curvature, height, geo_features = (
-                compute_all_features_optimized(
-                    points=points,
-                    classification=classification,
-                    k=k_value,
-                    auto_k=use_auto_k,
-                    include_extra=self.include_extra_features,
-                    patch_center=patch_center
-                )
-            )
-        
-        feature_time = time.time() - feature_start
-        logger.info(f"  ⏱️  Features computed in {feature_time:.1f}s")
-        
-        # 3. Remap labels
-        labels = np.array([
-            self.class_mapping.get(c, self.default_class)
-            for c in classification
-        ], dtype=np.uint8)
-        
-        # 4. Combine features
-        all_features = {
-            'normals': normals,
-            'curvature': curvature,
+        # Store original data for potential augmentation
+        original_data = {
+            'points': points,
             'intensity': intensity,
             'return_number': return_number,
-            'height': height,
-            **geo_features
+            'classification': classification
         }
         
-        # Add architectural style if requested
-        if self.include_architectural_style:
-            if multi_styles and self.style_encoding == 'multihot':
-                # Multi-label encoding with weights
-                style_ids = [s["style_id"] for s in multi_styles]
-                weights = [s.get("weight", 1.0) for s in multi_styles]
-                architectural_style = encode_multi_style_feature(
-                    style_ids=style_ids,
-                    weights=weights,
-                    num_points=len(points),
-                    encoding="multihot"
-                )
+        # Determine number of versions to process (original + augmentations)
+        num_versions = 1 + (self.num_augmentations if self.augment else 0)
+        all_patches_collected = []
+        
+        for version_idx in range(num_versions):
+            # Apply augmentation to raw data if not the first version
+            if version_idx == 0:
+                # Original version - no augmentation
+                points_v = original_data['points']
+                intensity_v = original_data['intensity']
+                return_number_v = original_data['return_number']
+                classification_v = original_data['classification']
+                version_label = "original"
             else:
-                # Single style (constant or legacy)
-                architectural_style = encode_style_as_feature(
-                    style_id=architectural_style_id,
-                    num_points=len(points),
-                    encoding="constant"
+                # Augmented version - apply transformations BEFORE features
+                (points_v, intensity_v,
+                 return_number_v, classification_v) = augment_raw_points(
+                    original_data['points'],
+                    original_data['intensity'],
+                    original_data['return_number'],
+                    original_data['classification']
                 )
-            all_features['architectural_style'] = architectural_style
+                version_label = f"aug_{version_idx-1}"
+                logger.info(
+                    f"  🔄 Augmented v{version_idx}/{num_versions-1} "
+                    f"({len(points_v):,} points after dropout)"
+                )
         
-        # 5. Extract and save patches
-        logger.info(f"  📦 Extracting patches (size={self.patch_size}m, "
-                   f"target_points={self.num_points})...")
-        patches = extract_patches(
-            points, all_features, labels,
-            patch_size=self.patch_size,
-            overlap=self.patch_overlap,
-            min_points=10000,
-            target_num_points=self.num_points
-        )
-        
-        # 5b. Add RGB if requested
-        if self.include_rgb and self.rgb_fetcher:
-            logger.info("  🎨 Augmenting patches with RGB from IGN orthophotos...")
-            # Get tile bounding box for orthophoto fetch
-            tile_bbox = (
-                points[:, 0].min(),
-                points[:, 1].min(),
-                points[:, 0].max(),
-                points[:, 1].max()
+            # 2. Compute geometric features (optimized, single pass)
+            feature_mode = ("BUILDING" if self.include_extra_features
+                           else "CORE")
+            k_display = self.k_neighbors if self.k_neighbors else "auto"
+            logger.info(
+                f"  🔧 Computing features | k={k_display} | "
+                f"mode={feature_mode}"
             )
             
-            for patch in patches:
-                try:
-                    # Get absolute coordinates for this patch
-                    patch_points_abs = patch['points'].copy()
-                    patch_center = np.array([
-                        (tile_bbox[0] + tile_bbox[2]) / 2,
-                        (tile_bbox[1] + tile_bbox[3]) / 2,
-                        0
-                    ])
-                    patch_points_abs[:, :2] += patch_center[:2]
-                    
-                    # Fetch RGB
-                    rgb = self.rgb_fetcher.augment_points_with_rgb(
-                        patch_points_abs,
-                        bbox=tile_bbox
+            feature_start = time.time()
+            
+            # Compute patch center for distance_to_center feature
+            patch_center = (np.mean(points_v, axis=0)
+                           if self.include_extra_features else None)
+            
+            # Use manual k if specified, otherwise auto-estimate
+            use_auto_k = self.k_neighbors is None
+            k_value = (self.k_neighbors
+                      if self.k_neighbors is not None else None)
+            
+            # Choose GPU or CPU based on configuration
+            if self.use_gpu:
+                normals, curvature, height, geo_features = (
+                    compute_all_features_with_gpu(
+                        points=points_v,
+                        classification=classification_v,
+                        k=k_value,
+                        auto_k=use_auto_k,
+                        use_gpu=True
                     )
-                    patch['rgb'] = rgb.astype(np.float32) / 255.0
-                except Exception as e:
-                    logger.warning(f"  ⚠️  RGB augmentation failed: {e}")
-                    # Add default gray color
-                    patch['rgb'] = np.full(
-                        (len(patch['points']), 3),
-                        0.5,
-                        dtype=np.float32
+                )
+            else:
+                normals, curvature, height, geo_features = (
+                    compute_all_features_optimized(
+                        points=points_v,
+                        classification=classification_v,
+                        k=k_value,
+                        auto_k=use_auto_k,
+                        include_extra=self.include_extra_features,
+                        patch_center=patch_center
                     )
+                )
+            
+            feature_time = time.time() - feature_start
+            logger.info(f"  ⏱️  Features computed in {feature_time:.1f}s")
+            
+            # 3. Remap labels for this version
+            labels_v = np.array([
+                self.class_mapping.get(c, self.default_class)
+                for c in classification_v
+            ], dtype=np.uint8)
+            
+            # 4. Combine features
+            all_features_v = {
+                'normals': normals,
+                'curvature': curvature,
+                'intensity': intensity_v,
+                'return_number': return_number_v,
+                'height': height,
+                **geo_features
+            }
+            
+            # Add architectural style if requested
+            if self.include_architectural_style:
+                if multi_styles and self.style_encoding == 'multihot':
+                    # Multi-label encoding with weights
+                    style_ids = [s["style_id"] for s in multi_styles]
+                    weights = [s.get("weight", 1.0) for s in multi_styles]
+                    architectural_style = encode_multi_style_feature(
+                        style_ids=style_ids,
+                        weights=weights,
+                        num_points=len(points_v),
+                        encoding="multihot"
+                    )
+                else:
+                    # Single style (constant or legacy)
+                    architectural_style = encode_style_as_feature(
+                        style_id=architectural_style_id,
+                        num_points=len(points_v),
+                        encoding="constant"
+                    )
+                all_features_v['architectural_style'] = architectural_style
+            
+            # 5. Extract patches from this version
+            logger.info(
+                f"  📦 Extracting patches (size={self.patch_size}m, "
+                f"target_points={self.num_points})..."
+            )
+            patches_v = extract_patches(
+                points_v, all_features_v, labels_v,
+                patch_size=self.patch_size,
+                overlap=self.patch_overlap,
+                min_points=10000,
+                target_num_points=self.num_points
+            )
+            
+            # 5b. Add RGB if requested
+            if self.include_rgb and self.rgb_fetcher:
+                logger.info(
+                    "  🎨 Augmenting patches with RGB "
+                    "from IGN orthophotos..."
+                )
+                # Get tile bounding box for orthophoto fetch
+                tile_bbox = (
+                    points_v[:, 0].min(),
+                    points_v[:, 1].min(),
+                    points_v[:, 0].max(),
+                    points_v[:, 1].max()
+                )
+                
+                for patch in patches_v:
+                    try:
+                        # Get absolute coordinates for this patch
+                        patch_points_abs = patch['points'].copy()
+                        patch_center_xy = np.array([
+                            (tile_bbox[0] + tile_bbox[2]) / 2,
+                            (tile_bbox[1] + tile_bbox[3]) / 2,
+                            0
+                        ])
+                        patch_points_abs[:, :2] += patch_center_xy[:2]
+                        
+                        # Fetch RGB
+                        rgb = self.rgb_fetcher.augment_points_with_rgb(
+                            patch_points_abs,
+                            bbox=tile_bbox
+                        )
+                        patch['rgb'] = rgb.astype(np.float32) / 255.0
+                    except Exception as e:
+                        logger.warning(
+                            f"  ⚠️  RGB augmentation failed: {e}"
+                        )
+                        # Add default gray color
+                        patch['rgb'] = np.full(
+                            (len(patch['points']), 3),
+                            0.5,
+                            dtype=np.float32
+                        )
+            
+            # Store patches with version suffix
+            for patch in patches_v:
+                patch['_version'] = version_label
+                all_patches_collected.append(patch)
         
-        # 6. Save patches
+        # 6. Save all collected patches
         output_dir.mkdir(parents=True, exist_ok=True)
         num_saved = 0
-        num_original = len(patches)
         
         rgb_suffix = " + RGB" if self.include_rgb else ""
-        logger.info(f"  💾 Saving {num_original} patches{rgb_suffix}" +
-                   (f" + {num_original * self.num_augmentations} augmented" if self.augment else ""))
+        total_patches = len(all_patches_collected)
+        logger.info(
+            f"  💾 Saving {total_patches} patches{rgb_suffix} "
+            f"({num_versions} versions)"
+        )
         
-        for j, patch in enumerate(patches):
-            # Save original patch
-            patch_name = f"{laz_file.stem}_patch_{j:04d}.npz"
-            save_path = output_dir / patch_name
-            save_patch(save_path, patch, self.lod_level)
-            num_saved += 1
-            
-            # Save augmented versions if enabled
-            if self.augment:
-                for aug_idx in range(self.num_augmentations):
-                    aug_patch = augment_patch(patch)
-                    aug_name = f"{laz_file.stem}_patch_{j:04d}_aug_{aug_idx}.npz"
-                    aug_path = output_dir / aug_name
-                    save_patch(aug_path, aug_patch, self.lod_level)
-                    num_saved += 1
+        # Group patches by base patch index for naming
+        patches_by_base = {}
+        for patch in all_patches_collected:
+            version = patch.pop('_version', 'original')
+            # Find base patch index (all patches with same spatial origin)
+            base_key = tuple(patch['points'][:3, :].flatten())
+            if base_key not in patches_by_base:
+                patches_by_base[base_key] = []
+            patches_by_base[base_key].append((version, patch))
+        
+        # Save patches with proper naming
+        for base_idx, (_, patch_group) in enumerate(
+            patches_by_base.items()
+        ):
+            for version_label, patch in patch_group:
+                if version_label == 'original':
+                    patch_name = f"{laz_file.stem}_patch_{base_idx:04d}.npz"
+                else:
+                    patch_name = (
+                        f"{laz_file.stem}_patch_{base_idx:04d}_"
+                        f"{version_label}.npz"
+                    )
+                save_path = output_dir / patch_name
+                save_patch(save_path, patch, self.lod_level)
+                num_saved += 1
         
         tile_time = time.time() - tile_start
-        logger.info(f"  ✅ Completed: {num_saved} patches in {tile_time:.1f}s "
-                   f"({len(points)/tile_time:.0f} pts/s)")
+        pts_processed = (len(original_data['points']) * num_versions)
+        logger.info(
+            f"  ✅ Completed: {num_saved} patches in {tile_time:.1f}s "
+            f"({pts_processed/tile_time:.0f} pts/s)"
+        )
         return num_saved
     
     def process_directory(self, input_dir: Path, output_dir: Path,

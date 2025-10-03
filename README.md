@@ -205,13 +205,14 @@ patch:
 - **Memory optimization**: Chunked processing for large datasets
 - **Smart skip detection**: ⏭️ Automatically skip existing files and resume interrupted workflows
 - **Batch operations**: Process hundreds of tiles efficiently
+- **🆕 Improved augmentation**: Features computed on augmented geometry for consistency
 
 ### 🔧 **Workflow Automation**
 
 - **Pipeline configuration**: 🆕 YAML-based declarative workflows for reproducibility
 - **Integrated downloader**: IGN WFS tile discovery and batch downloading
 - **Format flexibility**: Choose between LAZ 1.4 (full features) or QGIS-compatible output
-- **Data augmentation**: Rotation, jitter, scaling, and dropout for ML training
+- **🆕 Enhanced augmentation**: Geometric transformations applied before feature computation for better data quality
 - **Unified CLI**: Single `ign-lidar-hd` command with intuitive subcommands
 - **Idempotent operations**: Safe to restart - never reprocesses existing data
 
@@ -439,13 +440,15 @@ ign-lidar-hd patch \
 ```python
 processor = LiDARProcessor(
     lod_level="LOD2",           # LOD2 or LOD3
-    augment=True,               # Enable augmentation
-    num_augmentations=3,        # Augmentations per patch
+    augment=True,               # 🆕 Enable enhanced augmentation
+    num_augmentations=3,        # Augmentations per tile (not per patch!)
     patch_size=150.0,          # Patch size in meters
     patch_overlap=0.1,         # 10% overlap
     bbox=[xmin, ymin, xmax, ymax]  # Spatial filter
 )
 ```
+
+> **🆕 v1.6.0**: Data augmentation now happens during the ENRICH phase (before feature computation) instead of the PATCH phase. This ensures geometric features (normals, curvature, planarity) are computed on augmented geometry for better feature-geometry consistency and improved model training quality. See `AUGMENTATION_IMPROVEMENT.md` for details.
 
 ## 📊 Output Format
 

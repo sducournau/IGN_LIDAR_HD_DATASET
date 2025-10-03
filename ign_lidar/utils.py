@@ -3,8 +3,71 @@ Utility functions for patch extraction and data augmentation
 """
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import numpy as np
+
+
+def augment_raw_points(
+    points: np.ndarray,
+    intensity: np.ndarray,
+    return_number: np.ndarray,
+    classification: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Apply data augmentation to raw point cloud data BEFORE feature computation.
+    
+    This ensures geometric features (normals, curvature, planarity, etc.) are
+    computed on the augmented geometry, maintaining consistency between
+    coordinates and derived features.
+    
+    Augmentations applied:
+    1. Random rotation around Z-axis (0-360°)
+    2. Random jitter (Gaussian noise, σ=0.1m)
+    3. Random scaling (0.95-1.05)
+    4. Random point dropout (5-15%)
+    
+    Args:
+        points: [N, 3] raw point coordinates (X, Y, Z)
+        intensity: [N] intensity values
+        return_number: [N] return numbers
+        classification: [N] ASPRS classification codes
+        
+    Returns:
+        Tuple of (augmented_points, intensity, return_number, classification)
+        All arrays are filtered by the dropout mask
+    """
+    N = len(points)
+    points_aug = points.copy()
+    
+    # 1. Random rotation around Z-axis (preserves vertical structures)
+    angle = np.random.uniform(0, 2 * np.pi)
+    cos_a, sin_a = np.cos(angle), np.sin(angle)
+    rotation_matrix = np.array([
+        [cos_a, -sin_a, 0],
+        [sin_a, cos_a, 0],
+        [0, 0, 1]
+    ], dtype=np.float32)
+    points_aug = points_aug @ rotation_matrix.T
+    
+    # 2. Random jitter (simulates sensor noise)
+    jitter = np.random.normal(0, 0.1, (N, 3)).astype(np.float32)
+    points_aug += jitter
+    
+    # 3. Random scaling (simulates distance variations)
+    scale = np.random.uniform(0.95, 1.05)
+    points_aug *= scale
+    
+    # 4. Random dropout (simulates occlusion, missing data)
+    dropout_ratio = np.random.uniform(0.05, 0.15)
+    keep_mask = np.random.random(N) > dropout_ratio
+    
+    # Apply dropout to all arrays
+    points_aug = points_aug[keep_mask]
+    intensity_aug = intensity[keep_mask]
+    return_number_aug = return_number[keep_mask]
+    classification_aug = classification[keep_mask]
+    
+    return points_aug, intensity_aug, return_number_aug, classification_aug
 
 
 def extract_patches(

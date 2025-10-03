@@ -370,10 +370,12 @@ def augment_tile_with_rgb(
     # Add RGB to LAZ (if format supports it)
     try:
         # Check if point format supports RGB
-        if las.header.point_format.id in [2, 3, 5, 7, 8, 10]:
-            las.red = rgb[:, 0] * 256  # Scale to 16-bit
-            las.green = rgb[:, 1] * 256
-            las.blue = rgb[:, 2] * 256
+        # Formats: 2,3,5 (LAS 1.2-1.3) and 6,7,8,10 (LAS 1.4)
+        if las.header.point_format.id in [2, 3, 5, 6, 7, 8, 10]:
+            # Scale to 16-bit: 255 * 257 = 65535 (full range)
+            las.red = rgb[:, 0] * 257
+            las.green = rgb[:, 1] * 257
+            las.blue = rgb[:, 2] * 257
         else:
             # Add as extra dimensions if RGB not supported
             from laspy import ExtraBytesParams

@@ -387,11 +387,13 @@ def _enrich_single_file(args_tuple):
                 
                 # Add RGB to LAZ
                 # Check if point format supports RGB
-                if las_out.header.point_format.id in [2, 3, 5, 7, 8, 10]:
+                # Formats: 2,3,5 (LAS 1.2-1.3) and 6,7,8,10 (LAS 1.4)
+                if las_out.header.point_format.id in [2, 3, 5, 6, 7, 8, 10]:
                     # Native RGB support - scale to 16-bit
-                    las_out.red = rgb[:, 0].astype(np.uint16) * 256
-                    las_out.green = rgb[:, 1].astype(np.uint16) * 256
-                    las_out.blue = rgb[:, 2].astype(np.uint16) * 256
+                    # Use 257 multiplier: 255 * 257 = 65535 (full 16-bit range)
+                    las_out.red = rgb[:, 0].astype(np.uint16) * 257
+                    las_out.green = rgb[:, 1].astype(np.uint16) * 257
+                    las_out.blue = rgb[:, 2].astype(np.uint16) * 257
                 else:
                     # Add as extra dimensions if RGB not natively supported
                     las_out.add_extra_dim(
