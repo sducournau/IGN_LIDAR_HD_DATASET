@@ -1,0 +1,30 @@
+# Requirements GPU pour enrichissement LAZ ultra-rapide
+# Installation: pip install -r requirements_gpu.txt
+
+# ===== GPU Dependencies (Recommandées - 8-10x plus rapide) =====
+
+# CuPy: NumPy-like API pour GPU NVIDIA
+# Choisir selon version CUDA:
+# cupy-cuda11x>=12.0.0  # Pour CUDA 11.x
+# cupy-cuda12x>=12.0.0  # Pour CUDA 12.x
+
+# Note: Installer manuellement selon votre CUDA:
+# pip install cupy-cuda11x  # ou cupy-cuda12x
+
+# RAPIDS cuML: scikit-learn pour GPU (optimal)
+# Note: Recommandé via conda plutôt que pip
+# conda install -c rapidsai -c conda-forge -c nvidia cuml=24.02
+
+# ===== CPU Dependencies (Incluses dans requirements.txt) =====
+# Déjà présentes, aucune action nécessaire si venv configuré
+
+# ===== Vérification Installation =====
+# Test CuPy:
+#   python -c "import cupy as cp; print(f'CuPy OK - GPU: {cp.cuda.Device(0).compute_capability}')"
+#
+# Test RAPIDS:
+#   python -c "from cuml.neighbors import NearestNeighbors; print('RAPIDS cuML OK')"
+
+# ===== Alternatives =====
+# Si RAPIDS pose problème, CuPy seul suffit (3-5x accélération)
+# Si pas de GPU, fallback automatique CPU optimisé

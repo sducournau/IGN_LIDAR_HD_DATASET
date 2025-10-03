@@ -1,0 +1,116 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+test_env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+temp_downloads/
+demo_downloads/
+test_downloads/
+working_downloads/
+coord_downloads/
+real_downloads/
+test_real_downloads/
+output/
+data/
+*.laz
+*.las
+*.npz
+patches/
+results/
+
+# Dataset directories
+urban_training_dataset/raw_tiles/
+urban_training_dataset/enriched_laz/
+urban_training_dataset/enriched_laz_computed/
+urban_training_dataset/patches_lod2/
+urban_training_dataset/patches_lod3/
+
+# Log files
+*.log
+enrichment*.log
+*.log.*
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.tox/
+.nox/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# Development tools
+.pre-commit-cache/
+
+# Backup files
+*.bak
+*.backup
+
+# Consolidated repository patterns
+WORKFLOW_*.md
+*_EN_COURS.md
+validation_results*.json
+CONSOLIDATION_*.md
+consolidate_repo.py
+
+# Keep data directory structure but ignore contents
+data/validation/*.json
+data/validation/*.npz

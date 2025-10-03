@@ -1,0 +1,97 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ign-lidar-hd"
+version = "1.1.0"
+description = "IGN LiDAR HD Dataset Processing Library for Building LOD Classification"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Simon", email = "contact@example.com"},
+]
+keywords = ["lidar", "ign", "machine-learning", "gis", "building-classification"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.21.0",
+    "laspy>=2.3.0",
+    "scikit-learn>=1.0.0",
+    "tqdm>=4.60.0",
+    "requests>=2.25.0",
+    "click>=8.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov>=4.0",
+    "black>=22.0",
+    "flake8>=4.0",
+    "mypy>=0.910",
+    "build>=0.7.0",
+    "twine>=4.0",
+    "pre-commit>=2.20",
+]
+
+[project.scripts]
+ign-lidar-process = "ign_lidar.cli:main"
+ign-lidar-qgis = "ign_lidar.qgis_converter:main"
+
+[project.urls]
+Homepage = "https://github.com/your-username/ign-lidar-hd"
+Repository = "https://github.com/your-username/ign-lidar-hd"
+Documentation = "https://github.com/your-username/ign-lidar-hd#readme"
+Issues = "https://github.com/your-username/ign-lidar-hd/issues"
+
+[tool.setuptools.packages.find]
+include = ["ign_lidar*"]
+
+[tool.setuptools.package-data]
+ign_lidar = ["*.json", "*.txt"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

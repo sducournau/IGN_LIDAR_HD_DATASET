@@ -1,0 +1,15 @@
+# Core dependencies for ign-lidar-hd
+numpy>=1.21.0
+laspy>=2.3.0
+scikit-learn>=1.0.0
+tqdm>=4.60.0
+requests>=2.25.0
+click>=8.0.0
+psutil>=5.8.0
+
+# For AI dataset creation and processing
+h5py>=3.0.0
+
+# Optional: For PyTorch models (comment if not needed)
+# torch>=2.0.0
+# torchvision>=0.15.0
