@@ -89,8 +89,8 @@ const config: Config = {
     navbar: {
       title: "IGN LiDAR HD",
       logo: {
-        alt: "IGN LiDAR Logo",
-        src: "img/logo.svg",
+        alt: "LOD3 Building Model",
+        src: "img/lod3.png",
       },
       items: [
         {

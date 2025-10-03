@@ -5,14 +5,15 @@ import styles from "./styles.module.css";
 
 type FeatureItem = {
   title: string;
-  Svg: React.ComponentType<React.ComponentProps<"svg">>;
+  Svg?: React.ComponentType<React.ComponentProps<"svg">>;
+  imgSrc?: string;
   description: ReactNode;
 };
 
 const FeatureList: FeatureItem[] = [
   {
     title: "⚡ Smart Skip Detection",
-    Svg: require("@site/static/img/undraw_docusaurus_mountain.svg").default,
+    imgSrc: "/img/indor.png",
     description: (
       <>
         Automatically skip existing downloads, enriched files, and patches.
@@ -22,7 +23,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: "🏗️ Multi-Level Classification",
-    Svg: require("@site/static/img/undraw_docusaurus_tree.svg").default,
+    imgSrc: "/img/lod3.png",
     description: (
       <>
         Support for LOD2 (15 classes) and LOD3 (30 classes) building
@@ -32,7 +33,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: "🚀 GPU Acceleration",
-    Svg: require("@site/static/img/undraw_docusaurus_react.svg").default,
+    imgSrc: "/img/ext.png",
     description: (
       <>
         Optional GPU support for faster feature computation using CUDA and cupy
@@ -42,11 +43,21 @@ const FeatureList: FeatureItem[] = [
   },
 ];
 
-function Feature({ title, Svg, description }: FeatureItem) {
+function Feature({ title, Svg, imgSrc, description }: FeatureItem) {
   return (
     <div className={clsx("col col--4")}>
       <div className="text--center">
-        <Svg className={styles.featureSvg} role="img" />
+        {Svg ? (
+          <Svg className={styles.featureSvg} role="img" />
+        ) : (
+          <img
+            src={imgSrc}
+            className={styles.featureSvg}
+            role="img"
+            alt={title}
+            style={{ maxHeight: "200px", width: "auto" }}
+          />
+        )}
       </div>
       <div className="text--center padding-horiz--md">
         <Heading as="h3">{title}</Heading>

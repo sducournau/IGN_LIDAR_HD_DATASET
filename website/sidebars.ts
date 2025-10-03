@@ -32,7 +32,11 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "Features",
-      items: ["features/smart-skip", "features/format-preferences"],
+      items: [
+        "features/smart-skip",
+        "features/format-preferences",
+        "features/lod3-classification",
+      ],
     },
     {
       type: "category",
