@@ -17,13 +17,80 @@ The IGN LiDAR HD processing workflow consists of three main steps:
 2. **Enrich** - Add building component features to points
 3. **Process** - Extract patches for machine learning
 
+### 🔄 Complete Workflow Pipeline
+
 ```mermaid
-flowchart LR
-    A[Raw LiDAR Tiles] --> B[Download]
-    B --> C[Enriched Tiles]
-    C --> D[Enrich]
-    D --> E[ML Patches]
-    E --> F[Process]
+flowchart TD
+    subgraph "Input"
+        IGN[IGN LiDAR HD<br/>Web Service]
+    end
+
+    subgraph "Step 1: Download"
+        D1[Query WFS Service]
+        D2[Download LAZ Tiles]
+        D3[Validate Files]
+    end
+
+    subgraph "Step 2: Enrich"
+        E1[Load Point Cloud]
+        E2[Compute Geometric Features]
+        E3[Classify Building Components]
+        E4[Save Enriched LAZ]
+    end
+
+    subgraph "Step 3: Process"
+        P1[Extract Patches]
+        P2[Apply Augmentations]
+        P3[Assign LOD Labels]
+        P4[Save NPZ Files]
+    end
+
+    subgraph "Output"
+        ML[ML-Ready Dataset<br/>NPZ Patches]
+    end
+
+    IGN --> D1
+    D1 --> D2
+    D2 --> D3
+    D3 --> E1
+    E1 --> E2
+    E2 --> E3
+    E3 --> E4
+    E4 --> P1
+    P1 --> P2
+    P2 --> P3
+    P3 --> P4
+    P4 --> ML
+
+    style IGN fill:#e3f2fd
+    style ML fill:#e8f5e8
+    style D2 fill:#fff3e0
+    style E2 fill:#f3e5f5
+    style P1 fill:#fce4ec
+```
+
+### 📊 Data Transformation Flow
+
+```mermaid
+graph LR
+    subgraph "Raw Data"
+        Raw[Point Cloud<br/>XYZ + Intensity<br/>~1M points/tile]
+    end
+
+    subgraph "Enriched Data"
+        Enriched[Enhanced Cloud<br/>XYZ + 30 Features<br/>Building Classification]
+    end
+
+    subgraph "ML Dataset"
+        Patches[Training Patches<br/>16K points/patch<br/>LOD Labels]
+    end
+
+    Raw -->|Enrich Process| Enriched
+    Enriched -->|Extract Patches| Patches
+
+    style Raw fill:#ffebee
+    style Enriched fill:#e8f5e8
+    style Patches fill:#e3f2fd
 ```
 
 ## Step 1: Download LiDAR Tiles

@@ -26,12 +26,18 @@ const config: Config = {
   projectName: "IGN_LIDAR_HD_DATASET", // Usually your repo name.
 
   onBrokenLinks: "warn",
+  onBrokenMarkdownLinks: "warn",
+
+  // GitHub Pages deployment config
+  trailingSlash: false,
+  deploymentBranch: "gh-pages",
 
   // Markdown configuration
   markdown: {
     hooks: {
       onBrokenMarkdownLinks: "warn",
     },
+    mermaid: true,
   },
 
   // Internationalization (English + French)
@@ -70,6 +76,8 @@ const config: Config = {
       } satisfies Preset.Options,
     ],
   ],
+
+  themes: ["@docusaurus/theme-mermaid"],
 
   themeConfig: {
     // Replace with your project's social card

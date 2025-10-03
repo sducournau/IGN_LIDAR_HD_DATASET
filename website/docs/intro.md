@@ -10,6 +10,30 @@ Welcome to the IGN LiDAR HD Processing Library documentation!
 
 The IGN LiDAR HD Processing Library is a Python toolkit for processing high-density LiDAR data from the French National Institute of Geographic and Forest Information (IGN) into machine learning-ready datasets.
 
+## 🔄 Processing Pipeline Overview
+
+```mermaid
+flowchart LR
+    A[Raw LiDAR<br/>Point Cloud] --> B[Download<br/>& Validate]
+    B --> C[Feature<br/>Enrichment]
+    C --> D[Patch<br/>Creation]
+    D --> E[ML Dataset<br/>Training Ready]
+
+    subgraph "Smart Features"
+        C1[Geometric Analysis]
+        C2[Architectural Styles]
+        C3[Building Classification]
+    end
+
+    C --> C1
+    C --> C2
+    C --> C3
+
+    style A fill:#ffebee
+    style E fill:#e8f5e8
+    style C fill:#e3f2fd
+```
+
 ## Key Features
 
 - 🎯 **LiDAR-Only Processing** - No RGB dependency
