@@ -47,10 +47,7 @@ flowchart TD
 
     subgraph "Stage 3: Patch Generation"
         Q --> R[Split into Patches<br/>150m × 150m]
-        R --> S{Augmentation?}
-        S -->|Yes| T[Apply Transformations<br/>Rotation, Scale, etc.]
-        S -->|No| U[Quality Filter]
-        T --> U
+        R --> U[Quality Filter]
         U --> V[LOD Classification<br/>LOD2 or LOD3]
         V --> W[ML-Ready Dataset<br/>Train/Val/Test Split]
     end
@@ -249,25 +246,20 @@ ign-lidar-hd patch \
   --input-dir data/enriched \
   --output data/patches \
   --lod-level LOD2 \
-  --num-points 16384 \
-  --augment
+  --num-points 16384
 
 # Create LOD3 patches (30+ classes)
 ign-lidar-hd patch \
   --input-dir data/enriched \
   --output data/patches \
   --lod-level LOD3 \
-  --num-points 32768 \
-  --augment \
-  --augmentation-factor 5
+  --num-points 32768
 ```
 
 **Options:**
 
 - `--lod-level`: LOD2 (15 classes) or LOD3 (30+ classes)
 - `--num-points`: Points per patch (typically 8192-32768)
-- `--augment`: Apply data augmentation
-- `--augmentation-factor`: Number of augmented versions per patch
 
 ## 🐍 Method 3: Python API
 

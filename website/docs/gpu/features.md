@@ -264,7 +264,7 @@ computer = GPUFeatureComputer(
     memory_limit=0.6   # Use less GPU memory
 )
 
-# For small to medium tiles (<1M points)
+# For small to medium tiles (less than 1M points)
 computer = GPUFeatureComputer(
     use_gpu=True,
     batch_size=200000,  # Larger batch size

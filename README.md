@@ -17,9 +17,19 @@
 
 A comprehensive Python library for processing IGN (Institut National de l'Information Géographique et Forestière) LiDAR HD data into machine learning-ready datasets for Building Level of Detail (LOD) classification tasks.
 
-## ✨ What's New in v1.7.0
+## ✨ What's New in v1.7.1
 
-🧹 **Artifact Mitigation Preprocessing** - NEW! Statistical & radius outlier removal + voxel downsampling  
+🤖 **Auto-Parameter Analysis** - NEW! Automatic tile analysis determines optimal processing parameters  
+🎯 **Adaptive Processing** - Each tile gets custom radius, SOR, and ROR settings based on its characteristics  
+⚡ **Zero Manual Tuning** - Eliminates guesswork, ensures best quality for urban/rural/mixed tiles  
+📊 **Smart Detection** - Analyzes point density, spacing, and noise in <1 second per tile  
+🔧 **CLI Integration** - Simple `--auto-params` flag or YAML configuration
+
+[📖 Auto-Params Guide EN](docs/AUTO_PARAMS_GUIDE_EN.md) | [📖 Guide Auto-Params FR](docs/AUTO_PARAMS_GUIDE_FR.md) | [📋 Summary of Changes](SUMMARY_OF_CHANGES.md)
+
+### Previous Updates (v1.7.0)
+
+🧹 **Artifact Mitigation Preprocessing** - Statistical & radius outlier removal + voxel downsampling  
 🎯 **60-80% Scan Line Reduction** - Dramatically improves geometric feature quality  
 ⚙️ **Flexible Configuration** - CLI flags or config files with sensible defaults  
 🔧 **Production Ready** - Fully integrated into enrich pipeline with comprehensive tests  
@@ -188,6 +198,13 @@ ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --add-rgb --rgb-cache-
 # 🆕 Enrich with preprocessing (artifact mitigation)
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --preprocess
 
+# 🆕 v1.7.1: Automatic parameter analysis (recommended!)
+# Analyzes each tile and selects optimal radius, SOR, ROR parameters
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --auto-params --preprocess --add-rgb
+
+# Process specific tiles with auto-params
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --auto-params tile1.laz tile2.laz
+
 # 🆕 Enrich with custom preprocessing parameters
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ \
   --preprocess --sor-k 15 --sor-std 2.5 --ror-radius 1.0 --voxel-size 0.5
@@ -230,7 +247,9 @@ enrich:
   add_rgb: true
   rgb_cache_dir: "cache/orthophotos"
   use_gpu: true
-  # 🆕 Preprocessing for artifact mitigation
+  # 🆕 v1.7.1: Automatic parameter analysis
+  auto_params: true # Analyzes each tile for optimal settings
+  # 🆕 v1.7.0: Preprocessing for artifact mitigation
   preprocess: true
   sor_k: 12
   sor_std: 2.0
@@ -242,7 +261,6 @@ patch:
   output: "data/patches"
   lod_level: "LOD2"
   num_points: 16384
-  augment: true
 ```
 
 **Benefits:**
@@ -580,8 +598,6 @@ ign-lidar-hd patch \
 ```python
 processor = LiDARProcessor(
     lod_level="LOD2",           # LOD2 or LOD3
-    augment=True,               # 🆕 Enable enhanced augmentation
-    num_augmentations=3,        # Augmentations per tile (not per patch!)
     patch_size=150.0,          # Patch size in meters
     patch_overlap=0.1,         # 10% overlap
     bbox=[xmin, ymin, xmax, ymax]  # Spatial filter

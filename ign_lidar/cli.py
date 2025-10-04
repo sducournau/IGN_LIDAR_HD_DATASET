@@ -37,8 +37,6 @@ def cmd_process(args):
     # Initialize processor
     processor = LiDARProcessor(
         lod_level=args.lod_level,
-        augment=not args.no_augment,
-        num_augmentations=args.num_augmentations,
         bbox=bbox,
         patch_size=args.patch_size,
         patch_overlap=args.patch_overlap,
@@ -84,7 +82,7 @@ def _enrich_single_file(args_tuple):
     Args:
         args_tuple: (laz_path, output_path, k_neighbors, use_gpu,
                      mode, skip_existing, add_rgb, rgb_cache_dir, radius,
-                     preprocess, preprocess_config)
+                     preprocess, preprocess_config, auto_params)
     
     Returns:
         str: 'skipped' if file already exists and skip_existing=True,
@@ -93,7 +91,7 @@ def _enrich_single_file(args_tuple):
     """
     (laz_path, output_path, k_neighbors,
      use_gpu, mode, skip_existing, add_rgb, rgb_cache_dir, radius,
-     preprocess, preprocess_config) = args_tuple
+     preprocess, preprocess_config, auto_params) = args_tuple
     
     import numpy as np
     import laspy
@@ -151,6 +149,45 @@ def _enrich_single_file(args_tuple):
         
         points = np.vstack([las.x, las.y, las.z]).T.astype(np.float32)
         classification = np.array(las.classification, dtype=np.uint8)
+        
+        # Auto-analyze tile if requested
+        if auto_params:
+            worker_logger.info("  📊 Analyzing tile for optimal parameters...")
+            from .tile_analyzer import analyze_tile, format_analysis_report
+            
+            try:
+                analysis = analyze_tile(laz_path)
+                worker_logger.info(format_analysis_report(analysis))
+                
+                # Override parameters with analyzed values
+                if radius is None:
+                    radius = analysis['optimal_radius']
+                    worker_logger.info(
+                        f"  ✓ Using analyzed radius: {radius:.2f}m"
+                    )
+                
+                # Update preprocessing config if enabled
+                if preprocess and preprocess_config:
+                    preprocess_config['sor']['k'] = analysis['sor_k']
+                    preprocess_config['sor']['std_multiplier'] = (
+                        analysis['sor_std']
+                    )
+                    preprocess_config['ror']['radius'] = analysis['ror_radius']
+                    preprocess_config['ror']['min_neighbors'] = (
+                        analysis['ror_neighbors']
+                    )
+                    worker_logger.info(
+                        f"  ✓ Updated preprocessing: "
+                        f"SOR(k={analysis['sor_k']}, "
+                        f"std={analysis['sor_std']:.1f}), "
+                        f"ROR(r={analysis['ror_radius']:.1f}m, "
+                        f"min={analysis['ror_neighbors']})"
+                    )
+            except Exception as e:
+                worker_logger.warning(
+                    f"  ⚠️  Tile analysis failed: {e}, "
+                    f"using default parameters"
+                )
         
         # Apply preprocessing if enabled (artifact mitigation)
         preprocess_mask = None  # Track which points to keep
@@ -320,7 +357,9 @@ def _enrich_single_file(args_tuple):
                 compute_all_features_optimized(
                     points, classification,
                     k=k_neighbors,
-                    include_extra=False
+                    include_extra=False,
+                    chunk_size=chunk_size,
+                    radius=radius
                 )
         
         # Output path is already set (preserves directory structure)
@@ -603,6 +642,40 @@ def cmd_enrich(args):
     else:
         laz_files = list(input_path.rglob("*.laz"))
     
+    # Filter by specific files if provided
+    if hasattr(args, 'files') and args.files:
+        from pathlib import Path
+        # Convert file patterns to Path objects relative to input_path
+        file_patterns = [Path(f) for f in args.files]
+        filtered_files = []
+        
+        for pattern in file_patterns:
+            # Check if pattern is relative or absolute
+            if pattern.is_absolute():
+                # Absolute path - use directly if it exists
+                if pattern.exists() and pattern.suffix == '.laz':
+                    filtered_files.append(pattern)
+            else:
+                # Relative path - resolve against input_path
+                full_path = input_path / pattern
+                if full_path.exists() and full_path.suffix == '.laz':
+                    filtered_files.append(full_path)
+                else:
+                    # Try matching against collected laz_files
+                    for laz in laz_files:
+                        if laz.name == pattern.name or \
+                           laz.relative_to(input_path) == pattern:
+                            filtered_files.append(laz)
+                            break
+        
+        if filtered_files:
+            laz_files = filtered_files
+            logger.info(f"Filtering to {len(laz_files)} specified file(s)")
+        else:
+            logger.error(f"None of the specified files found in {input_path}")
+            logger.error(f"Specified: {args.files}")
+            return 1
+    
     if not laz_files:
         logger.error(f"No LAZ files found in {input_path}")
         return 1
@@ -780,6 +853,12 @@ def cmd_enrich(args):
         if preprocess_config['voxel']['enable']:
             logger.info(f"  Voxel: size={preprocess_config['voxel']['voxel_size']}m")
     
+    # Get auto-params setting
+    auto_params = getattr(args, 'auto_params', False)
+    if auto_params:
+        logger.info("Auto-parameter analysis: ENABLED")
+        logger.info("  Each tile will be analyzed for optimal parameters")
+    
     # Prepare arguments for worker function with preserved paths
     worker_args = []
     radius = getattr(args, 'radius', None)  # Get radius if available
@@ -790,7 +869,7 @@ def cmd_enrich(args):
         worker_args.append(
             (laz, output_path, args.k_neighbors, args.use_gpu,
              mode, skip_existing, add_rgb, rgb_cache_dir, radius,
-             preprocess, preprocess_config)
+             preprocess, preprocess_config, auto_params)
         )
     
     # Process files with better error handling and batching
@@ -1059,8 +1138,6 @@ def cmd_pipeline(args):
         pargs.input_dir = Path(patch_cfg['input_dir'])
         pargs.output = Path(patch_cfg['output'])
         pargs.lod_level = patch_cfg.get('lod_level', 'LOD2')
-        pargs.no_augment = not patch_cfg.get('augment', True)
-        pargs.num_augmentations = patch_cfg.get('num_augmentations', 3)
         pargs.num_workers = patch_cfg.get('num_workers',
                                           global_config.get('num_workers', 1))
         pargs.bbox = patch_cfg.get('bbox', None)
@@ -1174,9 +1251,6 @@ def main():
     patch_parser.add_argument('--output', type=Path, required=True, help='Output directory')
     patch_parser.add_argument('--lod-level', type=str, choices=['LOD2', 'LOD3'],
                                default='LOD2', help='LOD level (default: LOD2)')
-    patch_parser.add_argument('--no-augment', action='store_true', help='Disable data augmentation')
-    patch_parser.add_argument('--num-augmentations', type=int, default=3,
-                               help='Number of augmentations per patch (default: 3)')
     patch_parser.add_argument('--num-workers', type=int, default=1,
                                help='Number of parallel workers (default: 1)')
     patch_parser.add_argument('--bbox', type=str,
@@ -1209,9 +1283,6 @@ def main():
     process_parser.add_argument('--output', type=Path, required=True, help='Output directory')
     process_parser.add_argument('--lod-level', type=str, choices=['LOD2', 'LOD3'],
                                default='LOD2', help='LOD level (default: LOD2)')
-    process_parser.add_argument('--no-augment', action='store_true', help='Disable data augmentation')
-    process_parser.add_argument('--num-augmentations', type=int, default=3,
-                               help='Number of augmentations per patch (default: 3)')
     process_parser.add_argument('--num-workers', type=int, default=1,
                                help='Number of parallel workers (default: 1)')
     process_parser.add_argument('--bbox', type=str,
@@ -1242,6 +1313,7 @@ def main():
     enrich_parser.add_argument('--input', type=Path, help='Input LAZ file')
     enrich_parser.add_argument('--input-dir', type=Path, help='Input directory of LAZ files')
     enrich_parser.add_argument('--output', type=Path, required=True, help='Output directory')
+    enrich_parser.add_argument('files', nargs='*', help='Optional: specific file(s) to process (relative to input-dir)')
     enrich_parser.add_argument('--num-workers', type=int, default=1,
                               help='Number of parallel workers (default: 1)')
     enrich_parser.add_argument('--k-neighbors', type=int, default=10,
@@ -1276,6 +1348,11 @@ def main():
         '--rgb-cache-dir',
         type=Path,
         help='Directory to cache downloaded orthophotos (optional)'
+    )
+    enrich_parser.add_argument(
+        '--auto-params',
+        action='store_true',
+        help='Automatically analyze each tile and determine optimal parameters'
     )
     enrich_parser.add_argument(
         '--preprocess',

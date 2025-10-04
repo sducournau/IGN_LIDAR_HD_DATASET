@@ -438,7 +438,7 @@ processor = LiDARProcessor(
 
 - 🐛 [GitHub Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues) - Signaler des bugs
 - 💬 [Discussions](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/discussions) - Poser des questions
-- 📧 Email : <simon.ducournau@gmail.com>
+- 📧 Email : simon.ducournau@gmail.com
 
 ---
 

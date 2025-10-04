@@ -158,8 +158,6 @@ patch:
   patch_size: 150.0 # Taille patch en mètres
   patch_overlap: 0.1 # Ratio de chevauchement (0.0-1.0)
   num_points: 16384 # Points par patch
-  augment: true # Augmentation de données
-  num_augmentations: 3 # Versions augmentées
   num_workers: 4 # Traitement parallèle
   include_architectural_style: false # Features de style
   style_encoding: "constant" # 'constant' ou 'multihot'

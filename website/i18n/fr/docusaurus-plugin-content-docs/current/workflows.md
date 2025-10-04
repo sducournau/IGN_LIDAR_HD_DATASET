@@ -33,21 +33,34 @@ flowchart TD
     Validate -->|Non| Error1[Signaler Erreur]
     Validate -->|Oui| Enrich[Enrichir avec Caractéristiques]
 
-    Enrich --> GPU{Utiliser GPU?}
-    GPU -->|Oui| GPU_Process[Calcul Caractéristiques GPU]
+    Enrich --> AutoParams{Auto-Params?<br/>v1.7.1}
+    AutoParams -->|Oui| Analyze[🤖 Analyser Dalle<br/>Densité, Espacement, Bruit]
+    AutoParams -->|Non| Manual[Utiliser Paramètres Manuels]
+
+    Analyze --> SetParams[Définir Optimaux:<br/>Rayon, SOR, ROR]
+    Manual --> SetParams
+
+    SetParams --> Preprocess{Prétraitement?<br/>v1.7.0}
+    Preprocess -->|Oui| CleanData[🧹 Filtres SOR + ROR<br/>Supprimer Artefacts]
+    Preprocess -->|Non| SkipClean[Ignorer Prétraitement]
+
+    CleanData --> GPU{Utiliser GPU?}
+    SkipClean --> GPU
+
+    GPU -->|Oui| GPU_Process[⚡ Calcul Caractéristiques GPU]
     GPU -->|Non| CPU_Process[Calcul Caractéristiques CPU]
 
-    GPU_Process --> Features[Caractéristiques Géométriques Prêtes]
-    CPU_Process --> Features
+    GPU_Process --> RGB{Ajouter RGB?}
+    CPU_Process --> RGB
+
+    RGB -->|Oui| FetchRGB[Récupérer Orthophotos IGN<br/>Ajouter Couleurs]
+    RGB -->|Non| SkipRGB[LiDAR Seulement]
+
+    FetchRGB --> Features[LAZ Enrichi Prêt]
+    SkipRGB --> Features
 
     Features --> Process[Créer Patches d'Entraînement]
-    Process --> Augment{Appliquer Augmentation?}
-
-    Augment -->|Oui| Aug_Process[Appliquer Augmentation de Données]
-    Augment -->|Non| NoAug[Ignorer Augmentation]
-
-    Aug_Process --> Output[Dataset ML Prêt]
-    NoAug --> Output
+    Process --> Output[Dataset ML Prêt]
     Output --> End([Traitement Terminé])
 
     Error1 --> End
@@ -55,6 +68,8 @@ flowchart TD
     style Start fill:#e8f5e8
     style End fill:#e8f5e8
     style Download fill:#e3f2fd
+    style Analyze fill:#c8e6c9
+    style CleanData fill:#fff9c4
     style Enrich fill:#fff3e0
     style Process fill:#f3e5f5
     style Output fill:#e8f5e8
@@ -342,7 +357,7 @@ flowchart TD
 # Optimized for dense urban environments
 ign-lidar-hd download --bbox 2.0,48.8,2.1,48.9 --output urban_tiles/
 ign-lidar-hd enrich --input-dir urban_tiles/ --output urban_enriched/ --use-gpu --k-neighbors 30
-ign-lidar-hd process --input-dir urban_enriched/ --output urban_patches/ --lod-level LOD3 --num-augmentations 5
+ign-lidar-hd process --input-dir urban_enriched/ --output urban_patches/ --lod-level LOD3
 ```
 
 ### Rural/Natural Area Processing
@@ -351,7 +366,7 @@ ign-lidar-hd process --input-dir urban_enriched/ --output urban_patches/ --lod-l
 # Optimized for sparse rural environments
 ign-lidar-hd download --bbox -1.0,46.0,0.0,47.0 --output rural_tiles/
 ign-lidar-hd enrich --input-dir rural_tiles/ --output rural_enriched/ --k-neighbors 15
-ign-lidar-hd process --input-dir rural_enriched/ --output rural_patches/ --lod-level LOD2 --num-augmentations 2
+ign-lidar-hd process --input-dir rural_enriched/ --output rural_patches/ --lod-level LOD2
 ```
 
 ### High-Performance Batch Processing

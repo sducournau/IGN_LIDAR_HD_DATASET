@@ -6,7 +6,7 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 # Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Version 1.7.0** | Python 3.8+ | Licence MIT
+**Version 1.7.1** | Python 3.8+ | Licence MIT
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -14,16 +14,47 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 ## 📺 Vidéo de Démonstration
 
-< align="center">
+<div align="center">
 <a href="https://www.youtube.com/watch?v=ksBWEhkVqQI" target="_blank">
-<img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/v1.6.3/website/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800">
+<img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/v1.6.3/website/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800" />
 </a>
 
   <p><em>Apprenez à traiter les données LiDAR pour les applications d'apprentissage automatique</em></p>
 </div>
+
 ---
 
-## 🎉 Dernière Version : v1.7.0
+## 🎉 Dernière Version : v1.7.1
+
+**🤖 Analyse Automatique des Paramètres & Optimisation**
+
+✨ **Nouveautés :**
+
+- 🤖 **Analyse Automatique des Paramètres** : Analyse automatique de chaque dalle pour déterminer les paramètres de traitement optimaux
+- 🎯 **Traitement Adaptatif** : Chaque dalle obtient des paramètres personnalisés de rayon, SOR et ROR basés sur ses caractéristiques
+- ⚡ **Zéro Ajustement Manuel** : Élimine les suppositions de paramètres pour les dalles aux caractéristiques variables (urbain/rural/mixte)
+- 📊 **Détection Intelligente** : Analyse la densité de points, l'espacement des plus proches voisins et le niveau de bruit en moins d'1 seconde
+- 🔧 **Intégration CLI** : Simple flag `--auto-params` active la sélection intelligente des paramètres
+- 📈 **Garantie de Qualité** : Assure l'élimination optimale des artefacts quelle que soit la densité de points
+
+**Utilisation :**
+
+```bash
+# Analyse automatique des paramètres (recommandé !)
+ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params --preprocess
+
+# Traiter des dalles spécifiques avec auto-analyse
+ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params dalle1.laz dalle2.laz
+
+# Auto-params avec toutes les fonctionnalités (meilleure qualité)
+ign-lidar-hd enrich --input-dir data/ --output output/ --mode building --auto-params --preprocess --add-rgb
+```
+
+📖 [Guide Auto-Params (EN)](/docs/guides/auto-params-en) | [Guide Auto-Params (FR)](/docs/guides/auto-params-fr) | [Notes de Version](/docs/release-notes/v1.7.1)
+
+---
+
+## Version Précédente : v1.7.0
 
 **🆕 Prétraitement pour l'Atténuation des Artefacts**
 

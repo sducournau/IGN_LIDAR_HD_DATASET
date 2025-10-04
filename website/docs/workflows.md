@@ -33,21 +33,34 @@ flowchart TD
     Validate -->|No| Error1[Report Error]
     Validate -->|Yes| Enrich[Enrich with Features]
 
-    Enrich --> GPU{Use GPU?}
-    GPU -->|Yes| GPU_Process[GPU Feature Computation]
+    Enrich --> AutoParams{Auto-Params?<br/>v1.7.1}
+    AutoParams -->|Yes| Analyze[🤖 Analyze Tile<br/>Density, Spacing, Noise]
+    AutoParams -->|No| Manual[Use Manual Parameters]
+
+    Analyze --> SetParams[Set Optimal:<br/>Radius, SOR, ROR]
+    Manual --> SetParams
+
+    SetParams --> Preprocess{Preprocessing?<br/>v1.7.0}
+    Preprocess -->|Yes| CleanData[🧹 SOR + ROR Filters<br/>Remove Artifacts]
+    Preprocess -->|No| SkipClean[Skip Preprocessing]
+
+    CleanData --> GPU{Use GPU?}
+    SkipClean --> GPU
+
+    GPU -->|Yes| GPU_Process[⚡ GPU Feature Computation]
     GPU -->|No| CPU_Process[CPU Feature Computation]
 
-    GPU_Process --> Features[Geometric Features Ready]
-    CPU_Process --> Features
+    GPU_Process --> RGB{Add RGB?}
+    CPU_Process --> RGB
+
+    RGB -->|Yes| FetchRGB[Fetch IGN Orthophotos<br/>Add Colors]
+    RGB -->|No| SkipRGB[LiDAR Only]
+
+    FetchRGB --> Features[Enriched LAZ Ready]
+    SkipRGB --> Features
 
     Features --> Process[Create Training Patches]
-    Process --> Augment{Apply Augmentation?}
-
-    Augment -->|Yes| Aug_Process[Apply Data Augmentation]
-    Augment -->|No| NoAug[Skip Augmentation]
-
-    Aug_Process --> Output[ML Dataset Ready]
-    NoAug --> Output
+    Process --> Output[ML Dataset Ready]
     Output --> End([Process Complete])
 
     Error1 --> End
@@ -55,6 +68,8 @@ flowchart TD
     style Start fill:#e8f5e8
     style End fill:#e8f5e8
     style Download fill:#e3f2fd
+    style Analyze fill:#c8e6c9
+    style CleanData fill:#fff9c4
     style Enrich fill:#fff3e0
     style Process fill:#f3e5f5
     style Output fill:#e8f5e8
@@ -252,17 +267,96 @@ flowchart LR
     style LOD3_Process fill:#fff3e0
 ```
 
+## 🎯 Enhanced Enrich Pipeline (v1.7.1)
+
+Detailed view of the complete enrich workflow with auto-params and preprocessing.
+
+```mermaid
+flowchart TD
+    Start[Load LAZ Tile] --> AutoCheck{Auto-Params<br/>Enabled?}
+
+    AutoCheck -->|Yes| Sample[Sample 50K Points]
+    AutoCheck -->|No| ManualParams[Use Manual Parameters]
+
+    Sample --> CalcDensity[Calculate:<br/>• Point Density<br/>• NN Distance<br/>• Noise Level]
+    CalcDensity --> Optimize[Determine Optimal:<br/>• Radius: 0.5-3.0m<br/>• SOR k: 8-15<br/>• SOR std: 1.5-2.5<br/>• ROR radius: 1.0-2.0m<br/>• ROR neighbors: 2-6]
+
+    Optimize --> Report[📊 Display Analysis Report]
+    ManualParams --> Report
+    Report --> PreCheck{Preprocessing<br/>Enabled?}
+
+    PreCheck -->|Yes| SOR[Statistical Outlier Removal<br/>Filter noise points]
+    PreCheck -->|No| SkipPre[Skip to Features]
+
+    SOR --> ROR[Radius Outlier Removal<br/>Remove scan artifacts]
+    ROR --> VoxelCheck{Voxel<br/>Downsampling?}
+
+    VoxelCheck -->|Yes| Voxel[Homogenize Point Density]
+    VoxelCheck -->|No| CleanData[Clean Point Cloud]
+    Voxel --> CleanData
+    SkipPre --> Features
+
+    CleanData --> Features[🔧 Feature Computation]
+    Features --> SearchMode{Search Mode}
+
+    SearchMode -->|Radius-based<br/>v1.6.5| RadiusSearch[Radius Search<br/>Artifact-free]
+    SearchMode -->|k-NN<br/>legacy| KNNSearch[k-Nearest Neighbors]
+
+    RadiusSearch --> BuildKDTree[Build KD-Tree]
+    KNNSearch --> BuildKDTree
+
+    BuildKDTree --> CoreFeatures[Compute Core Features:<br/>• Normals<br/>• Curvature<br/>• Planarity<br/>• Verticality]
+
+    CoreFeatures --> ModeCheck{Feature Mode}
+    ModeCheck -->|Core| SaveCore[Core Features Only]
+    ModeCheck -->|Building| BuildFeatures[Building Features:<br/>• Wall probability<br/>• Roof probability<br/>• Edge detection<br/>• Corner detection]
+
+    BuildFeatures --> RGBCheck{Add RGB?}
+    SaveCore --> RGBCheck
+
+    RGBCheck -->|Yes| FetchOrtho[Fetch IGN Orthophoto]
+    RGBCheck -->|No| SaveLAZ[Save Enriched LAZ]
+
+    FetchOrtho --> InterpolateRGB[Interpolate RGB Colors]
+    InterpolateRGB --> SaveLAZ
+
+    SaveLAZ --> End[✅ Enriched Tile Complete]
+
+    style Start fill:#e3f2fd
+    style Sample fill:#c8e6c9
+    style Optimize fill:#c8e6c9
+    style Report fill:#fff9c4
+    style SOR fill:#fff9c4
+    style ROR fill:#fff9c4
+    style Features fill:#fff3e0
+    style RadiusSearch fill:#c8e6c9
+    style SaveLAZ fill:#e8f5e8
+    style End fill:#e8f5e8
+```
+
 ## 📊 Feature Extraction Pipeline
 
 Detailed view of the geometric feature computation process.
 
 ```mermaid
 graph TD
-    Points[Raw Point Cloud] --> KNN[K-Nearest Neighbors]
-    KNN --> Normals[Surface Normals]
-    KNN --> Curvature[Principal Curvature]
+    Points[Raw Point Cloud] --> SearchMethod{Search Method}
+    SearchMethod -->|Radius-based| Radius[Radius Search<br/>Eliminates Artifacts]
+    SearchMethod -->|k-NN| KNN[K-Nearest Neighbors<br/>Legacy Mode]
 
-    Normals --> Planarity[Planarity Measure]
+    Radius --> Neighbors[Variable Neighbors<br/>Per Point]
+    KNN --> FixedNeighbors[Fixed k Neighbors<br/>Per Point]
+
+    Neighbors --> Normals[Surface Normals]
+    FixedNeighbors --> Normals
+
+    Normals --> Eigenvalues[Compute Eigenvalues<br/>Covariance Matrix]
+    Eigenvalues --> Curvature[Principal Curvature]
+
+    Curvature --> Planarity[Planarity Measure]
+    Curvature --> Linearity[Linearity Measure]
+    Curvature --> Anisotropy[Anisotropy Measure]
+
     Normals --> Verticality[Verticality Measure]
     Normals --> Horizontality[Horizontality Measure]
 
@@ -270,8 +364,9 @@ graph TD
     Points --> Height[Height Above Ground]
     Points --> Intensity[Normalized Intensity]
 
-    Curvature --> GeometricFeatures[Geometric Features]
-    Planarity --> GeometricFeatures
+    Planarity --> GeometricFeatures[Geometric Features]
+    Linearity --> GeometricFeatures
+    Anisotropy --> GeometricFeatures
     Verticality --> GeometricFeatures
     Horizontality --> GeometricFeatures
     Density --> GeometricFeatures
@@ -342,7 +437,7 @@ flowchart TD
 # Optimized for dense urban environments
 ign-lidar-hd download --bbox 2.0,48.8,2.1,48.9 --output urban_tiles/
 ign-lidar-hd enrich --input-dir urban_tiles/ --output urban_enriched/ --use-gpu --k-neighbors 30
-ign-lidar-hd process --input-dir urban_enriched/ --output urban_patches/ --lod-level LOD3 --num-augmentations 5
+ign-lidar-hd process --input-dir urban_enriched/ --output urban_patches/ --lod-level LOD3
 ```
 
 ### Rural/Natural Area Processing
@@ -351,7 +446,7 @@ ign-lidar-hd process --input-dir urban_enriched/ --output urban_patches/ --lod-l
 # Optimized for sparse rural environments
 ign-lidar-hd download --bbox -1.0,46.0,0.0,47.0 --output rural_tiles/
 ign-lidar-hd enrich --input-dir rural_tiles/ --output rural_enriched/ --k-neighbors 15
-ign-lidar-hd process --input-dir rural_enriched/ --output rural_patches/ --lod-level LOD2 --num-augmentations 2
+ign-lidar-hd process --input-dir rural_enriched/ --output rural_patches/ --lod-level LOD2
 ```
 
 ### High-Performance Batch Processing

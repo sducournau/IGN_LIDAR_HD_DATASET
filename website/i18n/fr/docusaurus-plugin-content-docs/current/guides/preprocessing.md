@@ -536,7 +536,7 @@ Ajustez les paramètres selon les propriétés de votre ensemble de données :
 - Utilisez un rayon `ror-radius` plus petit (0.5-0.8m)
 - Considérez le sous-échantillonnage par voxel (0.2-0.3m)
 
-**Faible Densité (<5 pts/m²):**
+**Faible Densité (moins de 5 pts/m²):**
 
 - Utilisez des valeurs `sor-k` plus faibles (8-10)
 - Utilisez un rayon `ror-radius` plus grand (1.5-2.0m)

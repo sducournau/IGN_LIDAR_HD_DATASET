@@ -23,7 +23,12 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "User Guides",
-      items: ["guides/basic-usage", "guides/cli-commands"],
+      items: [
+        "guides/basic-usage",
+        "guides/cli-commands",
+        "guides/auto-params-en",
+        "guides/preprocessing",
+      ],
     },
 
     // Promote core documentation
@@ -68,7 +73,12 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "Release Notes",
-      items: ["release-notes/v1.5.0"],
+      items: [
+        "release-notes/v1.7.1",
+        "release-notes/v1.6.2",
+        "release-notes/v1.6.0",
+        "release-notes/v1.5.0",
+      ],
     },
   ],
 };

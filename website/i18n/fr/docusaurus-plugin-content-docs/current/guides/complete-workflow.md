@@ -47,10 +47,7 @@ flowchart TD
 
     subgraph "Étape 3 : Génération de Patchs"
         Q --> R[Découper en Patchs<br/>150m × 150m]
-        R --> S{Augmentation?}
-        S -->|Oui| T[Appliquer Transformations<br/>Rotation, Échelle, etc.]
-        S -->|Non| U[Filtre de Qualité]
-        T --> U
+        R --> U[Filtre de Qualité]
         U --> V[Classification LOD<br/>LOD2 ou LOD3]
         V --> W[Jeu de Données ML<br/>Train/Val/Test]
     end
@@ -127,10 +124,6 @@ patch:
   num_points: 16384
   patch_size: 150 # mètres
   overlap: 0.1 # 10% de chevauchement
-
-  # Augmentation de Données
-  augment: true
-  augmentation_factor: 3 # Générer 3 versions augmentées par patch
 
   # Contrôle Qualité
   min_building_points: 1000
@@ -249,25 +242,20 @@ ign-lidar-hd patch \
   --input-dir data/enriched \
   --output data/patches \
   --lod-level LOD2 \
-  --num-points 16384 \
-  --augment
+  --num-points 16384
 
 # Créer des patchs LOD3 (30+ classes)
 ign-lidar-hd patch \
   --input-dir data/enriched \
   --output data/patches \
   --lod-level LOD3 \
-  --num-points 32768 \
-  --augment \
-  --augmentation-factor 5
+  --num-points 32768
 ```
 
 **Options :**
 
 - `--lod-level` : LOD2 (15 classes) ou LOD3 (30+ classes)
 - `--num-points` : Points par patch (typiquement 8192-32768)
-- `--augment` : Appliquer l'augmentation de données
-- `--augmentation-factor` : Nombre de versions augmentées par patch
 
 ## 🐍 Méthode 3 : API Python
 
@@ -317,9 +305,7 @@ print(f"✅ {len(enriched_files)} fichiers enrichis")
 print("📦 Création de patchs...")
 generator = PatchGenerator(
     lod_level="LOD2",
-    num_points=16384,
-    augment=True,
-    augmentation_factor=3
+    num_points=16384
 )
 
 patches = generator.generate_from_directory(

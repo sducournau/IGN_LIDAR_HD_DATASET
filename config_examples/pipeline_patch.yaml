@@ -28,12 +28,6 @@ patch:
   # 16k is optimal for GPUs with ≥12GB VRAM
   num_points: 16384
 
-  # Enable data augmentation (rotation, flip, scale)
-  augment: true
-
-  # Number of augmented versions per patch
-  num_augmentations: 3
-
   # Number of parallel workers
   num_workers: 4
 

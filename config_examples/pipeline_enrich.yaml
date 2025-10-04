@@ -19,6 +19,15 @@ enrich:
   # Number of neighbors for feature computation
   k_neighbors: 10
 
+  # 🆕 v1.7.1: Automatic parameter analysis for optimal processing
+  # Analyzes each tile to determine best radius, SOR, and ROR parameters
+  auto_params: false
+
+  # Search radius for geometric features (in meters)
+  # Use radius-based search to eliminate LIDAR scan line artifacts
+  # Set to null/omit to auto-estimate, or specify manually (0.5-3.0m typical)
+  # radius: 1.0
+
   # Use GPU acceleration if available
   use_gpu: true
 
@@ -33,10 +42,12 @@ enrich:
   preprocess: false
 
   # Statistical Outlier Removal (SOR) parameters
+  # Note: If auto_params is true, these will be overridden with analyzed values
   sor_k: 12 # Number of nearest neighbors
   sor_std_multiplier: 2.0 # Standard deviation multiplier
 
   # Radius Outlier Removal (ROR) parameters
+  # Note: If auto_params is true, these will be overridden with analyzed values
   ror_radius: 1.0 # Search radius in meters
   ror_min_neighbors: 4 # Minimum neighbors required
 
@@ -44,6 +55,8 @@ enrich:
   # voxel_size: 0.5            # Voxel size in meters (uncomment to enable)
 
   # Preprocessing presets (uncomment one to use):
+  # Auto-analyzed (recommended):
+  #   auto_params: true  # Automatically determines best parameters for each tile
   # Conservative (preserve details):
   #   sor_k: 15, sor_std_multiplier: 3.0, ror_radius: 1.5, ror_min_neighbors: 3
   # Standard (balanced):

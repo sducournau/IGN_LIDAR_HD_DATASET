@@ -612,7 +612,8 @@ def _compute_all_features_chunked(
     auto_k: bool,
     include_extra: bool,
     patch_center: np.ndarray,
-    chunk_size: int
+    chunk_size: int,
+    radius: float = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
     """
     Memory-efficient chunked processing for large point clouds.
@@ -620,18 +621,30 @@ def _compute_all_features_chunked(
     Processes points in chunks to avoid OOM errors on large files (>20M points).
     The KDTree is still built on all points for accurate neighbor search,
     but feature computation is done chunk by chunk.
+    
+    IMPORTANT: Uses RADIUS-based search (not k-NN) to avoid LIDAR scan line artifacts!
     """
     n_points = len(points)
     n_chunks = (n_points + chunk_size - 1) // chunk_size
     
     print(f"Processing {n_points:,} points in {n_chunks} chunks of ~{chunk_size:,} points each")
     
-    # Auto-estimate optimal k if requested
-    if auto_k and k is None:
-        k = estimate_optimal_k(points, target_radius=0.5)
-        print(f"Auto-estimated k={k} neighbors based on point density")
-    elif k is None:
-        k = 10
+    # Determine search strategy: RADIUS-based (preferred) or k-NN (fallback)
+    use_radius = True
+    if radius is None:
+        # Auto-estimate optimal radius for geometric features
+        radius = estimate_optimal_radius_for_features(points, 'geometric')
+        print(f"Auto-estimated radius r={radius:.2f}m (avoids scan line artifacts)")
+    
+    # For k-NN fallback (if explicitly requested with radius=0)
+    if radius == 0:
+        use_radius = False
+        if auto_k and k is None:
+            k = estimate_optimal_k(points, target_radius=0.5)
+            print(f"Auto-estimated k={k} neighbors based on point density")
+        elif k is None:
+            k = 10
+        print(f"WARNING: Using k-NN search (k={k}) - may cause scan line artifacts!")
     
     # Build KDTree once on all points (this is memory-efficient)
     print(f"Building KDTree for {n_points:,} points...")
@@ -672,45 +685,107 @@ def _compute_all_features_chunked(
         start_idx = i * chunk_size
         end_idx = min((i + 1) * chunk_size, n_points)
         chunk_points = points[start_idx:end_idx]
+        chunk_len = end_idx - start_idx
         
         if (i + 1) % 5 == 0 or i == n_chunks - 1:
-            print(f"  Processing chunk {i+1}/{n_chunks} ({start_idx:,}-{end_idx:,})...")
+            print(f"  Chunk {i+1}/{n_chunks} "
+                  f"({start_idx:,}-{end_idx:,})...")
         
         # Query neighbors for this chunk
-        distances, indices = tree.query(chunk_points, k=k)
-        neighbors_all = points[indices]
-        
-        # Center neighbors
-        centroids = neighbors_all.mean(axis=1, keepdims=True)
-        centered = neighbors_all - centroids
-        
-        # Covariance matrices
-        cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
-        
-        # Eigendecomposition
-        eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
-        
-        # === NORMALS ===
-        chunk_normals = eigenvectors[:, :, 0].copy()
-        norms = np.linalg.norm(chunk_normals, axis=1, keepdims=True)
-        norms = np.maximum(norms, 1e-8)
-        chunk_normals = chunk_normals / norms
-        
-        # Orient upward
-        flip_mask = chunk_normals[:, 2] < 0
-        chunk_normals[flip_mask] = -chunk_normals[flip_mask]
-        
-        # Handle degenerate cases
-        degenerate = (eigenvalues[:, 0] < 1e-8) | np.isnan(chunk_normals).any(axis=1)
-        chunk_normals[degenerate] = np.array([0, 0, 1], dtype=np.float32)
-        normals[start_idx:end_idx] = chunk_normals.astype(np.float32)
-        
-        # === CURVATURE ===
-        centers = chunk_points[:, np.newaxis, :]
-        relative_pos = neighbors_all - centers
-        normals_expanded = chunk_normals[:, np.newaxis, :]
-        distances_along_normal = np.sum(relative_pos * normals_expanded, axis=2)
-        curvature[start_idx:end_idx] = np.std(distances_along_normal, axis=1).astype(np.float32)
+        if radius > 0:
+            # RADIUS-based search (avoids scan line artifacts)
+            neighbor_indices_list = tree.query_radius(chunk_points, r=radius)
+            
+            # Process each point in chunk with variable neighbor count
+            chunk_normals = np.zeros((chunk_len, 3), dtype=np.float32)
+            chunk_curvature = np.zeros(chunk_len, dtype=np.float32)
+            chunk_eigenvalues = np.zeros((chunk_len, 3), dtype=np.float32)
+            chunk_distances_mean = np.zeros(chunk_len, dtype=np.float32)
+            chunk_distances_max = np.zeros(chunk_len, dtype=np.float32)
+            
+            for j, neighbors_idx in enumerate(neighbor_indices_list):
+                if len(neighbors_idx) < 3:
+                    # Not enough neighbors - use default values
+                    chunk_normals[j] = [0, 0, 1]
+                    continue
+                
+                neighbor_pts = points[neighbors_idx]
+                centroid = neighbor_pts.mean(axis=0)
+                centered_pts = neighbor_pts - centroid
+                
+                # Covariance matrix
+                cov = (centered_pts.T @ centered_pts) / (len(neighbors_idx)-1)
+                
+                # Eigendecomposition
+                eigenvals, eigenvecs = np.linalg.eigh(cov)
+                eigenvals_sorted = np.sort(eigenvals)[::-1]  # Descending
+                chunk_eigenvalues[j] = eigenvals_sorted
+                
+                # Normal (smallest eigenvector)
+                normal = eigenvecs[:, 0]
+                norm_len = np.linalg.norm(normal)
+                if norm_len > 1e-8:
+                    normal = normal / norm_len
+                if normal[2] < 0:
+                    normal = -normal
+                chunk_normals[j] = normal
+                
+                # Curvature
+                rel_pos = neighbor_pts - chunk_points[j]
+                dist_along_normal = np.dot(rel_pos, normal)
+                chunk_curvature[j] = np.std(dist_along_normal)
+                
+                # Distance stats
+                dists = np.linalg.norm(rel_pos, axis=1)
+                chunk_distances_mean[j] = np.mean(dists[dists > 0])
+                chunk_distances_max[j] = np.max(dists)
+            
+            normals[start_idx:end_idx] = chunk_normals
+            curvature[start_idx:end_idx] = chunk_curvature
+            
+        else:
+            # k-NN fallback (may cause artifacts!)
+            distances, indices = tree.query(chunk_points, k=k)
+            neighbors_all = points[indices]
+            
+            # Center neighbors
+            centroids = neighbors_all.mean(axis=1, keepdims=True)
+            centered = neighbors_all - centroids
+            
+            # Covariance matrices
+            cov_matrices = np.einsum('nki,nkj->nij', centered, centered)
+            cov_matrices = cov_matrices / (k - 1)
+            
+            # Eigendecomposition
+            eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
+            chunk_eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]
+            
+            # Normals
+            chunk_normals = eigenvectors[:, :, 0].copy()
+            norms = np.linalg.norm(chunk_normals, axis=1, keepdims=True)
+            norms = np.maximum(norms, 1e-8)
+            chunk_normals = chunk_normals / norms
+            flip_mask = chunk_normals[:, 2] < 0
+            chunk_normals[flip_mask] = -chunk_normals[flip_mask]
+            degenerate = ((eigenvalues[:, 0] < 1e-8) |
+                         np.isnan(chunk_normals).any(axis=1))
+            chunk_normals[degenerate] = np.array([0, 0, 1],
+                                                 dtype=np.float32)
+            normals[start_idx:end_idx] = chunk_normals
+            
+            # Curvature
+            centers = chunk_points[:, np.newaxis, :]
+            relative_pos = neighbors_all - centers
+            normals_expanded = chunk_normals[:, np.newaxis, :]
+            distances_along_normal = np.sum(
+                relative_pos * normals_expanded, axis=2
+            )
+            chunk_curvature = np.std(distances_along_normal, axis=1)
+            curvature[start_idx:end_idx] = chunk_curvature.astype(np.float32)
+            
+            chunk_distances_mean = np.mean(distances[:, 1:], axis=1)
+            chunk_distances_max = np.max(distances, axis=1)
+            chunk_eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]
         
         # === HEIGHT ===
         height[start_idx:end_idx] = np.maximum(
@@ -718,42 +793,84 @@ def _compute_all_features_chunked(
         ).astype(np.float32)
         
         # === GEOMETRIC FEATURES ===
-        eigenvalues_sorted = np.sort(eigenvalues, axis=1)[:, ::-1]
-        λ0 = eigenvalues_sorted[:, 0]
-        λ1 = eigenvalues_sorted[:, 1]
-        λ2 = eigenvalues_sorted[:, 2]
+        λ0 = chunk_eigenvalues[:, 0]
+        λ1 = chunk_eigenvalues[:, 1]
+        λ2 = chunk_eigenvalues[:, 2]
         
         λ0_safe = λ0 + 1e-8
         sum_λ = λ0 + λ1 + λ2 + 1e-8
         
-        # CORRECT: Normalized by sum_λ (Weinmann et al., Demantké et al.)
-        geo_features['linearity'][start_idx:end_idx] = ((λ0 - λ1) / sum_λ).astype(np.float32)
-        geo_features['planarity'][start_idx:end_idx] = ((λ1 - λ2) / sum_λ).astype(np.float32)
-        geo_features['sphericity'][start_idx:end_idx] = (λ2 / sum_λ).astype(np.float32)
-        geo_features['anisotropy'][start_idx:end_idx] = ((λ0 - λ2) / λ0_safe).astype(np.float32)
-        geo_features['roughness'][start_idx:end_idx] = (λ2 / sum_λ).astype(np.float32)
-        
-        mean_distances = np.mean(distances[:, 1:], axis=1)
-        geo_features['density'][start_idx:end_idx] = (1.0 / (mean_distances + 1e-8)).astype(np.float32)
+        # Compute geometric features (Weinmann et al., Demantké et al.)
+        geo_features['linearity'][start_idx:end_idx] = (
+            ((λ0 - λ1) / sum_λ).astype(np.float32)
+        )
+        geo_features['planarity'][start_idx:end_idx] = (
+            ((λ1 - λ2) / sum_λ).astype(np.float32)
+        )
+        geo_features['sphericity'][start_idx:end_idx] = (
+            (λ2 / sum_λ).astype(np.float32)
+        )
+        geo_features['anisotropy'][start_idx:end_idx] = (
+            ((λ0 - λ2) / λ0_safe).astype(np.float32)
+        )
+        geo_features['roughness'][start_idx:end_idx] = (
+            (λ2 / sum_λ).astype(np.float32)
+        )
+        geo_features['density'][start_idx:end_idx] = (
+            (1.0 / (chunk_distances_mean + 1e-8)).astype(np.float32)
+        )
         
         # === EXTRA FEATURES ===
         if include_extra:
-            z_neighbors = neighbors_all[:, :, 2]
-            geo_features['vertical_std'][start_idx:end_idx] = np.std(z_neighbors, axis=1).astype(np.float32)
-            geo_features['neighborhood_extent'][start_idx:end_idx] = np.max(distances, axis=1).astype(np.float32)
+            # For radius-based, we need to recompute these from neighbor data
+            if radius > 0:
+                # Vertical std (computed from neighbor indices per point)
+                v_std = np.zeros(chunk_len, dtype=np.float32)
+                n_extent = np.zeros(chunk_len, dtype=np.float32)
+                for j, neighbors_idx in enumerate(neighbor_indices_list):
+                    if len(neighbors_idx) >= 3:
+                        neighbor_pts = points[neighbors_idx]
+                        v_std[j] = np.std(neighbor_pts[:, 2])
+                        dists = np.linalg.norm(
+                            neighbor_pts - chunk_points[j], axis=1
+                        )
+                        n_extent[j] = np.max(dists)
+                geo_features['vertical_std'][start_idx:end_idx] = v_std
+                geo_features['neighborhood_extent'][start_idx:end_idx] = (
+                    n_extent
+                )
+            else:
+                # For k-NN, use vectorized computation
+                z_neighbors = neighbors_all[:, :, 2]
+                geo_features['vertical_std'][start_idx:end_idx] = (
+                    np.std(z_neighbors, axis=1).astype(np.float32)
+                )
+                geo_features['neighborhood_extent'][start_idx:end_idx] = (
+                    chunk_distances_max.astype(np.float32)
+                )
             
             with np.errstate(divide='ignore', invalid='ignore'):
-                her = geo_features['vertical_std'][start_idx:end_idx] / (
-                    geo_features['neighborhood_extent'][start_idx:end_idx] + 1e-8
+                v_std_slice = geo_features['vertical_std'][start_idx:end_idx]
+                n_ext_slice = (
+                    geo_features['neighborhood_extent'][start_idx:end_idx]
                 )
-                her = np.nan_to_num(her, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+                her = v_std_slice / (n_ext_slice + 1e-8)
+                her = np.nan_to_num(
+                    her, nan=0.0, posinf=0.0, neginf=0.0
+                ).astype(np.float32)
                 geo_features['height_extent_ratio'][start_idx:end_idx] = her
             
-            geo_features['local_roughness'][start_idx:end_idx] = geo_features['roughness'][start_idx:end_idx]
+            roughness_slice = geo_features['roughness'][start_idx:end_idx]
+            geo_features['local_roughness'][start_idx:end_idx] = (
+                roughness_slice
+            )
             
             # Verticality
-            verticality_chunk = compute_verticality(chunk_normals)
-            geo_features['verticality'][start_idx:end_idx] = verticality_chunk
+            chunk_normals_slice = normals[start_idx:end_idx]
+            verticality_chunk = compute_verticality(chunk_normals_slice)
+            geo_features['verticality'][start_idx:end_idx] = (
+                verticality_chunk
+            )
     
     print(f"✓ Chunked processing complete")
     return normals, curvature, height, geo_features
@@ -766,13 +883,16 @@ def compute_all_features_optimized(
     auto_k: bool = True,
     include_extra: bool = False,
     patch_center: np.ndarray = None,
-    chunk_size: int = None
+    chunk_size: int = None,
+    radius: float = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
     """
     Compute ALL features in a single pass for maximum speed.
     Builds KDTree once and reuses it for all calculations.
     
     This function is 2-3x faster than calling individual functions.
+    
+    IMPORTANT: Uses RADIUS-based search by default (avoids scan artifacts)
     
     Features computed:
     - Normals (nx, ny, nz): Surface orientation
@@ -793,7 +913,9 @@ def compute_all_features_optimized(
         auto_k: if True, automatically estimate optimal k based on density
         include_extra: if True, compute expensive extra features
         patch_center: [3] patch center for distance_to_center feature
-        chunk_size: if specified, process in chunks to reduce memory usage
+        chunk_size: if specified, process in chunks to reduce memory
+        radius: search radius in meters (None=auto, >0=use radius,
+                0=use k-NN)
         
     Returns:
         normals: [N, 3] surface normals
@@ -804,8 +926,8 @@ def compute_all_features_optimized(
     # If chunk_size specified and data is large, use chunked processing
     if chunk_size is not None and len(points) > chunk_size:
         return _compute_all_features_chunked(
-            points, classification, k, auto_k, include_extra, 
-            patch_center, chunk_size
+            points, classification, k, auto_k, include_extra,
+            patch_center, chunk_size, radius
         )
     
     # Auto-estimate optimal k if requested

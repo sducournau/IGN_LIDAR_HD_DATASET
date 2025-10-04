@@ -239,8 +239,6 @@ patch:
   lod_level: "LOD2"
   patch_size: 150.0
   num_points: 16384
-  augment: true
-  num_augmentations: 3
 ```
 
 ## Use Cases

@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 1.7.0** | Python 3.8+ | MIT License
+**Version 1.7.1** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -14,15 +14,46 @@ title: IGN LiDAR HD Processing Library
 
 ## 📺 Video Demo
 
+<div align="center">
 <a href="https://www.youtube.com/watch?v=ksBWEhkVqQI" target="_blank">
-<img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/v1.6.3/website/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800">
+<img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/v1.6.3/website/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800" />
 </a>
   <p><em>Learn how to process LiDAR data for machine learning applications</em></p>
 </div>
 
 ---
 
-## 🎉 Latest Release: v1.7.0
+## 🎉 Latest Release: v1.7.1
+
+**🤖 Automatic Parameter Analysis & Optimization**
+
+✨ **What's New:**
+
+- 🤖 **Auto-Parameter Analysis**: Automatically analyze each tile to determine optimal processing parameters
+- 🎯 **Adaptive Processing**: Each tile gets custom radius, SOR, and ROR settings based on its characteristics
+- ⚡ **Zero Manual Tuning**: Eliminates parameter guesswork for varying tile characteristics (urban/rural/mixed)
+- 📊 **Smart Detection**: Analyzes point density, nearest neighbor spacing, and noise level in less than 1 second
+- 🔧 **CLI Integration**: Simple `--auto-params` flag enables intelligent parameter selection
+- 📈 **Quality Guarantee**: Ensures optimal artifact elimination regardless of point density
+
+**Usage:**
+
+```bash
+# Automatic parameter analysis (recommended!)
+ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params --preprocess
+
+# Process specific tiles with auto-analysis
+ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params tile1.laz tile2.laz
+
+# Auto-params with all features (best quality)
+ign-lidar-hd enrich --input-dir data/ --output output/ --mode building --auto-params --preprocess --add-rgb
+```
+
+📖 [Auto-Params Guide (EN)](/docs/guides/auto-params-en) | [Guide Auto-Params (FR)](/docs/guides/auto-params-fr) | [Release Notes](/docs/release-notes/v1.7.1)
+
+---
+
+## Previous Release: v1.7.0
 
 **🆕 Point Cloud Preprocessing for Artifact Mitigation**
 

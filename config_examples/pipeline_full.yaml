@@ -35,6 +35,13 @@ enrich:
   # Number of neighbors for feature computation
   k_neighbors: 10
 
+  # 🆕 v1.7.1: Automatic parameter analysis for optimal processing
+  # Analyzes each tile to determine best radius, SOR, and ROR parameters
+  auto_params: false
+
+  # Search radius for geometric features (in meters)
+  # radius: 1.0
+
   # Use GPU acceleration if available
   use_gpu: true
 
@@ -49,10 +56,12 @@ enrich:
   preprocess: false
 
   # Statistical Outlier Removal (SOR) parameters
+  # Note: If auto_params is true, these will be overridden with analyzed values
   sor_k: 12 # Number of nearest neighbors
   sor_std_multiplier: 2.0 # Standard deviation multiplier
 
   # Radius Outlier Removal (ROR) parameters
+  # Note: If auto_params is true, these will be overridden with analyzed values
   ror_radius: 1.0 # Search radius in meters
   ror_min_neighbors: 4 # Minimum neighbors required
 
@@ -85,11 +94,6 @@ patch:
   # Target number of points per patch
   num_points: 16384 # Options: 4096, 8192, 16384
 
-  # Enable data augmentation
-  augment: true
-
-  # Number of augmented versions per patch
-  num_augmentations: 3
 
   # Include architectural style features
   # include_architectural_style: false

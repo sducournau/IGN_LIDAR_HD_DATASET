@@ -380,13 +380,13 @@ Based on comprehensive artifact analysis:
 - Point clouds are already clean (manual inspection)
 - You need absolute maximum detail preservation
 - Processing time is critical constraint
-- Working with very small/sparse clouds (<100k points)
+- Working with very small/sparse clouds (less than 100k points)
 
 ### Parameter Tuning Tips
 
 1. **Start with defaults** - They work well for most IGN LiDAR HD data
 2. **Visualize before/after** - Use CloudCompare or similar tools
-3. **Check reduction ratio** - Aim for <10% point reduction for conservative filtering
+3. **Check reduction ratio** - Aim for less than 10% point reduction for conservative filtering
 4. **Monitor processing time** - Balance quality vs. speed for your use case
 5. **Test on representative tiles** - Don't tune on outliers
 
