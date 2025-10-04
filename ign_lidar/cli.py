@@ -83,7 +83,8 @@ def _enrich_single_file(args_tuple):
     
     Args:
         args_tuple: (laz_path, output_path, k_neighbors, use_gpu,
-                     mode, skip_existing, add_rgb, rgb_cache_dir, radius)
+                     mode, skip_existing, add_rgb, rgb_cache_dir, radius,
+                     preprocess, preprocess_config)
     
     Returns:
         str: 'skipped' if file already exists and skip_existing=True,
@@ -91,7 +92,8 @@ def _enrich_single_file(args_tuple):
              'error' if processing failed
     """
     (laz_path, output_path, k_neighbors,
-     use_gpu, mode, skip_existing, add_rgb, rgb_cache_dir, radius) = args_tuple
+     use_gpu, mode, skip_existing, add_rgb, rgb_cache_dir, radius,
+     preprocess, preprocess_config) = args_tuple
     
     import numpy as np
     import laspy
@@ -149,6 +151,60 @@ def _enrich_single_file(args_tuple):
         
         points = np.vstack([las.x, las.y, las.z]).T.astype(np.float32)
         classification = np.array(las.classification, dtype=np.uint8)
+        
+        # Apply preprocessing if enabled (artifact mitigation)
+        if preprocess and preprocess_config:
+            worker_logger.info("  🧹 Preprocessing (artifact mitigation)...")
+            
+            from .preprocessing import (
+                statistical_outlier_removal,
+                radius_outlier_removal,
+                voxel_downsample
+            )
+            
+            original_count = len(points)
+            cumulative_mask = np.ones(original_count, dtype=bool)
+            
+            # Apply SOR
+            sor_cfg = preprocess_config.get('sor', {})
+            if sor_cfg.get('enable', True):
+                _, sor_mask = statistical_outlier_removal(
+                    points,
+                    k=sor_cfg.get('k', 12),
+                    std_multiplier=sor_cfg.get('std_multiplier', 2.0)
+                )
+                cumulative_mask &= sor_mask
+            
+            # Apply ROR
+            ror_cfg = preprocess_config.get('ror', {})
+            if ror_cfg.get('enable', True):
+                _, ror_mask = radius_outlier_removal(
+                    points,
+                    radius=ror_cfg.get('radius', 1.0),
+                    min_neighbors=ror_cfg.get('min_neighbors', 4)
+                )
+                cumulative_mask &= ror_mask
+            
+            # Filter points and classification
+            points = points[cumulative_mask]
+            classification = classification[cumulative_mask]
+            
+            # Apply voxel downsampling if enabled
+            voxel_cfg = preprocess_config.get('voxel', {})
+            if voxel_cfg.get('enable', False):
+                points, voxel_indices = voxel_downsample(
+                    points,
+                    voxel_size=voxel_cfg.get('voxel_size', 0.5),
+                    method=voxel_cfg.get('method', 'centroid')
+                )
+                classification = classification[voxel_indices]
+            
+            final_count = len(points)
+            reduction = 1 - final_count / original_count
+            worker_logger.info(
+                f"  ✓ Preprocessing: {final_count:,}/{original_count:,} "
+                f"({reduction:.1%} reduction)"
+            )
         
         # Memory check - abort if insufficient memory available
         n_points = len(points)
@@ -653,6 +709,33 @@ def cmd_enrich(args):
         else:
             logger.info("RGB cache: Disabled (orthophotos will be fetched each time)")
     
+    # Get preprocessing settings
+    preprocess = getattr(args, 'preprocess', False)
+    preprocess_config = None
+    if preprocess:
+        logger.info("Preprocessing: ENABLED (artifact mitigation)")
+        preprocess_config = {
+            'sor': {
+                'enable': True,
+                'k': getattr(args, 'sor_k', 12),
+                'std_multiplier': getattr(args, 'sor_std', 2.0)
+            },
+            'ror': {
+                'enable': True,
+                'radius': getattr(args, 'ror_radius', 1.0),
+                'min_neighbors': getattr(args, 'ror_neighbors', 4)
+            },
+            'voxel': {
+                'enable': args.voxel_size is not None,
+                'voxel_size': getattr(args, 'voxel_size', 0.5),
+                'method': 'centroid'
+            }
+        }
+        logger.info(f"  SOR: k={preprocess_config['sor']['k']}, std={preprocess_config['sor']['std_multiplier']}")
+        logger.info(f"  ROR: radius={preprocess_config['ror']['radius']}m, min_neighbors={preprocess_config['ror']['min_neighbors']}")
+        if preprocess_config['voxel']['enable']:
+            logger.info(f"  Voxel: size={preprocess_config['voxel']['voxel_size']}m")
+    
     # Prepare arguments for worker function with preserved paths
     worker_args = []
     radius = getattr(args, 'radius', None)  # Get radius if available
@@ -662,7 +745,8 @@ def cmd_enrich(args):
         output_path = output_dir / rel_path
         worker_args.append(
             (laz, output_path, args.k_neighbors, args.use_gpu,
-             mode, skip_existing, add_rgb, rgb_cache_dir, radius)
+             mode, skip_existing, add_rgb, rgb_cache_dir, radius,
+             preprocess, preprocess_config)
         )
     
     # Process files with better error handling and batching
@@ -1148,6 +1232,46 @@ def main():
         '--rgb-cache-dir',
         type=Path,
         help='Directory to cache downloaded orthophotos (optional)'
+    )
+    enrich_parser.add_argument(
+        '--preprocess',
+        action='store_true',
+        help='Apply preprocessing to reduce artifacts (SOR, ROR filters)'
+    )
+    enrich_parser.add_argument(
+        '--no-preprocess',
+        action='store_true',
+        help='Disable preprocessing (default: enabled if --preprocess used)'
+    )
+    enrich_parser.add_argument(
+        '--sor-k',
+        type=int,
+        default=12,
+        help='Statistical Outlier Removal: number of neighbors (default: 12)'
+    )
+    enrich_parser.add_argument(
+        '--sor-std',
+        type=float,
+        default=2.0,
+        help='Statistical Outlier Removal: std multiplier (default: 2.0)'
+    )
+    enrich_parser.add_argument(
+        '--ror-radius',
+        type=float,
+        default=1.0,
+        help='Radius Outlier Removal: search radius in meters (default: 1.0)'
+    )
+    enrich_parser.add_argument(
+        '--ror-neighbors',
+        type=int,
+        default=4,
+        help='Radius Outlier Removal: min neighbors (default: 4)'
+    )
+    enrich_parser.add_argument(
+        '--voxel-size',
+        type=float,
+        default=None,
+        help='Voxel downsampling size in meters (optional, e.g., 0.5)'
     )
     
     # PIPELINE command - Execute full workflow from YAML

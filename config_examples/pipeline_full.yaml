@@ -44,6 +44,21 @@ enrich:
   # Directory to cache downloaded orthophotos
   rgb_cache_dir: "cache/orthophotos"
 
+  # 🆕 v1.7.0: Point cloud preprocessing for artifact mitigation
+  # Enable preprocessing to reduce scan line artifacts and noise
+  preprocess: false
+
+  # Statistical Outlier Removal (SOR) parameters
+  sor_k: 12 # Number of nearest neighbors
+  sor_std_multiplier: 2.0 # Standard deviation multiplier
+
+  # Radius Outlier Removal (ROR) parameters
+  ror_radius: 1.0 # Search radius in meters
+  ror_min_neighbors: 4 # Minimum neighbors required
+
+  # Voxel downsampling (optional) - uncomment to enable
+  # voxel_size: 0.5            # Voxel size in meters
+
   # Auto-convert to QGIS format
   # auto_convert_qgis: false
 

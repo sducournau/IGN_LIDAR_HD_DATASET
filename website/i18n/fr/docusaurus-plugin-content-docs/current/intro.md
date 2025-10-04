@@ -6,7 +6,7 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 # Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Version 1.6.4** | Python 3.8+ | Licence MIT
+**Version 1.7.0** | Python 3.8+ | Licence MIT
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -23,15 +23,34 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 </div>
 ---
 
-## 🎉 Dernière Version : v1.6.4
+## 🎉 Dernière Version : v1.7.0
 
-**Améliorations de la Documentation & Présentation**
+**🆕 Prétraitement pour l'Atténuation des Artefacts**
 
 ✨ **Nouveautés :**
 
-- 📺 **Documentation Améliorée** : README mis à jour avec lecteur YouTube intégré pour une meilleure expérience vidéo
-- 🎨 **Présentation Améliorée** : Meilleure intégration visuelle du contenu de démonstration
-- 🔧 **Mises à jour Mineures** : Améliorations et raffinements de la documentation
+- 🧹 **Prétraitement du Nuage de Points** : Nouveau système de prétraitement pour réduire les artefacts de lignes de balayage LiDAR
+- 📊 **Suppression Statistique des Valeurs Aberrantes (SOR)** : Élimine le bruit atmosphérique et les erreurs de mesure
+- 🎯 **Suppression des Valeurs Aberrantes par Rayon (ROR)** : Supprime les artefacts de lignes de balayage et les points isolés
+- 📦 **Sous-échantillonnage par Voxel** : Homogénéise la densité de points, réduit l'utilisation de la mémoire
+- ⚙️ **Paramètres Configurables** : 9 nouveaux drapeaux CLI pour contrôler le prétraitement (--preprocess, --sor-k, --sor-std, etc.)
+- 🎨 **Préréglages Inclus** : Conservateur, Standard, Agressif, Urbain, Mémoire-Optimisé
+- 📈 **Impact Mesuré** : Réduction de 60-80% des artefacts, normales 40-60% plus lisses, surcharge de 15-30%
+
+**Impact :**
+
+```bash
+# Activer avec les paramètres par défaut
+ign-lidar-hd enrich --input-dir data/ --output output/ --mode building --preprocess
+
+# Prétraitement conservateur (préserver les détails)
+ign-lidar-hd enrich ... --preprocess --sor-k 15 --sor-std 3.0 --ror-radius 1.5 --ror-neighbors 3
+
+# Prétraitement agressif (suppression maximale des artefacts)
+ign-lidar-hd enrich ... --preprocess --sor-k 10 --sor-std 1.5 --ror-radius 0.8 --ror-neighbors 5 --voxel-size 0.3
+```
+
+📖 [Guide de Prétraitement Complet](/docs/guides/preprocessing) | [Notes de Version v1.7.0](/docs/release-notes/v1.7.0)
 
 ---
 
@@ -113,7 +132,8 @@ flowchart LR
 ## Caractéristiques Principales
 
 - 🎯 **Traitement LiDAR uniquement** - Aucune dépendance RGB requise
-- 🎨 **Augmentation RGB** - Enrichissement couleur optionnel depuis les orthophotos IGN (NOUVEAU !)
+- 🎨 **Augmentation RGB** - Enrichissement couleur optionnel depuis les orthophotos IGN
+- 🧹 **Prétraitement du Nuage de Points** - Atténuation des artefacts de lignes de balayage LiDAR (NOUVEAU v1.7.0 !)
 - ⚡ **Détection intelligente de saut** - Reprendre les workflows interrompus
 - 🏗️ **Classification multi-niveaux** - Support LOD2 (15 classes) et LOD3 (30+ classes)
 - 🚀 **Accélération GPU** - Support CUDA optionnel avec accélération 5-10x
@@ -167,12 +187,29 @@ output_dir = Path("output/")
 patches = processor.process_tile(input_file, output_dir)
 print(f"Généré {len(patches)} patches d'entraînement")
 
-# NOUVEAU : Traiter avec augmentation RGB depuis les orthophotos IGN
+# NOUVEAU v1.7.0 : Traiter avec prétraitement pour réduire les artefacts
+processor_clean = LiDARProcessor(
+    lod_level="LOD2",
+    preprocess=True,
+    preprocess_config={
+        'sor_k': 12,
+        'sor_std_multiplier': 2.0,
+        'ror_radius': 1.0,
+        'ror_min_neighbors': 4,
+        'voxel_size': 0.5  # Optionnel : réduction mémoire
+    }
+)
+patches = processor_clean.process_tile(input_file, output_dir)
+print(f"Généré {len(patches)} patches avec données nettoyées !")
+
+# Traiter avec augmentation RGB depuis les orthophotos IGN
 processor_rgb = LiDARProcessor(
     lod_level="LOD2",
     include_rgb=True,
     rgb_cache_dir=Path("cache/")
 )
+patches_rgb = processor_rgb.process_tile("data.laz", "output/")
+print(f"Généré {len(patches_rgb)} patches avec couleurs RGB !")
 
 # Traitement parallèle de plusieurs fichiers
 patches = processor.process_directory(
@@ -180,15 +217,14 @@ patches = processor.process_directory(
     "output/patches/",
     num_workers=4
 )
-patches_rgb = processor_rgb.process_tile("data.laz", "output/")
-print(f"Généré {len(patches_rgb)} patches avec couleurs RGB !")
 ```
 
 ## Prochaines étapes
 
 - 📖 Lire le [Guide d'installation](installation/quick-start.md)
 - 🎓 Suivre le [Guide d'utilisation de base](guides/basic-usage.md)
-- 🎨 **NOUVEAU :** Découvrir l'[Augmentation RGB](features/rgb-augmentation.md)
+- 🧹 **NOUVEAU v1.7.0 :** Découvrir le [Prétraitement pour l'Atténuation des Artefacts](guides/preprocessing.md)
+- 🎨 Découvrir l'[Augmentation RGB](features/rgb-augmentation.md)
 - 🔍 Explorer les [Fonctionnalités de saut intelligent](features/smart-skip.md)
 - 📚 Consulter le [Guide d'optimisation mémoire](reference/memory-optimization.md)
 

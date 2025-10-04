@@ -51,7 +51,9 @@ class LiDARProcessor:
                  style_encoding: str = 'constant',
                  include_rgb: bool = False,
                  rgb_cache_dir: Path = None,
-                 use_gpu: bool = False):
+                 use_gpu: bool = False,
+                 preprocess: bool = False,
+                 preprocess_config: dict = None):
         """
         Initialize processor.
         
@@ -76,6 +78,10 @@ class LiDARProcessor:
             rgb_cache_dir: Directory to cache orthophoto tiles
             use_gpu: If True, use GPU acceleration for feature computation
                     (requires CuPy and RAPIDS cuML)
+            preprocess: If True, apply preprocessing to reduce artifacts
+                       (SOR, ROR, optional voxel downsampling)
+            preprocess_config: Custom preprocessing configuration dict
+                              If None, uses sensible defaults
         """
         self.lod_level = lod_level
         self.augment = augment
@@ -91,6 +97,8 @@ class LiDARProcessor:
         self.include_rgb = include_rgb
         self.rgb_cache_dir = rgb_cache_dir
         self.use_gpu = use_gpu
+        self.preprocess = preprocess
+        self.preprocess_config = preprocess_config
         
         # Initialize RGB fetcher if needed
         self.rgb_fetcher = None
@@ -261,6 +269,72 @@ class LiDARProcessor:
                     f"({len(points_v):,} points after dropout)"
                 )
         
+            # 1b. Apply preprocessing if enabled (before feature computation)
+            if self.preprocess:
+                logger.info("  🧹 Preprocessing (artifact mitigation)...")
+                preprocess_start = time.time()
+                
+                from .preprocessing import (
+                    statistical_outlier_removal,
+                    radius_outlier_removal,
+                    voxel_downsample
+                )
+                
+                # Get config or use defaults
+                cfg = self.preprocess_config or {}
+                sor_cfg = cfg.get('sor', {'enable': True})
+                ror_cfg = cfg.get('ror', {'enable': True})
+                voxel_cfg = cfg.get('voxel', {'enable': False})
+                
+                # Track cumulative mask
+                cumulative_mask = np.ones(len(points_v), dtype=bool)
+                
+                # Apply SOR if enabled
+                if sor_cfg.get('enable', True):
+                    _, sor_mask = statistical_outlier_removal(
+                        points_v,
+                        k=sor_cfg.get('k', 12),
+                        std_multiplier=sor_cfg.get('std_multiplier', 2.0)
+                    )
+                    cumulative_mask &= sor_mask
+                
+                # Apply ROR if enabled
+                if ror_cfg.get('enable', True):
+                    _, ror_mask = radius_outlier_removal(
+                        points_v,
+                        radius=ror_cfg.get('radius', 1.0),
+                        min_neighbors=ror_cfg.get('min_neighbors', 4)
+                    )
+                    cumulative_mask &= ror_mask
+                
+                # Filter all arrays
+                original_count = len(points_v)
+                points_v = points_v[cumulative_mask]
+                intensity_v = intensity_v[cumulative_mask]
+                return_number_v = return_number_v[cumulative_mask]
+                classification_v = classification_v[cumulative_mask]
+                
+                # Apply voxel downsampling if enabled
+                if voxel_cfg.get('enable', False):
+                    points_v, voxel_indices = voxel_downsample(
+                        points_v,
+                        voxel_size=voxel_cfg.get('voxel_size', 0.5),
+                        method=voxel_cfg.get('method', 'centroid')
+                    )
+                    # Filter other arrays by voxel indices
+                    intensity_v = intensity_v[voxel_indices]
+                    return_number_v = return_number_v[voxel_indices]
+                    classification_v = classification_v[voxel_indices]
+                
+                final_count = len(points_v)
+                reduction = 1 - final_count / original_count
+                preprocess_time = time.time() - preprocess_start
+                
+                logger.info(
+                    f"  ✓ Preprocessing: {final_count:,}/{original_count:,} "
+                    f"({reduction:.1%} reduction, {preprocess_time:.2f}s)"
+                )
+            
             # 2. Compute geometric features (optimized, single pass)
             feature_mode = ("BUILDING" if self.include_extra_features
                            else "CORE")

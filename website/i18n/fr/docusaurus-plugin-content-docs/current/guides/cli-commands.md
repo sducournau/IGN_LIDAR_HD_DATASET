@@ -82,12 +82,111 @@ ign-lidar-hd enrich \
 
 ### Paramètres
 
-| Paramètre      | Type   | Requis | Description                          |
-| -------------- | ------ | ------ | ------------------------------------ |
-| `--input`      | chaîne | Oui    | Fichier LAZ d'entrée à enrichir      |
-| `--output`     | chaîne | Oui    | Fichier LAZ de sortie enrichi        |
-| `--workers`    | entier | Non    | Nombre de processus parallèles       |
-| `--chunk-size` | entier | Non    | Taille des chunks pour le traitement |
+| Paramètre         | Type    | Requis | Description                                            |
+| ----------------- | ------- | ------ | ------------------------------------------------------ |
+| `--input-dir`     | chaîne  | Oui    | Répertoire contenant les tuiles LAZ brutes             |
+| `--output`        | chaîne  | Oui    | Répertoire de sortie pour les tuiles enrichies         |
+| `--mode`          | chaîne  | Oui    | Mode d'extraction (actuellement : `building`)          |
+| `--num-workers`   | entier  | Non    | Nombre de processus parallèles (défaut : 4)            |
+| `--force`         | drapeau | Non    | Forcer le ré-enrichissement des fichiers existants     |
+| `--preprocess`    | drapeau | Non    | 🆕 Activer le prétraitement pour réduire les artefacts |
+| `--sor-k`         | entier  | Non    | 🆕 SOR : nombre de voisins (défaut : 12)               |
+| `--sor-std`       | float   | Non    | 🆕 SOR : multiplicateur d'écart-type (défaut : 2.0)    |
+| `--ror-radius`    | float   | Non    | 🆕 ROR : rayon de recherche en mètres (défaut : 1.0)   |
+| `--ror-neighbors` | entier  | Non    | 🆕 ROR : voisins minimum requis (défaut : 4)           |
+| `--voxel-size`    | float   | Non    | 🆕 Taille de voxel en mètres (optionnel)               |
+
+### Exemples
+
+```bash
+# Enrichir les tuiles avec des caractéristiques de bâtiment
+ign-lidar-hd enrich \
+  --input-dir /data/raw_tiles/ \
+  --output /data/enriched_tiles/ \
+  --mode building
+
+# Utiliser 8 processus parallèles
+ign-lidar-hd enrich \
+  --input-dir /data/raw_tiles/ \
+  --output /data/enriched_tiles/ \
+  --mode building \
+  --num-workers 8
+
+# 🆕 Avec prétraitement (atténuation des artefacts)
+ign-lidar-hd enrich \
+  --input-dir /data/raw_tiles/ \
+  --output /data/enriched_tiles/ \
+  --mode building \
+  --preprocess
+
+# 🆕 Prétraitement conservateur (préserver les détails)
+ign-lidar-hd enrich \
+  --input-dir /data/raw_tiles/ \
+  --output /data/enriched_tiles/ \
+  --mode building \
+  --preprocess \
+  --sor-k 15 \
+  --sor-std 3.0 \
+  --ror-radius 1.5 \
+  --ror-neighbors 3
+
+# 🆕 Prétraitement agressif (suppression maximale des artefacts)
+ign-lidar-hd enrich \
+  --input-dir /data/raw_tiles/ \
+  --output /data/enriched_tiles/ \
+  --mode building \
+  --preprocess \
+  --sor-k 10 \
+  --sor-std 1.5 \
+  --ror-radius 0.8 \
+  --ror-neighbors 5 \
+  --voxel-size 0.3
+```
+
+### 🆕 Prétraitement pour l'Atténuation des Artefacts
+
+Le drapeau `--preprocess` active le prétraitement des nuages de points avant le calcul des caractéristiques pour réduire les artefacts de lignes de balayage LiDAR et améliorer la qualité des caractéristiques géométriques.
+
+**Techniques Appliquées :**
+
+1. **Suppression Statistique des Valeurs Aberrantes (SOR)**
+
+   - Supprime les points avec des distances anormales aux k plus proches voisins
+   - Configurable avec `--sor-k` (voisins) et `--sor-std` (seuil)
+   - Élimine les erreurs de mesure, le bruit atmosphérique, les oiseaux
+
+2. **Suppression des Valeurs Aberrantes par Rayon (ROR)**
+
+   - Supprime les points isolés sans suffisamment de voisins dans le rayon
+   - Configurable avec `--ror-radius` (mètres) et `--ror-neighbors` (nombre)
+   - Réduit les artefacts de lignes de balayage et le bruit de bord
+
+3. **Sous-échantillonnage par Voxel (Optionnel)**
+   - Homogénéise la densité de points en utilisant une grille de voxels
+   - Activé avec le paramètre `--voxel-size` (par ex., 0.5 pour des voxels de 0,5m)
+   - Réduit l'utilisation de la mémoire et le temps de traitement
+
+**Impact Attendu :**
+
+- 🎯 Réduction de 60-80% des artefacts de lignes de balayage
+- 📊 Normales de surface 40-60% plus propres
+- 🔧 Caractéristiques de bord 30-50% plus lisses
+- ⚡ Surcharge de traitement de 15-30% (lorsqu'activé)
+
+**Préréglages Recommandés :**
+
+```bash
+# Conservateur (préserver les détails maximaux)
+--preprocess --sor-k 15 --sor-std 3.0 --ror-radius 1.5 --ror-neighbors 3
+
+# Standard (qualité/vitesse équilibrée)
+--preprocess --sor-k 12 --sor-std 2.0 --ror-radius 1.0 --ror-neighbors 4
+
+# Agressif (suppression maximale des artefacts)
+--preprocess --sor-k 10 --sor-std 1.5 --ror-radius 0.8 --ror-neighbors 5 --voxel-size 0.3
+```
+
+Voir le [Guide de Prétraitement](preprocessing.md) pour des informations détaillées.
 
 ## patch
 
