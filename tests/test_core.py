@@ -22,16 +22,16 @@ class TestLiDARProcessor:
         # Default initialization
         processor = LiDARProcessor()
         assert processor.lod_level == "LOD2"
-        assert processor.augment is True
+        assert processor.augment is False
         
         # Custom initialization
         processor = LiDARProcessor(
             lod_level="LOD3",
-            augment=False,
+            augment=True,
             patch_size=200.0
         )
         assert processor.lod_level == "LOD3"
-        assert processor.augment is False
+        assert processor.augment is True
     
     def test_lod_level_validation(self):
         """Test that invalid LOD levels are handled properly."""

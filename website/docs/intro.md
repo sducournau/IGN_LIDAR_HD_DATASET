@@ -10,7 +10,7 @@ title: IGN LiDAR HD Processing Library
 
 ✨ **What's New:**
 
-- 🎯 **Enhanced Augmentation**: Features now computed on augmented geometry for better consistency (**enabled by default**)
+- 🎯 **Enhanced Augmentation**: Features now computed on augmented geometry for better consistency (**disabled by default, enable with --augment**)
 - 🎨 **RGB CloudCompare Fix**: Perfect color display with corrected 16-bit scaling (0-65535 range)
 - ⚡ **GPU Acceleration**: Full support for CUDA-accelerated processing (5-10x speedup)
 - 📦 **Pipeline Configuration**: YAML-based workflows for reproducibility
@@ -32,20 +32,40 @@ title: IGN LiDAR HD Processing Library
 
 ---
 
-## 🎉 Latest Release: v1.7.1
+## 🎉 Latest Release: v1.7.3
 
-**🤖 Automatic Parameter Analysis & Optimization**
+**🌿 Infrared Augmentation for Vegetation Analysis**
 
-The latest release introduces intelligent parameter analysis that automatically optimizes processing settings for each tile based on its characteristics.
+The latest release adds Near-Infrared (NIR) augmentation from IGN IRC orthophotos, enabling NDVI calculation and advanced vegetation/land cover analysis.
 
 :::tip Quick Start
 
 ```bash
-# Automatic parameter analysis (recommended!)
-ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params --preprocess
+# Enrich with RGB + Infrared (recommended for ML!)
+ign-lidar-hd enrich --input-dir data/ --output output/ \
+  --auto-params --preprocess --add-rgb --add-infrared \
+  --rgb-cache-dir cache/rgb --infrared-cache-dir cache/infrared
 ```
 
 :::
+
+**Key Features:**
+
+- 🌿 Near-Infrared (NIR) values from IGN IRC orthophotos
+- 📊 NDVI-ready datasets for vegetation analysis
+- 🎨 Multi-modal learning: Geometry + RGB + NIR
+- 💾 Smart caching system (disk + GPU)
+- 🔧 Seamless integration with RGB augmentation
+
+📖 [Infrared Guide](/docs/features/infrared-augmentation) | [NDVI Examples](/docs/features/infrared-augmentation#vegetation-indices)
+
+---
+
+## Previous Release: v1.7.1
+
+**🤖 Automatic Parameter Analysis & Optimization**
+
+Intelligent parameter analysis that automatically optimizes processing settings for each tile based on its characteristics.
 
 **Key Features:**
 
@@ -53,8 +73,6 @@ ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params --preproces
 - 🎯 Adaptive parameter selection for urban/rural/mixed environments
 - ⚡ Zero manual tuning required
 - 📈 Optimal quality regardless of point density
-
-👉 **[See full release notes](release-notes/v1.7.1.md)** for complete details and migration guide.
 
 📖 [Auto-Params Guide](/docs/guides/auto-params) | [Release Notes](/docs/release-notes/v1.7.1)
 

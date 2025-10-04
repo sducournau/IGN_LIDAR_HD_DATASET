@@ -83,7 +83,7 @@ def _enrich_single_file(args_tuple):
         args_tuple: (laz_path, output_path, k_neighbors, use_gpu,
                      mode, skip_existing, add_rgb, rgb_cache_dir, radius,
                      preprocess, preprocess_config, auto_params, augment,
-                     num_augmentations)
+                     num_augmentations, add_infrared, infrared_cache_dir)
     
     Returns:
         str: 'skipped' if file already exists and skip_existing=True,
@@ -93,7 +93,7 @@ def _enrich_single_file(args_tuple):
     (laz_path, output_path, k_neighbors,
      use_gpu, mode, skip_existing, add_rgb, rgb_cache_dir, radius,
      preprocess, preprocess_config, auto_params, augment,
-     num_augmentations) = args_tuple
+     num_augmentations, add_infrared, infrared_cache_dir) = args_tuple
     
     import numpy as np
     import laspy
@@ -421,30 +421,53 @@ def _enrich_single_file(args_tuple):
             # Determine chunk size based on number of points
             # Memory-efficient processing for large point clouds
             # Conservative chunking to prevent OOM with multiple workers
-            if n_points > 40_000_000:
-                # Very large (>40M): 5M chunks - aggressive chunking
-                chunk_size = 5_000_000
-                if version_idx == 0:
-                    worker_logger.info(
-                        "  Using chunked processing (5M per chunk)"
-                    )
-            elif n_points > 20_000_000:
-                # Large (20-40M): 10M chunks
-                chunk_size = 10_000_000
-                if version_idx == 0:
-                    worker_logger.info(
-                        "  Using chunked processing (10M per chunk)"
-                    )
-            elif n_points > 10_000_000:
-                # Medium (10-20M): 15M chunks
-                chunk_size = 15_000_000
-                if version_idx == 0:
-                    worker_logger.info(
-                        "  Using chunked processing (15M per chunk)"
-                    )
+            # Aggressive chunking when augmentation enabled (multiple versions)
+            if augment and num_augmentations > 0:
+                # With augmentation: smaller chunks (multiple versions)
+                if n_points > 20_000_000:
+                    chunk_size = 3_000_000  # 3M chunks for very large
+                    if version_idx == 0:
+                        worker_logger.info(
+                            "  Chunked processing (3M per chunk, augmented)"
+                        )
+                elif n_points > 10_000_000:
+                    chunk_size = 5_000_000  # 5M chunks for large
+                    if version_idx == 0:
+                        worker_logger.info(
+                            "  Chunked processing (5M per chunk, augmented)"
+                        )
+                else:
+                    chunk_size = 8_000_000  # 8M chunks for medium
+                    if version_idx == 0:
+                        worker_logger.info(
+                            "  Chunked processing (8M per chunk, augmented)"
+                        )
             else:
-                # Small (<10M): no chunking - process all at once
-                chunk_size = None
+                # Without augmentation: standard chunking
+                if n_points > 40_000_000:
+                    # Very large (>40M): 5M chunks - aggressive chunking
+                    chunk_size = 5_000_000
+                    if version_idx == 0:
+                        worker_logger.info(
+                            "  Using chunked processing (5M per chunk)"
+                        )
+                elif n_points > 20_000_000:
+                    # Large (20-40M): 10M chunks
+                    chunk_size = 10_000_000
+                    if version_idx == 0:
+                        worker_logger.info(
+                            "  Using chunked processing (10M per chunk)"
+                        )
+                elif n_points > 10_000_000:
+                    # Medium (10-20M): 15M chunks
+                    chunk_size = 15_000_000
+                    if version_idx == 0:
+                        worker_logger.info(
+                            "  Using chunked processing (15M per chunk)"
+                        )
+                else:
+                    # Small (<10M): no chunking - process all at once
+                    chunk_size = None
             
             # Compute features based on mode
             if mode == 'full':
@@ -685,6 +708,56 @@ def _enrich_single_file(args_tuple):
                         f"  ⚠️  Could not add RGB colors: {e}"
                     )
             
+            # Add Infrared augmentation if requested
+            if add_infrared:
+                try:
+                    from .infrared_augmentation import IGNInfraredFetcher
+                    
+                    if version_idx == 0 or suffix:
+                        worker_logger.info(
+                            "  Fetching infrared from IGN orthophotos..."
+                        )
+                    
+                    # Compute bbox from versioned points
+                    bbox = (
+                        points_ver[:, 0].min(),
+                        points_ver[:, 1].min(),
+                        points_ver[:, 0].max(),
+                        points_ver[:, 1].max()
+                    )
+                    
+                    # Create fetcher with cache if specified
+                    nir_fetcher = IGNInfraredFetcher(
+                        cache_dir=infrared_cache_dir
+                    )
+                    
+                    # Fetch infrared values
+                    nir = nir_fetcher.augment_points_with_infrared(
+                        points_ver, bbox=bbox
+                    )
+                    
+                    # Add infrared to LAZ as extra dimension
+                    las_out.add_extra_dim(
+                        laspy.ExtraBytesParams(name='nir', type=np.uint8)
+                    )
+                    las_out.nir = nir
+                    
+                    if version_idx == 0 or suffix:
+                        worker_logger.info(
+                            f"  ✓ Added infrared to {len(points_ver):,} "
+                            f"points"
+                        )
+                    
+                except ImportError as ie:
+                    worker_logger.warning(
+                        f"  ⚠️  Infrared requires 'requests' and "
+                        f"'Pillow': {ie}"
+                    )
+                except Exception as e:
+                    worker_logger.warning(
+                        f"  ⚠️  Could not add infrared values: {e}"
+                    )
+            
             # Save with LAZ compression
             las_out.write(output_path_ver, do_compress=True)
             if suffix:
@@ -695,6 +768,9 @@ def _enrich_single_file(args_tuple):
             # Cleanup this version's data
             del las_out, normals, curvature
             del height_above_ground, geometric_features
+            del points_ver, classification_ver
+            
+            # Force garbage collection to free memory for next version
             gc.collect()
         
         # All versions processed successfully
@@ -872,28 +948,34 @@ def cmd_enrich(args):
     import shutil
     metadata_count = 0
     
-    # Copy root-level metadata files
-    for meta_file in input_path.glob("*.json"):
-        dest = output_dir / meta_file.name
-        shutil.copy2(meta_file, dest)
-        metadata_count += 1
-        logger.info(f"  Copied: {meta_file.name}")
-    
-    for meta_file in input_path.glob("*.txt"):
-        dest = output_dir / meta_file.name
-        shutil.copy2(meta_file, dest)
-        metadata_count += 1
-        logger.info(f"  Copied: {meta_file.name}")
+    # Only copy root-level metadata files if input_path is a directory
+    if input_path.is_dir():
+        # Copy root-level metadata files
+        for meta_file in input_path.glob("*.json"):
+            dest = output_dir / meta_file.name
+            shutil.copy2(meta_file, dest)
+            metadata_count += 1
+            logger.info(f"  Copied: {meta_file.name}")
+        
+        for meta_file in input_path.glob("*.txt"):
+            dest = output_dir / meta_file.name
+            shutil.copy2(meta_file, dest)
+            metadata_count += 1
+            logger.info(f"  Copied: {meta_file.name}")
     
     # For each LAZ file, copy its corresponding metadata
     for laz_file in laz_files_sorted:
         # Check for JSON metadata file
         json_file = laz_file.with_suffix('.json')
         if json_file.exists():
-            # Preserve relative path structure
-            rel_path = laz_file.relative_to(input_path)
-            dest_json = output_dir / rel_path.with_suffix('.json')
-            dest_json.parent.mkdir(parents=True, exist_ok=True)
+            if input_path.is_file():
+                # Single file input: copy metadata to output directory root
+                dest_json = output_dir / json_file.name
+            else:
+                # Directory input: preserve relative path structure
+                rel_path = laz_file.relative_to(input_path)
+                dest_json = output_dir / rel_path.with_suffix('.json')
+                dest_json.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(json_file, dest_json)
             metadata_count += 1
     
@@ -917,6 +999,19 @@ def cmd_enrich(args):
             rgb_cache_dir.mkdir(parents=True, exist_ok=True)
         else:
             logger.info("RGB cache: Disabled (orthophotos will be fetched each time)")
+    
+    # Get Infrared augmentation settings
+    add_infrared = getattr(args, 'add_infrared', False)
+    infrared_cache_dir = getattr(args, 'infrared_cache_dir', None)
+    
+    # Log Infrared settings
+    if add_infrared:
+        logger.info("Infrared augmentation: ENABLED")
+        if infrared_cache_dir:
+            logger.info(f"Infrared cache directory: {infrared_cache_dir}")
+            infrared_cache_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            logger.info("Infrared cache: Disabled (orthophotos will be fetched each time)")
     
     # Get preprocessing settings
     preprocess = getattr(args, 'preprocess', False)
@@ -969,7 +1064,7 @@ def cmd_enrich(args):
             (laz, output_path, args.k_neighbors, args.use_gpu,
              mode, skip_existing, add_rgb, rgb_cache_dir, radius,
              preprocess, preprocess_config, auto_params, augment,
-             num_augmentations)
+             num_augmentations, add_infrared, infrared_cache_dir)
         )
     
     # Process files with better error handling and batching
@@ -1215,6 +1310,9 @@ def cmd_pipeline(args):
         eargs.add_rgb = enrich_cfg.get('add_rgb', False)
         eargs.rgb_cache_dir = Path(enrich_cfg['rgb_cache_dir']) \
             if 'rgb_cache_dir' in enrich_cfg else None
+        eargs.add_infrared = enrich_cfg.get('add_infrared', False)
+        eargs.infrared_cache_dir = Path(enrich_cfg['infrared_cache_dir']) \
+            if 'infrared_cache_dir' in enrich_cfg else None
         
         result = cmd_enrich(eargs)
         if result != 0:
@@ -1450,6 +1548,16 @@ def main():
         help='Directory to cache downloaded orthophotos (optional)'
     )
     enrich_parser.add_argument(
+        '--add-infrared',
+        action='store_true',
+        help='Augment with infrared (NIR) values from IGN orthophotos (requires requests and Pillow)'
+    )
+    enrich_parser.add_argument(
+        '--infrared-cache-dir',
+        type=Path,
+        help='Directory to cache downloaded infrared orthophotos (optional)'
+    )
+    enrich_parser.add_argument(
         '--auto-params',
         action='store_true',
         help='Automatically analyze each tile and determine optimal parameters'
@@ -1499,8 +1607,8 @@ def main():
         '--augment',
         action='store_true',
         dest='augment',
-        default=True,
-        help='Enable geometric data augmentation (default: enabled)'
+        default=False,
+        help='Enable geometric data augmentation (default: disabled)'
     )
     enrich_parser.add_argument(
         '--no-augment',

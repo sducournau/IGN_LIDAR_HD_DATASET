@@ -37,6 +37,13 @@ enrich:
   # Directory to cache downloaded orthophotos (recommended)
   rgb_cache_dir: "cache/orthophotos"
 
+  # 🆕 v1.7.2: Add Near-Infrared (NIR) values from IGN IRC orthophotos
+  # Enables NDVI calculation and advanced vegetation/land cover analysis
+  add_infrared: true
+
+  # Directory to cache downloaded infrared orthophotos
+  infrared_cache_dir: "cache/infrared"
+
   # 🆕 v1.7.0: Point cloud preprocessing for artifact mitigation
   # Enable preprocessing to reduce scan line artifacts and noise
   preprocess: false

@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 1.7.2** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 1.7.3** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 </div>
 
@@ -17,9 +17,19 @@
 
 A comprehensive Python library for processing IGN (Institut National de l'Information Géographique et Forestière) LiDAR HD data into machine learning-ready datasets for Building Level of Detail (LOD) classification tasks.
 
-## ✨ What's New in v1.7.1
+## ✨ What's New in v1.7.3
 
-🤖 **Auto-Parameter Analysis** - NEW! Automatic tile analysis determines optimal processing parameters  
+🌿 **Infrared Augmentation** - NEW! Add Near-Infrared (NIR) values from IGN IRC orthophotos  
+📊 **NDVI Ready** - Enables vegetation index calculation and advanced land cover analysis  
+🎨 **Multi-Modal Enhancement** - Combines RGB + NIR for improved machine learning datasets  
+💾 **Smart Caching** - Efficient disk/GPU caching system shared with RGB augmentation  
+🔧 **Seamless Integration** - Works alongside RGB augmentation in enrich pipeline
+
+[📖 Infrared Documentation](INFRARED_AUGMENTATION.md) | [🚀 Quick Start](INFRARED_QUICKSTART.md)
+
+### Previous Updates (v1.7.1)
+
+🤖 **Auto-Parameter Analysis** - Automatic tile analysis determines optimal processing parameters  
 🎯 **Adaptive Processing** - Each tile gets custom radius, SOR, and ROR settings based on its characteristics  
 ⚡ **Zero Manual Tuning** - Eliminates guesswork, ensures best quality for urban/rural/mixed tiles  
 📊 **Smart Detection** - Analyzes point density, spacing, and noise in <1 second per tile  
@@ -89,6 +99,8 @@ flowchart TD
     C --> C1[GPU/CPU Processing]
     C --> C2[Geometric Features]
     C --> C3[Data Augmentation]
+    C --> C4[RGB + Infrared NIR]
+    C --> C5[NDVI Calculation]
     D --> D1[LOD Classification]
 
     style A fill:#e1f5fe
@@ -96,6 +108,8 @@ flowchart TD
     style B1 fill:#fff3e0
     style C1 fill:#fff3e0
     style C3 fill:#fff3e0
+    style C4 fill:#c8e6c9
+    style C5 fill:#c8e6c9
 ```
 
 **📈 Project Stats:**
@@ -153,16 +167,24 @@ ign-lidar-hd enrich --input-dir data/ --output enriched/ --use-gpu
 # Enrich with RGB augmentation from IGN orthophotos
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --add-rgb --rgb-cache-dir cache/
 
+# 🆕 v1.7.2: Enrich with infrared augmentation (NIR values)
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --add-infrared --infrared-cache-dir cache/
+
+# 🆕 v1.7.2: Enrich with both RGB and Infrared (multi-modal)
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --add-rgb --add-infrared \
+  --rgb-cache-dir cache/rgb --infrared-cache-dir cache/infrared
+
 # 🆕 Enrich with preprocessing (artifact mitigation)
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --preprocess
 
-# 🆕 v1.7.1: Automatic parameter analysis (recommended!)
-# Analyzes each tile and selects optimal radius, SOR, ROR parameters
-# Note: Data augmentation is ENABLED by default (creates 3 augmented versions)
-ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --auto-params --preprocess --add-rgb
+# 🆕 v1.7.2: Full-featured enrichment (recommended!)
+# Analyzes each tile, adds RGB + Infrared, applies preprocessing
+# Note: Data augmentation is DISABLED by default
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --auto-params --preprocess \
+  --add-rgb --add-infrared --rgb-cache-dir cache/rgb --infrared-cache-dir cache/infrared
 
-# Disable augmentation if you only want original tiles
-ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --no-augment
+# Enable augmentation to create augmented versions (1 original + 3 augmented per tile)
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --augment
 
 # Process specific tiles with auto-params
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --auto-params tile1.laz tile2.laz
@@ -237,7 +259,8 @@ patch:
 ### 🏗️ **Core Processing Capabilities**
 
 - **LiDAR-only processing**: Pure geometric analysis without RGB dependencies
-- **RGB augmentation**: Optional color enrichment from IGN BD ORTHO® orthophotos
+- **🆕 RGB & Infrared augmentation**: Optional color and Near-Infrared (NIR) enrichment from IGN orthophotos (BD ORTHO® RGB and IRC)
+- **🆕 NDVI-ready datasets**: Automatic vegetation index calculation from combined RGB + NIR data
 - **Multi-level classification**: Support for LOD2 (15 classes) and LOD3 (30+ classes)
 - **Rich feature extraction**: Surface normals, curvature, planarity, verticality, local density
 - **Architectural style inference**: Automatic building style classification
@@ -250,7 +273,7 @@ patch:
 - **Memory optimization**: Chunked processing for large datasets
 - **Smart skip detection**: ⏭️ Automatically skip existing files and resume interrupted workflows
 - **Batch operations**: Process hundreds of tiles efficiently
-- **🆕 Improved augmentation**: Features computed on augmented geometry for consistency (enabled by default)
+- **🆕 Improved augmentation**: Features computed on augmented geometry for consistency (disabled by default, enable with --augment)
 
 ### 🔧 **Workflow Automation**
 
@@ -338,6 +361,7 @@ examples/
 ├── 🧠 pytorch_dataloader.py    # ML integration
 ├── 🆕 pipeline_example.py      # YAML pipeline usage
 ├── 🆕 enrich_with_rgb.py       # RGB augmentation
+├── 🆕 demo_infrared_augmentation.py  # Infrared augmentation
 └── workflows/               # Production pipelines
 
 config_examples/
@@ -566,7 +590,7 @@ processor = LiDARProcessor(
 )
 ```
 
-> **🆕 v1.6.0**: Data augmentation now happens during the ENRICH phase (before feature computation) instead of the PATCH phase. This ensures geometric features (normals, curvature, planarity) are computed on augmented geometry for better feature-geometry consistency and improved model training quality. **Augmentation is ENABLED by default** - each tile produces 1 original + 3 augmented versions (configurable with `--num-augmentations` or disable with `--no-augment`). See `AUGMENTATION_IMPROVEMENT.md` for details.
+> **🆕 v1.6.0**: Data augmentation now happens during the ENRICH phase (before feature computation) instead of the PATCH phase. This ensures geometric features (normals, curvature, planarity) are computed on augmented geometry for better feature-geometry consistency and improved model training quality. **Augmentation is DISABLED by default** - use `--augment` to enable it. Each tile produces 1 original + 3 augmented versions (configurable with `--num-augmentations`). See `AUGMENTATION_IMPROVEMENT.md` for details.
 
 ## 📊 Output Format
 

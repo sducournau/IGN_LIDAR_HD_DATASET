@@ -64,11 +64,11 @@ ign-lidar-hd enrich \
 - Computes geometric features (normals, curvature, planarity)
 - Adds all additional features in 'full' mode
 - Uses GPU acceleration if available (falls back to CPU)
-- **Creates augmented versions** (enabled by default: 1 original + 3 augmented per tile)
+- **No augmentation by default** (use --augment to enable)
 - Skips already enriched tiles
 
-:::info Data Augmentation (Enabled by Default)
-By default, the enrich command creates **4 versions** of each tile:
+:::info Data Augmentation (Disabled by Default)
+By default, the enrich command creates **only the original tile**. To enable augmentation, add `--augment` which creates **4 versions** of each tile:
 
 - `tile_name.laz` (original)
 - `tile_name_aug1.laz` (augmented version 1)
@@ -77,7 +77,7 @@ By default, the enrich command creates **4 versions** of each tile:
 
 Each augmented version applies random rotation, jitter, scaling, and dropout before feature computation.
 
-To disable: add `--no-augment`  
+To enable: add `--augment`  
 To change count: add `--num-augmentations N`
 :::
 
@@ -98,8 +98,8 @@ Add `--add-rgb --rgb-cache-dir cache/` to enrich with colors from IGN orthophoto
 Generate machine learning-ready patches:
 
 ```bash
-# Note: Augmentation happens during ENRICH phase (enabled by default)
-# The tiles in data/enriched already contain augmented versions
+# Note: Augmentation happens during ENRICH phase (disabled by default)
+# Use --augment flag in enrich step to create augmented versions
 ign-lidar-hd patch \
   --input-dir data/enriched \
   --output data/patches \

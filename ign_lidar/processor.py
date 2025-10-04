@@ -40,7 +40,7 @@ class LiDARProcessor:
     Main class for processing IGN LiDAR HD data into ML-ready datasets.
     """
     
-    def __init__(self, lod_level: str = 'LOD2', augment: bool = True,
+    def __init__(self, lod_level: str = 'LOD2', augment: bool = False,
                  num_augmentations: int = 3, bbox=None,
                  patch_size: float = 150.0,
                  patch_overlap: float = 0.1,

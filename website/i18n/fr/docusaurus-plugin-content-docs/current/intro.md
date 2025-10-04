@@ -6,7 +6,7 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 # Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Version 1.7.1** | Python 3.8+ | Licence MIT
+**Version 1.7.3** | Python 3.8+ | Licence MIT
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -24,20 +24,40 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 ---
 
-## 🎉 Dernière Version : v1.7.1
+## 🎉 Dernière Version : v1.7.3
 
-**🤖 Analyse Automatique des Paramètres & Optimisation**
+**🌿 Augmentation Infrarouge pour l'Analyse de la Végétation**
 
-La dernière version introduit l'analyse intelligente des paramètres qui optimise automatiquement les paramètres de traitement pour chaque dalle en fonction de ses caractéristiques.
+La dernière version ajoute l'augmentation Proche Infrarouge (NIR) depuis les orthophotos IRC de l'IGN, permettant le calcul du NDVI et l'analyse avancée de la végétation/occupation du sol.
 
 :::tip Démarrage Rapide
 
 ```bash
-# Analyse automatique des paramètres (recommandé !)
-ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params --preprocess
+# Enrichir avec RGB + Infrarouge (recommandé pour le ML !)
+ign-lidar-hd enrich --input-dir data/ --output output/ \
+  --auto-params --preprocess --add-rgb --add-infrared \
+  --rgb-cache-dir cache/rgb --infrared-cache-dir cache/infrared
 ```
 
 :::
+
+**Fonctionnalités Clés :**
+
+- 🌿 Valeurs Proche Infrarouge (NIR) depuis les orthophotos IRC de l'IGN
+- 📊 Jeux de données prêts pour le NDVI pour l'analyse de la végétation
+- 🎨 Apprentissage multi-modal : Géométrie + RGB + NIR
+- 💾 Système de cache intelligent (disque + GPU)
+- 🔧 Intégration transparente avec l'augmentation RGB
+
+📖 [Guide Infrarouge](/docs/features/infrared-augmentation) | [Exemples NDVI](/docs/features/infrared-augmentation#vegetation-indices)
+
+---
+
+## Version Précédente : v1.7.1
+
+**🤖 Analyse Automatique des Paramètres & Optimisation**
+
+Analyse intelligente des paramètres qui optimise automatiquement les paramètres de traitement pour chaque dalle en fonction de ses caractéristiques.
 
 **Fonctionnalités Clés :**
 
@@ -45,8 +65,6 @@ ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params --preproces
 - 🎯 Sélection de paramètres adaptative pour les environnements urbains/ruraux/mixtes
 - ⚡ Aucun ajustement manuel requis
 - 📈 Qualité optimale quelle que soit la densité de points
-
-👉 **[Voir les notes de version complètes](release-notes/v1.7.1.md)** pour tous les détails et le guide de migration.
 
 📖 [Guide Auto-Params](/docs/guides/auto-params) | [Notes de Version](/docs/release-notes/v1.7.1)
 
@@ -162,7 +180,7 @@ flowchart LR
 
 - 🎯 **Traitement LiDAR uniquement** - Aucune dépendance RGB requise
 - 🎨 **Augmentation RGB** - Enrichissement couleur optionnel depuis les orthophotos IGN
-- 🔄 **Augmentation de Données** - Activée par défaut : transformations géométriques avant calcul des caractéristiques (v1.6.0+)
+- 🔄 **Augmentation de Données** - Désactivée par défaut : transformations géométriques avant calcul des caractéristiques (activer avec --augment, v1.6.0+)
 - 🧹 **Prétraitement du Nuage de Points** - Atténuation des artefacts de lignes de balayage LiDAR (NOUVEAU v1.7.0 !)
 - ⚡ **Détection intelligente de saut** - Reprendre les workflows interrompus
 - 🏗️ **Classification multi-niveaux** - Support LOD2 (15 classes) et LOD3 (30+ classes)

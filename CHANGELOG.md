@@ -7,6 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking Change**: Geometric augmentation is now **DISABLED by default** in the `enrich` command
+  - Use `--augment` flag to enable augmentation (previously enabled by default)
+  - Updated default value from `True` to `False` in both CLI and processor
+  - This allows users to process original tiles only by default, enabling augmentation only when needed
+  - Updated all documentation to reflect this change
+
+## [1.7.3] - 2025-10-04
+
+### Changed
+
+- Updated version number from 1.7.2 to 1.7.3
+- Consolidated documentation updates for infrared augmentation feature
+- Updated all configuration files and documentation to reflect v1.7.3
+
+### Documentation
+
+- Finalized comprehensive infrared augmentation documentation (EN + FR)
+- Updated README with v1.7.3 version number
+- Updated all Docusaurus documentation pages
+- Synchronized English and French documentation
+
+## [1.7.2] - 2025-10-04
+
+### Added
+
+- **Infrared Augmentation** 🌿
+
+  - New `infrared_augmentation.py` module for Near-Infrared (NIR) value integration
+  - Fetches NIR data from IGN Géoplateforme IRC orthophotos (20cm resolution)
+  - Smart caching system (disk + GPU) shared with RGB augmentation
+  - NIR values stored as 'nir' extra dimension (uint8, 0-255) in LAZ files
+  - Enables NDVI, EVI, GNDVI, SAVI vegetation index calculation
+  - Added CLI flags: `--add-infrared` and `--infrared-cache-dir`
+  - YAML pipeline configuration support for infrared settings
+  - Compatible with RGB augmentation (can be used together)
+
+- **Documentation**
+
+  - Comprehensive [Infrared Augmentation Guide](website/docs/features/infrared-augmentation.md)
+  - [NDVI calculation examples](examples/demo_infrared_augmentation.py)
+  - CloudCompare NIR visualization guide
+  - Updated all example configurations with infrared settings
+
+- **Examples & Tests**
+  - `examples/demo_infrared_augmentation.py` - Demo with NDVI calculation
+  - `test_infrared_basic.py` - Basic functionality tests (4/4 passing)
+  - `test_infrared_single_file.py` - Single file integration test
+  - `test_full_enrich_rgb_infrared.py` - Full pipeline test with RGB + NIR
+
+### Fixed
+
+- **Metadata Copying Bug** 🐛
+
+  - Fixed error when enriching single LAZ file (not directory)
+  - Issue: `relative_to()` caused ValueError when input_path is a file
+  - Solution: Check if input is file or directory before computing relative paths
+  - Now correctly copies JSON metadata for both file and directory inputs
+
+- **COPC Format Handling**
+  - Enhanced COPC (Cloud Optimized Point Cloud) detection and conversion
+  - Automatic conversion to standard LAZ when adding extra dimensions
+  - Better error messages for COPC-related operations
+
+### Changed
+
+- Updated README.md with infrared features and examples
+- Updated config examples (pipeline_full.yaml, pipeline_enrich.yaml) with infrared settings
+- Enhanced release notes and documentation with v1.7.2 information
+
 ## [1.7.1] - 2025-10-04
 
 ### Fixed

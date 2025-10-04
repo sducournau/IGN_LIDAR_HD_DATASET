@@ -97,11 +97,11 @@ ign-lidar-hd enrich \
 - Calcule les caractéristiques géométriques (normales, courbure, planarité)
 - Ajoute toutes les caractéristiques supplémentaires en mode 'full'
 - Utilise l'accélération GPU si disponible (repli sur CPU)
-- **Crée des versions augmentées** (activé par défaut : 1 original + 3 augmentées par dalle)
+- **Aucune augmentation par défaut** (utiliser --augment pour activer)
 - Ignore les dalles déjà enrichies
 
-:::info Augmentation de Données (Activée par Défaut)
-Par défaut, la commande enrich crée **4 versions** de chaque dalle :
+:::info Augmentation de Données (Désactivée par Défaut)
+Par défaut, la commande enrich crée **seulement la dalle originale**. Pour activer l'augmentation, ajoutez `--augment` qui crée **4 versions** de chaque dalle :
 
 - `nom_dalle.laz` (original)
 - `nom_dalle_aug1.laz` (version augmentée 1)
@@ -110,7 +110,7 @@ Par défaut, la commande enrich crée **4 versions** de chaque dalle :
 
 Chaque version augmentée applique rotation aléatoire, bruit, mise à l'échelle et suppression de points avant le calcul des caractéristiques.
 
-Pour désactiver : ajoutez `--no-augment`  
+Pour activer : ajoutez `--augment`  
 Pour changer le nombre : ajoutez `--num-augmentations N`
 :::
 
@@ -131,8 +131,8 @@ Ajoutez `--add-rgb --rgb-cache-dir cache/` pour enrichir avec les couleurs des o
 Générez des patches prêts pour l'apprentissage automatique :
 
 ```bash
-# Note : L'augmentation se fait pendant la phase ENRICH (activée par défaut)
-# Les dalles dans data/enrichi contiennent déjà les versions augmentées
+# Note : L'augmentation se fait pendant la phase ENRICH (désactivée par défaut)
+# Utilisez --augment dans l'étape enrich pour créer des versions augmentées
 ign-lidar-hd patch \
   --input-dir data/enrichi \
   --output data/patches \
