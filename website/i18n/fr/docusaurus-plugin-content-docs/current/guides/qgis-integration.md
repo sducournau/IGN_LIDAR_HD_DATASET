@@ -37,11 +37,11 @@ Les fichiers LAZ enrichis de cette bibliothèque sont entièrement compatibles a
 D'abord, créer des fichiers LAZ enrichis avec des caractéristiques géométriques :
 
 ```bash
-# Enrichir les tuiles avec les caractéristiques de bâtiment
+# Enrichir les tuiles avec toutes les caractéristiques
 ign-lidar-hd enrich \
   --input-dir /chemin/vers/tuiles_brutes/ \
   --output /chemin/vers/tuiles_enrichies/ \
-  --mode building \
+  --mode full \
   --num-workers 4
 ```
 

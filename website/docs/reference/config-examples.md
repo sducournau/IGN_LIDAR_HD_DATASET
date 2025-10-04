@@ -21,7 +21,7 @@ global:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
 ```
 
 ### Production Configuration
@@ -42,7 +42,7 @@ download:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   add_rgb: true
   use_gpu: true
   rgb_cache_dir: "cache/orthophotos"
@@ -67,7 +67,7 @@ global:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   use_gpu: true
   gpu_batch_size: 10000
   add_rgb: true
@@ -98,7 +98,7 @@ download:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   add_rgb: true
 ```
 

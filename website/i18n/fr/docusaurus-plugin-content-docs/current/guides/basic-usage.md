@@ -101,11 +101,11 @@ tuiles_brutes/
 Ajoutez des caractéristiques de classification des composants de bâtiment aux nuages de points :
 
 ```bash
-# Enrichir les tuiles avec des caractéristiques de bâtiment
+# Enrichir les tuiles avec toutes les caractéristiques
 ign-lidar-hd enrich \
   --input-dir /chemin/vers/tuiles_brutes/ \
   --output /chemin/vers/tuiles_enrichies/ \
-  --mode building \
+  --mode full \
   --num-workers 4
 ```
 
@@ -113,7 +113,7 @@ ign-lidar-hd enrich \
 
 - `--input-dir` : Répertoire contenant les tuiles LAZ brutes
 - `--output` : Répertoire pour sauvegarder les tuiles enrichies
-- `--mode` : Mode d'extraction de caractéristiques (actuellement seul `building`)
+- `--mode` : Mode d'extraction de caractéristiques (`core` ou `full`)
 - `--num-workers` : Nombre de workers parallèles (optionnel)
 
 ## Étape 3 : Extraire des patches pour l'apprentissage automatique

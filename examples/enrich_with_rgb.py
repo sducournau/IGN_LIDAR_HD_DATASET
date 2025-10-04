@@ -31,7 +31,7 @@ def enrich_with_rgb_example():
         "--output", str(output_dir),
         "--num-workers", "4",
         "--k-neighbors", "10",
-        "--mode", "core",  # or 'building' for full features
+        "--mode", "core",  # or 'full' for full features
         "--add-rgb",  # Enable RGB augmentation
         "--rgb-cache-dir", str(rgb_cache_dir),  # Optional: cache orthophotos
     ]
@@ -81,7 +81,7 @@ def enrich_building_mode_with_rgb():
         "enrich",
         "--input", str(input_file),
         "--output", str(output_dir),
-        "--mode", "building",  # Full building features
+        "--mode", "full",  # Full building features
         "--add-rgb",  # Plus RGB colors
         "--rgb-cache-dir", str(rgb_cache_dir),
         "--use-gpu",  # Optional: use GPU acceleration

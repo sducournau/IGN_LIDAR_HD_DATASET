@@ -5,7 +5,7 @@ Workflow complet: télécharger et processer 100 tuiles pour l'entraînement.
 Configuration:
 - 100 tuiles stratégiques diversifiées
 - Patchs de 150m × 150m (22,500 m²)
-- Mode building (toutes features géométriques)
+- mode full (toutes features géométriques)
 - Features: normales, courbure, hauteur, densité, planarity, verticality, etc.
 
 Usage:
@@ -126,7 +126,7 @@ def enrich_tiles(input_dir: Path, output_dir: Path, num_workers: int = 1) -> int
         Nombre de fichiers traités avec succès
     """
     logger.info("\n" + "=" * 80)
-    logger.info("ÉTAPE 2/3: ENRICHISSEMENT DES TUILES (MODE BUILDING)")
+    logger.info("ÉTAPE 2/3: ENRICHISSEMENT DES TUILES (mode full)")
     logger.info("=" * 80)
     
     import numpy as np
@@ -387,7 +387,7 @@ def save_metadata(output_base: Path, stats: dict):
             "max_tiles": 100,
             "patch_size_m": 150.0,
             "patch_area_m2": 22500,
-            "mode": "building",
+            "mode": "full",
             "features": [
                 "normal_x", "normal_y", "normal_z",
                 "curvature", "height_above_ground",
@@ -410,7 +410,7 @@ def save_metadata(output_base: Path, stats: dict):
 def main():
     """Point d'entrée principal."""
     parser = argparse.ArgumentParser(
-        description='Workflow complet: télécharger et processer 100 tuiles en mode building'
+        description='Workflow complet: télécharger et processer 100 tuiles en mode full'
     )
     
     parser.add_argument(
@@ -474,7 +474,7 @@ def main():
     patches_dir = args.output_base / "patches_150x150m"
     
     logger.info("=" * 80)
-    logger.info("WORKFLOW: TÉLÉCHARGEMENT ET TRAITEMENT - 100 TUILES MODE BUILDING")
+    logger.info("WORKFLOW: TÉLÉCHARGEMENT ET TRAITEMENT - 100 TUILES mode full")
     logger.info("=" * 80)
     logger.info(f"Configuration:")
     logger.info(f"  - Tuiles: {args.max_tiles}")

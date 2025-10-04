@@ -110,7 +110,7 @@ ign-lidar-hd enrich \
 | ----------------- | ------- | -------- | ----------------------------------------------- |
 | `--input-dir`     | string  | Yes      | Directory containing raw LAZ tiles              |
 | `--output`        | string  | Yes      | Output directory for enriched tiles             |
-| `--mode`          | string  | Yes      | Feature extraction mode (currently: `building`) |
+| `--mode`          | string  | Yes      | Feature extraction mode: `core` or `full`       |
 | `--num-workers`   | integer | No       | Number of parallel workers (default: 4)         |
 | `--force`         | flag    | No       | Force re-enrichment of existing files           |
 | `--preprocess`    | flag    | No       | 🆕 Enable preprocessing for artifact mitigation |
@@ -123,38 +123,38 @@ ign-lidar-hd enrich \
 ### Examples
 
 ```bash
-# Enrich tiles with building features
+# Enrich tiles with all features
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building
+  --mode full
 
 # Use 8 parallel workers
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --num-workers 8
 
 # Force re-enrichment
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --force
 
 # 🆕 With preprocessing (artifact mitigation)
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --preprocess
 
 # 🆕 Conservative preprocessing (preserve detail)
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 15 \
   --sor-std 3.0 \
@@ -165,7 +165,7 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 10 \
   --sor-std 1.5 \
@@ -452,7 +452,7 @@ ign-lidar-hd download \
 ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output enriched_tiles/ \
-  --mode building \
+  --mode full \
   --num-workers 4
 
 # 3. Process
@@ -486,7 +486,7 @@ Override smart skip when needed:
 ign-lidar-hd download --bbox ... --output raw_tiles/ --force
 
 # Force re-enrichment
-ign-lidar-hd enrich --input-dir raw/ --output enriched/ --mode building --force
+ign-lidar-hd enrich --input-dir raw/ --output enriched/ --mode full --force
 
 # Force reprocessing
 ign-lidar-hd process --input enriched/ --output patches/ --lod-level LOD2 --force

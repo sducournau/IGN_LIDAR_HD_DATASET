@@ -87,7 +87,7 @@ global:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   add_rgb: true
   rgb_cache_dir: "cache/orthophotos"
 
@@ -136,7 +136,7 @@ Enrich LAZ files with geometric features and RGB:
 enrich:
   input_dir: "data/raw" # Input LAZ files
   output: "data/enriched" # Output directory
-  mode: "building" # 'core' or 'building'
+  mode: "full" # 'core' or 'full'
   k_neighbors: 10 # Neighbors for features
   use_gpu: true # GPU acceleration
   add_rgb: true # Add RGB from orthophotos
@@ -185,7 +185,7 @@ download:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   use_gpu: true
   add_rgb: true
   rgb_cache_dir: "cache/orthophotos"
@@ -217,7 +217,7 @@ global:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   k_neighbors: 10
   use_gpu: true
   add_rgb: true
@@ -252,7 +252,7 @@ global:
   num_workers: 8
 
 enrich:
-  mode: "building" # All features
+  mode: "full" # All features
   use_gpu: true
   add_rgb: true
 
@@ -288,7 +288,7 @@ Process different regions with specific settings:
 # paris_urban.yaml
 enrich:
   input_dir: "paris_tiles/"
-  mode: "building"
+  mode: "full"
   add_rgb: true
 
 patch:
@@ -331,7 +331,7 @@ config = {
     'enrich': {
         'input_dir': 'data/raw',
         'output': 'data/enriched',
-        'mode': 'building',
+        'mode': 'full',
         'add_rgb': True,
     },
     'patch': {
@@ -396,7 +396,7 @@ ign-lidar-hd pipeline my_workflow.yaml
 ```yaml
 enrich:
   # Use building mode for urban areas with complex geometry
-  mode: "building"
+  mode: "full"
 
   # RGB improves classification accuracy by 5-10%
   add_rgb: true

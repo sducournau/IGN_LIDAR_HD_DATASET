@@ -118,11 +118,11 @@ ign-lidar-hd enrich \
   --use-gpu \
   --num-workers 4
 
-# Mode bâtiment avec GPU
+# Mode complet avec GPU
 ign-lidar-hd enrich \
   --input raw_tiles/ \
   --output pre_tiles/ \
-  --mode building \
+  --mode full \
   --use-gpu \
   --num-workers 6
 ```
@@ -193,7 +193,7 @@ global:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   num_workers: 4 # GPU + traitement parallèle
 ```
 

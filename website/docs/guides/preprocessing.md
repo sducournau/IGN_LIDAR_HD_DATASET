@@ -47,7 +47,7 @@ This applies:
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --num-workers 4
 ```
@@ -58,7 +58,7 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --add-rgb \
   --rgb-cache-dir cache/
@@ -438,7 +438,7 @@ Solution:
 ign-lidar-hd enrich \
   --input raw_tiles/tile_001.laz \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --preprocess
 ```
 
@@ -449,7 +449,7 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 15 \
   --sor-std 3.0 \
@@ -463,20 +463,20 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --voxel-size 0.5 \
   --num-workers 2
 ```
 
-### Example 4: High-Quality Building Extraction
+### Example 4: High-Quality Processing
 
 ```bash
 # Conservative preprocessing + RGB for best quality
 ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 15 \
   --sor-std 2.5 \

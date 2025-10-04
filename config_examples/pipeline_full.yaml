@@ -29,8 +29,8 @@ enrich:
   # Output directory for enriched tiles
   output: "data/enriched"
 
-  # Feature mode: 'core' (basic) or 'building' (full)
-  mode: "building"
+  # Feature mode: 'core' (basic) or 'full' (all features)
+  mode: "full"
 
   # Number of neighbors for feature computation
   k_neighbors: 10

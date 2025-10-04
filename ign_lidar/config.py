@@ -115,7 +115,7 @@ FEATURE_SETS = {
     ],
     
     # Building - optimized for building extraction (23 dims)
-    'building': [
+    'full': [
         'xyz', 'intensity', 'return_number', 'normals',
         'curvature', 'height_above_ground', 'density',
         'planarity', 'linearity', 'verticality',

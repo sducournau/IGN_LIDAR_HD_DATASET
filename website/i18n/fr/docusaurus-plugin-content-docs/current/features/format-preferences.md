@@ -25,7 +25,7 @@ Par défaut, la bibliothèque préserve toutes les caractéristiques géométriq
 ign-lidar-hd enrich \
   --input-dir tuiles_brutes/ \
   --output tuiles_enrichies/ \
-  --mode building
+  --mode full
 ```
 
 **Sortie** : `tuiles_enrichies/tuile.laz` (LAZ 1.4 avec plus de 30 caractéristiques)

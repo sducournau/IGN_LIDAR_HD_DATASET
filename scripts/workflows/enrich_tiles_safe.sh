@@ -8,7 +8,7 @@ INPUT_DIR="/mnt/c/Users/Simon/ign/raw_tiles"
 OUTPUT_DIR="/mnt/c/Users/Simon/ign/enriched_tiles"
 K_NEIGHBORS=20
 NUM_WORKERS=2  # Réduit à 2 workers pour éviter les OOM
-MODE="building"  # Mode: 'core' (basic) ou 'building' (full)
+MODE="full"  # Mode: 'core' (basic) ou 'full' (full)
 
 # Activer l'environnement virtuel
 source /mnt/d/Users/Simon/OneDrive/Documents/GitHub/IGN_LIDAR_HD_downloader/.venv/bin/activate

@@ -387,7 +387,7 @@ from ign_lidar.processor import LiDARProcessor
 
 # Create processor with GPU RGB
 processor = LiDARProcessor(
-    mode='building',
+    mode='full',
     include_rgb=True,
     rgb_cache_dir='cache/',
     use_gpu=True

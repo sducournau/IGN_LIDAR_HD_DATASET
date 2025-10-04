@@ -78,7 +78,7 @@ Automatically skips LAZ files that are already enriched:
 ign-lidar-hd enrich \
   --input-dir /path/to/raw_tiles/ \
   --output /path/to/enriched_tiles/ \
-  --mode building
+  --mode full
 
 # Shows progress and skip statistics
 [1/20] Processing: tile_001.laz
@@ -97,7 +97,7 @@ Use `--force` flag to re-enrich files:
 ign-lidar-hd enrich \
   --input-dir /path/to/raw_tiles/ \
   --output /path/to/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --force
 ```
 

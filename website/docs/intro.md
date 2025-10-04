@@ -69,7 +69,7 @@ ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params --preproces
 
 ```bash
 # Enable with default parameters
-ign-lidar-hd enrich --input-dir data/ --output output/ --mode building --preprocess
+ign-lidar-hd enrich --input-dir data/ --output output/ --mode full --preprocess
 
 # Conservative preprocessing (preserve details)
 ign-lidar-hd enrich ... --preprocess --sor-k 15 --sor-std 3.0 --ror-radius 1.5 --ror-neighbors 3

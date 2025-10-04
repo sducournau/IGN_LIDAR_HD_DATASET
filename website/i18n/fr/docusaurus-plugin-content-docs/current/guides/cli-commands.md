@@ -86,7 +86,7 @@ ign-lidar-hd enrich \
 | ----------------- | ------- | ------ | ------------------------------------------------------ |
 | `--input-dir`     | chaîne  | Oui    | Répertoire contenant les tuiles LAZ brutes             |
 | `--output`        | chaîne  | Oui    | Répertoire de sortie pour les tuiles enrichies         |
-| `--mode`          | chaîne  | Oui    | Mode d'extraction (actuellement : `building`)          |
+| `--mode`          | chaîne  | Oui    | Mode d'extraction : `core` ou `full`                   |
 | `--num-workers`   | entier  | Non    | Nombre de processus parallèles (défaut : 4)            |
 | `--force`         | drapeau | Non    | Forcer le ré-enrichissement des fichiers existants     |
 | `--preprocess`    | drapeau | Non    | 🆕 Activer le prétraitement pour réduire les artefacts |
@@ -99,31 +99,31 @@ ign-lidar-hd enrich \
 ### Exemples
 
 ```bash
-# Enrichir les tuiles avec des caractéristiques de bâtiment
+# Enrichir les tuiles avec toutes les caractéristiques
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building
+  --mode full
 
 # Utiliser 8 processus parallèles
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --num-workers 8
 
 # 🆕 Avec prétraitement (atténuation des artefacts)
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --preprocess
 
 # 🆕 Prétraitement conservateur (préserver les détails)
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 15 \
   --sor-std 3.0 \
@@ -134,7 +134,7 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 10 \
   --sor-std 1.5 \

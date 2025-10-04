@@ -56,7 +56,7 @@ Before processing starts, the system:
 ign-lidar-hd enrich \
   --input-dir /path/to/tiles/ \
   --output /path/to/enriched/ \
-  --mode building \
+  --mode full \
   --num-workers 4  # May be reduced automatically
 ```
 
@@ -101,21 +101,21 @@ Base your worker count on available RAM:
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --num-workers 2
 
 # For 16GB RAM systems
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --num-workers 4
 
 # For 32GB+ RAM systems
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --num-workers 6
 ```
 
@@ -137,7 +137,7 @@ For maximum safety on constrained systems:
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --num-workers 1
 ```
 
@@ -196,7 +196,7 @@ The system provides helpful log messages:
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --num-workers 1
 ```
 
@@ -208,7 +208,7 @@ for file in tiles/*.laz; do
     ign-lidar-hd enrich \
       --input-dir "$file" \
       --output enriched/ \
-      --mode building \
+      --mode full \
       --num-workers 1
 done
 ```
@@ -276,7 +276,7 @@ ign-lidar-hd enrich --input-dir batch2/ --output enriched/
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
-  --mode building
+  --mode full
 ```
 
 ## Performance Optimization
@@ -313,7 +313,7 @@ Test with a few files first:
 ign-lidar-hd enrich \
   --input-dir sample_tiles/ \
   --output test_enriched/ \
-  --mode building \
+  --mode full \
   --num-workers 2
 ```
 
@@ -335,7 +335,7 @@ Let smart skip handle interrupted processing:
 ign-lidar-hd enrich \
   --input-dir large_dataset/ \
   --output enriched/ \
-  --mode building
+  --mode full
 # Press Ctrl+C if needed, then re-run same command
 ```
 

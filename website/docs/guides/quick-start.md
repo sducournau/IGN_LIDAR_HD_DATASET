@@ -55,14 +55,14 @@ Add geometric features and optional RGB colors:
 ign-lidar-hd enrich \
   --input-dir data/raw \
   --output data/enriched \
-  --mode building \
+  --mode full \
   --use-gpu
 ```
 
 **What this does:**
 
 - Computes geometric features (normals, curvature, planarity)
-- Adds building-specific features in 'building' mode
+- Adds all additional features in 'full' mode
 - Uses GPU acceleration if available (falls back to CPU)
 - Skips already enriched tiles
 
@@ -353,7 +353,7 @@ processor = LiDARProcessor(
 
 1. Enable GPU acceleration: `--use-gpu`
 2. Increase workers: `--num-workers 8`
-3. Use 'core' mode instead of 'building': `--mode core`
+3. Use 'core' mode instead of 'full': `--mode core`
 
 ---
 

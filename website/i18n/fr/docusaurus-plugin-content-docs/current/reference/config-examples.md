@@ -21,7 +21,7 @@ global:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
 ```
 
 ### Configuration de Production
@@ -42,7 +42,7 @@ download:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   add_rgb: true
   use_gpu: true
   rgb_cache_dir: "cache/orthophotos"
@@ -67,7 +67,7 @@ global:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   use_gpu: true
   gpu_batch_size: 10000
   add_rgb: true
@@ -98,7 +98,7 @@ download:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   add_rgb: true
 ```
 
@@ -127,7 +127,7 @@ download:
   max_tiles: 100
 
 enrich:
-  mode: "building"
+  mode: "full"
   add_rgb: true
   use_gpu: true
 
@@ -196,7 +196,7 @@ download:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   use_gpu: false # CPU pour débuggage
 
 patch:

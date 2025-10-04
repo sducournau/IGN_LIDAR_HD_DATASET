@@ -144,8 +144,8 @@ patches = processor.process_directory("data/", "output/", num_workers=4)
 # Download sample data
 ign-lidar-hd download --bbox 2.3,48.8,2.4,48.9 --output data/ --max-tiles 5
 
-# Process LiDAR tiles (enriches with building features)
-ign-lidar-hd enrich --input-dir data/ --output enriched/ --mode building
+# Process LiDAR tiles (enriches with all features)
+ign-lidar-hd enrich --input-dir data/ --output enriched/ --mode full
 
 # GPU acceleration (5-10x faster, requires CUDA)
 ign-lidar-hd enrich --input-dir data/ --output enriched/ --use-gpu
@@ -201,7 +201,7 @@ download:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building"
+  mode: "full"
   add_rgb: true
   rgb_cache_dir: "cache/orthophotos"
   use_gpu: true
@@ -428,7 +428,7 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --radius 1.5  # Manual radius in meters (or omit for auto-estimate)
 
 # 🆕 With RGB augmentation from IGN orthophotos
@@ -483,11 +483,11 @@ ign-lidar-hd enrich \
   --ror-neighbors 5 \
   --voxel-size 0.3
 
-# Building mode with preprocessing and RGB
+# Full mode with preprocessing and RGB
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --add-rgb \
   --num-workers 2

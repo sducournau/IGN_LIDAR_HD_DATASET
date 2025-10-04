@@ -21,7 +21,7 @@ Le traitement LiDAR est intensif en mémoire, surtout pour l'analyse des composa
 - **KDTree** : ~24 octets par point
 - **Total** : ~70 octets par point
 
-#### Caractéristiques du mode Building
+#### Caractéristiques du mode full
 
 - **Caractéristiques de base** : ~40 octets par point
 - **KDTree Building** : ~50 octets par point
@@ -30,13 +30,13 @@ Le traitement LiDAR est intensif en mémoire, surtout pour l'analyse des composa
 
 ### Taille de fichier vs Besoins mémoire
 
-| Taille fichier | Points      | RAM mode Core | RAM mode Building |
-| -------------- | ----------- | ------------- | ----------------- |
-| 100MB          | ~2M points  | ~140MB        | ~300MB            |
-| 200MB          | ~4M points  | ~280MB        | ~600MB            |
-| 300MB          | ~6M points  | ~420MB        | ~900MB            |
-| 500MB          | ~10M points | ~700MB        | ~1.5GB            |
-| 1GB            | ~20M points | ~1.4GB        | ~3GB              |
+| Taille fichier | Points      | RAM mode Core | RAM mode full |
+| -------------- | ----------- | ------------- | ------------- |
+| 100MB          | ~2M points  | ~140MB        | ~300MB        |
+| 200MB          | ~4M points  | ~280MB        | ~600MB        |
+| 300MB          | ~6M points  | ~420MB        | ~900MB        |
+| 500MB          | ~10M points | ~700MB        | ~1.5GB        |
+| 1GB            | ~20M points | ~1.4GB        | ~3GB          |
 
 ## Gestion automatique de la mémoire
 
@@ -80,7 +80,7 @@ processor = LiDARProcessor(
 ```python
 # Mode minimal pour ressources limitées
 processor = LiDARProcessor(
-    mode="core",  # Au lieu de "building"
+    mode="core",  # Au lieu de "full"
     enable_gpu=False,  # Désactiver GPU si RAM limitée
     cache_size=100  # Réduire la taille du cache
 )
@@ -91,7 +91,7 @@ processor = LiDARProcessor(
 ### RAM minimale par mode
 
 - **Mode Core** : 4GB RAM
-- **Mode Building** : 8GB RAM
+- **mode full** : 8GB RAM
 - **Traitement par lots** : 16GB RAM
 
 ### RAM recommandée
@@ -142,7 +142,7 @@ processor = LiDARProcessor(
 ```python
 # Configuration optimisée pour serveurs
 processor = LiDARProcessor(
-    mode="building",
+    mode="full",
     num_workers=8,
     chunk_size=2000000,
     max_memory_gb=24,
@@ -184,7 +184,7 @@ processor = LiDARProcessor(
 
 ```python
 processor = LiDARProcessor(
-    mode="building",
+    mode="full",
     num_workers=4,
     chunk_size=1000000,
     max_memory_gb=12
@@ -195,7 +195,7 @@ processor = LiDARProcessor(
 
 ```python
 processor = LiDARProcessor(
-    mode="building",
+    mode="full",
     num_workers=8,
     chunk_size=2000000,
     enable_gpu=True,

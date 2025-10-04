@@ -88,7 +88,7 @@ def create_custom_config():
         'enrich': {
             'input_dir': 'data/my_tiles',
             'output': 'data/my_enriched',
-            'mode': 'building',
+            'mode': 'full',
             'k_neighbors': 15,
             'use_gpu': True,
             'add_rgb': True,

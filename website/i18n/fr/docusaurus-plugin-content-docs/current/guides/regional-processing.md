@@ -453,7 +453,7 @@ referencer = IGNReferentials()
 # Enrichissement avec BD TOPO
 enriched = referencer.enrich_with_bdtopo(
     lidar_data="input.las",
-    bdtopo_layers=["building", "road", "vegetation"]
+    bdtopo_layers=["full", "road", "vegetation"]
 )
 
 # Enrichissement avec RGE ALTI

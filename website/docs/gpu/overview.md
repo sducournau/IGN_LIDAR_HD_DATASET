@@ -157,7 +157,7 @@ ign-lidar-hd enrich \
   --input tiles/ \
   --output enriched/ \
   --use-gpu \
-  --mode building \
+  --mode full \
   --num-workers 4
 ```
 

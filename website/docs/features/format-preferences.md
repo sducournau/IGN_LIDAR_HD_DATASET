@@ -25,7 +25,7 @@ By default, the library preserves all geometric features using LAZ 1.4 format:
 ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output enriched_tiles/ \
-  --mode building
+  --mode full
 ```
 
 **Output**: `enriched_tiles/tile.laz` (LAZ 1.4 with 30+ features)
@@ -150,7 +150,7 @@ python -m ign_lidar.qgis_converter enriched/tile.laz
 ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output research_data/ \
-  --mode building
+  --mode full
 
 # Keep all 30+ features in LAZ 1.4 format
 # Use for: scikit-learn, PyTorch, custom analysis
@@ -163,7 +163,7 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output enriched_tiles/ \
-  --mode building
+  --mode full
 
 # Convert for QGIS
 python scripts/batch_convert_qgis.py enriched_tiles/
@@ -181,7 +181,7 @@ ls enriched_tiles/
 ign-lidar-hd enrich \
   --input-dir large_dataset/ \
   --output processed/ \
-  --mode building
+  --mode full
 
 # Selectively convert tiles needing QGIS compatibility
 python -m ign_lidar.qgis_converter processed/priority_tiles/
@@ -217,7 +217,7 @@ PREFER_AUGMENTED_LAZ = True
 AUTO_CONVERT_TO_QGIS = False
 
 # Processing preferences
-DEFAULT_MODE = 'building'
+DEFAULT_MODE = 'full'
 DEFAULT_WORKERS = 4
 
 # Output preferences

@@ -235,7 +235,7 @@ Comprehensive analysis of urban development patterns over time.
 from ign_lidar.urban_evolution import UrbanEvolutionAnalyzer
 
 evolution_analyzer = UrbanEvolutionAnalyzer(
-    analysis_scale="neighborhood",  # "building", "block", "neighborhood", "city"
+    analysis_scale="neighborhood",  # "full", "block", "neighborhood", "city"
     temporal_window="5_years",
     evolution_indicators=["density", "height", "morphology", "green_space"]
 )
@@ -463,7 +463,7 @@ from ign_lidar.multiscale import MultiScaleTemporalAnalyzer
 
 # Perform analysis at multiple spatial scales
 multiscale_analyzer = MultiScaleTemporalAnalyzer(
-    scales=["building", "block", "neighborhood", "city"],
+    scales=["full", "block", "neighborhood", "city"],
     scale_interactions=True
 )
 

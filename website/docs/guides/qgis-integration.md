@@ -37,11 +37,11 @@ Enriched LAZ files from this library are fully compatible with QGIS and include 
 First, create enriched LAZ files with geometric features:
 
 ```bash
-# Enrich tiles with building features
+# Enrich tiles with all features
 ign-lidar-hd enrich \
   --input-dir /path/to/raw_tiles/ \
   --output /path/to/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --num-workers 4
 ```
 

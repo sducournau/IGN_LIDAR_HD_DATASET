@@ -92,7 +92,7 @@ def main():
         help="Number of files to process per batch (default: 10)"
     )
     parser.add_argument(
-        "--mode", type=str, choices=['core', 'building'], default='core',
+        "--mode", type=str, choices=['core', 'full'], default='core',
         help="Feature mode: core (basic) or building (full) (default: core)"
     )
     

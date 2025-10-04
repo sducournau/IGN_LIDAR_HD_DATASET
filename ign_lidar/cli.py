@@ -265,10 +265,10 @@ def _enrich_single_file(args_tuple):
                 # - Main features: ~40 bytes/point
                 # - KDTree for main features: ~24 bytes/point
                 # - Building features: additional KDTree + features: ~50 bytes/point
-                # Total for building mode: ~120-150 bytes/point (conservative)
+                # Total for full mode: ~120-150 bytes/point (conservative)
                 # Core mode: ~70 bytes/point
-                if mode == 'building':
-                    bytes_per_point = 150  # Very conservative for building mode
+                if mode == 'full':
+                    bytes_per_point = 150  # Very conservative for full mode
                 else:
                     bytes_per_point = 70   # Conservative for core mode
                 
@@ -325,9 +325,9 @@ def _enrich_single_file(args_tuple):
             chunk_size = None
         
         # Compute features based on mode
-        if mode == 'building':
+        if mode == 'full':
             worker_logger.info(
-                f"  Computing BUILDING features for {len(points):,} points..."
+                f"  Computing FULL features for {len(points):,} points..."
             )
         else:
             worker_logger.info(
@@ -483,8 +483,8 @@ def _enrich_single_file(args_tuple):
             las_out.add_extra_dim(laspy.ExtraBytesParams(name=key, type=np.float32))
             setattr(las_out, key, values)
         
-        # Add extra building-specific features if in building mode
-        if mode == 'building':
+        # Add extra building-specific features if in full mode
+        if mode == 'full':
             try:
                 # Import building-specific feature functions (CPU only)
                 from .features import (
@@ -492,7 +492,7 @@ def _enrich_single_file(args_tuple):
                     compute_roof_score, compute_num_points_in_radius
                 )
                 
-                worker_logger.info("  Computing building-specific features...")
+                worker_logger.info("  Computing additional features...")
                 
                 # Verticality
                 verticality = compute_verticality(normals)
@@ -722,8 +722,8 @@ def cmd_enrich(args):
             args.num_workers = 1
         
         # If very low available RAM, force single worker
-        # Building mode needs ~4-6GB per worker, core mode ~2-3GB
-        min_gb_per_worker = 5.0 if mode == 'building' else 2.5
+        # Full mode needs ~4-6GB per worker, core mode ~2-3GB
+        min_gb_per_worker = 5.0 if mode == 'full' else 2.5
         max_safe_workers = int(available_gb / min_gb_per_worker)
         
         if max_safe_workers < args.num_workers:
@@ -876,9 +876,9 @@ def cmd_enrich(args):
     if args.num_workers > 1:
         # Process in batches to limit concurrent memory usage
         # For large files, limit concurrent tasks to prevent OOM
-        # Very conservative batching for building mode (memory intensive)
-        if mode == 'building':
-            # Building mode needs SIGNIFICANTLY more memory (extra features + KDTrees)
+        # Very conservative batching for full mode (memory intensive)
+        if mode == 'full':
+            # Full mode needs SIGNIFICANTLY more memory (extra features + KDTrees)
             # Each worker can use 4-6GB RAM for large files
             if max_file_size > 300_000_000:
                 # For very large files (>300MB), process 1 at a time
@@ -1316,8 +1316,8 @@ def main():
     enrich_parser.add_argument('files', nargs='*', help='Optional: specific file(s) to process (relative to input-dir)')
     enrich_parser.add_argument('--num-workers', type=int, default=1,
                               help='Number of parallel workers (default: 1)')
-    enrich_parser.add_argument('--k-neighbors', type=int, default=10,
-                              help='Number of neighbors for feature computation (default: 10)')
+    enrich_parser.add_argument('--k-neighbors', type=int, default=30,
+                              help='Number of neighbors for feature computation (default: 30)')
     enrich_parser.add_argument('--radius', type=float, default=None,
                               help='Search radius in meters for geometric features (default: auto-estimate). '
                                    'Radius-based search eliminates LIDAR scan line artifacts. '
@@ -1326,9 +1326,9 @@ def main():
     # See GPU_ANALYSIS.md for implementation details
     enrich_parser.add_argument('--use-gpu', action='store_true',
                               help='[Non-functional in v1.2.0] Use GPU acceleration if available')
-    enrich_parser.add_argument('--mode', type=str, choices=['core', 'building'],
+    enrich_parser.add_argument('--mode', type=str, choices=['core', 'full'],
                               default='core',
-                              help='Feature mode: core (basic) or building (full) (default: core)')
+                              help='Feature mode: core (basic) or full (all features) (default: core)')
     enrich_parser.add_argument(
         '--auto-convert-qgis',
         action='store_true',
@@ -1357,42 +1357,55 @@ def main():
     enrich_parser.add_argument(
         '--preprocess',
         action='store_true',
-        help='Apply preprocessing to reduce artifacts (SOR, ROR filters)'
+        default=True,
+        help='Apply preprocessing to reduce artifacts (default: True)'
     )
     enrich_parser.add_argument(
         '--no-preprocess',
         action='store_true',
-        help='Disable preprocessing (default: enabled if --preprocess used)'
+        help='Disable preprocessing'
     )
     enrich_parser.add_argument(
         '--sor-k',
         type=int,
-        default=12,
-        help='Statistical Outlier Removal: number of neighbors (default: 12)'
+        default=15,
+        help='Statistical Outlier Removal: number of neighbors (default: 15)'
     )
     enrich_parser.add_argument(
         '--sor-std',
         type=float,
-        default=2.0,
-        help='Statistical Outlier Removal: std multiplier (default: 2.0)'
+        default=2.5,
+        help='Statistical Outlier Removal: std multiplier (default: 2.5)'
     )
     enrich_parser.add_argument(
         '--ror-radius',
         type=float,
-        default=1.0,
-        help='Radius Outlier Removal: search radius in meters (default: 1.0)'
+        default=0.8,
+        help='Radius Outlier Removal: search radius in meters (default: 0.8)'
     )
     enrich_parser.add_argument(
         '--ror-neighbors',
         type=int,
-        default=4,
-        help='Radius Outlier Removal: min neighbors (default: 4)'
+        default=5,
+        help='Radius Outlier Removal: min neighbors (default: 5)'
     )
     enrich_parser.add_argument(
         '--voxel-size',
         type=float,
         default=None,
         help='Voxel downsampling size in meters (optional, e.g., 0.5)'
+    )
+    enrich_parser.add_argument(
+        '--augment',
+        action='store_true',
+        default=True,
+        help='Enable geometric data augmentation (default: True)'
+    )
+    enrich_parser.add_argument(
+        '--num-augmentations',
+        type=int,
+        default=3,
+        help='Number of augmented versions per tile (default: 3)'
     )
     
     # PIPELINE command - Execute full workflow from YAML

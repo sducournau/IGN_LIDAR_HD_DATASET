@@ -125,7 +125,7 @@ def main():
         help="Number of neighbors for feature computation"
     )
     parser.add_argument(
-        "--mode", type=str, choices=['core', 'building'], default='building',
+        "--mode", type=str, choices=['core', 'full'], default='full',
         help="Feature mode (default: building)"
     )
     parser.add_argument(
@@ -163,7 +163,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     
     # Process strategy based on mode
-    if args.mode == 'building':
+    if args.mode == 'full':
         # Building mode: memory intensive
         small_workers = 4   # Small files in parallel
         medium_workers = 2  # Medium files with caution

@@ -210,7 +210,7 @@ def display_recommendations(task, info, recommendations):
     
     if task == 'enrichment':
         print(f"   python enrich_laz_building.py input/ output/ \\ ")
-        print(f"     --mode building --workers {recommendations['optimal']}")
+        print(f"     --mode full --workers {recommendations['optimal']}")
     elif task == 'download':
         print(f"   python workflow_100_tiles_building.py \\ ")
         print(f"     --download-workers {recommendations['optimal']}")

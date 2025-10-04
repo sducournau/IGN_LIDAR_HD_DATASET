@@ -120,7 +120,7 @@ def create_example_config(output_path: Path, config_type: str = 'full'):
             'enrich': {
                 'input_dir': 'data/raw',
                 'output': 'data/enriched',
-                'mode': 'building',
+                'mode': 'full',
                 'k_neighbors': 10,
                 'use_gpu': True,
                 'add_rgb': True,
@@ -144,7 +144,7 @@ def create_example_config(output_path: Path, config_type: str = 'full'):
             'enrich': {
                 'input_dir': 'data/raw',
                 'output': 'data/enriched',
-                'mode': 'building',
+                'mode': 'full',
                 'k_neighbors': 10,
                 'use_gpu': True,
                 'add_rgb': True,

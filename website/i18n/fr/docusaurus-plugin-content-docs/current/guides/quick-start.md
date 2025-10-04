@@ -88,14 +88,14 @@ Ajoutez des caractéristiques géométriques et des couleurs RGB optionnelles :
 ign-lidar-hd enrich \
   --input-dir data/brut \
   --output data/enrichi \
-  --mode building \
+  --mode full \
   --use-gpu
 ```
 
 **Ce que cela fait :**
 
 - Calcule les caractéristiques géométriques (normales, courbure, planarité)
-- Ajoute des caractéristiques spécifiques aux bâtiments en mode 'building'
+- Ajoute toutes les caractéristiques supplémentaires en mode 'full'
 - Utilise l'accélération GPU si disponible (repli sur CPU)
 - Ignore les dalles déjà enrichies
 
@@ -378,7 +378,7 @@ processor = LiDARProcessor(
 
 1. Activer l'accélération GPU : `--use-gpu`
 2. Augmenter les workers : `--num-workers 8`
-3. Utiliser le mode 'core' au lieu de 'building' : `--mode core`
+3. Utiliser le mode 'core' au lieu de 'full' : `--mode core`
 
 ---
 

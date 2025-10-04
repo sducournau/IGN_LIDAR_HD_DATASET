@@ -32,7 +32,7 @@ IGN Lidar HD propose un pipeline de prétraitement en trois étapes :
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched/ \
-  --mode building \
+  --mode full \
   --preprocess
 ```
 
@@ -45,7 +45,7 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 15 \
   --sor-std 3.0 \
@@ -62,7 +62,7 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir /data/raw_tiles/ \
   --output /data/enriched/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 10 \
   --sor-std 1.5 \
@@ -680,7 +680,7 @@ Les préréglages recommandés sont des points de départ éprouvés, mais ajust
 ign-lidar-hd enrich \
   --input-dir /data/paris_urban/ \
   --output /data/paris_enriched/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 12 \
   --sor-std 2.0 \
@@ -700,7 +700,7 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir /data/rural_village/ \
   --output /data/rural_enriched/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 15 \
   --sor-std 3.0 \
@@ -719,7 +719,7 @@ ign-lidar-hd enrich \
 ign-lidar-hd enrich \
   --input-dir /data/old_acquisition/ \
   --output /data/old_cleaned/ \
-  --mode building \
+  --mode full \
   --preprocess \
   --sor-k 10 \
   --sor-std 1.5 \
@@ -741,7 +741,7 @@ for region in region_*.txt; do
   ign-lidar-hd enrich \
     --input-dir /data/regions/$region/ \
     --output /data/processed/$region/ \
-    --mode building \
+    --mode full \
     --preprocess \
     --voxel-size 0.4 \
     --sor-k 10 \
@@ -751,7 +751,7 @@ done
 wait
 
 # Ou utiliser GNU parallel
-parallel -j 4 "ign-lidar-hd enrich --input-dir {} --output {.}_enriched --mode building --preprocess --voxel-size 0.4" ::: /data/regions/*/
+parallel -j 4 "ign-lidar-hd enrich --input-dir {} --output {.}_enriched --mode full --preprocess --voxel-size 0.4" ::: /data/regions/*/
 ```
 
 **Résultat :** Traitement de 100 tuiles en 4 heures (vs 12 heures sans optimisation)

@@ -102,7 +102,7 @@ download:
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "building" # Focus on building features
+  mode: "full" # Focus on building features
 
   # RGB Augmentation (optional)
   add_rgb: true

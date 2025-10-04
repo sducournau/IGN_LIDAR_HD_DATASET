@@ -131,7 +131,7 @@ Add building component classification features to the point clouds:
 ign-lidar-hd enrich \
   --input-dir /path/to/raw_tiles/ \
   --output /path/to/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --num-workers 4
 ```
 
@@ -232,7 +232,7 @@ ign-lidar-hd download \
 ign-lidar-hd enrich \
   --input-dir data/raw_tiles/ \
   --output data/enriched_tiles/ \
-  --mode building \
+  --mode full \
   --num-workers 6
 
 # 3. Extract patches

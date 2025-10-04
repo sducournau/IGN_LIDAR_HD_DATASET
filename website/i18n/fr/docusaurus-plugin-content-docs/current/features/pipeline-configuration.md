@@ -1,7 +1,19 @@
 ---
 sidebar_position: 4
 title: Configuration Pipeline
-description: Exécutez des workflows complets avec des fichiers de configuration YAML
+description: Exécutez des workflows complets avec des fichiers de```yaml
+enrich:
+  input_dir: "data/brut" # Fichiers LAZ d'entrée
+  output: "data/enrichi" # Répertoire de sortie
+  mode: "full" # 'core' ou 'full'
+  k_neighbors: 10 # Voisins pour les features
+  use_gpu: true # Accélération GPU
+  add_rgb: true # Ajouter RGB depuis orthophotos
+  rgb_cache_dir: "cache/ortho" # Répertoire cache RGB
+  num_workers: 4 # Traitement parallèle
+  auto_convert_qgis: false # Conversion format QGIS
+  force: false # Forcer le retraitement
+```n YAML
 keywords: [pipeline, yaml, configuration, workflow, automation]
 ---
 
@@ -121,7 +133,7 @@ Enrichir les fichiers LAZ avec des caractéristiques géométriques et RGB :
 enrich:
   input_dir: "data/brut" # Fichiers LAZ d'entrée
   output: "data/enrichi" # Répertoire de sortie
-  mode: "building" # 'core' ou 'building'
+  mode: "full" # 'core' ou 'full'
   k_neighbors: 10 # Voisins pour les features
   use_gpu: true # Accélération GPU
   add_rgb: true # Ajouter RGB depuis orthophotos
@@ -168,7 +180,7 @@ download:
 enrich:
   input_dir: "data/brut"
   output: "data/enrichi"
-  mode: "building"
+  mode: "full"
   use_gpu: true
   add_rgb: true
   rgb_cache_dir: "cache/orthophotos"
@@ -200,7 +212,7 @@ global:
 enrich:
   input_dir: "data/brut"
   output: "data/enrichi"
-  mode: "building"
+  mode: "full"
   k_neighbors: 10
   use_gpu: true
   add_rgb: true
@@ -237,7 +249,7 @@ global:
   num_workers: 8
 
 enrich:
-  mode: "building" # Toutes les features
+  mode: "full" # Toutes les features
   use_gpu: true
   add_rgb: true
 
@@ -273,7 +285,7 @@ Traiter différentes régions avec des paramètres spécifiques :
 # paris_urbain.yaml
 enrich:
   input_dir: "tuiles_paris/"
-  mode: "building"
+  mode: "full"
   add_rgb: true
 
 patch:
@@ -316,7 +328,7 @@ config = {
     'enrich': {
         'input_dir': 'data/brut',
         'output': 'data/enrichi',
-        'mode': 'building',
+        'mode': 'full',
         'add_rgb': True,
     },
     'patch': {
@@ -380,8 +392,8 @@ ign-lidar-hd pipeline mon_workflow.yaml
 
 ```yaml
 enrich:
-  # Utilisez le mode building pour zones urbaines avec géométrie complexe
-  mode: "building"
+  # Utilisez le mode full pour zones urbaines avec géométrie complexe
+  mode: "full"
 
   # RGB améliore la précision de classification de 5-10%
   add_rgb: true

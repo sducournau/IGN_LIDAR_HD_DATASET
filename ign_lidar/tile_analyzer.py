@@ -162,14 +162,14 @@ def format_analysis_report(analysis: Dict[str, float]) -> str:
 
 def should_use_chunked_processing(
     analysis: Dict[str, float],
-    mode: str = 'building'
+    mode: str = 'full'
 ) -> Tuple[bool, int]:
     """
     Determine if chunked processing should be used and chunk size.
     
     Args:
         analysis: Dictionary from analyze_tile()
-        mode: 'core' or 'building'
+        mode: 'core' or 'full'
         
     Returns:
         (use_chunking, chunk_size)
@@ -177,7 +177,7 @@ def should_use_chunked_processing(
     n_points = analysis['n_points']
     
     # Building mode is more memory intensive
-    if mode == 'building':
+    if mode == 'full':
         if n_points > 15_000_000:
             return True, 10_000_000
         elif n_points > 10_000_000:

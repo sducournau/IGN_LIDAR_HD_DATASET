@@ -336,7 +336,7 @@ class LiDARProcessor:
                 )
             
             # 2. Compute geometric features (optimized, single pass)
-            feature_mode = ("BUILDING" if self.include_extra_features
+            feature_mode = ("FULL" if self.include_extra_features
                            else "CORE")
             k_display = self.k_neighbors if self.k_neighbors else "auto"
             logger.info(
