@@ -6,7 +6,21 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 # Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Version 1.7.3** | Python 3.8+ | Licence MIT
+**Version 1.7.4** | Accélération GPU & Performance Améliorée
+
+✨ **Nouveautés :**
+
+- 🚀 **Accélération GPU**: Support RAPIDS cuML pour accélération 15-20x (5-10x avec mode hybride CuPy)
+- ⚡ **Optimisation Per-Chunk**: Stratégie KDTree locale intelligente pour performance optimale CPU/GPU
+- 📚 **Documentation Enrichie**: Guides GPU complets en anglais et français
+- 🔧 **Trois Modes de Performance**: CPU baseline, GPU Hybride (CuPy), GPU Complet (RAPIDS cuML)
+- 🌍 **Support WSL2**: Guides d'installation complets pour Windows Subsystem for Linux
+- 🎯 **Augmentation Améliorée**: Caractéristiques calculées sur géométrie augmentée (**désactivé par défaut, activer avec --augment**)
+- 🌿 **Support Infrarouge**: Valeurs NIR depuis orthophotos IRC IGN pour jeux de données prêts NDVI
+- 🎨 **Correction RGB CloudCompare**: Affichage couleur parfait avec mise à l'échelle 16-bit corrigée (plage 0-65535)
+- 📦 **Configuration Pipeline**: Workflows basés YAML pour reproductibilité
+
+**Version 1.7.4** | Python 3.8+ | Licence MIT
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -24,32 +38,51 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 ---
 
-## 🎉 Dernière Version : v1.7.3
+## 🎉 Dernière Version : v1.7.4
 
-**🌿 Augmentation Infrarouge pour l'Analyse de la Végétation**
+**🚀 Accélération GPU pour des Performances Maximales**
 
-La dernière version ajoute l'augmentation Proche Infrarouge (NIR) depuis les orthophotos IRC de l'IGN, permettant le calcul du NDVI et l'analyse avancée de la végétation/occupation du sol.
+La dernière version apporte l'accélération GPU avec support CuPy et RAPIDS cuML, offrant une accélération de **6-20x** pour le traitement LiDAR. Plus l'augmentation infrarouge pour l'analyse de la végétation.
 
 :::tip Démarrage Rapide
 
 ```bash
-# Enrichir avec RGB + Infrarouge (recommandé pour le ML !)
+# Enrichir avec GPU + RGB + Infrarouge (performances maximales !)
 ign-lidar-hd enrich --input-dir data/ --output output/ \
-  --auto-params --preprocess --add-rgb --add-infrared \
+  --use-gpu --auto-params --preprocess --add-rgb --add-infrared \
   --rgb-cache-dir cache/rgb --infrared-cache-dir cache/infrared
 ```
 
 :::
 
+**Fonctionnalités Clés v1.7.4 :**
+
+- 🚀 **Accélération GPU** - Support CuPy et RAPIDS cuML (accélération 6-20x)
+- ⚡ **Optimisation Per-Chunk** - Traitement intelligent par blocs locaux
+- 🎯 **Trois Modes de Performance** - CPU, Hybride GPU, GPU Complet
+- 🌿 **Augmentation Infrarouge** - Valeurs NIR depuis orthophotos IRC
+- 📊 **Support NDVI** - Indices de végétation prêts pour le ML
+- 💾 **Cache GPU Intelligent** - Gestion mémoire optimisée
+- 🌍 **Support WSL2** - Installation complète sous Windows
+
+📖 [Guide GPU](/docs/guides/gpu-acceleration) | [Installation RAPIDS](/docs/guides/gpu-acceleration#option-2-mode-gpu-complet-rapids-cuml---performance-maximale)
+
+---
+
+## Version Précédente : v1.7.3
+
+**🌿 Augmentation Infrarouge pour l'Analyse de la Végétation**
+
+Augmentation Proche Infrarouge (NIR) depuis les orthophotos IRC de l'IGN, permettant le calcul du NDVI et l'analyse avancée de la végétation.
+
 **Fonctionnalités Clés :**
 
-- 🌿 Valeurs Proche Infrarouge (NIR) depuis les orthophotos IRC de l'IGN
-- 📊 Jeux de données prêts pour le NDVI pour l'analyse de la végétation
+- 🌿 Valeurs NIR depuis orthophotos IRC
+- 📊 Calcul NDVI pour analyse de végétation
 - 🎨 Apprentissage multi-modal : Géométrie + RGB + NIR
-- 💾 Système de cache intelligent (disque + GPU)
-- 🔧 Intégration transparente avec l'augmentation RGB
+- 💾 Système de cache intelligent
 
-📖 [Guide Infrarouge](/docs/features/infrared-augmentation) | [Exemples NDVI](/docs/features/infrared-augmentation#vegetation-indices)
+📖 [Guide Infrarouge](/docs/features/infrared-augmentation)
 
 ---
 

@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ign-lidar-hd"
-version = "1.7.3"
+version = "1.7.4"
 description = "IGN LiDAR HD Dataset Processing Library for Building LOD Classification"
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
 authors = [
-    {name = "Simon Ducournau", email = "simon.ducournau@gmail.com"},
+    {name = "imagodata", email = "simon.ducournau@gmail.com"},
 ]
 keywords = ["lidar", "ign", "machine-learning", "gis", "building-classification"]
 classifiers = [

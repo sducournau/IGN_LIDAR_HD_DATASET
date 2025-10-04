@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 1.7.3** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 1.7.4** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 </div>
 
@@ -17,15 +17,26 @@
 
 A comprehensive Python library for processing IGN (Institut National de l'Information Géographique et Forestière) LiDAR HD data into machine learning-ready datasets for Building Level of Detail (LOD) classification tasks.
 
-## ✨ What's New in v1.7.3
+## ✨ What's New in v1.7.4
+
+🚀 **GPU Acceleration** - RAPIDS cuML support for 15-20x speedup, hybrid CuPy mode for 5-10x speedup  
+📚 **Enhanced Documentation** - Comprehensive GPU setup guides in English and French  
+🔧 **Per-Chunk Optimization** - Intelligent local KDTree strategy for optimal performance  
+⚡ **Three Performance Modes** - CPU, Hybrid GPU (CuPy), Full GPU (RAPIDS cuML)  
+🌍 **WSL2 Support** - Complete installation guides for Windows Subsystem for Linux
+
+[📖 GPU Quick Start](GPU_QUICK_START.md) | [🚀 GPU Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/gpu-acceleration)
+
+### Previous Updates (v1.7.3)
 
 🌿 **Infrared Augmentation** - NEW! Add Near-Infrared (NIR) values from IGN IRC orthophotos  
 📊 **NDVI Ready** - Enables vegetation index calculation and advanced land cover analysis  
 🎨 **Multi-Modal Enhancement** - Combines RGB + NIR for improved machine learning datasets  
 💾 **Smart Caching** - Efficient disk/GPU caching system shared with RGB augmentation  
-🔧 **Seamless Integration** - Works alongside RGB augmentation in enrich pipeline
+🔧 **Seamless Integration** - Works alongside RGB augmentation in enrich pipeline  
+🚀 **GPU Acceleration** - RAPIDS cuML support for 15-20x speedup (5-10x with CuPy hybrid mode)
 
-[📖 Infrared Documentation](INFRARED_AUGMENTATION.md) | [🚀 Quick Start](INFRARED_QUICKSTART.md)
+[📖 Infrared Documentation](INFRARED_AUGMENTATION.md) | [🚀 Infrared Quick Start](INFRARED_QUICKSTART.md) | [⚡ GPU Quick Start](GPU_QUICK_START.md)
 
 ### Previous Updates (v1.7.1)
 
@@ -135,7 +146,21 @@ pip install ign-lidar-hd
 ign-lidar-hd --version
 ```
 
-**📚 Complete Installation Guide:** See our [detailed installation documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/installation/quick-start) for GPU setup, development installation, and troubleshooting.
+**� GPU Acceleration (Optional):** For **5-10x speedup**, install with GPU support:
+
+```bash
+# Prerequisites: NVIDIA GPU, CUDA 12.0+, Miniconda/Anaconda
+conda create -n ign_gpu python=3.12 -y
+conda activate ign_gpu
+conda install -c rapidsai -c conda-forge -c nvidia cuml=24.10 cupy -y
+pip install ign-lidar-hd
+```
+
+**📚 Installation Guides:**
+
+- [Quick Start](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/installation/quick-start) - Standard installation
+- [GPU Setup Guide](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/gpu-acceleration) - CUDA & RAPIDS cuML installation
+- [Troubleshooting](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/troubleshooting) - Common issues & solutions
 
 ## Basic Usage
 
@@ -161,7 +186,8 @@ ign-lidar-hd download --bbox 2.3,48.8,2.4,48.9 --output data/ --max-tiles 5
 # Process LiDAR tiles (enriches with all features)
 ign-lidar-hd enrich --input-dir data/ --output enriched/ --mode full
 
-# GPU acceleration (5-10x faster, requires CUDA)
+# 🚀 GPU acceleration (5-10x faster with CuPy, 15-20x with RAPIDS cuML)
+# Requires: NVIDIA GPU, CUDA 12.0+, CuPy (or RAPIDS cuML for maximum speed)
 ign-lidar-hd enrich --input-dir data/ --output enriched/ --use-gpu
 
 # Enrich with RGB augmentation from IGN orthophotos

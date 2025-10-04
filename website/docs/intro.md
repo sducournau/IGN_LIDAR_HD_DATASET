@@ -1,21 +1,37 @@
 ---
-slug: /
-sidebar_position: 1
+slug**Version 1.7.4** | GPU Acceleration & Enhanced Performance
+
+✨ **What's New:**
+
+- 🚀 **GPU Acceleration**: RAPIDS cuML support for 15-20x speedup (5-10x with CuPy hybrid mode)
+- ⚡ **Per-Chunk Optimization**: Intelligent local KDTree strategy for optimal CPU/GPU performance
+- 📚 **Enhanced Documentation**: Comprehensive GPU guides in English and French
+- 🔧 **Three Performance Modes**: CPU baseline, Hybrid GPU (CuPy), Full GPU (RAPIDS cuML)
+- 🌍 **WSL2 Support**: Complete installation guides for Windows Subsystem for Linux
+- 🎯 **Enhanced Augmentation**: Features computed on augmented geometry (**disabled by default, enable with --augment**)
+- 🌿 **Infrared Support**: NIR values from IGN IRC orthophotos for NDVI-ready datasets
+- 🎨 **RGB CloudCompare Fix**: Perfect color display with corrected 16-bit scaling (0-65535 range)
+- 📦 **Pipeline Configuration**: YAML-based workflows for reproducibility
+
+**Version 1.7.4** | Python 3.8+ | MIT Licenseosition: 1
 title: IGN LiDAR HD Processing Library
 ---
 
 # IGN LiDAR HD Processing Library
 
-**Ve**Enhanced Data Augmentation & RGB Improvements\*\*
+**Version 1.7.3** | Enhanced Data Augmentation & GPU Acceleration
 
 ✨ **What's New:**
 
-- 🎯 **Enhanced Augmentation**: Features now computed on augmented geometry for better consistency (**disabled by default, enable with --augment**)
-- 🎨 **RGB CloudCompare Fix**: Perfect color display with corrected 16-bit scaling (0-65535 range)
-- ⚡ **GPU Acceleration**: Full support for CUDA-accelerated processing (5-10x speedup)
+- 🚀 **GPU Acceleration**: RAPIDS cuML support for 15-20x speedup (5-10x with CuPy hybrid mode)
+- 🎯 **Enhanced Augmentation**: Features computed on augmented geometry (**disabled by default, enable with --augment**)
+- � **Infrared Support**: NIR values from IGN IRC orthophotos for NDVI-ready datasets
+- �🎨 **RGB CloudCompare Fix**: Perfect color display with corrected 16-bit scaling (0-65535 range)
 - 📦 **Pipeline Configuration**: YAML-based workflows for reproducibility
 - 🔄 **Smart Resumability**: Never reprocess existing files
-- 🌍 **Comprehensive Documentation**: English and French guides1\*\* | Python 3.8+ | MIT License
+- 🌍 **Comprehensive Documentation**: English and French guides
+
+**Version 1.7.3** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)

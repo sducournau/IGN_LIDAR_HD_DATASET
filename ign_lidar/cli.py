@@ -484,9 +484,9 @@ def _enrich_single_file(args_tuple):
                     )
             
             # Compute features with optional GPU acceleration
-            # Note: chunk_size not yet supported in GPU path
+            # v1.7.0: GPU now supports chunked processing!
             if chunk_size is None:
-                # Use GPU-enabled function
+                # Use GPU-enabled function (no chunking needed)
                 (normals, curvature,
                  height_above_ground, geometric_features) = \
                     compute_all_features_with_gpu(
@@ -497,21 +497,51 @@ def _enrich_single_file(args_tuple):
                         radius=radius
                     )
             else:
-                # Chunked processing (CPU only for now)
-                if use_gpu and version_idx == 0:
-                    worker_logger.warning(
-                        "  GPU not supported with chunking, using CPU"
-                    )
-                from .features import compute_all_features_optimized
-                (normals, curvature,
-                 height_above_ground, geometric_features) = \
-                    compute_all_features_optimized(
-                        points_ver, classification_ver,
-                        k=k_neighbors,
-                        include_extra=False,
-                        chunk_size=chunk_size,
-                        radius=radius
-                    )
+                # Chunked processing - GPU or CPU
+                if use_gpu:
+                    # v1.7.0: Use new GPU chunked implementation
+                    if version_idx == 0:
+                        worker_logger.info(
+                            "  Using GPU acceleration with chunking"
+                        )
+                    try:
+                        from .features_gpu_chunked import (
+                            compute_all_features_gpu_chunked
+                        )
+                        (normals, curvature,
+                         height_above_ground, geometric_features) = \
+                            compute_all_features_gpu_chunked(
+                                points_ver, classification_ver,
+                                k=k_neighbors,
+                                chunk_size=chunk_size,
+                                radius=radius
+                            )
+                    except Exception as e:
+                        worker_logger.warning(
+                            f"  GPU chunking failed ({e}), using CPU"
+                        )
+                        from .features import compute_all_features_optimized
+                        (normals, curvature,
+                         height_above_ground, geometric_features) = \
+                            compute_all_features_optimized(
+                                points_ver, classification_ver,
+                                k=k_neighbors,
+                                include_extra=False,
+                                chunk_size=chunk_size,
+                                radius=radius
+                            )
+                else:
+                    # CPU chunked processing
+                    from .features import compute_all_features_optimized
+                    (normals, curvature,
+                     height_above_ground, geometric_features) = \
+                        compute_all_features_optimized(
+                            points_ver, classification_ver,
+                            k=k_neighbors,
+                            include_extra=False,
+                            chunk_size=chunk_size,
+                            radius=radius
+                        )
             
             # Ensure output directory exists
             output_path_ver.parent.mkdir(parents=True, exist_ok=True)
@@ -537,13 +567,14 @@ def _enrich_single_file(args_tuple):
             las_out.x = points_ver[:, 0]
             las_out.y = points_ver[:, 1]
             las_out.z = points_ver[:, 2]
-            las_out.classification = classification_ver
+            las_out.classification = classification_ver.astype(np.uint8)
             
             # Copy other standard fields if available
+            # Ensure correct data types for LAZ encoding
             if intensity_ver is not None:
-                las_out.intensity = intensity_ver
+                las_out.intensity = intensity_ver.astype(np.uint16)
             if return_number_ver is not None:
-                las_out.return_number = return_number_ver
+                las_out.return_number = return_number_ver.astype(np.uint8)
             
             # Add computed features as extra dimensions
             for i, dim in enumerate(['normal_x', 'normal_y', 'normal_z']):
@@ -868,8 +899,33 @@ def cmd_enrich(args):
     logger.info(f"Workers: {args.num_workers}")
     logger.info(f"Mode: {mode.upper()}")
     
-    # Check system memory status BEFORE starting
+    # v1.7.0: Use adaptive memory manager for intelligent configuration
     try:
+        from .memory_manager import AdaptiveMemoryManager
+        memory_manager = AdaptiveMemoryManager(
+            enable_gpu=getattr(args, 'use_gpu', False)
+        )
+        
+        # Get file sizes
+        laz_files_with_size = [(laz, laz.stat().st_size) for laz in laz_files]
+        file_sizes_mb = [size / (1024**2) for _, size in laz_files_with_size]
+        
+        # Use adaptive memory manager for worker optimization
+        optimal_workers = memory_manager.calculate_optimal_workers(
+            num_files=len(laz_files),
+            file_sizes_mb=file_sizes_mb,
+            mode=mode
+        )
+        
+        if optimal_workers < args.num_workers:
+            logger.warning(
+                f"⚠️  Adaptive memory manager recommends "
+                f"{optimal_workers} workers (requested: {args.num_workers})"
+            )
+            args.num_workers = optimal_workers
+        
+    except ImportError:
+        # Fallback to old method if new module not available
         import psutil
         mem = psutil.virtual_memory()
         swap = psutil.swap_memory()
@@ -903,9 +959,6 @@ def cmd_enrich(args):
                 f"to {max(1, max_safe_workers)}"
             )
             args.num_workers = max(1, max_safe_workers)
-            
-    except ImportError:
-        logger.warning("⚠️  psutil not available - cannot check memory")
     
     # Analyze file sizes and optimize worker count
     laz_files_with_size = [(laz, laz.stat().st_size) for laz in laz_files]

@@ -7,6 +7,101 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.4] - 2025-10-04
+
+### Added
+
+- **GPU Acceleration Support** 🚀
+
+  - Complete GPU acceleration with three performance modes: CPU, Hybrid (CuPy), Full GPU (RAPIDS cuML)
+  - CuPy integration for GPU-accelerated array operations (5-10x speedup)
+  - RAPIDS cuML support for GPU-accelerated ML algorithms (15-20x speedup)
+  - Automatic fallback to CPU when GPU unavailable
+  - Intelligent memory management with chunking for large point clouds
+  - Full WSL2 compatibility
+
+- **Per-Chunk Optimization Strategy** ⚡
+
+  - Intelligent local KDTree strategy for optimal CPU/GPU performance
+  - Chunks point clouds into ~5M point segments
+  - 5% overlap between chunks for edge case handling
+  - 10x faster than global KDTree with CPU sklearn
+  - Provides 80-90% of GPU performance without RAPIDS cuML
+
+- **Comprehensive Documentation** 📚
+
+  - New GPU Quick Start Guide (`GPU_QUICK_START.md`)
+  - GPU Implementation Summary (`GPU_IMPLEMENTATION_SUMMARY.md`)
+  - RAPIDS cuML Installation Guide (`INSTALL_CUML_GUIDE.md`)
+  - Per-Chunk Optimization documentation (`PER_CHUNK_OPTIMIZATION.md`)
+  - Repository Harmonization summary (`REPO_HARMONIZATION_SUMMARY.md`)
+  - Complete GPU guides in English and French (Docusaurus)
+  - Real hardware benchmarks (RTX 4080, 17M points)
+  - Comprehensive troubleshooting sections
+  - WSL2 installation guides
+
+- **Installation Scripts**
+  - Automated RAPIDS cuML installation script (`install_cuml.sh`)
+  - CUDA Toolkit installation helper (`install_cuda_wsl2.sh`)
+  - Three installation options: CuPy hybrid, RAPIDS cuML, automated
+
+### Changed
+
+- **Code Refactoring**
+
+  - Separated `use_gpu` and `use_cuml` flags in `features_gpu_chunked.py`
+  - GPU now works with CuPy alone, cuML optional for maximum performance
+  - Enhanced `features_gpu.py` with improved GPU feature computation
+  - Updated `processor.py` with better GPU integration
+
+- **Documentation Updates**
+
+  - Updated README.md with GPU installation options and quick start
+  - Updated English Docusaurus intro and GPU guide
+  - Updated French Docusaurus intro and GPU guide (complete translation)
+  - Version bumped to 1.7.4 across all files
+
+- **Performance Benchmarks**
+  - CPU: 60 min (baseline)
+  - Hybrid GPU: 7-10 min (6-8x speedup)
+  - Full GPU: 3-5 min (12-20x speedup)
+  - Batch (100 tiles): CPU 100h → Hybrid 14h → Full GPU 6h
+
+### Fixed
+
+- **GPU Detection Issue**
+
+  - Fixed code that required both CuPy AND cuML for GPU mode
+  - GPU now works with just CuPy installed (hybrid mode)
+  - Proper separation of GPU array operations and ML algorithms
+
+- **Global KDTree Performance**
+
+  - Fixed performance bottleneck with global KDTree for large point clouds
+  - Implemented per-chunk strategy with 5% overlap
+  - 10x improvement in hybrid mode processing time
+
+- **CuPy CUDA Library Detection**
+  - Fixed CuPy not finding CUDA runtime libraries in WSL2
+  - Added CUDA Toolkit installation guide
+  - Added LD_LIBRARY_PATH configuration instructions
+
+### Migration Notes
+
+- **No breaking changes** - GPU acceleration is opt-in via `--use-gpu` flag
+- **Existing workflows continue to work** without modifications
+- **To enable GPU**: Add `--use-gpu` flag to CLI or `use_gpu: true` in YAML
+- **For maximum performance**: Install RAPIDS cuML via conda
+
+### Requirements
+
+- **Hardware**: NVIDIA GPU with Compute Capability 6.0+ (4GB+ VRAM recommended)
+- **Software**: CUDA 12.0+ driver
+- **Hybrid Mode**: CuPy (cuda11x or cuda12x)
+- **Full GPU Mode**: RAPIDS cuML 24.10 + CuPy (via conda)
+
+## [1.7.3] - 2025-10-03
+
 ### Changed
 
 - **Breaking Change**: Geometric augmentation is now **DISABLED by default** in the `enrich` command
@@ -14,6 +109,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated default value from `True` to `False` in both CLI and processor
   - This allows users to process original tiles only by default, enabling augmentation only when needed
   - Updated all documentation to reflect this change
+
+## [1.7.0] - 2025-10-04
+
+### Added
+
+- **GPU Chunked Processing** 🚀
+
+  - New `features_gpu_chunked.py` module for GPU acceleration with chunked processing
+  - GPU now works with large point clouds (>10M points) and augmented data
+  - `GPUChunkedFeatureComputer` class with intelligent memory management
+  - Supports configurable chunk sizes and VRAM limits
+  - Automatic fallback to CPU if GPU fails or unavailable
+  - 10-15x speedup over CPU for large files and augmented processing
+  - Global KDTree strategy for correct spatial relationships across chunks
+  - Incremental memory management prevents VRAM exhaustion
+
+- **Adaptive Memory Management** 🧠
+
+  - New `memory_manager.py` module for intelligent resource configuration
+  - `AdaptiveMemoryManager` class with real-time monitoring
+  - Dynamic chunk size calculation based on available RAM/VRAM
+  - Intelligent worker count optimization
+  - Memory estimation before processing
+  - GPU vs CPU decision logic based on system resources
+  - Handles memory pressure scenarios (high swap usage, low RAM)
+
+- **CLI Integration**
+
+  - GPU chunking automatically used when `--use-gpu` flag is set
+  - Adaptive memory manager integrated into enrichment workflow
+  - Automatic worker optimization based on file sizes and system resources
+  - Graceful degradation with informative warnings
+
+- **Testing & Documentation**
+
+  - Comprehensive test suite: `test_gpu_chunking_v17.py` (450 lines)
+  - Complete implementation guide: `GPU_CHUNKING_IMPLEMENTATION.md` (650 lines)
+  - Implementation summary: `V17_IMPLEMENTATION_SUMMARY.md`
+  - Usage examples, performance benchmarks, and migration guide
+
+### Changed
+
+- Modified `cli.py` to integrate GPU chunked processing (lines 486-537)
+- Updated worker optimization logic to use adaptive memory manager (lines 901-948)
+- GPU acceleration now available for all file sizes (previously limited to <10M points)
+- GPU acceleration now available for augmented processing (previously disabled)
+
+### Performance
+
+- Large files (>10M points): **13x faster** with GPU vs CPU
+- Augmented processing: **12x faster** with GPU vs CPU
+- Typical workflow (17M points + 2 augmentations): **30 min → 2.5 min**
+- Memory efficiency: GPU now uses 4-6GB VRAM (vs 8-12GB without chunking)
+
+### Requirements
+
+- CuPy (cupy-cuda11x or cupy-cuda12x) >= 11.0.0 for GPU support
+- RAPIDS cuML >= 23.10.0 for GPU algorithms
+- psutil >= 5.9.0 for memory management (usually already installed)
+
+### Technical Details
+
+- Global KDTree built once on GPU for entire point cloud
+- Features processed in configurable chunks (default: 5M points)
+- Results transferred incrementally to CPU
+- Explicit GPU memory cleanup between chunks
+- Constant VRAM usage regardless of file size
+- Compatible with all existing CPU workflows (100% backwards compatible)
 
 ## [1.7.3] - 2025-10-04
 
