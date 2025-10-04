@@ -26,7 +26,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "guides/basic-usage",
         "guides/cli-commands",
-        "guides/auto-params-en",
+        "guides/auto-params",
         "guides/preprocessing",
       ],
     },
