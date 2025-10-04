@@ -22,58 +22,38 @@ Ce guide présente les workflows de traitement courants avec des représentation
 
 Le workflow le plus courant pour traiter les données LiDAR en datasets prêts pour le ML.
 
-```mermaid
-flowchart TD
-    Start([Démarrer Traitement]) --> Check{Données Disponibles?}
-    Check -->|Non| Download[Télécharger Dalles LiDAR]
-    Check -->|Oui| Skip1[Ignorer Téléchargement]
+:::tip Référence de Diagramme
+Pour le diagramme complet du workflow de base, voir [Diagrammes de Workflows - Pipeline de Traitement de Base](reference/workflow-diagrams.md#pipeline-de-traitement-de-base).
+:::
 
-    Download --> Validate{Fichiers Valides?}
-    Skip1 --> Validate
-    Validate -->|Non| Error1[Signaler Erreur]
-    Validate -->|Oui| Enrich[Enrichir avec Caractéristiques]
+Ce workflow comprend les étapes clés suivantes :
 
-    Enrich --> AutoParams{Auto-Params?<br/>v1.7.1}
-    AutoParams -->|Oui| Analyze[🤖 Analyser Dalle<br/>Densité, Espacement, Bruit]
-    AutoParams -->|Non| Manual[Utiliser Paramètres Manuels]
+1. **Vérification de Disponibilité des Données** : Vérifier si les tuiles LiDAR sont déjà téléchargées
+2. **Téléchargement** : Acquérir les tuiles depuis les serveurs IGN si nécessaire
+3. **Validation** : S'assurer que les fichiers téléchargés sont valides
+4. **Enrichissement** : Ajouter des features géométriques et la classification des composants de bâtiments
+5. **Augmentation RGB** : Optionnellement ajouter des informations de couleur depuis les orthophotos
+6. **Traitement** : Créer des patches d'entraînement pour l'apprentissage automatique
 
-    Analyze --> SetParams[Définir Optimaux:<br/>Rayon, SOR, ROR]
-    Manual --> SetParams
+Référez-vous aux [Diagrammes de Flux de Travail](../reference/workflow-diagrams.md) pour des visualisations complètes.
+SkipRGB --> Features
 
-    SetParams --> Preprocess{Prétraitement?<br/>v1.7.0}
-    Preprocess -->|Oui| CleanData[🧹 Filtres SOR + ROR<br/>Supprimer Artefacts]
-    Preprocess -->|Non| SkipClean[Ignorer Prétraitement]
+Features --> Process[Créer Patches d'Entraînement]
+Process --> Output[Dataset ML Prêt]
+Output --> End([Traitement Terminé])
 
-    CleanData --> GPU{Utiliser GPU?}
-    SkipClean --> GPU
+Error1 --> End
 
-    GPU -->|Oui| GPU_Process[⚡ Calcul Caractéristiques GPU]
-    GPU -->|Non| CPU_Process[Calcul Caractéristiques CPU]
+style Start fill:#e8f5e8
+style End fill:#e8f5e8
+style Download fill:#e3f2fd
+style Analyze fill:#c8e6c9
+style CleanData fill:#fff9c4
+style Enrich fill:#fff3e0
+style Process fill:#f3e5f5
+style Output fill:#e8f5e8
 
-    GPU_Process --> RGB{Ajouter RGB?}
-    CPU_Process --> RGB
-
-    RGB -->|Oui| FetchRGB[Récupérer Orthophotos IGN<br/>Ajouter Couleurs]
-    RGB -->|Non| SkipRGB[LiDAR Seulement]
-
-    FetchRGB --> Features[LAZ Enrichi Prêt]
-    SkipRGB --> Features
-
-    Features --> Process[Créer Patches d'Entraînement]
-    Process --> Output[Dataset ML Prêt]
-    Output --> End([Traitement Terminé])
-
-    Error1 --> End
-
-    style Start fill:#e8f5e8
-    style End fill:#e8f5e8
-    style Download fill:#e3f2fd
-    style Analyze fill:#c8e6c9
-    style CleanData fill:#fff9c4
-    style Enrich fill:#fff3e0
-    style Process fill:#f3e5f5
-    style Output fill:#e8f5e8
-```
+````
 
 ## ⚡ Workflow Accéléré GPU
 
@@ -117,7 +97,7 @@ flowchart TD
     style FeatureGPU fill:#c8e6c9
     style RGBInterpolate fill:#c8e6c9
     style Fallback fill:#fff3e0
-```
+````
 
 ### GPU Performance Benefits
 

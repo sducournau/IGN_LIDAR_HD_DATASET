@@ -79,24 +79,9 @@ ign-lidar-hd pipeline patch_config.yaml --create-example patch
 
 ### 2. Éditer la configuration
 
-```yaml
-# ma_config.yaml
-global:
-  num_workers: 4
+Pour des exemples détaillés de configurations, consultez [Exemples de Configuration](../reference/config-examples.md).
 
-enrich:
-  input_dir: "data/brut"
-  output: "data/enrichi"
-  mode: "building"
-  add_rgb: true
-  rgb_cache_dir: "cache/orthophotos"
-
-patch:
-  input_dir: "data/enrichi"
-  output: "data/patches"
-  lod_level: "LOD2"
-  num_points: 16384
-```
+Exemple simple :
 
 ### 3. Exécuter le pipeline
 
