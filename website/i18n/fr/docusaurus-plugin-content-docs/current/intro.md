@@ -50,7 +50,7 @@ ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params dalle1.laz 
 ign-lidar-hd enrich --input-dir data/ --output output/ --mode building --auto-params --preprocess --add-rgb
 ```
 
-📖 [Guide Auto-Params (EN)](/docs/guides/auto-params-en) | [Guide Auto-Params (FR)](/docs/guides/auto-params-fr) | [Notes de Version](/docs/release-notes/v1.7.1)
+📖 [Guide Auto-Params](/docs/guides/auto-params) | [Notes de Version](/docs/release-notes/v1.7.1)
 
 ---
 

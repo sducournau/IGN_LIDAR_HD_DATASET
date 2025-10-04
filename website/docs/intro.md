@@ -49,7 +49,7 @@ ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params tile1.laz t
 ign-lidar-hd enrich --input-dir data/ --output output/ --mode building --auto-params --preprocess --add-rgb
 ```
 
-📖 [Auto-Params Guide (EN)](/docs/guides/auto-params-en) | [Guide Auto-Params (FR)](/docs/guides/auto-params-fr) | [Release Notes](/docs/release-notes/v1.7.1)
+📖 [Auto-Params Guide](/docs/guides/auto-params) | [Release Notes](/docs/release-notes/v1.7.1)
 
 ---
 
