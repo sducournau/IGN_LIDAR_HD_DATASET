@@ -162,6 +162,7 @@ flowchart LR
 
 - 🎯 **Traitement LiDAR uniquement** - Aucune dépendance RGB requise
 - 🎨 **Augmentation RGB** - Enrichissement couleur optionnel depuis les orthophotos IGN
+- 🔄 **Augmentation de Données** - Activée par défaut : transformations géométriques avant calcul des caractéristiques (v1.6.0+)
 - 🧹 **Prétraitement du Nuage de Points** - Atténuation des artefacts de lignes de balayage LiDAR (NOUVEAU v1.7.0 !)
 - ⚡ **Détection intelligente de saut** - Reprendre les workflows interrompus
 - 🏗️ **Classification multi-niveaux** - Support LOD2 (15 classes) et LOD3 (30+ classes)

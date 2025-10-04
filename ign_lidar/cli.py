@@ -82,7 +82,8 @@ def _enrich_single_file(args_tuple):
     Args:
         args_tuple: (laz_path, output_path, k_neighbors, use_gpu,
                      mode, skip_existing, add_rgb, rgb_cache_dir, radius,
-                     preprocess, preprocess_config, auto_params)
+                     preprocess, preprocess_config, auto_params, augment,
+                     num_augmentations)
     
     Returns:
         str: 'skipped' if file already exists and skip_existing=True,
@@ -91,7 +92,8 @@ def _enrich_single_file(args_tuple):
     """
     (laz_path, output_path, k_neighbors,
      use_gpu, mode, skip_existing, add_rgb, rgb_cache_dir, radius,
-     preprocess, preprocess_config, auto_params) = args_tuple
+     preprocess, preprocess_config, auto_params, augment,
+     num_augmentations) = args_tuple
     
     import numpy as np
     import laspy
@@ -149,6 +151,10 @@ def _enrich_single_file(args_tuple):
         
         points = np.vstack([las.x, las.y, las.z]).T.astype(np.float32)
         classification = np.array(las.classification, dtype=np.uint8)
+        
+        # Store intensity and return_number if available (needed for augmentation)
+        intensity = np.array(las.intensity, dtype=np.float32) if hasattr(las, 'intensity') else None
+        return_number = np.array(las.return_number, dtype=np.float32) if hasattr(las, 'return_number') else None
         
         # Auto-analyze tile if requested
         if auto_params:
@@ -251,366 +257,452 @@ def _enrich_single_file(args_tuple):
                 f"  ✓ Preprocessing: {final_count:,}/{original_count:,} "
                 f"({reduction:.1%} reduction)"
             )
+            
+            # Update intensity and return_number with preprocessing mask
+            if intensity is not None:
+                intensity = intensity[cumulative_mask]
+                if voxel_cfg.get('enable', False):
+                    intensity = intensity[voxel_indices]
+            if return_number is not None:
+                return_number = return_number[cumulative_mask]
+                if voxel_cfg.get('enable', False):
+                    return_number = return_number[voxel_indices]
         
-        # Memory check - abort if insufficient memory available
-        n_points = len(points)
-        if PSUTIL_AVAILABLE:
-            try:
-                mem = psutil.virtual_memory()
-                mem_available = mem.available
-                available_mb = mem_available / 1024 / 1024
+        # Apply data augmentation if requested
+        # This creates augmented versions BEFORE feature computation
+        # to ensure features are computed on augmented geometry
+        versions_to_process = []
+        if augment and num_augmentations > 0:
+            worker_logger.info(
+                f"  🔄 Generating {num_augmentations} augmented versions..."
+            )
+            from .utils import augment_raw_points
+            
+            # Version 0: Original (no augmentation)
+            versions_to_process.append({
+                'suffix': '',
+                'points': points,
+                'classification': classification,
+                'intensity': intensity,
+                'return_number': return_number
+            })
+            
+            # Versions 1 to N: Augmented
+            for aug_idx in range(num_augmentations):
+                # Create fallback arrays if intensity/return_number not available
+                intensity_for_aug = (
+                    intensity if intensity is not None
+                    else np.ones(len(points), dtype=np.float32)
+                )
+                return_number_for_aug = (
+                    return_number if return_number is not None
+                    else np.ones(len(points), dtype=np.float32)
+                )
                 
-                # Estimate required memory based on mode
-                # Building mode needs significantly more memory due to:
-                # - Main features: ~40 bytes/point
-                # - KDTree for main features: ~24 bytes/point
-                # - Building features: additional KDTree + features: ~50 bytes/point
-                # Total for full mode: ~120-150 bytes/point (conservative)
-                # Core mode: ~70 bytes/point
-                if mode == 'full':
-                    bytes_per_point = 150  # Very conservative for full mode
-                else:
-                    bytes_per_point = 70   # Conservative for core mode
+                # Apply augmentation
+                (aug_points, aug_intensity,
+                 aug_return_number, aug_classification) = augment_raw_points(
+                    points, intensity_for_aug,
+                    return_number_for_aug, classification
+                )
                 
-                estimated_needed_mb = (n_points * bytes_per_point) / 1024 / 1024
-                
-                # Check if we have enough memory (require 60% safety margin)
-                # Also warn if swap is being used heavily
-                safety_factor = 0.6
-                if estimated_needed_mb > available_mb * safety_factor:
-                    worker_logger.error(
-                        f"  ✗ Insufficient memory for {laz_path.name}"
+                versions_to_process.append({
+                    'suffix': f'_aug{aug_idx + 1}',
+                    'points': aug_points,
+                    'classification': aug_classification,
+                    'intensity': (
+                        aug_intensity if intensity is not None else None
+                    ),
+                    'return_number': (
+                        aug_return_number if return_number is not None else None
                     )
-                    worker_logger.error(
-                        f"    Need ~{estimated_needed_mb:.0f}MB, "
-                        f"only {available_mb:.0f}MB available "
-                        f"(requires {safety_factor*100:.0f}% safety margin)"
-                    )
-                    worker_logger.error(
-                        "    Reduce --num-workers or process file alone"
-                    )
-                    return 'error'
-                
-                # Warn about swap usage
-                swap_percent = psutil.swap_memory().percent
-                if swap_percent > 50:
-                    worker_logger.warning(
-                        f"  ⚠️  High swap usage detected ({swap_percent:.0f}%)"
-                    )
-                    worker_logger.warning(
-                        "    System may be under memory pressure"
+                })
+            
+            worker_logger.info(
+                f"  ✓ Created {len(versions_to_process)} versions "
+                f"(1 original + {num_augmentations} augmented)"
+            )
+        else:
+            # No augmentation - process only original
+            versions_to_process.append({
+                'suffix': '',
+                'points': points,
+                'classification': classification,
+                'intensity': intensity,
+                'return_number': return_number
+            })
+        
+        # Process each version (original + augmented)
+        for version_idx, version_data in enumerate(versions_to_process):
+            points_ver = version_data['points']
+            classification_ver = version_data['classification']
+            intensity_ver = version_data['intensity']
+            return_number_ver = version_data['return_number']
+            suffix = version_data['suffix']
+            
+            # Create versioned output path
+            if suffix:
+                output_path_ver = output_path.parent / (
+                    output_path.stem + suffix + output_path.suffix
+                )
+            else:
+                output_path_ver = output_path
+            
+            # Skip if already exists
+            if skip_existing and output_path_ver.exists():
+                worker_logger.info(
+                    f"  ⏭️  Version {version_idx + 1} already exists, "
+                    f"skipping"
+                )
+                continue
+            
+            if suffix:
+                worker_logger.info(
+                    f"  Processing version "
+                    f"{version_idx + 1}/{len(versions_to_process)} "
+                    f"{suffix}..."
+                )
+        
+            # Memory check - abort if insufficient memory available
+            n_points = len(points_ver)
+            if PSUTIL_AVAILABLE:
+                try:
+                    mem = psutil.virtual_memory()
+                    mem_available = mem.available
+                    available_mb = mem_available / 1024 / 1024
+                    
+                    # Estimate required memory based on mode
+                    # Building mode needs significantly more memory due to:
+                    # - Main features: ~40 bytes/point
+                    # - KDTree for main features: ~24 bytes/point
+                    # - Building features: additional KDTree + features
+                    # Total for full mode: ~120-150 bytes/point (conservative)
+                    # Core mode: ~70 bytes/point
+                    if mode == 'full':
+                        bytes_per_point = 150
+                    else:
+                        bytes_per_point = 70
+                    
+                    estimated_needed_mb = (
+                        (n_points * bytes_per_point) / 1024 / 1024
                     )
                     
-            except (AttributeError, NameError):
-                # psutil error - continue anyway
-                pass
+                    # Check if we have enough memory (60% safety margin)
+                    safety_factor = 0.6
+                    if estimated_needed_mb > available_mb * safety_factor:
+                        worker_logger.error(
+                            f"  ✗ Insufficient memory for {laz_path.name}"
+                        )
+                        worker_logger.error(
+                            f"    Need ~{estimated_needed_mb:.0f}MB, "
+                            f"only {available_mb:.0f}MB available "
+                            f"(requires {safety_factor*100:.0f}% "
+                            f"safety margin)"
+                        )
+                        worker_logger.error(
+                            "    Reduce --num-workers or process alone"
+                        )
+                        return 'error'
+                    
+                    # Warn about swap usage
+                    swap_percent = psutil.swap_memory().percent
+                    if swap_percent > 50:
+                        worker_logger.warning(
+                            f"  ⚠️  High swap usage ({swap_percent:.0f}%)"
+                        )
+                        worker_logger.warning(
+                            "    System may be under memory pressure"
+                        )
+                        
+                except (AttributeError, NameError):
+                    # psutil error - continue anyway
+                    pass
+            
+            # Determine chunk size based on number of points
+            # Memory-efficient processing for large point clouds
+            # Conservative chunking to prevent OOM with multiple workers
+            if n_points > 40_000_000:
+                # Very large (>40M): 5M chunks - aggressive chunking
+                chunk_size = 5_000_000
+                if version_idx == 0:
+                    worker_logger.info(
+                        "  Using chunked processing (5M per chunk)"
+                    )
+            elif n_points > 20_000_000:
+                # Large (20-40M): 10M chunks
+                chunk_size = 10_000_000
+                if version_idx == 0:
+                    worker_logger.info(
+                        "  Using chunked processing (10M per chunk)"
+                    )
+            elif n_points > 10_000_000:
+                # Medium (10-20M): 15M chunks
+                chunk_size = 15_000_000
+                if version_idx == 0:
+                    worker_logger.info(
+                        "  Using chunked processing (15M per chunk)"
+                    )
+            else:
+                # Small (<10M): no chunking - process all at once
+                chunk_size = None
+            
+            # Compute features based on mode
+            if mode == 'full':
+                if version_idx == 0 or suffix:
+                    worker_logger.info(
+                        f"  Computing FULL features for "
+                        f"{len(points_ver):,} points..."
+                    )
+            else:
+                if version_idx == 0 or suffix:
+                    worker_logger.info(
+                        f"  Computing CORE features for "
+                        f"{len(points_ver):,} points..."
+                    )
+            
+            # Compute features with optional GPU acceleration
+            # Note: chunk_size not yet supported in GPU path
+            if chunk_size is None:
+                # Use GPU-enabled function
+                (normals, curvature,
+                 height_above_ground, geometric_features) = \
+                    compute_all_features_with_gpu(
+                        points_ver, classification_ver,
+                        k=k_neighbors,
+                        auto_k=False,
+                        use_gpu=use_gpu,
+                        radius=radius
+                    )
+            else:
+                # Chunked processing (CPU only for now)
+                if use_gpu and version_idx == 0:
+                    worker_logger.warning(
+                        "  GPU not supported with chunking, using CPU"
+                    )
+                from .features import compute_all_features_optimized
+                (normals, curvature,
+                 height_above_ground, geometric_features) = \
+                    compute_all_features_optimized(
+                        points_ver, classification_ver,
+                        k=k_neighbors,
+                        include_extra=False,
+                        chunk_size=chunk_size,
+                        radius=radius
+                    )
+            
+            # Ensure output directory exists
+            output_path_ver.parent.mkdir(parents=True, exist_ok=True)
         
-        # Determine chunk size based on number of points
-        # Memory-efficient processing for large point clouds
-        # Conservative chunking to prevent OOM with multiple workers
-        if n_points > 40_000_000:
-            # Very large (>40M): 5M chunks - aggressive chunking
-            chunk_size = 5_000_000
-            worker_logger.info("  Using chunked processing (5M per chunk)")
-        elif n_points > 20_000_000:
-            # Large (20-40M): 10M chunks
-            chunk_size = 10_000_000
-            worker_logger.info("  Using chunked processing (10M per chunk)")
-        elif n_points > 10_000_000:
-            # Medium (10-20M): 15M chunks
-            chunk_size = 15_000_000
-            worker_logger.info("  Using chunked processing (15M per chunk)")
-        else:
-            # Small (<10M): no chunking - process all at once
-            chunk_size = None
-        
-        # Compute features based on mode
-        if mode == 'full':
-            worker_logger.info(
-                f"  Computing FULL features for {len(points):,} points..."
-            )
-        else:
-            worker_logger.info(
-                f"  Computing CORE features for {len(points):,} points..."
-            )
-        
-        # Compute features with optional GPU acceleration
-        # Note: chunk_size not yet supported in GPU path
-        if chunk_size is None:
-            # Use GPU-enabled function
-            normals, curvature, height_above_ground, geometric_features = \
-                compute_all_features_with_gpu(
-                    points, classification,
-                    k=k_neighbors,
-                    auto_k=False,
-                    use_gpu=use_gpu,
-                    radius=radius
-                )
-        else:
-            # Chunked processing (CPU only for now)
-            if use_gpu:
-                worker_logger.warning(
-                    "  GPU not supported with chunked processing, using CPU"
-                )
-            from .features import compute_all_features_optimized
-            normals, curvature, height_above_ground, geometric_features = \
-                compute_all_features_optimized(
-                    points, classification,
-                    k=k_neighbors,
-                    include_extra=False,
-                    chunk_size=chunk_size,
-                    radius=radius
-                )
-        
-        # Output path is already set (preserves directory structure)
-        # Ensure output directory exists
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # If COPC, create new header without COPC VLRs to enable extra dims
-        if is_copc:
-            # Create clean header for standard LAZ (preserving point format)
+            # Create output LAZ with versioned geometry
             from laspy import LasHeader
             
-            # If RGB augmentation requested, ensure format supports RGB
-            # Format 6 may not initialize RGB properly, use format 7
+            # Determine target format (RGB support if needed)
             target_format = las.header.point_format.id
             if add_rgb and target_format == 6:
-                target_format = 7  # Format 7 has native RGB support
-                worker_logger.info(
-                    "  ℹ️ Converting to point format 7 for RGB support"
-                )
+                target_format = 7
             
+            # Create new LAS data with appropriate header
             new_header = LasHeader(
                 version=las.header.version,
                 point_format=target_format
             )
-            # Copy scale and offset
             new_header.scales = las.header.scales
             new_header.offsets = las.header.offsets
             las_out = laspy.LasData(new_header)
-            # Apply preprocessing mask if it was used
-            if preprocess_mask is not None:
-                las_out.x = las.x[preprocess_mask]
-                las_out.y = las.y[preprocess_mask]
-                las_out.z = las.z[preprocess_mask]
-                las_out.classification = las.classification[preprocess_mask]
-                # Copy other standard fields if present
-                if hasattr(las, 'intensity'):
-                    las_out.intensity = las.intensity[preprocess_mask]
-                if hasattr(las, 'return_number'):
-                    las_out.return_number = las.return_number[preprocess_mask]
-                if hasattr(las, 'number_of_returns'):
-                    las_out.number_of_returns = \
-                        las.number_of_returns[preprocess_mask]
-            else:
-                las_out.x = las.x
-                las_out.y = las.y
-                las_out.z = las.z
-                las_out.classification = las.classification
-                # Copy other standard fields if present
-                if hasattr(las, 'intensity'):
-                    las_out.intensity = las.intensity
-                if hasattr(las, 'return_number'):
-                    las_out.return_number = las.return_number
-                if hasattr(las, 'number_of_returns'):
-                    las_out.number_of_returns = las.number_of_returns
-        else:
-            # Standard LAZ - may need format conversion for RGB
-            rgb_formats = [2, 3, 5, 7, 8, 10]
-            if add_rgb and las.header.point_format.id not in rgb_formats:
-                # Convert to format with RGB support
-                from laspy import LasHeader
-                target_format = 7 if las.header.version.minor >= 4 else 3
-                old_fmt = las.header.point_format.id
+            
+            # Set coordinates and classification from versioned data
+            las_out.x = points_ver[:, 0]
+            las_out.y = points_ver[:, 1]
+            las_out.z = points_ver[:, 2]
+            las_out.classification = classification_ver
+            
+            # Copy other standard fields if available
+            if intensity_ver is not None:
+                las_out.intensity = intensity_ver
+            if return_number_ver is not None:
+                las_out.return_number = return_number_ver
+            
+            # Add computed features as extra dimensions
+            for i, dim in enumerate(['normal_x', 'normal_y', 'normal_z']):
+                las_out.add_extra_dim(
+                    laspy.ExtraBytesParams(name=dim, type=np.float32)
+                )
+                setattr(las_out, dim, normals[:, i])
+            
+            las_out.add_extra_dim(
+                laspy.ExtraBytesParams(name='curvature', type=np.float32)
+            )
+            las_out.curvature = curvature
+            
+            las_out.add_extra_dim(
+                laspy.ExtraBytesParams(
+                    name='height_above_ground', type=np.float32
+                )
+            )
+            las_out.height_above_ground = height_above_ground
+            
+            for key, values in geometric_features.items():
+                las_out.add_extra_dim(
+                    laspy.ExtraBytesParams(name=key, type=np.float32)
+                )
+                setattr(las_out, key, values)
+            
+            # Add extra building-specific features if in full mode
+            if mode == 'full':
+                try:
+                    # Import building-specific feature functions
+                    from .features import (
+                        compute_verticality, compute_wall_score,
+                        compute_roof_score, compute_num_points_in_radius
+                    )
+                    
+                    if version_idx == 0 or suffix:
+                        worker_logger.info(
+                            "  Computing additional features..."
+                        )
+                    
+                    # Verticality
+                    verticality = compute_verticality(normals)
+                    las_out.add_extra_dim(
+                        laspy.ExtraBytesParams(
+                            name='verticality', type=np.float32
+                        )
+                    )
+                    las_out.verticality = verticality
+                    
+                    # Wall score
+                    wall_score = compute_wall_score(
+                        normals, height_above_ground
+                    )
+                    las_out.add_extra_dim(
+                        laspy.ExtraBytesParams(
+                            name='wall_score', type=np.float32
+                        )
+                    )
+                    las_out.wall_score = wall_score
+                    
+                    # Roof score
+                    roof_score = compute_roof_score(
+                        normals, height_above_ground, curvature
+                    )
+                    las_out.add_extra_dim(
+                        laspy.ExtraBytesParams(
+                            name='roof_score', type=np.float32
+                        )
+                    )
+                    las_out.roof_score = roof_score
+                    
+                    # Num points in radius (memory-optimized)
+                    if n_points > 5_000_000:
+                        radius_chunk_size = 500_000
+                    elif n_points > 3_000_000:
+                        radius_chunk_size = 750_000
+                    else:
+                        radius_chunk_size = 1_000_000
+                    
+                    num_points_rad = compute_num_points_in_radius(
+                        points_ver, radius=2.0,
+                        chunk_size=radius_chunk_size
+                    )
+                    las_out.add_extra_dim(
+                        laspy.ExtraBytesParams(
+                            name='num_points_2m', type=np.float32
+                        )
+                    )
+                    las_out.num_points_2m = num_points_rad
+                    
+                except Exception as e:
+                    worker_logger.warning(
+                        f"  Could not compute building features: {e}"
+                    )
+            
+            # Add RGB augmentation if requested
+            if add_rgb:
+                try:
+                    from .rgb_augmentation import IGNOrthophotoFetcher
+                    
+                    if version_idx == 0 or suffix:
+                        worker_logger.info(
+                            "  Fetching RGB from IGN orthophotos..."
+                        )
+                    
+                    # Compute bbox from versioned points
+                    bbox = (
+                        points_ver[:, 0].min(),
+                        points_ver[:, 1].min(),
+                        points_ver[:, 0].max(),
+                        points_ver[:, 1].max()
+                    )
+                    
+                    # Create fetcher with cache if specified
+                    fetcher = IGNOrthophotoFetcher(cache_dir=rgb_cache_dir)
+                    
+                    # Fetch RGB colors
+                    rgb = fetcher.augment_points_with_rgb(
+                        points_ver, bbox=bbox
+                    )
+                    
+                    # Add RGB to LAZ
+                    if las_out.header.point_format.id in [
+                        2, 3, 5, 6, 7, 8, 10
+                    ]:
+                        # Native RGB support - scale to 16-bit
+                        las_out.red = rgb[:, 0].astype(np.uint16) * 257
+                        las_out.green = rgb[:, 1].astype(np.uint16) * 257
+                        las_out.blue = rgb[:, 2].astype(np.uint16) * 257
+                    else:
+                        # Add as extra dimensions
+                        las_out.add_extra_dim(
+                            laspy.ExtraBytesParams(
+                                name='red', type=np.uint8
+                            )
+                        )
+                        las_out.add_extra_dim(
+                            laspy.ExtraBytesParams(
+                                name='green', type=np.uint8
+                            )
+                        )
+                        las_out.add_extra_dim(
+                            laspy.ExtraBytesParams(
+                                name='blue', type=np.uint8
+                            )
+                        )
+                        las_out.red = rgb[:, 0]
+                        las_out.green = rgb[:, 1]
+                        las_out.blue = rgb[:, 2]
+                    
+                    if version_idx == 0 or suffix:
+                        worker_logger.info(
+                            f"  ✓ Added RGB to {len(points_ver):,} points"
+                        )
+                    
+                except ImportError as ie:
+                    worker_logger.warning(
+                        f"  ⚠️  RGB requires 'requests' and 'Pillow': {ie}"
+                    )
+                except Exception as e:
+                    worker_logger.warning(
+                        f"  ⚠️  Could not add RGB colors: {e}"
+                    )
+            
+            # Save with LAZ compression
+            las_out.write(output_path_ver, do_compress=True)
+            if suffix:
                 worker_logger.info(
-                    f"  ℹ️ Converting from format {old_fmt} "
-                    f"to format {target_format} for RGB support"
+                    f"  ✓ Saved{suffix} to {output_path_ver.name}"
                 )
-                new_header = LasHeader(
-                    version=las.header.version,
-                    point_format=target_format
-                )
-                new_header.scales = las.header.scales
-                new_header.offsets = las.header.offsets
-                las_out = laspy.LasData(new_header)
-                # Apply preprocessing mask if it was used
-                if preprocess_mask is not None:
-                    las_out.x = las.x[preprocess_mask]
-                    las_out.y = las.y[preprocess_mask]
-                    las_out.z = las.z[preprocess_mask]
-                    las_out.classification = \
-                        las.classification[preprocess_mask]
-                    if hasattr(las, 'intensity'):
-                        las_out.intensity = las.intensity[preprocess_mask]
-                    if hasattr(las, 'return_number'):
-                        las_out.return_number = \
-                            las.return_number[preprocess_mask]
-                    if hasattr(las, 'number_of_returns'):
-                        las_out.number_of_returns = \
-                            las.number_of_returns[preprocess_mask]
-                else:
-                    las_out.x = las.x
-                    las_out.y = las.y
-                    las_out.z = las.z
-                    las_out.classification = las.classification
-                    if hasattr(las, 'intensity'):
-                        las_out.intensity = las.intensity
-                    if hasattr(las, 'return_number'):
-                        las_out.return_number = las.return_number
-                    if hasattr(las, 'number_of_returns'):
-                        las_out.number_of_returns = las.number_of_returns
-            else:
-                # Preserve original header
-                las_out = laspy.LasData(las.header)
-                if preprocess_mask is not None:
-                    # Apply preprocessing mask to all points
-                    las_out.points = las.points[preprocess_mask]
-                else:
-                    las_out.points = las.points
+            
+            # Cleanup this version's data
+            del las_out, normals, curvature
+            del height_above_ground, geometric_features
+            gc.collect()
         
-        # Add extra dimensions
-        for i, dim in enumerate(['normal_x', 'normal_y', 'normal_z']):
-            las_out.add_extra_dim(laspy.ExtraBytesParams(name=dim, type=np.float32))
-            setattr(las_out, dim, normals[:, i])
-        
-        las_out.add_extra_dim(laspy.ExtraBytesParams(name='curvature', type=np.float32))
-        las_out.curvature = curvature
-        
-        las_out.add_extra_dim(laspy.ExtraBytesParams(name='height_above_ground', type=np.float32))
-        las_out.height_above_ground = height_above_ground
-        
-        for key, values in geometric_features.items():
-            las_out.add_extra_dim(laspy.ExtraBytesParams(name=key, type=np.float32))
-            setattr(las_out, key, values)
-        
-        # Add extra building-specific features if in full mode
-        if mode == 'full':
-            try:
-                # Import building-specific feature functions (CPU only)
-                from .features import (
-                    compute_verticality, compute_wall_score,
-                    compute_roof_score, compute_num_points_in_radius
-                )
-                
-                worker_logger.info("  Computing additional features...")
-                
-                # Verticality
-                verticality = compute_verticality(normals)
-                las_out.add_extra_dim(
-                    laspy.ExtraBytesParams(name='verticality', type=np.float32)
-                )
-                las_out.verticality = verticality
-                
-                # Wall score
-                wall_score = compute_wall_score(normals, height_above_ground)
-                las_out.add_extra_dim(
-                    laspy.ExtraBytesParams(name='wall_score', type=np.float32)
-                )
-                las_out.wall_score = wall_score
-                
-                # Roof score
-                roof_score = compute_roof_score(
-                    normals, height_above_ground, curvature
-                )
-                las_out.add_extra_dim(
-                    laspy.ExtraBytesParams(name='roof_score', type=np.float32)
-                )
-                las_out.roof_score = roof_score
-                
-                # Num points in radius (memory-optimized with chunking)
-                # Use aggressive chunking for large point clouds
-                # This feature is memory-intensive due to KDTree queries
-                if n_points > 5_000_000:
-                    # Very large clouds: 500k chunks
-                    radius_chunk_size = 500_000
-                elif n_points > 3_000_000:
-                    # Large clouds: 750k chunks
-                    radius_chunk_size = 750_000
-                else:
-                    # Smaller clouds: 1M chunks
-                    radius_chunk_size = 1_000_000
-                
-                num_points = compute_num_points_in_radius(
-                    points, radius=2.0, chunk_size=radius_chunk_size
-                )
-                las_out.add_extra_dim(
-                    laspy.ExtraBytesParams(name='num_points_2m', type=np.float32)
-                )
-                las_out.num_points_2m = num_points
-                
-            except Exception as e:
-                worker_logger.warning(
-                    f"  Could not compute building features: {e}"
-                )
-        
-        # Add RGB augmentation if requested
-        if add_rgb:
-            try:
-                from .rgb_augmentation import IGNOrthophotoFetcher
-                
-                worker_logger.info("  Fetching RGB colors from IGN orthophotos...")
-                
-                # Compute bbox
-                bbox = (
-                    points[:, 0].min(),
-                    points[:, 1].min(),
-                    points[:, 0].max(),
-                    points[:, 1].max()
-                )
-                
-                # Create fetcher with cache if specified
-                fetcher = IGNOrthophotoFetcher(cache_dir=rgb_cache_dir)
-                
-                # Fetch RGB colors
-                rgb = fetcher.augment_points_with_rgb(points, bbox=bbox)
-                
-                # Add RGB to LAZ
-                # Check if point format supports RGB
-                # Formats: 2,3,5 (LAS 1.2-1.3) and 6,7,8,10 (LAS 1.4)
-                if las_out.header.point_format.id in [2, 3, 5, 6, 7, 8, 10]:
-                    # Native RGB support - scale to 16-bit
-                    # Use 257 multiplier: 255 * 257 = 65535 (full 16-bit range)
-                    las_out.red = rgb[:, 0].astype(np.uint16) * 257
-                    las_out.green = rgb[:, 1].astype(np.uint16) * 257
-                    las_out.blue = rgb[:, 2].astype(np.uint16) * 257
-                else:
-                    # Add as extra dimensions if RGB not natively supported
-                    las_out.add_extra_dim(
-                        laspy.ExtraBytesParams(name='red', type=np.uint8)
-                    )
-                    las_out.add_extra_dim(
-                        laspy.ExtraBytesParams(name='green', type=np.uint8)
-                    )
-                    las_out.add_extra_dim(
-                        laspy.ExtraBytesParams(name='blue', type=np.uint8)
-                    )
-                    las_out.red = rgb[:, 0]
-                    las_out.green = rgb[:, 1]
-                    las_out.blue = rgb[:, 2]
-                
-                worker_logger.info(
-                    f"  ✓ Added RGB colors to {len(points):,} points"
-                )
-                
-            except ImportError as ie:
-                worker_logger.warning(
-                    f"  ⚠️  RGB augmentation requires 'requests' and 'Pillow': {ie}"
-                )
-            except Exception as e:
-                worker_logger.warning(
-                    f"  ⚠️  Could not add RGB colors: {e}"
-                )
-        
-        # Save with LAZ compression (LASzip format for QGIS compatibility)
-        # do_compress=True ensures LAZ compression is applied
-        # laspy will automatically use the best available backend (laszip preferred)
-        las_out.write(output_path, do_compress=True)
-        worker_logger.info(f"  ✓ Saved to {output_path}")
-        
-        # Explicit cleanup to free memory immediately
-        del las, las_out, points, classification, normals
-        del curvature, height_above_ground, geometric_features
-        gc.collect()
+        # All versions processed successfully
+        worker_logger.info(f"  ✓ Completed {laz_path.name}")
+        if augment and num_augmentations > 0:
+            worker_logger.info(
+                f"  Created {len(versions_to_process)} total files"
+            )
         
         return 'success'
         
@@ -859,6 +951,13 @@ def cmd_enrich(args):
         logger.info("Auto-parameter analysis: ENABLED")
         logger.info("  Each tile will be analyzed for optimal parameters")
     
+    # Get augmentation settings
+    augment = getattr(args, 'augment', True)
+    num_augmentations = getattr(args, 'num_augmentations', 3)
+    if augment:
+        logger.info(f"Data augmentation: ENABLED ({num_augmentations} versions)")
+        logger.info("  Augmented versions will be created before feature computation")
+    
     # Prepare arguments for worker function with preserved paths
     worker_args = []
     radius = getattr(args, 'radius', None)  # Get radius if available
@@ -869,7 +968,8 @@ def cmd_enrich(args):
         worker_args.append(
             (laz, output_path, args.k_neighbors, args.use_gpu,
              mode, skip_existing, add_rgb, rgb_cache_dir, radius,
-             preprocess, preprocess_config, auto_params)
+             preprocess, preprocess_config, auto_params, augment,
+             num_augmentations)
         )
     
     # Process files with better error handling and batching
@@ -1398,8 +1498,15 @@ def main():
     enrich_parser.add_argument(
         '--augment',
         action='store_true',
+        dest='augment',
         default=True,
-        help='Enable geometric data augmentation (default: True)'
+        help='Enable geometric data augmentation (default: enabled)'
+    )
+    enrich_parser.add_argument(
+        '--no-augment',
+        action='store_false',
+        dest='augment',
+        help='Disable geometric data augmentation'
     )
     enrich_parser.add_argument(
         '--num-augmentations',

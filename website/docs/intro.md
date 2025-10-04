@@ -6,7 +6,16 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 1.7.1** | Python 3.8+ | MIT License
+**Ve**Enhanced Data Augmentation & RGB Improvements\*\*
+
+✨ **What's New:**
+
+- 🎯 **Enhanced Augmentation**: Features now computed on augmented geometry for better consistency (**enabled by default**)
+- 🎨 **RGB CloudCompare Fix**: Perfect color display with corrected 16-bit scaling (0-65535 range)
+- ⚡ **GPU Acceleration**: Full support for CUDA-accelerated processing (5-10x speedup)
+- 📦 **Pipeline Configuration**: YAML-based workflows for reproducibility
+- 🔄 **Smart Resumability**: Never reprocess existing files
+- 🌍 **Comprehensive Documentation**: English and French guides1\*\* | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)

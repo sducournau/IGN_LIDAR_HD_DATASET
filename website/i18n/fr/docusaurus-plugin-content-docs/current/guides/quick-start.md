@@ -97,7 +97,22 @@ ign-lidar-hd enrich \
 - Calcule les caractéristiques géométriques (normales, courbure, planarité)
 - Ajoute toutes les caractéristiques supplémentaires en mode 'full'
 - Utilise l'accélération GPU si disponible (repli sur CPU)
+- **Crée des versions augmentées** (activé par défaut : 1 original + 3 augmentées par dalle)
 - Ignore les dalles déjà enrichies
+
+:::info Augmentation de Données (Activée par Défaut)
+Par défaut, la commande enrich crée **4 versions** de chaque dalle :
+
+- `nom_dalle.laz` (original)
+- `nom_dalle_aug1.laz` (version augmentée 1)
+- `nom_dalle_aug2.laz` (version augmentée 2)
+- `nom_dalle_aug3.laz` (version augmentée 3)
+
+Chaque version augmentée applique rotation aléatoire, bruit, mise à l'échelle et suppression de points avant le calcul des caractéristiques.
+
+Pour désactiver : ajoutez `--no-augment`  
+Pour changer le nombre : ajoutez `--num-augmentations N`
+:::
 
 **Caractéristiques Ajoutées :**
 
@@ -116,20 +131,20 @@ Ajoutez `--add-rgb --rgb-cache-dir cache/` pour enrichir avec les couleurs des o
 Générez des patches prêts pour l'apprentissage automatique :
 
 ```bash
+# Note : L'augmentation se fait pendant la phase ENRICH (activée par défaut)
+# Les dalles dans data/enrichi contiennent déjà les versions augmentées
 ign-lidar-hd patch \
   --input-dir data/enrichi \
   --output data/patches \
   --lod-level LOD2 \
-  --num-points 16384 \
-  --augment \
-  --num-augmentations 3
+  --num-points 16384
 ```
 
 **Ce que cela fait :**
 
 - Crée des patches de 150m × 150m à partir des dalles enrichies
 - Échantillonne 16 384 points par patch
-- Génère 3 versions augmentées par patch
+- Traite les dalles originales et augmentées (créées pendant enrich)
 - Sauvegarde en fichiers NPZ compressés
 
 **Structure de Sortie :**

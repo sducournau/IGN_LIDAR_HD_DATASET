@@ -158,7 +158,11 @@ ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --preprocess
 
 # 🆕 v1.7.1: Automatic parameter analysis (recommended!)
 # Analyzes each tile and selects optimal radius, SOR, ROR parameters
+# Note: Data augmentation is ENABLED by default (creates 3 augmented versions)
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --auto-params --preprocess --add-rgb
+
+# Disable augmentation if you only want original tiles
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --no-augment
 
 # Process specific tiles with auto-params
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --auto-params tile1.laz tile2.laz
@@ -246,7 +250,7 @@ patch:
 - **Memory optimization**: Chunked processing for large datasets
 - **Smart skip detection**: ⏭️ Automatically skip existing files and resume interrupted workflows
 - **Batch operations**: Process hundreds of tiles efficiently
-- **🆕 Improved augmentation**: Features computed on augmented geometry for consistency
+- **🆕 Improved augmentation**: Features computed on augmented geometry for consistency (enabled by default)
 
 ### 🔧 **Workflow Automation**
 
@@ -562,7 +566,7 @@ processor = LiDARProcessor(
 )
 ```
 
-> **🆕 v1.6.0**: Data augmentation now happens during the ENRICH phase (before feature computation) instead of the PATCH phase. This ensures geometric features (normals, curvature, planarity) are computed on augmented geometry for better feature-geometry consistency and improved model training quality. See `AUGMENTATION_IMPROVEMENT.md` for details.
+> **🆕 v1.6.0**: Data augmentation now happens during the ENRICH phase (before feature computation) instead of the PATCH phase. This ensures geometric features (normals, curvature, planarity) are computed on augmented geometry for better feature-geometry consistency and improved model training quality. **Augmentation is ENABLED by default** - each tile produces 1 original + 3 augmented versions (configurable with `--num-augmentations` or disable with `--no-augment`). See `AUGMENTATION_IMPROVEMENT.md` for details.
 
 ## 📊 Output Format
 
