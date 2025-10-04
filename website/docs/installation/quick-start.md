@@ -1,27 +1,100 @@
 ---
 sidebar_position: 1
+title: Installation Guide
+description: Complete installation guide for IGN LiDAR HD Processing Library
+keywords: [installation, pip, setup, gpu, cuda]
 ---
 
-# Quick Start Installation
+# Installation Guide
 
-## Requirements
+Complete installation guide for IGN LiDAR HD Processing Library. Get up and running in minutes with our step-by-step instructions.
 
-- Python 3.8 or higher
-- pip package manager
+## 📋 Requirements
 
-## Install from PyPI
+- **Python 3.8+** (Python 3.9-3.11 recommended)
+- **pip** package manager
+- **Operating System:** Windows, Linux, or macOS
+
+:::tip Check Python Version
+
+```bash
+python --version  # Should show Python 3.8 or higher
+```
+
+:::
+
+## 🚀 Standard Installation
+
+### Via PyPI (Recommended)
 
 ```bash
 pip install ign-lidar-hd
 ```
 
-## Verify Installation
+### Verify Installation
 
 ```bash
+# Check version
 ign-lidar-hd --version
+
+# Test CLI
+ign-lidar-hd --help
 ```
 
-## Alternative Installation Methods
+### Installation Options
+
+```bash
+# Standard installation (CPU only)
+pip install ign-lidar-hd
+
+# With RGB augmentation support
+pip install ign-lidar-hd[rgb]
+
+# With all features (excluding GPU)
+pip install ign-lidar-hd[all]
+```
+
+## ⚡ GPU Acceleration (Optional)
+
+**Performance Boost:** 5-10x faster feature computation
+
+### Prerequisites
+
+1. **NVIDIA GPU** with CUDA support
+2. **CUDA Toolkit 11.0+** installed
+3. **GPU Memory:** 4GB+ recommended
+
+Verify GPU setup:
+
+```bash
+nvidia-smi  # Should display GPU information
+```
+
+### Install GPU Support
+
+```bash
+# Install base package first
+pip install ign-lidar-hd
+
+# Then add CuPy for your CUDA version
+pip install cupy-cuda11x  # For CUDA 11.x
+# OR
+pip install cupy-cuda12x  # For CUDA 12.x
+```
+
+### Advanced GPU (RAPIDS cuML)
+
+For maximum performance:
+
+```bash
+# Using conda (recommended for RAPIDS)
+conda create -n ign-lidar python=3.10
+conda activate ign-lidar
+pip install ign-lidar-hd
+conda install -c rapidsai -c conda-forge -c nvidia cuml
+```
+
+## 🔧 Development Installation
 
 ### From Source
 
@@ -34,108 +107,98 @@ pip install -e .
 ### With Development Dependencies
 
 ```bash
-pip install -r requirements.txt
-pip install -e .
+pip install -e .[dev,test,docs]
 ```
 
-## Optional: GPU Support
+## 🐍 Virtual Environments
 
-For GPU-accelerated feature computation, install CuPy separately after installing the base package:
+### Using venv (Built-in)
 
 ```bash
-# Install base package
+python -m venv ign-lidar-env
+source ign-lidar-env/bin/activate  # Linux/macOS
+# or
+ign-lidar-env\Scripts\activate     # Windows
 pip install ign-lidar-hd
-
-# Then install CuPy for your CUDA version
-pip install cupy-cuda11x  # For CUDA 11.x
-# OR
-pip install cupy-cuda12x  # For CUDA 12.x
 ```
 
-Or using the GPU requirements file:
+### Using conda
 
 ```bash
-pip install -r requirements_gpu.txt
-```
-
-**GPU Requirements:**
-
-- NVIDIA GPU with CUDA support
-- CUDA Toolkit 11.0 or higher
-- CuPy package matching your CUDA version (`cupy-cuda11x` or `cupy-cuda12x`)
-
-## Environment Setup
-
-### Using conda (recommended)
-
-```bash
-conda create -n ign-lidar python=3.9
+conda create -n ign-lidar python=3.10
 conda activate ign-lidar
 pip install ign-lidar-hd
 ```
 
-### Using venv
+## ✅ Verify Installation
 
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# or
-.venv\Scripts\activate  # Windows
-pip install ign-lidar-hd
+### Basic Verification
+
+```python
+# Test Python imports
+import ign_lidar
+print(f"IGN LiDAR HD version: {ign_lidar.__version__}")
+
+# Test main classes
+from ign_lidar import LiDARProcessor, IGNLiDARDownloader
+print("✓ Installation successful!")
 ```
 
-## Test Installation
+### GPU Verification
 
-Test that everything works:
+```python
+# Check GPU availability
+from ign_lidar.features_gpu import GPU_AVAILABLE, CUML_AVAILABLE
 
-```bash
-# Check CLI access
-ign-lidar-hd --help
+print(f"GPU (CuPy) available: {GPU_AVAILABLE}")
+print(f"RAPIDS cuML available: {CUML_AVAILABLE}")
 
-# Or use the installed command
-ign-lidar-hd --help
+if GPU_AVAILABLE:
+    print("✓ GPU acceleration enabled!")
+else:
+    print("⚠️  GPU not detected - using CPU")
 ```
 
-You should see the available commands:
-
-- `download` - Download IGN LiDAR tiles
-- `enrich` - Add building features to LAZ files
-- `process` - Extract patches from enriched tiles
-
-## Next Steps
-
-- Try the [Basic Usage Guide](../guides/basic-usage.md)
-- Explore [CLI Commands](../guides/cli-commands.md)
-- Learn about [Smart Skip Features](../features/smart-skip.md)
-
-## Troubleshooting
+## 🔧 Troubleshooting
 
 ### Command Not Found
 
-If `ign-lidar-hd` command is not found:
-
 ```bash
-# Use Python module syntax instead
-ign-lidar-hd --help
+# If ign-lidar-hd command is not found, try:
+python -m ign_lidar.cli --help
 ```
 
 ### Import Errors
-
-If you get import errors:
 
 ```bash
 # Reinstall in development mode
 pip install -e .
 
-# Or check your Python path
+# Check Python path
 python -c "import sys; print('\n'.join(sys.path))"
 ```
 
-### Missing Dependencies
-
-Install all required packages:
+### GPU Issues
 
 ```bash
-pip install -r requirements.txt
-pip list  # Verify installation
+# Test CUDA availability
+python -c "import cupy; print('CUDA works!')"
+
+# Check CUDA version
+nvcc --version
 ```
+
+## 🚀 Next Steps
+
+Now that you're installed:
+
+1. 📖 Follow the [Quick Start Guide](../guides/quick-start.md)
+2. 🖥️ Try [Basic Usage Examples](../guides/basic-usage.md)
+3. ⚡ Configure [GPU acceleration](../gpu/overview.md) (if available)
+4. 📋 Explore [Pipeline Configuration](../features/pipeline-configuration.md)
+
+## 💡 Need Help?
+
+- 📚 Read the [Complete Documentation](/)
+- 🐛 Report issues on [GitHub Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)
+- 💬 Browse [Examples](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples)

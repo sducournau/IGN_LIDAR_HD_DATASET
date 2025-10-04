@@ -1,33 +1,20 @@
 ---
 sidebar_position: 2
 title: Guide de Démarrage Rapide
+description: Commencez avec IGN LiDAR HD en 5 minutes
+keywords: [quickstart, workflow, tutoriel, exemples]
 ---
 
 # Guide de Démarrage Rapide
 
-Commencez avec la Bibliothèque de Traitement LiDAR HD de l'IGN en 5 minutes ! Ce guide vous accompagnera à travers l'installation, l'utilisation de base et votre premier workflow complet.
+Commencez avec la Bibliothèque de Traitement LiDAR HD de l'IGN en 5 minutes ! Ce guide vous accompagne dans votre premier workflow complet du téléchargement à l'analyse.
+
+:::info Prérequis
+Assurez-vous d'avoir IGN LiDAR HD installé. Sinon, consultez d'abord le [Guide d'Installation](../installation/quick-start.md).
+:::
 
 ---
 
-## 📦 Installation
-
-### Installation Standard (CPU Uniquement)
-
-```bash
-pip install ign-lidar-hd
-```
-
-Cela installe la bibliothèque de base avec toutes les fonctionnalités essentielles pour le traitement basé sur CPU.
-
-### Installation Complète (Toutes les Fonctionnalités)
-
-```bash
-pip install ign-lidar-hd[all]
-```
-
-Cela inclut :
-
-- 🎨 Support d'augmentation RGB (Pillow, requests)
 - 📋 Configuration de pipeline YAML
 - 🛠️ Outils de développement
 

@@ -27,27 +27,25 @@ title: IGN LiDAR HD Processing Library
 
 **🤖 Automatic Parameter Analysis & Optimization**
 
-✨ **What's New:**
+The latest release introduces intelligent parameter analysis that automatically optimizes processing settings for each tile based on its characteristics.
 
-- 🤖 **Auto-Parameter Analysis**: Automatically analyze each tile to determine optimal processing parameters
-- 🎯 **Adaptive Processing**: Each tile gets custom radius, SOR, and ROR settings based on its characteristics
-- ⚡ **Zero Manual Tuning**: Eliminates parameter guesswork for varying tile characteristics (urban/rural/mixed)
-- 📊 **Smart Detection**: Analyzes point density, nearest neighbor spacing, and noise level in less than 1 second
-- 🔧 **CLI Integration**: Simple `--auto-params` flag enables intelligent parameter selection
-- 📈 **Quality Guarantee**: Ensures optimal artifact elimination regardless of point density
-
-**Usage:**
+:::tip Quick Start
 
 ```bash
 # Automatic parameter analysis (recommended!)
 ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params --preprocess
-
-# Process specific tiles with auto-analysis
-ign-lidar-hd enrich --input-dir data/ --output output/ --auto-params tile1.laz tile2.laz
-
-# Auto-params with all features (best quality)
-ign-lidar-hd enrich --input-dir data/ --output output/ --mode building --auto-params --preprocess --add-rgb
 ```
+
+:::
+
+**Key Features:**
+
+- 🤖 Auto-analysis of tile characteristics (density, spacing, noise)
+- 🎯 Adaptive parameter selection for urban/rural/mixed environments
+- ⚡ Zero manual tuning required
+- 📈 Optimal quality regardless of point density
+
+👉 **[See full release notes](release-notes/v1.7.1.md)** for complete details and migration guide.
 
 📖 [Auto-Params Guide](/docs/guides/auto-params) | [Release Notes](/docs/release-notes/v1.7.1)
 

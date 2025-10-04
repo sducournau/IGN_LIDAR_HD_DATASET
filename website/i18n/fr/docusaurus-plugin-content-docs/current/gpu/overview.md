@@ -8,12 +8,11 @@ keywords: [gpu, cuda, cupy, performance, accélération]
 # Aperçu de l'Accélération GPU
 
 **Disponible depuis :** v1.3.0+  
-**Performance :** 5-10x plus rapide que CPU  
-**Requis :** GPU NVIDIA, CUDA 11.0+  
-**Corrigé en v1.6.2 :** Formules GPU maintenant cohérentes avec CPU
+**Boost de Performance :** 5-10x plus rapide que CPU  
+**Requis :** GPU NVIDIA avec CUDA 11.0+
 
-:::warning Mise à Jour Importante v1.6.2
-Les formules de caractéristiques GPU ont été corrigées en v1.6.2 pour correspondre au CPU et à la littérature standard. Si vous avez utilisé GPU en v1.6.1 ou antérieure, réentraînez vos modèles. [En savoir plus →](/docs/release-notes/v1.6.2)
+:::tip Statut du Développement GPU
+🚧 **Amélioration GPU Majeure en Cours** - Nous implémentons une accélération GPU complète à travers tout le pipeline. Voir notre feuille de route détaillée dans la section "Développement Futur" ci-dessous pour les fonctionnalités à venir.
 :::
 
 ## Aperçu
@@ -519,16 +518,41 @@ processor = LiDARProcessor(use_gpu=True)
 | 1.3.0+       | 10.0+ | 11.0 - 12.x | 3.8+   |
 | 1.2.1+       | 10.0+ | 11.0+       | 3.8+   |
 
-## See Also
+## 🚀 Développement Futur
 
-- **[GPU Features](features.md)** - Detailed feature computation and API reference
-- **[RGB GPU Acceleration](rgb-augmentation.md)** - GPU-accelerated RGB augmentation (v1.5.0+)
-- **[Architecture](../architecture.md)** - System architecture
-- **[Workflows](../workflows.md)** - GPU workflow examples
+Nous étendons continuellement les capacités d'accélération GPU :
 
-## External Resources
+### Phase 3 : Pipeline GPU Avancé (En Cours)
 
-- [CuPy: NumPy-compatible Array Library](https://cupy.dev/)
-- [RAPIDS cuML](https://rapids.ai/)
+- **Traitement GPU Universel** : Accélération GPU complète du pipeline
+- **Support Multi-GPU** : Traitement distribué sur plusieurs GPU
+- **Algorithmes Avancés** : Indexation spatiale et recherche de voisinage basées GPU
+- **Optimisation Mémoire** : Pooling mémoire avancé et streaming
+- **Analytiques de Performance** : Surveillance des performances GPU en temps réel
+
+**Calendrier Prévu :** Versions progressives tout au long de 2024-2025
+
+### Fonctionnalités à Venir
+
+- 🔄 **Pooling Mémoire GPU** : Réduction de l'overhead d'allocation
+- 📊 **Tableau de Bord Performance GPU** : Surveillance temps réel
+- 🌐 **Traitement Multi-GPU** : Traitement parallèle des dalles
+- ⚡ **Traitement en Streaming** : Gestion de datasets plus grands que la mémoire GPU
+- 🎯 **Sélection GPU Automatique** : Distribution intelligente des tâches GPU/CPU
+
+:::info Restez Informé
+Suivez notre [dépôt GitHub](https://github.com/sducournau/IGN_LIDAR_HD_DATASET) pour les derniers développements d'accélération GPU et les annonces de version.
+:::
+
+## Voir Aussi
+
+- **[Fonctionnalités GPU](features.md)** - Calcul de caractéristiques détaillé et référence API
+- **[Accélération GPU RGB](rgb-augmentation.md)** - Augmentation RGB accélérée GPU (v1.5.0+)
+- **[Architecture](../architecture.md)** - Architecture système
+- **[Workflows](../workflows.md)** - Exemples de workflows GPU
+
+## Ressources Externes
+
+- [CuPy: Bibliothèque de Tableaux Compatible NumPy](https://cupy.dev/)
+- [RAPIDS cuML: Apprentissage Automatique Accéléré GPU](https://rapids.ai/)
 - [NVIDIA CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit)
-- [GPU-Accelerated Computing](https://www.nvidia.com/en-us/data-center/gpu-accelerated-applications/)

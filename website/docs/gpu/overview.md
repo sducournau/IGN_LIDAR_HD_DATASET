@@ -8,8 +8,12 @@ keywords: [gpu, cuda, cupy, performance, acceleration]
 # GPU Acceleration Overview
 
 **Available in:** v1.3.0+  
-**Performance:** 5-10x faster than CPU  
-**Requirements:** NVIDIA GPU, CUDA 11.0+
+**Performance Boost:** 5-10x faster than CPU  
+**Requirements:** NVIDIA GPU with CUDA 11.0+
+
+:::tip GPU Development Status
+🚧 **Major GPU Enhancement in Progress** - We're implementing comprehensive GPU acceleration across the entire pipeline. See our detailed roadmap in the "Future Development" section below for upcoming features.
+:::
 
 ## Overview
 
@@ -519,6 +523,32 @@ processor = LiDARProcessor(use_gpu=True)
 | 1.3.0+       | 10.0+ | 11.0 - 12.x | 3.8+   |
 | 1.2.1+       | 10.0+ | 11.0+       | 3.8+   |
 
+## 🚀 Future Development
+
+We're continuously expanding GPU acceleration capabilities:
+
+### Phase 3: Advanced GPU Pipeline (In Progress)
+
+- **Universal GPU Processing**: Full pipeline GPU acceleration
+- **Multi-GPU Support**: Distributed processing across multiple GPUs
+- **Advanced Algorithms**: GPU-based spatial indexing and neighborhood search
+- **Memory Optimization**: Advanced memory pooling and streaming
+- **Performance Analytics**: Real-time GPU performance monitoring
+
+**Expected Timeline:** Rolling releases throughout 2024-2025
+
+### Upcoming Features
+
+- 🔄 **GPU Memory Pooling**: Reduce allocation overhead
+- 📊 **GPU Performance Dashboard**: Real-time monitoring
+- 🌐 **Multi-GPU Processing**: Parallel tile processing
+- ⚡ **Streaming Processing**: Handle datasets larger than GPU memory
+- 🎯 **Auto-GPU Selection**: Intelligent GPU/CPU task distribution
+
+:::info Stay Updated
+Follow our [GitHub repository](https://github.com/sducournau/IGN_LIDAR_HD_DATASET) for the latest GPU acceleration developments and release announcements.
+:::
+
 ## See Also
 
 - **[GPU Features](features.md)** - Detailed feature computation and API reference
@@ -529,6 +559,8 @@ processor = LiDARProcessor(use_gpu=True)
 ## External Resources
 
 - [CuPy: NumPy-compatible Array Library](https://cupy.dev/)
+- [RAPIDS cuML: GPU-Accelerated Machine Learning](https://rapids.ai/)
+- [NVIDIA CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit)
 - [RAPIDS cuML](https://rapids.ai/)
 - [NVIDIA CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit)
 - [GPU-Accelerated Computing](https://www.nvidia.com/en-us/data-center/gpu-accelerated-applications/)

@@ -15,36 +15,47 @@ import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 const sidebars: SidebarsConfig = {
   tutorialSidebar: [
     "intro",
+
+    // Getting Started Section
     {
       type: "category",
-      label: "Installation",
-      items: ["installation/quick-start"],
-    },
-    {
-      type: "category",
-      label: "User Guides",
+      label: "📦 Getting Started",
       items: [
+        "installation/quick-start",
+        "guides/quick-start",
         "guides/basic-usage",
+      ],
+    },
+
+    // Core Documentation
+    {
+      type: "category",
+      label: "📖 Core Concepts",
+      items: ["architecture", "workflows"],
+    },
+
+    // User Guides
+    {
+      type: "category",
+      label: "🔧 User Guides",
+      items: [
         "guides/cli-commands",
         "guides/auto-params",
         "guides/preprocessing",
       ],
     },
 
-    // Promote core documentation
-    "architecture",
-    "workflows",
-
-    // NEW: GPU Acceleration Section
+    // GPU Acceleration
     {
       type: "category",
-      label: "GPU Acceleration",
+      label: "⚡ GPU Acceleration",
       items: ["gpu/overview", "gpu/features", "gpu/rgb-augmentation"],
     },
 
+    // Features
     {
       type: "category",
-      label: "Features",
+      label: "🚀 Features",
       items: [
         "features/smart-skip",
         "features/format-preferences",
@@ -54,15 +65,17 @@ const sidebars: SidebarsConfig = {
       ],
     },
 
+    // QGIS Integration
     {
       type: "category",
-      label: "QGIS Integration",
+      label: "🗺️ QGIS Integration",
       items: ["guides/qgis-integration", "guides/qgis-troubleshooting"],
     },
 
+    // Technical Reference
     {
       type: "category",
-      label: "Technical Reference",
+      label: "📚 Technical Reference",
       items: [
         "reference/memory-optimization",
         "mermaid-reference",
@@ -70,11 +83,14 @@ const sidebars: SidebarsConfig = {
       ],
     },
 
+    // Release Notes
     {
       type: "category",
-      label: "Release Notes",
+      label: "📝 Release Notes",
       items: [
+        "release-notes/v1.7.2",
         "release-notes/v1.7.1",
+        "release-notes/v1.7.0",
         "release-notes/v1.6.2",
         "release-notes/v1.6.0",
         "release-notes/v1.5.0",

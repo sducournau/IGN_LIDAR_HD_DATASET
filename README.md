@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 1.7.0** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 1.7.2** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 </div>
 
@@ -37,15 +37,7 @@ A comprehensive Python library for processing IGN (Institut National de l'Inform
 
 [📋 Implementation Guide](PHASE1_SPRINT1_COMPLETE.md) | [🔧 Integration Details](PHASE1_SPRINT2_COMPLETE.md) | [📊 Artifact Analysis](artifacts.md)
 
-### Previous Updates (v1.6.5)
-
-🎯 **Artefact-Free Geometric Features** - Comprehensive audit validates radius-based search eliminates LIDAR scan artefacts  
-📊 **Full Documentation Suite** - Complete audit reports, guides, and validation tests  
-⚙️ **Radius Parameter Support** - CLI and pipeline configuration for manual control or auto-estimation  
-✅ **Production Validated** - All features mathematically independent, no cross-contamination detected  
-🔬 **Scientific Accuracy** - ~10-15% slower but eliminates "dash line" artefacts completely
-
-[📊 Artefact Audit](ARTEFACT_AUDIT_SUMMARY.md) | [🎯 Radius Guide](RADIUS_PARAMETER_GUIDE.md) | [✅ Full Report](ARTEFACT_AUDIT_REPORT.md)
+**📚 Complete Release History:** See our [detailed release notes](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/release-notes/) for full version history and migration guides.
 
 ### Previous Updates (v1.6.4)
 
@@ -125,43 +117,13 @@ flowchart TD
 # Standard installation (CPU only)
 pip install ign-lidar-hd
 
-# With RGB augmentation support
-pip install ign-lidar-hd[rgb]
-
-# With all non-GPU features
-pip install ign-lidar-hd[all]
-
-# GPU acceleration (requires NVIDIA GPU + CUDA)
-# Install base package first, then add GPU support separately:
-pip install ign-lidar-hd
-pip install cupy-cuda11x  # For CUDA 11.x
-# OR
-pip install cupy-cuda12x  # For CUDA 12.x
-
-# Advanced GPU with RAPIDS cuML (best performance, conda recommended)
-pip install ign-lidar-hd
-pip install cupy-cuda12x  # Match your CUDA version
-conda install -c rapidsai -c conda-forge -c nvidia cuml
-# Or via pip (may require more configuration):
-# pip install cuml-cu11  # For CUDA 11.x
-# pip install cuml-cu12  # For CUDA 12.x
+# Verify installation
+ign-lidar-hd --version
 ```
 
-**GPU Requirements** (optional):
+**📚 Complete Installation Guide:** See our [detailed installation documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/installation/quick-start) for GPU setup, development installation, and troubleshooting.
 
-- NVIDIA GPU with CUDA support
-- CUDA Toolkit 11.0 or higher
-- CuPy package matching your CUDA version
-- Optional: RAPIDS cuML for advanced GPU-accelerated algorithms
-- Expected speedup: 5-6x faster than CPU (CuPy), up to 10x with RAPIDS
-
-📖 **GPU Documentation:**
-
-- 📘 [Complete GPU Guide](website/docs/gpu-guide.md) - Full documentation
-- 🚀 [Quick Start](GPU_QUICKSTART.md) - Get started in 30 seconds
-- 📊 [Performance Benchmarks](GPU_COMPLETE.md#performance-expectations) - Expected speedups
-
-### Basic Usage
+## Basic Usage
 
 ```python
 from ign_lidar import LiDARProcessor
@@ -176,21 +138,17 @@ patches = processor.process_tile("data.laz", "output/")
 patches = processor.process_directory("data/", "output/", num_workers=4)
 ```
 
-### Command Line Interface
+## Command Line Interface
 
 ```bash
-# Download tiles
-ign-lidar-hd download --bbox -2.0,47.0,-1.0,48.0 --output tiles/ --max-tiles 10
+# Download sample data
+ign-lidar-hd download --bbox 2.3,48.8,2.4,48.9 --output data/ --max-tiles 5
 
-# Enrich LAZ files with geometric features
-ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --num-workers 4
+# Process LiDAR tiles (enriches with building features)
+ign-lidar-hd enrich --input-dir data/ --output enriched/ --mode building
 
-# Enrich with geometric features
-ign-lidar-hd enrich --input-dir tiles/ --output enriched/
-
-# Enrich with GPU acceleration (requires CuPy)
-# Automatically falls back to CPU if GPU unavailable
-ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --use-gpu
+# GPU acceleration (5-10x faster, requires CUDA)
+ign-lidar-hd enrich --input-dir data/ --output enriched/ --use-gpu
 
 # Enrich with RGB augmentation from IGN orthophotos
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --add-rgb --rgb-cache-dir cache/

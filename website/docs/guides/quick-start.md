@@ -1,63 +1,17 @@
 ---
 sidebar_position: 2
 title: Quick Start Guide
+description: Get up and running with IGN LiDAR HD in 5 minutes
+keywords: [quickstart, workflow, tutorial, examples]
 ---
 
 # Quick Start Guide
 
-Get started with IGN LiDAR HD Processing Library in 5 minutes! This guide will walk you through installation, basic usage, and your first complete workflow.
+Get up and running with IGN LiDAR HD Processing Library in 5 minutes! This guide walks you through your first complete workflow from download to analysis.
 
----
-
-## 📦 Installation
-
-### Standard Installation (CPU Only)
-
-```bash
-pip install ign-lidar-hd
-```
-
-This installs the core library with all essential features for CPU-based processing.
-
-### Full Installation (All Features)
-
-```bash
-pip install ign-lidar-hd[all]
-```
-
-This includes:
-
-- 🎨 RGB augmentation support (Pillow, requests)
-- 📋 YAML pipeline configuration
-- 🛠️ Development tools
-
-### GPU Installation (Optional)
-
-For CUDA-accelerated processing (5-10x faster):
-
-```bash
-# Install base package
-pip install ign-lidar-hd
-
-# Install CuPy (match your CUDA version)
-pip install cupy-cuda11x  # For CUDA 11.x
-# OR
-pip install cupy-cuda12x  # For CUDA 12.x
-```
-
-**Requirements:**
-
-- NVIDIA GPU with CUDA support
-- CUDA Toolkit 11.0+
-- 4GB+ GPU memory recommended
-
-:::tip GPU Benefits
-GPU acceleration provides 5-10x speedup for:
-
-- Feature computation (normals, curvature)
-- RGB color interpolation (24x faster)
-- Large tile processing (>1M points)
-  :::
+:::info Prerequisites
+Make sure you have IGN LiDAR HD installed. If not, see the [Installation Guide](../installation/quick-start.md) first.
+:::
 
 ---
 
