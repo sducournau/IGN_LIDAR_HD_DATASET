@@ -77,6 +77,8 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "📚 Technical Reference",
       items: [
+        "reference/config-examples",
+        "reference/workflow-diagrams",
         "reference/memory-optimization",
         "mermaid-reference",
         "api/processor",

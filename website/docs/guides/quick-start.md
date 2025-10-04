@@ -128,40 +128,25 @@ For production workflows, use YAML configuration files for reproducibility:
 ign-lidar-hd pipeline my_workflow.yaml --create-example full
 ```
 
-This creates `my_workflow.yaml`:
+This creates a YAML configuration file. For detailed configuration examples, see [Configuration Examples](../reference/config-examples.md).
 
-```yaml
-global:
-  num_workers: 4
+### Quick Example
 
-download:
-  bbox: "2.3, 48.8, 2.4, 48.9"
-  output: "data/raw"
-  max_tiles: 10
+input_dir: "data/enriched"
+output: "data/patches"
+lod_level: "LOD2"
+patch_size: 150.0
+num_points: 16384
+augment: true
+num_augmentations: 3
 
-enrich:
-  input_dir: "data/raw"
-  output: "data/enriched"
-  mode: "building"
-  use_gpu: true
-  add_rgb: true
-  rgb_cache_dir: "cache/orthophotos"
-
-patch:
-  input_dir: "data/enriched"
-  output: "data/patches"
-  lod_level: "LOD2"
-  patch_size: 150.0
-  num_points: 16384
-  augment: true
-  num_augmentations: 3
-```
+````
 
 ### Run Pipeline
 
 ```bash
 ign-lidar-hd pipeline my_workflow.yaml
-```
+````
 
 **Benefits:**
 

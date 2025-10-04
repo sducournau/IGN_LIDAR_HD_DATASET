@@ -22,58 +22,39 @@ This guide demonstrates common processing workflows with visual representations 
 
 The most common workflow for processing LiDAR data into ML-ready datasets.
 
-```mermaid
-flowchart TD
-    Start([Start Processing]) --> Check{Data Available?}
-    Check -->|No| Download[Download LiDAR Tiles]
-    Check -->|Yes| Skip1[Skip Download]
+:::tip Diagram Reference
+For the complete basic workflow diagram, see [Workflow Diagrams - Basic Processing Pipeline](reference/workflow-diagrams.md#basic-processing-pipeline).
+:::
 
-    Download --> Validate{Files Valid?}
-    Skip1 --> Validate
-    Validate -->|No| Error1[Report Error]
-    Validate -->|Yes| Enrich[Enrich with Features]
+The workflow includes the following key stages:
 
-    Enrich --> AutoParams{Auto-Params?<br/>v1.7.1}
-    AutoParams -->|Yes| Analyze[🤖 Analyze Tile<br/>Density, Spacing, Noise]
-    AutoParams -->|No| Manual[Use Manual Parameters]
+1. **Data Availability Check**: Verify if LiDAR tiles are already downloaded
+2. **Download**: Acquire tiles from IGN servers if needed
+3. **Validation**: Ensure downloaded files are valid
+4. **Enrichment**: Add geometric features and building component classification
+5. **RGB Augmentation**: Optionally add color information from orthophotos
+6. **Processing**: Create training patches for machine learning
+   RGB -->|No| SkipRGB[LiDAR Only]
 
-    Analyze --> SetParams[Set Optimal:<br/>Radius, SOR, ROR]
-    Manual --> SetParams
+   FetchRGB --> Features[Enriched LAZ Ready]
+   SkipRGB --> Features
 
-    SetParams --> Preprocess{Preprocessing?<br/>v1.7.0}
-    Preprocess -->|Yes| CleanData[🧹 SOR + ROR Filters<br/>Remove Artifacts]
-    Preprocess -->|No| SkipClean[Skip Preprocessing]
+   Features --> Process[Create Training Patches]
+   Process --> Output[ML Dataset Ready]
+   Output --> End([Process Complete])
 
-    CleanData --> GPU{Use GPU?}
-    SkipClean --> GPU
+   Error1 --> End
 
-    GPU -->|Yes| GPU_Process[⚡ GPU Feature Computation]
-    GPU -->|No| CPU_Process[CPU Feature Computation]
+   style Start fill:#e8f5e8
+   style End fill:#e8f5e8
+   style Download fill:#e3f2fd
+   style Analyze fill:#c8e6c9
+   style CleanData fill:#fff9c4
+   style Enrich fill:#fff3e0
+   style Process fill:#f3e5f5
+   style Output fill:#e8f5e8
 
-    GPU_Process --> RGB{Add RGB?}
-    CPU_Process --> RGB
-
-    RGB -->|Yes| FetchRGB[Fetch IGN Orthophotos<br/>Add Colors]
-    RGB -->|No| SkipRGB[LiDAR Only]
-
-    FetchRGB --> Features[Enriched LAZ Ready]
-    SkipRGB --> Features
-
-    Features --> Process[Create Training Patches]
-    Process --> Output[ML Dataset Ready]
-    Output --> End([Process Complete])
-
-    Error1 --> End
-
-    style Start fill:#e8f5e8
-    style End fill:#e8f5e8
-    style Download fill:#e3f2fd
-    style Analyze fill:#c8e6c9
-    style CleanData fill:#fff9c4
-    style Enrich fill:#fff3e0
-    style Process fill:#f3e5f5
-    style Output fill:#e8f5e8
-```
+````
 
 ## ⚡ GPU-Accelerated Workflow
 
@@ -117,7 +98,7 @@ flowchart TD
     style FeatureGPU fill:#c8e6c9
     style RGBInterpolate fill:#c8e6c9
     style Fallback fill:#fff3e0
-```
+````
 
 ### GPU Performance Benefits
 

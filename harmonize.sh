@@ -23,11 +23,11 @@ echo "📁 Création des répertoires d'archive..."
 mkdir -p "website/archive/pre-harmonization/$(date +%Y%m%d\_%H%M%S)"
 
 # Variables
-
-WEBSITE*DIR="website"
-DOCS_EN="$WEBSITE_DIR/docs"
-DOCS_FR="$WEBSITE_DIR/i18n/fr/docusaurus-plugin-content-docs/current"
-ARCHIVE_DIR="$WEBSITE_DIR/archive/pre-harmonization/$(date +%Y%m%d*%H%M%S)"
+WEBSITE_DIR="website"
+DOCS_EN="${WEBSITE_DIR}/docs"
+DOCS_FR="${WEBSITE_DIR}/i18n/fr/docusaurus-plugin-content-docs/current"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+ARCHIVE_DIR="${WEBSITE_DIR}/archive/pre-harmonization/${TIMESTAMP}"
 
 # Check if French documentation exists
 
