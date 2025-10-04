@@ -153,6 +153,7 @@ def _enrich_single_file(args_tuple):
         classification = np.array(las.classification, dtype=np.uint8)
         
         # Apply preprocessing if enabled (artifact mitigation)
+        preprocess_mask = None  # Track which points to keep
         if preprocess and preprocess_config:
             worker_logger.info("  🧹 Preprocessing (artifact mitigation)...")
             
@@ -185,6 +186,9 @@ def _enrich_single_file(args_tuple):
                 )
                 cumulative_mask &= ror_mask
             
+            # Store the mask for later use when creating output
+            preprocess_mask = cumulative_mask.copy()
+            
             # Filter points and classification
             points = points[cumulative_mask]
             classification = classification[cumulative_mask]
@@ -198,6 +202,11 @@ def _enrich_single_file(args_tuple):
                     method=voxel_cfg.get('method', 'centroid')
                 )
                 classification = classification[voxel_indices]
+                # Update mask to reflect voxel downsampling
+                indices_after_sor_ror = np.where(cumulative_mask)[0]
+                final_indices = indices_after_sor_ror[voxel_indices]
+                preprocess_mask = np.zeros(original_count, dtype=bool)
+                preprocess_mask[final_indices] = True
             
             final_count = len(points)
             reduction = 1 - final_count / original_count
@@ -340,17 +349,32 @@ def _enrich_single_file(args_tuple):
             new_header.scales = las.header.scales
             new_header.offsets = las.header.offsets
             las_out = laspy.LasData(new_header)
-            las_out.x = las.x
-            las_out.y = las.y
-            las_out.z = las.z
-            las_out.classification = las.classification
-            # Copy other standard fields if present
-            if hasattr(las, 'intensity'):
-                las_out.intensity = las.intensity
-            if hasattr(las, 'return_number'):
-                las_out.return_number = las.return_number
-            if hasattr(las, 'number_of_returns'):
-                las_out.number_of_returns = las.number_of_returns
+            # Apply preprocessing mask if it was used
+            if preprocess_mask is not None:
+                las_out.x = las.x[preprocess_mask]
+                las_out.y = las.y[preprocess_mask]
+                las_out.z = las.z[preprocess_mask]
+                las_out.classification = las.classification[preprocess_mask]
+                # Copy other standard fields if present
+                if hasattr(las, 'intensity'):
+                    las_out.intensity = las.intensity[preprocess_mask]
+                if hasattr(las, 'return_number'):
+                    las_out.return_number = las.return_number[preprocess_mask]
+                if hasattr(las, 'number_of_returns'):
+                    las_out.number_of_returns = \
+                        las.number_of_returns[preprocess_mask]
+            else:
+                las_out.x = las.x
+                las_out.y = las.y
+                las_out.z = las.z
+                las_out.classification = las.classification
+                # Copy other standard fields if present
+                if hasattr(las, 'intensity'):
+                    las_out.intensity = las.intensity
+                if hasattr(las, 'return_number'):
+                    las_out.return_number = las.return_number
+                if hasattr(las, 'number_of_returns'):
+                    las_out.number_of_returns = las.number_of_returns
         else:
             # Standard LAZ - may need format conversion for RGB
             rgb_formats = [2, 3, 5, 7, 8, 10]
@@ -370,20 +394,40 @@ def _enrich_single_file(args_tuple):
                 new_header.scales = las.header.scales
                 new_header.offsets = las.header.offsets
                 las_out = laspy.LasData(new_header)
-                las_out.x = las.x
-                las_out.y = las.y
-                las_out.z = las.z
-                las_out.classification = las.classification
-                if hasattr(las, 'intensity'):
-                    las_out.intensity = las.intensity
-                if hasattr(las, 'return_number'):
-                    las_out.return_number = las.return_number
-                if hasattr(las, 'number_of_returns'):
-                    las_out.number_of_returns = las.number_of_returns
+                # Apply preprocessing mask if it was used
+                if preprocess_mask is not None:
+                    las_out.x = las.x[preprocess_mask]
+                    las_out.y = las.y[preprocess_mask]
+                    las_out.z = las.z[preprocess_mask]
+                    las_out.classification = \
+                        las.classification[preprocess_mask]
+                    if hasattr(las, 'intensity'):
+                        las_out.intensity = las.intensity[preprocess_mask]
+                    if hasattr(las, 'return_number'):
+                        las_out.return_number = \
+                            las.return_number[preprocess_mask]
+                    if hasattr(las, 'number_of_returns'):
+                        las_out.number_of_returns = \
+                            las.number_of_returns[preprocess_mask]
+                else:
+                    las_out.x = las.x
+                    las_out.y = las.y
+                    las_out.z = las.z
+                    las_out.classification = las.classification
+                    if hasattr(las, 'intensity'):
+                        las_out.intensity = las.intensity
+                    if hasattr(las, 'return_number'):
+                        las_out.return_number = las.return_number
+                    if hasattr(las, 'number_of_returns'):
+                        las_out.number_of_returns = las.number_of_returns
             else:
                 # Preserve original header
                 las_out = laspy.LasData(las.header)
-                las_out.points = las.points
+                if preprocess_mask is not None:
+                    # Apply preprocessing mask to all points
+                    las_out.points = las.points[preprocess_mask]
+                else:
+                    las_out.points = las.points
         
         # Add extra dimensions
         for i, dim in enumerate(['normal_x', 'normal_y', 'normal_z']):

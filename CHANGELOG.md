@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2025-10-04
+
+### Fixed
+
+- **Preprocessing + RGB Augmentation Bug** 🐛
+  - Fixed shape mismatch error when using `--preprocess` with `--add-rgb`
+  - Error occurred because RGB augmentation tried to broadcast filtered point array into original unfiltered LAS structure
+  - Now properly applies preprocessing mask when creating output LAZ file
+  - Affects both COPC and standard LAZ files
+  - Error message was: "could not broadcast input array from shape (X,) into shape (Y,)"
+  - Solution: Track and apply preprocessing mask to all point data before adding features and RGB
+
 ## [1.7.0] - 2025-10-04
 
 ### Added
