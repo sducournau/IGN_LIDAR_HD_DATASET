@@ -100,16 +100,16 @@ Pour plus de détails, voir :
 
 ---
 
-## API Reference
+## Référence API
 
-### GPUFeatureComputer Class
+### Classe GPUFeatureComputer
 
-The main class for GPU-accelerated feature computation.
+La classe principale pour le calcul de caractéristiques accéléré par GPU.
 
 ```python
 from ign_lidar.features_gpu import GPUFeatureComputer
 
-# Initialize GPU feature computer
+# Initialiser le calculateur de caractéristiques GPU
 computer = GPUFeatureComputer(
     use_gpu=True,
     batch_size=100000,
@@ -118,20 +118,20 @@ computer = GPUFeatureComputer(
 )
 ```
 
-#### Constructor Parameters
+#### Paramètres du Constructeur
 
-| Parameter      | Type  | Default  | Description                    |
-| -------------- | ----- | -------- | ------------------------------ |
-| `use_gpu`      | bool  | `True`   | Enable GPU acceleration        |
-| `batch_size`   | int   | `100000` | Points processed per GPU batch |
-| `memory_limit` | float | `0.8`    | GPU memory usage limit (0-1)   |
-| `device_id`    | int   | `0`      | CUDA device ID (for multi-GPU) |
+| Paramètre      | Type  | Défaut   | Description                            |
+| -------------- | ----- | -------- | -------------------------------------- |
+| `use_gpu`      | bool  | `True`   | Activer l'accélération GPU             |
+| `batch_size`   | int   | `100000` | Points traités par lot GPU             |
+| `memory_limit` | float | `0.8`    | Limite d'utilisation mémoire GPU (0-1) |
+| `device_id`    | int   | `0`      | ID périphérique CUDA (pour multi-GPU)  |
 
-### Main Methods
+### Méthodes Principales
 
 #### compute_all_features_with_gpu()
 
-Compute all features for a point cloud using GPU acceleration.
+Calculer toutes les caractéristiques pour un nuage de points en utilisant l'accélération GPU.
 
 ```python
 from ign_lidar.features import compute_all_features_with_gpu
@@ -221,22 +221,22 @@ linearity = geo_features['linearity']
 sphericity = geo_features['sphericity']
 ```
 
-## Advanced Usage
+## Utilisation Avancée
 
-### Batch Processing Optimization
+### Optimisation du Traitement par Lots
 
-For processing multiple tiles, reuse the GPU computer instance:
+Pour traiter plusieurs dalles, réutilisez l'instance du calculateur GPU :
 
 ```python
 from ign_lidar.features_gpu import GPUFeatureComputer
 from pathlib import Path
 
-# Initialize once
+# Initialiser une fois
 computer = GPUFeatureComputer(use_gpu=True, batch_size=100000)
 
-# Process multiple tiles
+# Traiter plusieurs dalles
 for tile_path in Path("tiles/").glob("*.laz"):
-    # Load tile
+    # Charger la dalle
     points, classification = load_tile(tile_path)
 
     # Compute features (GPU stays initialized)
@@ -250,32 +250,32 @@ for tile_path in Path("tiles/").glob("*.laz"):
     save_enriched_tile(tile_path, normals, curvature, height, geo_features)
 ```
 
-### Memory Management
+### Gestion de la Mémoire
 
-Control GPU memory usage for large tiles:
+Contrôler l'utilisation de la mémoire GPU pour les grandes dalles :
 
 ```python
 from ign_lidar.features_gpu import GPUFeatureComputer
 
-# For very large tiles (>5M points)
+# Pour très grandes dalles (>5M points)
 computer = GPUFeatureComputer(
     use_gpu=True,
-    batch_size=50000,  # Smaller batch size
-    memory_limit=0.6   # Use less GPU memory
+    batch_size=50000,  # Taille de lot plus petite
+    memory_limit=0.6   # Utiliser moins de mémoire GPU
 )
 
-# For small to medium tiles (<1M points)
+# Pour dalles petites à moyennes (<1M points)
 computer = GPUFeatureComputer(
     use_gpu=True,
-    batch_size=200000,  # Larger batch size
-    memory_limit=0.9    # Use more GPU memory
+    batch_size=200000,  # Taille de lot plus grande
+    memory_limit=0.9    # Utiliser plus de mémoire GPU
 )
 ```
 
-### Multi-GPU Support (Experimental)
+### Support Multi-GPU (Expérimental)
 
-:::caution Experimental Feature
-Multi-GPU support is experimental in v1.5.0. Use with caution in production.
+:::caution Fonctionnalité Expérimentale
+Le support multi-GPU est expérimental en v1.5.0. À utiliser avec prudence en production.
 :::
 
 ```python
@@ -313,26 +313,26 @@ computer = CustomGPUComputer(use_gpu=True)
 
 Choose batch size based on GPU memory:
 
-| GPU Memory | Recommended Batch Size | Max Point Cloud |
-| ---------- | ---------------------- | --------------- |
-| 4 GB       | 50,000                 | 2M points       |
-| 8 GB       | 100,000                | 5M points       |
-| 12 GB      | 150,000                | 8M points       |
-| 16 GB+     | 200,000+               | 10M+ points     |
+| Mémoire GPU | Taille de Lot Recommandée | Nuage de Points Max |
+| ----------- | ------------------------- | ------------------- |
+| 4 GB        | 50 000                    | 2M points           |
+| 8 GB        | 100 000                   | 5M points           |
+| 12 GB       | 150 000                   | 8M points           |
+| 16 GB+      | 200 000+                  | 10M+ points         |
 
-### 2. K-Neighbors Selection
+### 2. Sélection des K-Voisins
 
-Larger k values benefit more from GPU:
+Les valeurs k plus grandes bénéficient davantage du GPU :
 
 ```python
-# Optimal for GPU (k >= 20)
+# Optimal pour GPU (k >= 20)
 features = compute_all_features_with_gpu(points, classification, k=20, use_gpu=True)
 
-# Less optimal for GPU (k < 10)
+# Moins optimal pour GPU (k < 10)
 features = compute_all_features_with_gpu(points, classification, k=5, use_gpu=True)
 ```
 
-### 3. Memory Transfer Optimization
+### 3. Optimisation du Transfert Mémoire
 
 Minimize CPU-GPU transfers by batching operations:
 

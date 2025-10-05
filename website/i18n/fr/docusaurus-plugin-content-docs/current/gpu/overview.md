@@ -57,39 +57,39 @@ L'accélération GPU est plus bénéfique pour les nuages de points avec >100K p
 
 ## Installation
 
-### Step 1: Check CUDA Availability
+### Étape 1 : Vérifier la Disponibilité CUDA
 
-First, verify you have an NVIDIA GPU and CUDA installed:
+D'abord, vérifiez que vous avez un GPU NVIDIA et CUDA installé :
 
 ```bash
-# Check if you have an NVIDIA GPU
+# Vérifier si vous avez un GPU NVIDIA
 nvidia-smi
 
-# Should show your GPU info and CUDA version
+# Devrait afficher les infos de votre GPU et la version CUDA
 ```
 
-If `nvidia-smi` is not found, you need to install NVIDIA drivers and CUDA Toolkit first.
+Si `nvidia-smi` n'est pas trouvé, vous devez d'abord installer les pilotes NVIDIA et le CUDA Toolkit.
 
-### Step 2: Install CUDA Toolkit
+### Étape 2 : Installer le CUDA Toolkit
 
-Visit [NVIDIA CUDA Downloads](https://developer.nvidia.com/cuda-downloads) and follow instructions for your OS.
+Visitez [NVIDIA CUDA Downloads](https://developer.nvidia.com/cuda-downloads) et suivez les instructions pour votre OS.
 
-**Recommended versions:**
+**Versions recommandées :**
 
-- CUDA 11.8 (most compatible)
-- CUDA 12.x (latest features)
+- CUDA 11.8 (le plus compatible)
+- CUDA 12.x (dernières fonctionnalités)
 
-:::info WSL2 Support
-GPU acceleration works on WSL2! Requirements:
+:::info Support WSL2
+L'accélération GPU fonctionne sur WSL2 ! Prérequis :
 
-- Windows 11 or Windows 10 21H2+
-- NVIDIA drivers installed on Windows
-- CUDA toolkit installed in WSL2
+- Windows 11 ou Windows 10 21H2+
+- Pilotes NVIDIA installés sur Windows
+- CUDA toolkit installé dans WSL2
 
-See [NVIDIA WSL guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) for details.
+Voir le [guide NVIDIA WSL](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) pour les détails.
 :::
 
-### Step 3: Install Python GPU Dependencies
+### Étape 3 : Installer les Dépendances GPU Python
 
 ```bash
 # Option 1: Basic GPU support with CuPy (recommended for most users)
@@ -134,20 +134,20 @@ GPU (CuPy) available: True
 RAPIDS cuML available: True
 ```
 
-## Quick Start
+## Démarrage Rapide
 
-### Command Line Interface
+### Interface en Ligne de Commande
 
-Simply add the `--use-gpu` flag to any `enrich` command:
+Ajoutez simplement le flag `--use-gpu` à n'importe quelle commande `enrich` :
 
 ```bash
-# Basic usage
+# Utilisation de base
 ign-lidar-hd enrich \
   --input tiles/ \
   --output enriched/ \
   --use-gpu
 
-# With additional options
+# Avec options additionnelles
 ign-lidar-hd enrich \
   --input tiles/ \
   --output enriched/ \
@@ -156,8 +156,8 @@ ign-lidar-hd enrich \
   --num-workers 4
 ```
 
-:::tip Automatic Fallback
-The `--use-gpu` flag will automatically fall back to CPU if GPU is not available. Your processing will continue without errors.
+:::tip Repli Automatique
+Le flag `--use-gpu` basculera automatiquement sur CPU si le GPU n'est pas disponible. Votre traitement continuera sans erreurs.
 :::
 
 ### Python API
@@ -284,19 +284,19 @@ flowchart TD
     style Fallback fill:#fff3e0
 ```
 
-## Performance Benchmarks
+## Benchmarks de Performance
 
-### Expected Speedups
+### Accélérations Attendues
 
-Based on testing with various GPUs:
+Basé sur des tests avec différents GPU :
 
-| Point Count | CPU (12 cores) | GPU (RTX 3080) | Speedup |
-| ----------- | -------------- | -------------- | ------- |
-| 1K points   | 0.02s          | 0.01s          | 2x      |
-| 10K points  | 0.15s          | 0.03s          | 5x      |
-| 100K points | 0.50s          | 0.08s          | 6.3x    |
-| 1M points   | 4.5s           | 0.8s           | 5.6x    |
-| 10M points  | 45s            | 8s             | 5.6x    |
+| Nombre de Points | CPU (12 cœurs) | GPU (RTX 3080) | Accélération |
+| ---------------- | -------------- | -------------- | ------------ |
+| 1K points        | 0.02s          | 0.01s          | 2x           |
+| 10K points       | 0.15s          | 0.03s          | 5x           |
+| 100K points      | 0.50s          | 0.08s          | 6.3x         |
+| 1M points        | 4.5s           | 0.8s           | 5.6x         |
+| 10M points       | 45s            | 8s             | 5.6x         |
 
 **Factors affecting performance:**
 
@@ -317,15 +317,15 @@ xychart-beta
     bar "GPU (RTX 4090)" [60, 40, 28, 16]
 ```
 
-### Benchmarking Your System
+### Benchmarking de Votre Système
 
-Use the included benchmark script to test GPU vs CPU performance:
+Utilisez le script de benchmark inclus pour tester les performances GPU vs CPU :
 
 ```bash
-# Quick synthetic benchmark
+# Benchmark synthétique rapide
 python scripts/benchmarks/benchmark_gpu.py --synthetic
 
-# Benchmark with real data
+# Benchmark avec des données réelles
 python scripts/benchmarks/benchmark_gpu.py path/to/file.laz
 
 # Comprehensive multi-size benchmark
