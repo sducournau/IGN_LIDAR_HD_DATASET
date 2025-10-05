@@ -14,11 +14,63 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}IGN LiDAR HD - PyPI Upload Helper${NC}"
 echo "=================================="
 
-# Check if virtual environment is activated
-if [[ "$VIRTUAL_ENV" == "" ]]; then
-    echo -e "${YELLOW}Activating virtual environment...${NC}"
-    source .venv/bin/activate
+# Check if we're in a conda environment or virtual environment
+if [[ "$CONDA_DEFAULT_ENV" != "" ]]; then
+    echo -e "${GREEN}Using conda environment: $CONDA_DEFAULT_ENV${NC}"
+elif [[ "$VIRTUAL_ENV" != "" ]]; then
+    echo -e "${GREEN}Using virtual environment: $VIRTUAL_ENV${NC}"
+else
+    echo -e "${YELLOW}No environment detected. Attempting to activate...${NC}"
+    
+    # Try to activate conda environment first (ign_gpu is the project's conda env)
+    if command -v conda &> /dev/null; then
+        # Check if ign_gpu conda environment exists
+        if conda env list | grep -q "^ign_gpu "; then
+            echo -e "${YELLOW}Activating conda environment 'ign_gpu'...${NC}"
+            eval "$(conda shell.bash hook)"
+            conda activate ign_gpu
+        elif conda env list | grep -q "^base "; then
+            echo -e "${YELLOW}Activating conda base environment...${NC}"
+            eval "$(conda shell.bash hook)"
+            conda activate base
+        fi
+    # Fall back to venv if conda not available
+    elif [ -d ".venv" ]; then
+        echo -e "${YELLOW}Activating virtual environment (.venv)...${NC}"
+        source .venv/bin/activate
+    elif [ -d "venv" ]; then
+        echo -e "${YELLOW}Activating virtual environment (venv)...${NC}"
+        source venv/bin/activate
+    else
+        echo -e "${RED}Warning: No Python environment found. Proceeding with system Python.${NC}"
+        read -p "Continue anyway? (y/N): " continue_anyway
+        if [[ $continue_anyway != [yY] && $continue_anyway != [yY][eE][sS] ]]; then
+            echo -e "${YELLOW}Exiting.${NC}"
+            exit 1
+        fi
+    fi
 fi
+
+# Check if required tools are installed
+echo ""
+echo -e "${YELLOW}Checking required tools...${NC}"
+
+if ! command -v python &> /dev/null; then
+    echo -e "${RED}Error: Python is not installed or not in PATH${NC}"
+    exit 1
+fi
+
+if ! python -c "import build" 2>/dev/null; then
+    echo -e "${YELLOW}Installing 'build' package...${NC}"
+    pip install build
+fi
+
+if ! python -c "import twine" 2>/dev/null; then
+    echo -e "${YELLOW}Installing 'twine' package...${NC}"
+    pip install twine
+fi
+
+echo -e "${GREEN}All required tools are available.${NC}"
 
 # Ask for upload type
 echo ""
