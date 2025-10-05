@@ -1,19 +1,7 @@
 ---
 sidebar_position: 4
 title: Configuration Pipeline
-description: Exécutez des workflows complets avec des fichiers de```yaml
-enrich:
-  input_dir: "data/brut" # Fichiers LAZ d'entrée
-  output: "data/enrichi" # Répertoire de sortie
-  mode: "full" # 'core' ou 'full'
-  k_neighbors: 10 # Voisins pour les features
-  use_gpu: true # Accélération GPU
-  add_rgb: true # Ajouter RGB depuis orthophotos
-  rgb_cache_dir: "cache/ortho" # Répertoire cache RGB
-  num_workers: 4 # Traitement parallèle
-  auto_convert_qgis: false # Conversion format QGIS
-  force: false # Forcer le retraitement
-```n YAML
+description: Exécutez des workflows complets avec des fichiers de configuration YAML
 keywords: [pipeline, yaml, configuration, workflow, automation]
 ---
 

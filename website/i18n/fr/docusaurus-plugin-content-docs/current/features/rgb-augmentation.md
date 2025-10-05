@@ -1,18 +1,6 @@
 ---
-sidebar_position: 1
-title: Aug  --output tuiles_enrichies_rgb/ \
-  --add-rgb \
-  --rgb-cache-dir cache/orthophotos/
-
-# Avec mode complet (full) et GPU
-ign-lidar-hd enrich \
-  --input-dir tuiles_brutes/ \
-  --output tuiles_enrichies_rgb/ \
-  --mode full \
-  --add-rgb \
-  --rgb-cache-dir cache/orthophotos/ \
-  --use-gpu \
-  --num-workers 4
+sidebar_position: 4
+title: Augmentation RGB
 description: Enrichir les nuages de points avec les couleurs RGB depuis les orthophotos IGN
 keywords: [rgb, orthophoto, couleur, augmentation, multi-modal]
 ---

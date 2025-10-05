@@ -160,8 +160,8 @@ print(f"NIR mean: {nir.mean():.1f}")
 ### Value Interpretation
 
 - **0-255**: NIR intensity values (uint8)
-- **High values (>200)**: Strong NIR reflection (healthy vegetation)
-- **Low values (<50)**: Weak NIR reflection (water, artificial surfaces)
+- **High values (&gt;200)**: Strong NIR reflection (healthy vegetation)
+- **Low values (&lt;50)**: Weak NIR reflection (water, artificial surfaces)
 - **Medium values (50-200)**: Mixed surfaces, stressed vegetation
 
 ## Vegetation Indices
@@ -327,11 +327,11 @@ Create custom scalar field in CloudCompare:
 
 Test configuration: 18M point tile, Intel i7, 32GB RAM
 
-| Operation            | Time  | Cache |
-| -------------------- | ----- | ----- |
-| First run (download) | ~4-6s | Cold  |
-| Subsequent runs      | <1s   | Warm  |
-| With GPU cache       | <0.5s | GPU   |
+| Operation            | Time     | Cache |
+| -------------------- | -------- | ----- |
+| First run (download) | ~4-6s    | Cold  |
+| Subsequent runs      | &lt;1s   | Warm  |
+| With GPU cache       | &lt;0.5s | GPU   |
 
 ### Optimization Tips
 
@@ -424,7 +424,7 @@ ign-lidar-hd enrich --input tile.laz --output output/ --add-infrared --force
 
 #### Out of Memory with Large Tiles
 
-**Solution**: Chunked processing is automatic for tiles >15M points, but you can also:
+**Solution**: Chunked processing is automatic for tiles &gt;15M points, but you can also:
 
 ```bash
 # Enable preprocessing to reduce point count

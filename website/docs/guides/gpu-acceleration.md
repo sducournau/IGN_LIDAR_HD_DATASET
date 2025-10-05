@@ -1,11 +1,7 @@
 ---
 sidebar_position: 6
 title: GPU Acceleration
-description: Leverage GPU computing for faster LiDAR p# Verify installation
-python scripts/verify_gpu_setup.py
-```
-
-**Performance**: 12-20x speedup (complete GPU pipeline)sing
+description: Leverage GPU computing for faster LiDAR processing
 keywords:
   [gpu, cuda, acceleration, performance, optimization, cuml, rapids, cupy]
 ---

@@ -160,8 +160,8 @@ print(f"Moyenne NIR : {nir.mean():.1f}")
 ### Interprétation des Valeurs
 
 - **0-255** : Valeurs d'intensité NIR (uint8)
-- **Valeurs élevées (>200)** : Forte réflexion NIR (végétation saine)
-- **Valeurs faibles (<50)** : Faible réflexion NIR (eau, surfaces artificielles)
+- **Valeurs élevées (&gt;200)** : Forte réflexion NIR (végétation saine)
+- **Valeurs faibles (&lt;50)** : Faible réflexion NIR (eau, surfaces artificielles)
 - **Valeurs moyennes (50-200)** : Surfaces mixtes, végétation stressée
 
 ## Indices de Végétation
@@ -327,11 +327,11 @@ Créer un champ scalaire personnalisé dans CloudCompare :
 
 Configuration de test : Dalle 18M points, Intel i7, 32GB RAM
 
-| Opération                           | Temps | Cache |
-| ----------------------------------- | ----- | ----- |
-| Première exécution (téléchargement) | ~4-6s | Froid |
-| Exécutions suivantes                | <1s   | Chaud |
-| Avec cache GPU                      | <0.5s | GPU   |
+| Opération                           | Temps    | Cache |
+| ----------------------------------- | -------- | ----- |
+| Première exécution (téléchargement) | ~4-6s    | Froid |
+| Exécutions suivantes                | &lt;1s   | Chaud |
+| Avec cache GPU                      | &lt;0.5s | GPU   |
 
 ### Conseils d'Optimisation
 
@@ -424,7 +424,7 @@ ign-lidar-hd enrich --input dalle.laz --output sortie/ --add-infrared --force
 
 #### Mémoire Insuffisante avec Grandes Dalles
 
-**Solution** : Le traitement par morceaux est automatique pour les dalles >15M points, mais vous pouvez aussi :
+**Solution** : Le traitement par morceaux est automatique pour les dalles &gt;15M points, mais vous pouvez aussi :
 
 ```bash
 # Activer le prétraitement pour réduire le nombre de points

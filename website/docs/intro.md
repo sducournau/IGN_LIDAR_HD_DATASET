@@ -206,7 +206,7 @@ With v1.7.5 vectorization optimization:
 
 | Points | CPU  | GPU (cuML) | Speedup      |
 | ------ | ---- | ---------- | ------------ |
-| 1M     | 10s  | <1s        | 15-20x       |
+| 1M     | 10s  | &lt;1s     | 15-20x       |
 | 5M     | 50s  | 3s         | 100-150x     |
 | 17M    | 180s | 30s        | **100-200x** |
 
