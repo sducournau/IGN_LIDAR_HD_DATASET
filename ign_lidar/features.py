@@ -407,7 +407,7 @@ def compute_wall_score(normals: np.ndarray, height_above_ground: np.ndarray,
 def compute_roof_score(normals: np.ndarray,
                        height_above_ground: np.ndarray,
                        curvature: np.ndarray,
-                       min_height: float = 2.0) -> np.ndarray:
+                       min_height: float = 3.0) -> np.ndarray:
     """
     Compute roof probability score.
     
@@ -417,7 +417,7 @@ def compute_roof_score(normals: np.ndarray,
         normals: [N, 3] surface normal vectors
         height_above_ground: [N] height above ground in meters
         curvature: [N] surface curvature
-        min_height: minimum height for a roof (default 2.0m)
+        min_height: minimum height for a roof (default 3.0m)
         
     Returns:
         roof_score: [N] roof probability [0, 1]
@@ -439,7 +439,7 @@ def compute_roof_score(normals: np.ndarray,
 
 def compute_num_points_in_radius(points: np.ndarray,
                                  radius: float = 2.0,
-                                 chunk_size: int = 1_000_000) -> np.ndarray:
+                                 chunk_size: int = 500_000) -> np.ndarray:
     """
     Compute number of points within a given radius for each point.
     
@@ -451,7 +451,7 @@ def compute_num_points_in_radius(points: np.ndarray,
     Args:
         points: [N, 3] point coordinates
         radius: search radius in meters (default 2.0m)
-        chunk_size: number of points to process per chunk (default 1M)
+        chunk_size: number of points to process per chunk (default 500K)
         
     Returns:
         num_points: [N] number of points within radius

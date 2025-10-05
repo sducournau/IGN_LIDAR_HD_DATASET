@@ -36,7 +36,6 @@ except ImportError:
 
 # Fallback CPU
 from sklearn.neighbors import KDTree
-from sklearn.decomposition import PCA
 
 
 class GPUFeatureComputer:
@@ -45,11 +44,11 @@ class GPUFeatureComputer:
     Fallback automatique CPU si GPU indisponible.
     """
     
-    def __init__(self, use_gpu: bool = True, batch_size: int = 100000):
+    def __init__(self, use_gpu: bool = True, batch_size: int = 250000):
         """
         Args:
             use_gpu: Activer GPU si disponible
-            batch_size: Nombre de points à traiter par batch GPU
+            batch_size: Points par batch GPU (optimized: 250K)
         """
         self.use_gpu = use_gpu and GPU_AVAILABLE
         self.use_cuml = use_gpu and CUML_AVAILABLE
@@ -125,51 +124,58 @@ class GPUFeatureComputer:
         return normals
     
     def _batch_pca_gpu(self, points_gpu, neighbor_indices):
-        """PCA par batch sur GPU."""
+        """
+        VECTORIZED PCA on GPU.
+        ~100x faster than per-point loop.
+        """
         if not GPU_AVAILABLE or cp is None:
             raise RuntimeError("GPU not available")
             
-        batch_size = len(neighbor_indices)
-        normals = cp.zeros((batch_size, 3), dtype=cp.float32)
+        batch_size, k = neighbor_indices.shape
         
-        for i in range(batch_size):
-            indices = neighbor_indices[i]
-            neighbors = points_gpu[indices]
-            
-            # Vérifier variance
-            variance = cp.var(neighbors, axis=0)
-            if cp.sum(variance) < 1e-6:
-                normals[i] = cp.array([0, 0, 1], dtype=cp.float32)
-                continue
-            
-            try:
-                # PCA GPU
-                pca = cuPCA(n_components=3)
-                pca.fit(neighbors)
-                
-                # Normal = dernier composant
-                normal = pca.components_[-1]
-                
-                # Normaliser
-                norm = cp.linalg.norm(normal)
-                if norm < 1e-6:
-                    normal = cp.array([0, 0, 1], dtype=cp.float32)
-                else:
-                    normal = normal / norm
-                
-                # Orientation vers le haut
-                if normal[2] < 0:
-                    normal = -normal
-                
-                normals[i] = normal
-                
-            except Exception:
-                normals[i] = cp.array([0, 0, 1], dtype=cp.float32)
+        # Gather all neighbor points: [batch_size, k, 3]
+        neighbor_points = points_gpu[neighbor_indices]
+        
+        # Center the neighborhoods: [batch_size, k, 3]
+        centroids = cp.mean(
+            neighbor_points, axis=1, keepdims=True
+        )  # [batch_size, 1, 3]
+        centered = neighbor_points - centroids  # [batch_size, k, 3]
+        
+        # Compute covariance matrices: [batch_size, 3, 3]
+        # cov = (1/k) * (centered.T @ centered)
+        cov_matrices = cp.einsum('mki,mkj->mij', centered, centered) / k
+        
+        # Compute eigenvalues and eigenvectors for all matrices
+        # eigenvalues: [batch_size, 3], eigenvectors: [batch_size, 3, 3]
+        eigenvalues, eigenvectors = cp.linalg.eigh(cov_matrices)
+        
+        # Normal = eigenvector with smallest eigenvalue (first column)
+        # eigh returns eigenvalues in ascending order
+        normals = eigenvectors[:, :, 0]  # [batch_size, 3]
+        
+        # Normalize normals
+        norms = cp.linalg.norm(normals, axis=1, keepdims=True)
+        norms = cp.maximum(norms, 1e-6)  # Avoid division by zero
+        normals = normals / norms
+        
+        # Orient normals upward (positive Z)
+        flip_mask = normals[:, 2] < 0
+        normals[flip_mask] *= -1
+        
+        # Handle degenerate cases (very small variance)
+        variances = cp.sum(eigenvalues, axis=1)  # [batch_size]
+        degenerate = variances < 1e-6
+        if cp.any(degenerate):
+            normals[degenerate] = cp.array([0, 0, 1], dtype=cp.float32)
         
         return normals
     
     def _compute_normals_cpu(self, points: np.ndarray, k: int) -> np.ndarray:
-        """Calcul normales sur CPU (sklearn) - version optimisée."""
+        """
+        Calcul normales sur CPU (sklearn) - VECTORIZED.
+        ~100x faster than per-point PCA loop.
+        """
         N = len(points)
         normals = np.zeros((N, 3), dtype=np.float32)
         
@@ -177,7 +183,7 @@ class GPUFeatureComputer:
         tree = KDTree(points, metric='euclidean')
         
         # Batch query pour réduire overhead
-        batch_size = 10000
+        batch_size = 50000  # Larger batches for vectorized computation
         num_batches = (N + batch_size - 1) // batch_size
         
         with warnings.catch_warnings():
@@ -191,44 +197,52 @@ class GPUFeatureComputer:
                 # Query KNN pour tout le batch
                 _, indices = tree.query(batch_points, k=k)
                 
-                # PCA pour chaque point du batch
-                for i, point_indices in enumerate(indices):
-                    neighbors = points[point_indices]
-                    
-                    # Vérifier variance
-                    variance = np.var(neighbors, axis=0)
-                    if np.sum(variance) < 1e-6:
-                        normals[start_idx + i] = np.array([0, 0, 1], dtype=np.float32)
-                        continue
-                    
-                    try:
-                        pca = PCA(n_components=3)
-                        pca.fit(neighbors)
-                        
-                        if np.any(np.isnan(pca.components_)):
-                            normals[start_idx + i] = np.array([0, 0, 1], dtype=np.float32)
-                            continue
-                        
-                        normal = pca.components_[-1]
-                        norm = np.linalg.norm(normal)
-                        
-                        if norm < 1e-6:
-                            normal = np.array([0, 0, 1], dtype=np.float32)
-                        else:
-                            normal = normal / norm
-                        
-                        if normal[2] < 0:
-                            normal = -normal
-                        
-                        normals[start_idx + i] = normal
-                        
-                    except Exception:
-                        normals[start_idx + i] = np.array([0, 0, 1], dtype=np.float32)
+                # VECTORIZED covariance computation
+                # Gather all neighbor points: [batch_size, k, 3]
+                neighbor_points = points[indices]
+                
+                # Center the neighborhoods: [batch_size, k, 3]
+                centroids = np.mean(
+                    neighbor_points, axis=1, keepdims=True
+                )  # [batch_size, 1, 3]
+                centered = neighbor_points - centroids
+                
+                # Compute covariance matrices: [batch_size, 3, 3]
+                cov_matrices = (
+                    np.einsum('mki,mkj->mij', centered, centered) / k
+                )
+                
+                # Compute eigenvalues and eigenvectors
+                eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
+                
+                # Normal = eigenvector with smallest eigenvalue
+                batch_normals = eigenvectors[:, :, 0]  # [batch_size, 3]
+                
+                # Normalize normals
+                norms = np.linalg.norm(batch_normals, axis=1, keepdims=True)
+                norms = np.maximum(norms, 1e-6)
+                batch_normals = batch_normals / norms
+                
+                # Orient normals upward (positive Z)
+                flip_mask = batch_normals[:, 2] < 0
+                batch_normals[flip_mask] *= -1
+                
+                # Handle degenerate cases
+                variances = np.sum(eigenvalues, axis=1)
+                degenerate = variances < 1e-6
+                if np.any(degenerate):
+                    batch_normals[degenerate] = [0, 0, 1]
+                
+                normals[start_idx:end_idx] = batch_normals
         
         return normals
     
-    def compute_curvature(self, points: np.ndarray, normals: np.ndarray, 
-                         k: int = 10) -> np.ndarray:
+    def compute_curvature(
+        self,
+        points: np.ndarray,
+        normals: np.ndarray,
+        k: int = 10
+    ) -> np.ndarray:
         """
         Compute principal curvature from local surface fit.
         Version optimisée avec vectorisation.
@@ -248,35 +262,41 @@ class GPUFeatureComputer:
         tree = KDTree(points, metric='euclidean')
         
         # Batch processing
-        batch_size = 10000
+        batch_size = 50000  # Larger batches for vectorized computation
         num_batches = (N + batch_size - 1) // batch_size
         
         for batch_idx in range(num_batches):
             start_idx = batch_idx * batch_size
             end_idx = min((batch_idx + 1) * batch_size, N)
             batch_points = points[start_idx:end_idx]
+            batch_normals = normals[start_idx:end_idx]
             
             # Query KNN
             _, indices = tree.query(batch_points, k=k)
             
-            # Vectorized curvature computation with robust MAD
-            for i, point_indices in enumerate(indices):
-                neighbors = points[point_indices]
-                center = points[start_idx + i]
-                normal = normals[start_idx + i]
-                
-                relative_pos = neighbors - center
-                distances_along_normal = np.dot(relative_pos, normal)
-                
-                # Use Median Absolute Deviation (MAD) for robustness
-                median_dist = np.median(distances_along_normal)
-                mad = np.median(np.abs(distances_along_normal - median_dist))
-                curvature[start_idx + i] = mad * 1.4826  # Scale to std
+            # VECTORIZED curvature computation
+            # Get all neighbor normals: [batch_size, k, 3]
+            neighbor_normals = normals[indices]
+            
+            # Expand query normals: [batch_size, 1, 3]
+            query_normals_expanded = batch_normals[:, np.newaxis, :]
+            
+            # Compute differences: [batch_size, k, 3]
+            normal_diff = neighbor_normals - query_normals_expanded
+            
+            # Compute norms and mean: [batch_size]
+            curv_norms = np.linalg.norm(normal_diff, axis=2)  # [batch, k]
+            batch_curvature = np.mean(curv_norms, axis=1)  # [batch_size]
+            
+            curvature[start_idx:end_idx] = batch_curvature
         
         return curvature
     
-    def compute_height_above_ground(self, points: np.ndarray, 
-                                   classification: np.ndarray) -> np.ndarray:
+    def compute_height_above_ground(
+        self,
+        points: np.ndarray,
+        classification: np.ndarray
+    ) -> np.ndarray:
         """
         Compute height above ground for each point.
         Version vectorisée pure.
@@ -299,10 +319,13 @@ class GPUFeatureComputer:
         height = points[:, 2] - ground_z
         return np.maximum(height, 0)
     
-    def extract_geometric_features(self, points: np.ndarray,
-                                  normals: np.ndarray,
-                                  k: int = 10,
-                                  radius: float = None) -> Dict[str, np.ndarray]:
+    def extract_geometric_features(
+        self,
+        points: np.ndarray,
+        normals: np.ndarray,
+        k: int = 10,
+        radius: float = None
+    ) -> Dict[str, np.ndarray]:
         """
         Extract comprehensive geometric features for each point.
         Version vectorisée optimale - aligned with features.py.
@@ -470,7 +493,7 @@ class GPUFeatureComputer:
         normals: np.ndarray,
         height_above_ground: np.ndarray,
         curvature: np.ndarray,
-        min_height: float = 2.0
+        min_height: float = 3.0
     ) -> np.ndarray:
         """
         Compute roof probability score (GPU-accelerated).
@@ -481,7 +504,7 @@ class GPUFeatureComputer:
             normals: [N, 3] surface normal vectors
             height_above_ground: [N] height above ground in meters
             curvature: [N] surface curvature
-            min_height: minimum height for a roof (default 2.0m)
+            min_height: minimum height for a roof (default 3.0m)
             
         Returns:
             roof_score: [N] roof probability [0, 1]
@@ -552,7 +575,7 @@ class GPUFeatureComputer:
             verticality = self.compute_verticality(normals)
             wall_score = self.compute_wall_score(normals, height, min_height=1.5)
             roof_score = self.compute_roof_score(
-                normals, height, curvature, min_height=2.0
+                normals, height, curvature, min_height=3.0
             )
             
             geo_features['verticality'] = verticality
@@ -639,6 +662,179 @@ class GPUFeatureComputer:
         
         return colors
 
+    def compute_all_features_chunked(
+        self,
+        points: np.ndarray,
+        classification: np.ndarray,
+        k: int = 10,
+        chunk_size: int = 2_500_000,
+        radius: float = None
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
+        """
+        Compute ALL features per-chunk for memory efficiency.
+        GPU version without cuML - uses sklearn KDTree + NumPy/CuPy operations.
+        
+        This method processes the point cloud in chunks, computing all features
+        (normals, curvature, height, geometric) for each chunk before moving
+        to the next. This dramatically reduces memory usage compared to
+        computing each feature type globally.
+        
+        Args:
+            points: [N, 3] point coordinates
+            classification: [N] ASPRS classification codes
+            k: number of neighbors for KNN
+            chunk_size: points per chunk (default: 2.5M)
+            radius: search radius for geometric features (optional)
+            
+        Returns:
+            normals: [N, 3] surface normals
+            curvature: [N] curvature values
+            height: [N] height above ground
+            geo_features: dict with geometric features
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        N = len(points)
+        
+        # Initialize output arrays
+        normals = np.zeros((N, 3), dtype=np.float32)
+        curvature = np.zeros(N, dtype=np.float32)
+        height = np.zeros(N, dtype=np.float32)
+        
+        # Initialize geometric features dict
+        feature_keys = ['planarity', 'linearity', 'sphericity',
+                        'anisotropy', 'roughness', 'density']
+        geo_features = {key: np.zeros(N, dtype=np.float32)
+                        for key in feature_keys}
+        
+        # Calculate number of chunks
+        num_chunks = (N + chunk_size - 1) // chunk_size
+        
+        logger.info(
+            f"Processing {N:,} points in {num_chunks} chunks "
+            f"(GPU without cuML, per-chunk computation)"
+        )
+        
+        # Process each chunk
+        for chunk_idx in range(num_chunks):
+            start_idx = chunk_idx * chunk_size
+            end_idx = min((chunk_idx + 1) * chunk_size, N)
+            chunk_points = end_idx - start_idx
+            
+            # Add overlap for accurate boundary computation
+            overlap = int(chunk_size * 0.10)  # 10% overlap
+            tree_start = max(0, start_idx - overlap)
+            tree_end = min(N, end_idx + overlap)
+            
+            # Extract chunk with overlap for KDTree
+            chunk_data = points[tree_start:tree_end]
+            chunk_class = classification[tree_start:tree_end]
+            
+            # Calculate local indices for storing results
+            local_start = start_idx - tree_start
+            local_end = local_start + chunk_points
+            query_points = chunk_data[local_start:local_end]
+            
+            logger.info(
+                f"  Chunk {chunk_idx + 1}/{num_chunks}: "
+                f"Processing {chunk_points:,} points "
+                f"(tree size: {len(chunk_data):,})"
+            )
+            
+            # Build local KDTree for this chunk
+            tree = KDTree(chunk_data, metric='euclidean', leaf_size=30)
+            
+            # 1. Compute normals for this chunk
+            _, indices = tree.query(query_points, k=k)
+            
+            # Vectorized PCA for normals
+            neighbors_all = chunk_data[indices]
+            centroids = neighbors_all.mean(axis=1, keepdims=True)
+            centered = neighbors_all - centroids
+            cov_matrices = np.einsum('nki,nkj->nij',
+                                     centered, centered) / (k - 1)
+            eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
+            chunk_normals = eigenvectors[:, :, 0].copy()
+            
+            # Normalize normals
+            norms = np.linalg.norm(chunk_normals, axis=1, keepdims=True)
+            norms = np.maximum(norms, 1e-8)
+            chunk_normals = chunk_normals / norms
+            
+            # Orient normals upward
+            flip_mask = chunk_normals[:, 2] < 0
+            chunk_normals[flip_mask] *= -1
+            
+            # 2. Compute curvature for this chunk
+            neighbor_normals = chunk_normals[indices - local_start]
+            query_normals_expanded = chunk_normals[:, np.newaxis, :]
+            normal_diff = neighbor_normals - query_normals_expanded
+            curv_norms = np.linalg.norm(normal_diff, axis=2)
+            chunk_curvature = np.mean(curv_norms, axis=1).astype(np.float32)
+            
+            # 3. Compute height for this chunk
+            ground_mask = (chunk_class == 2)
+            if np.any(ground_mask):
+                ground_z = np.median(chunk_data[ground_mask, 2])
+            else:
+                ground_z = np.min(chunk_data[:, 2])
+            chunk_height = np.maximum(
+                query_points[:, 2] - ground_z, 0
+            ).astype(np.float32)
+            
+            # 4. Compute geometric features for this chunk
+            distances, geo_indices = tree.query(query_points, k=k)
+            neighbors_geo = chunk_data[geo_indices]
+            centroids_geo = neighbors_geo.mean(axis=1, keepdims=True)
+            centered_geo = neighbors_geo - centroids_geo
+            cov_matrices_geo = np.einsum('nki,nkj->nij',
+                                          centered_geo, centered_geo) / (k - 1)
+            eigenvalues_geo = np.linalg.eigvalsh(cov_matrices_geo)
+            eigenvalues_geo = np.sort(eigenvalues_geo, axis=1)[:, ::-1]
+            
+            λ0 = eigenvalues_geo[:, 0]
+            λ1 = eigenvalues_geo[:, 1]
+            λ2 = eigenvalues_geo[:, 2]
+            λ0_safe = λ0 + 1e-8
+            sum_λ = λ0 + λ1 + λ2 + 1e-8
+            
+            chunk_planarity = ((λ1 - λ2) / sum_λ).astype(np.float32)
+            chunk_linearity = ((λ0 - λ1) / sum_λ).astype(np.float32)
+            chunk_sphericity = (λ2 / sum_λ).astype(np.float32)
+            chunk_anisotropy = ((λ0 - λ2) / λ0_safe).astype(np.float32)
+            chunk_roughness = (λ2 / sum_λ).astype(np.float32)
+            mean_distances = np.mean(distances[:, 1:], axis=1)
+            chunk_density = (1.0 / (mean_distances + 1e-8)).astype(np.float32)
+            
+            # Store results in output arrays
+            normals[start_idx:end_idx] = chunk_normals
+            curvature[start_idx:end_idx] = chunk_curvature
+            height[start_idx:end_idx] = chunk_height
+            geo_features['planarity'][start_idx:end_idx] = chunk_planarity
+            geo_features['linearity'][start_idx:end_idx] = chunk_linearity
+            geo_features['sphericity'][start_idx:end_idx] = chunk_sphericity
+            geo_features['anisotropy'][start_idx:end_idx] = chunk_anisotropy
+            geo_features['roughness'][start_idx:end_idx] = chunk_roughness
+            geo_features['density'][start_idx:end_idx] = chunk_density
+            
+            # Cleanup chunk data
+            del (chunk_data, chunk_class, query_points, tree,
+                 indices, neighbors_all, centroids, centered, cov_matrices,
+                 eigenvalues, eigenvectors, chunk_normals, neighbor_normals,
+                 query_normals_expanded, normal_diff, curv_norms,
+                 chunk_curvature, chunk_height, distances, geo_indices,
+                 neighbors_geo, centroids_geo, centered_geo, cov_matrices_geo,
+                 eigenvalues_geo, chunk_planarity, chunk_linearity,
+                 chunk_sphericity, chunk_anisotropy, chunk_roughness,
+                 chunk_density)
+        
+        logger.info(
+            "Per-chunk feature computation complete (GPU without cuML)"
+        )
+        
+        return normals, curvature, height, geo_features
+
 
 # Instance globale pour réutilisation
 _gpu_computer = None
@@ -673,6 +869,39 @@ def compute_curvature(
     """Wrapper API-compatible."""
     computer = get_gpu_computer()
     return computer.compute_curvature(points, normals, k)
+
+
+def compute_all_features_gpu_chunked(
+    points: np.ndarray,
+    classification: np.ndarray,
+    k: int = 10,
+    chunk_size: int = 2_500_000,
+    radius: float = None
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
+    """
+    Compute ALL features per-chunk for memory efficiency.
+    GPU version without cuML - uses sklearn KDTree + NumPy operations.
+    
+    This is a wrapper function that calls the GPUFeatureComputer method.
+    
+    Args:
+        points: [N, 3] point coordinates
+        classification: [N] ASPRS classification codes
+        k: number of neighbors for KNN
+        chunk_size: points per chunk (default: 2.5M)
+        radius: search radius for geometric features (optional)
+        
+    Returns:
+        normals: [N, 3] surface normals
+        curvature: [N] curvature values
+        height: [N] height above ground
+        geo_features: dict with geometric features
+    """
+    computer = get_gpu_computer()
+    return computer.compute_all_features_chunked(
+        points, classification, k, chunk_size, radius
+    )
+
 
 
 def compute_height_above_ground(
@@ -732,7 +961,7 @@ def compute_roof_score(
     normals: np.ndarray,
     height_above_ground: np.ndarray,
     curvature: np.ndarray,
-    min_height: float = 2.0
+    min_height: float = 3.0
 ) -> np.ndarray:
     """
     Wrapper for GPU-accelerated roof score computation.

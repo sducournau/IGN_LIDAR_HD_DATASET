@@ -418,56 +418,84 @@ def _enrich_single_file(args_tuple):
                     # psutil error - continue anyway
                     pass
             
-            # Determine chunk size based on number of points
-            # Memory-efficient processing for large point clouds
-            # Conservative chunking to prevent OOM with multiple workers
-            # Aggressive chunking when augmentation enabled (multiple versions)
-            if augment and num_augmentations > 0:
-                # With augmentation: smaller chunks (multiple versions)
-                if n_points > 20_000_000:
-                    chunk_size = 3_000_000  # 3M chunks for very large
-                    if version_idx == 0:
-                        worker_logger.info(
-                            "  Chunked processing (3M per chunk, augmented)"
-                        )
-                elif n_points > 10_000_000:
-                    chunk_size = 5_000_000  # 5M chunks for large
-                    if version_idx == 0:
-                        worker_logger.info(
-                            "  Chunked processing (5M per chunk, augmented)"
-                        )
+            # INTELLIGENT AUTO-SCALING: Use memory manager if available
+            use_intelligent_chunking = False
+            try:
+                from .memory_manager import AdaptiveMemoryManager
+                mem_mgr = AdaptiveMemoryManager(
+                    enable_gpu=use_gpu
+                )
+                
+                # Calculate optimal chunk size based on available resources
+                chunk_size = mem_mgr.calculate_optimal_chunk_size(
+                    num_points=n_points,
+                    mode=mode,
+                    num_augmentations=num_augmentations if augment else 0
+                )
+                
+                use_intelligent_chunking = True
+                if version_idx == 0:
+                    worker_logger.info(
+                        f"  🎯 Intelligent chunking: "
+                        f"{chunk_size:,} points per chunk"
+                    )
+            except (ImportError, Exception):
+                # Fallback to fixed logic
+                use_intelligent_chunking = False
+            
+            # Fallback: Fixed chunk sizes
+            if not use_intelligent_chunking:
+                if augment and num_augmentations > 0:
+                    # With augmentation: smaller chunks (multiple versions)
+                    # OPTIMIZED: Reduced for better GPU stability
+                    if n_points > 20_000_000:
+                        chunk_size = 2_000_000  # 2M chunks (was 3M)
+                        if version_idx == 0:
+                            worker_logger.info(
+                                "  Chunked (2M per chunk, augmented)"
+                            )
+                    elif n_points > 10_000_000:
+                        chunk_size = 2_500_000  # 2.5M chunks (was 5M)
+                        if version_idx == 0:
+                            worker_logger.info(
+                                "  Chunked (2.5M per chunk, augmented)"
+                            )
+                    else:
+                        chunk_size = 3_000_000  # 3M chunks (was 8M)
+                        if version_idx == 0:
+                            worker_logger.info(
+                                "  Chunked (3M per chunk, augmented)"
+                            )
                 else:
-                    chunk_size = 8_000_000  # 8M chunks for medium
-                    if version_idx == 0:
-                        worker_logger.info(
-                            "  Chunked processing (8M per chunk, augmented)"
+                    # Without augmentation: optimized chunking
+                    # Smaller chunks = faster KDTree building
+                    # OPTIMIZED: Reduced chunk sizes for better GPU
+                    if n_points > 40_000_000:
+                        # Very large (>40M): 2M chunks
+                        chunk_size = 2_000_000
+                        if version_idx == 0:
+                            worker_logger.info(
+                                "  Chunked processing (2M per chunk)"
+                            )
+                    elif n_points > 20_000_000:
+                        # Large (20-40M): 2.5M chunks
+                        chunk_size = 2_500_000
+                        if version_idx == 0:
+                            worker_logger.info(
+                                "  Chunked processing (2.5M per chunk)"
+                            )
+                    elif n_points > 10_000_000:
+                        # Medium (10-20M): 2.5M chunks
+                        chunk_size = 2_500_000
+                        if version_idx == 0:
+                            worker_logger.info(
+                                "  Chunked processing (2.5M per chunk)"
+                            )
+                    else:
+                        # Small (<10M): 3M chunks
+                        chunk_size = (
+                            3_000_000 if n_points > 5_000_000 else None
                         )
-            else:
-                # Without augmentation: standard chunking
-                if n_points > 40_000_000:
-                    # Very large (>40M): 5M chunks - aggressive chunking
-                    chunk_size = 5_000_000
-                    if version_idx == 0:
-                        worker_logger.info(
-                            "  Using chunked processing (5M per chunk)"
-                        )
-                elif n_points > 20_000_000:
-                    # Large (20-40M): 10M chunks
-                    chunk_size = 10_000_000
-                    if version_idx == 0:
-                        worker_logger.info(
-                            "  Using chunked processing (10M per chunk)"
-                        )
-                elif n_points > 10_000_000:
-                    # Medium (10-20M): 15M chunks
-                    chunk_size = 15_000_000
-                    if version_idx == 0:
-                        worker_logger.info(
-                            "  Using chunked processing (15M per chunk)"
-                        )
-                else:
-                    # Small (<10M): no chunking - process all at once
-                    chunk_size = None
             
             # Compute features based on mode
             if mode == 'full':
@@ -1067,7 +1095,8 @@ def cmd_enrich(args):
             logger.info("Infrared cache: Disabled (orthophotos will be fetched each time)")
     
     # Get preprocessing settings
-    preprocess = getattr(args, 'preprocess', False)
+    preprocess = (getattr(args, 'preprocess', False) and
+                  not getattr(args, 'no_preprocess', False))
     preprocess_config = None
     if preprocess:
         logger.info("Preprocessing: ENABLED (artifact mitigation)")
@@ -1618,13 +1647,13 @@ def main():
     enrich_parser.add_argument(
         '--preprocess',
         action='store_true',
-        default=True,
-        help='Apply preprocessing to reduce artifacts (default: True)'
+        default=False,
+        help='Apply preprocessing to reduce artifacts (default: False)'
     )
     enrich_parser.add_argument(
         '--no-preprocess',
         action='store_true',
-        help='Disable preprocessing'
+        help='Explicitly disable preprocessing (overrides --preprocess)'
     )
     enrich_parser.add_argument(
         '--sor-k',

@@ -1,0 +1,327 @@
+╔═══════════════════════════════════════════════════════════════════════╗
+║                                                                       ║
+║   CONDA PACKAGE DEPLOYMENT PLAN - IGN LIDAR HD with GPU SUPPORT      ║
+║                                                                       ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+Date: October 5, 2025
+Package: ign-lidar-hd v1.7.4
+Repository: sducournau/IGN_LIDAR_HD_DATASET
+Goal: Make package available via conda install with GPU support
+
+═══════════════════════════════════════════════════════════════════════
+PART 1: CONDA PACKAGE BASICS
+═══════════════════════════════════════════════════════════════════════
+
+WHAT IS CONDA-FORGE?
+────────────────────
+Conda-forge is a community-driven package repository for conda. It's the
+recommended way to distribute conda packages and integrates well with
+GPU dependencies like RAPIDS cuML.
+
+BENEFITS FOR IGN LIDAR HD:
+──────────────────────────
+✓ Automatic dependency resolution (including CuPy, cuML)
+✓ Better GPU package management
+✓ Cross-platform support (Linux, macOS, Windows)
+✓ Automatic builds via CI/CD
+✓ Version pinning and compatibility checking
+✓ Large user base (preferred over defaults channel)
+
+═══════════════════════════════════════════════════════════════════════
+PART 2: PREREQUISITES
+═══════════════════════════════════════════════════════════════════════
+
+ACCOUNTS & ACCESS
+─────────────────
+[ ] GitHub account (you have: sducournau) ✓
+[ ] Anaconda.org account (create at anaconda.org)
+[ ] Fork conda-forge/staged-recipes repository
+
+TOOLS TO INSTALL
+────────────────
+[ ] conda-build: conda install conda-build
+[ ] conda-smithy: conda install -c conda-forge conda-smithy
+[ ] grayskull: conda install -c conda-forge grayskull
+
+KNOWLEDGE REQUIREMENTS
+──────────────────────
+[ ] Basic YAML syntax
+[ ] Understanding of conda environments
+[ ] Familiarity with GitHub PRs and CI/CD
+
+═══════════════════════════════════════════════════════════════════════
+PART 3: PACKAGE STRUCTURE PREPARATION
+═══════════════════════════════════════════════════════════════════════
+
+CURRENT STATUS (✓ = Ready):
+───────────────────────────
+✓ pyproject.toml with proper metadata
+✓ README.md with installation instructions
+✓ LICENSE file (MIT)
+✓ Package on PyPI (v1.7.4)
+✓ GitHub repository with releases
+✓ Comprehensive documentation
+
+RECOMMENDED IMPROVEMENTS:
+─────────────────────────
+[ ] Create conda/ directory in repo
+[ ] Add meta.yaml for conda recipe
+[ ] Add build.sh (Linux/macOS build script)
+[ ] Add bld.bat (Windows build script)
+[ ] Document conda installation in README
+[ ] Tag a stable release on GitHub (v1.7.4)
+
+═══════════════════════════════════════════════════════════════════════
+PART 4: STEP-BY-STEP DEPLOYMENT PLAN
+═══════════════════════════════════════════════════════════════════════
+
+PHASE 1: LOCAL PREPARATION (1-2 hours)
+───────────────────────────────────────
+
+Step 1.1: Install Build Tools
+  $ conda install -n base conda-build conda-smithy grayskull anaconda-client
+
+Step 1.2: Generate Recipe Template
+  $ cd /tmp
+  $ grayskull pypi ign-lidar-hd
+  # This creates a basic meta.yaml from PyPI metadata
+
+Step 1.3: Customize Recipe
+  - Review generated meta.yaml
+  - Add GPU dependencies (cupy, cuml) as optional
+  - Configure build/host/run dependencies
+  - Add test commands
+  - Specify license and maintainer info
+
+Step 1.4: Test Build Locally
+  $ conda build conda/
+  # This builds the package locally to test
+  
+Step 1.5: Test Installation
+  $ conda create -n test_env python=3.12
+  $ conda install -n test_env --use-local ign-lidar-hd
+  $ conda activate test_env
+  $ ign-lidar-hd --help
+
+
+PHASE 2: CONDA-FORGE SUBMISSION (2-4 hours)
+────────────────────────────────────────────
+
+Step 2.1: Fork staged-recipes
+  1. Go to: https://github.com/conda-forge/staged-recipes
+  2. Click "Fork" button
+  3. Clone your fork locally
+
+Step 2.2: Create Recipe Branch
+  $ git clone https://github.com/YOUR_USERNAME/staged-recipes
+  $ cd staged-recipes
+  $ git checkout -b ign-lidar-hd
+
+Step 2.3: Add Your Recipe
+  $ mkdir recipes/ign-lidar-hd
+  $ cp /path/to/your/meta.yaml recipes/ign-lidar-hd/
+  $ cp /path/to/your/build.sh recipes/ign-lidar-hd/
+  $ cp /path/to/your/bld.bat recipes/ign-lidar-hd/
+
+Step 2.4: Validate Recipe
+  $ python .ci_support/validate_recipe.py recipes/ign-lidar-hd
+
+Step 2.5: Commit and Push
+  $ git add recipes/ign-lidar-hd
+  $ git commit -m "Add ign-lidar-hd package with GPU support"
+  $ git push origin ign-lidar-hd
+
+Step 2.6: Create Pull Request
+  1. Go to your fork on GitHub
+  2. Click "Pull Request"
+  3. Title: "Add ign-lidar-hd: LiDAR processing with GPU support"
+  4. Fill in description (see template below)
+  5. Submit PR
+
+
+PHASE 3: REVIEW & ITERATION (1-7 days)
+───────────────────────────────────────
+
+Step 3.1: Wait for Automated Checks
+  - CI/CD will build your package on multiple platforms
+  - Linters will check your recipe format
+  - Review bots will provide initial feedback
+
+Step 3.2: Address Feedback
+  - Conda-forge maintainers will review your PR
+  - They may request changes to dependencies, tests, etc.
+  - Make changes in your branch and push updates
+
+Step 3.3: Approval & Merge
+  - Once approved, conda-forge team merges PR
+  - Your package repo is created: conda-forge/ign-lidar-hd-feedstock
+  - You become a maintainer of that feedstock
+
+
+PHASE 4: POST-DEPLOYMENT (Ongoing)
+───────────────────────────────────
+
+Step 4.1: Verify Package Availability
+  $ conda search -c conda-forge ign-lidar-hd
+
+Step 4.2: Test Installation
+  $ conda create -n test_install -c conda-forge ign-lidar-hd
+  $ conda activate test_install
+  $ ign-lidar-hd --help
+
+Step 4.3: Update Documentation
+  - Add conda installation to README
+  - Update website documentation
+  - Announce on social media/communities
+
+Step 4.4: Future Updates
+  - For new releases, update the feedstock repo
+  - Submit PR to conda-forge/ign-lidar-hd-feedstock
+  - Or use automated tools like regro-cf-autotick-bot
+
+═══════════════════════════════════════════════════════════════════════
+PART 5: DETAILED FILE TEMPLATES
+═══════════════════════════════════════════════════════════════════════
+
+These files will be created in the next steps...
+
+FILES TO CREATE:
+────────────────
+1. conda/meta.yaml          - Package recipe (dependencies, metadata)
+2. conda/build.sh           - Linux/macOS build script
+3. conda/bld.bat            - Windows build script
+4. conda/conda_build_config.yaml - Build configuration
+5. CONDA_DEPLOYMENT.md      - Detailed deployment guide
+
+═══════════════════════════════════════════════════════════════════════
+PART 6: TIMELINE & EFFORT ESTIMATE
+═══════════════════════════════════════════════════════════════════════
+
+TASK BREAKDOWN:
+───────────────
+[ ] Setup accounts & tools        1-2 hours     (one-time)
+[ ] Create recipe files           2-3 hours     (one-time)
+[ ] Local testing                 1-2 hours     (one-time)
+[ ] Submit to conda-forge         1 hour        (one-time)
+[ ] Review & iteration            1-7 days      (async waiting)
+[ ] Post-deployment tasks         1-2 hours     (one-time)
+
+TOTAL ACTIVE TIME: 6-9 hours
+TOTAL CALENDAR TIME: 1-2 weeks (including review)
+
+═══════════════════════════════════════════════════════════════════════
+PART 7: GPU DEPENDENCY STRATEGY
+═══════════════════════════════════════════════════════════════════════
+
+CHALLENGE:
+──────────
+CuPy and RAPIDS cuML are large GPU dependencies that require CUDA.
+Not all users have GPUs, so we need a flexible installation strategy.
+
+SOLUTION: PACKAGE VARIANTS
+──────────────────────────
+
+Option A: Single Package with Optional Dependencies
+  Pros: Simple for users
+  Cons: Harder to maintain, larger default install
+  
+  conda install -c conda-forge ign-lidar-hd        # CPU only
+  conda install -c conda-forge ign-lidar-hd cupy   # + GPU basic
+  conda install -c conda-forge ign-lidar-hd cuml   # + GPU full
+
+Option B: Multiple Packages (RECOMMENDED)
+  Pros: Clean separation, faster installs
+  Cons: More packages to maintain
+  
+  conda install -c conda-forge ign-lidar-hd        # CPU only
+  conda install -c conda-forge ign-lidar-hd-gpu    # + CuPy + cuML
+
+Option C: Environment File Approach (CURRENT)
+  Pros: Maximum flexibility
+  Cons: Not a true conda package
+  
+  # This is what you're using now with install_cuml.sh
+  # Keep this as a fallback option
+
+RECOMMENDATION:
+───────────────
+Start with Option A (single package, optional deps)
+Can evolve to Option B later if needed
+
+═══════════════════════════════════════════════════════════════════════
+PART 8: RISK ASSESSMENT & MITIGATION
+═══════════════════════════════════════════════════════════════════════
+
+POTENTIAL ISSUES:
+─────────────────
+
+1. GPU Dependencies Too Large
+   RISK: High | IMPACT: Medium
+   MITIGATION: Make GPU deps optional, document clearly
+   
+2. CUDA Version Conflicts
+   RISK: Medium | IMPACT: High
+   MITIGATION: Support multiple CUDA versions, test thoroughly
+   
+3. Platform-Specific Build Issues
+   RISK: Medium | IMPACT: Medium
+   MITIGATION: Test on Linux, macOS, Windows via CI/CD
+   
+4. Slow Review Process
+   RISK: Low | IMPACT: Low
+   MITIGATION: Be responsive, provide complete PR description
+   
+5. Dependency Version Pins Too Strict
+   RISK: Low | IMPACT: Medium
+   MITIGATION: Use version ranges (>=1.0,<2.0) not exact pins
+
+═══════════════════════════════════════════════════════════════════════
+PART 9: SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════
+
+DEFINITION OF DONE:
+───────────────────
+✓ Package available via: conda install -c conda-forge ign-lidar-hd
+✓ CPU-only installation works on Linux/macOS/Windows
+✓ GPU installation works with simple additional packages
+✓ All tests pass in conda-forge CI
+✓ Documentation updated with conda instructions
+✓ GitHub feedstock repo created and maintained
+✓ First 10 users successfully install via conda
+
+METRICS TO TRACK:
+─────────────────
+- Download count on anaconda.org
+- GitHub issues related to installation
+- User feedback on conda vs pip installation
+- Time to install (conda should be faster)
+
+═══════════════════════════════════════════════════════════════════════
+PART 10: NEXT STEPS
+═══════════════════════════════════════════════════════════════════════
+
+IMMEDIATE ACTIONS (Do Now):
+───────────────────────────
+1. [ ] Review this plan and approve approach
+2. [ ] Create Anaconda.org account
+3. [ ] Install conda-build tools
+4. [ ] Generate initial recipe with grayskull
+5. [ ] Test local build
+
+FOLLOW-UP TASKS (After Recipe Works):
+──────────────────────────────────────
+1. [ ] Create detailed recipe files (I'll help with this)
+2. [ ] Test on multiple Python versions (3.8, 3.9, 3.10, 3.11, 3.12)
+3. [ ] Fork staged-recipes and submit PR
+4. [ ] Monitor PR for feedback
+5. [ ] Update documentation after merge
+
+═══════════════════════════════════════════════════════════════════════
+
+READY TO START?
+───────────────
+Reply "create recipe files" and I'll generate the complete conda recipe
+with all necessary configuration files for your package!
+
+═══════════════════════════════════════════════════════════════════════

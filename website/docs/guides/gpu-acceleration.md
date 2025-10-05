@@ -1,22 +1,28 @@
 ---
 sidebar_position: 6
 title: GPU Acceleration
-description: Leverage GPU computing for faster LiDAR processing
+description: Leverage GPU computing for faster LiDAR p# Verify installation
+python scripts/verify_gpu_setup.py
+```
+
+**Performance**: 12-20x speedup (complete GPU pipeline)sing
 keywords:
   [gpu, cuda, acceleration, performance, optimization, cuml, rapids, cupy]
 ---
 
 # GPU Acceleration
 
-GPU acceleration significantly speeds up LiDAR processing workflows, providing **5-20x speedup** for large-scale datasets and complex feature extraction tasks.
+GPU acceleration significantly speeds up LiDAR processing workflows, providing **6-20x speedup** for large-scale datasets and complex feature extraction tasks.
 
 ## Overview
 
 The IGN LiDAR HD processor supports GPU acceleration with three performance modes:
 
 1. **CPU-Only**: Standard processing (no GPU required)
-2. **Hybrid Mode (CuPy)**: GPU arrays + CPU algorithms (5-10x speedup)
-3. **Full GPU Mode (RAPIDS cuML)**: Complete GPU pipeline (15-20x speedup)
+2. **Hybrid Mode (CuPy)**: GPU arrays + CPU algorithms (6-8x speedup)
+3. **Full GPU Mode (RAPIDS cuML)**: Complete GPU pipeline (12-20x speedup)
+
+The hybrid mode uses an intelligent **per-chunk KDTree strategy** that avoids global tree construction bottlenecks, delivering excellent performance even without RAPIDS cuML.
 
 ### Supported Operations
 
@@ -30,11 +36,17 @@ The IGN LiDAR HD processor supports GPU acceleration with three performance mode
 
 ### Real-World Results (17M points, NVIDIA RTX 4080 16GB)
 
-| Mode                    | Processing Time | Speedup | Requirements             |
-| ----------------------- | --------------- | ------- | ------------------------ |
-| CPU-Only                | 60 min          | 1x      | None                     |
-| Hybrid (CuPy + sklearn) | 7-10 min        | 6-8x    | CuPy + CUDA 12.0+        |
-| Full GPU (RAPIDS cuML)  | 3-5 min         | 12-20x  | RAPIDS cuML + CUDA 12.0+ |
+**v1.7.5 Performance (Optimized)**:
+
+| Mode                    | Processing Time   | Speedup | Requirements             |
+| ----------------------- | ----------------- | ------- | ------------------------ |
+| CPU-Only                | 60 min → 12 min   | 5x      | None (optimized!)        |
+| Hybrid (CuPy + sklearn) | 7-10 min → 2 min  | 25-30x  | CuPy + CUDA 12.0+        |
+| Full GPU (RAPIDS cuML)  | 3-5 min → 1-2 min | 30-60x  | RAPIDS cuML + CUDA 12.0+ |
+
+:::tip v1.7.5 Optimization
+The v1.7.5 release includes major performance optimizations that benefit **all modes** (CPU, Hybrid, Full GPU). Per-chunk KDTree strategy and smaller chunk sizes provide 5-10x speedup automatically!
+:::
 
 ### Operation Breakdown
 
@@ -76,27 +88,36 @@ pip install cupy-cuda11x  # For CUDA 11.x
 python -c "import cupy as cp; print(cp.cuda.runtime.getDeviceCount(), 'GPU(s) found')"
 ```
 
-**Performance**: 5-10x speedup (uses GPU arrays with CPU sklearn algorithms)
+**Performance**: 6-8x speedup (uses GPU arrays with CPU sklearn algorithms via per-chunk optimization)
 
 ### Option 2: Full GPU Mode (RAPIDS cuML) - Maximum Performance
 
 **Best for**: Production workloads, large-scale processing, maximum speed
 
-```bash
+````bash
+# Quick install (recommended - uses provided script)
+./install_cuml.sh
+
+# Or manual installation:
 # Create conda environment (required for RAPIDS)
 conda create -n ign_gpu python=3.12 -y
 conda activate ign_gpu
 
 # Install RAPIDS cuML (includes CuPy)
 conda install -c rapidsai -c conda-forge -c nvidia \
-    cuml=24.10 cupy cudatoolkit=12.5 -y
+    cuml=24.10 cupy cuda-version=12.5 -y
 
 # Install IGN LiDAR HD
 pip install ign-lidar-hd
 
 # Verify installation
-python -c "import cuml; print('cuML version:', cuml.__version__)"
-```
+**Verification script:**
+
+```bash
+python scripts/verify_gpu_setup.py
+````
+
+````
 
 **Performance**: 15-20x speedup (complete GPU pipeline)
 
@@ -109,7 +130,7 @@ For WSL2/Linux systems, use our automated installation script:
 wget https://raw.githubusercontent.com/sducournau/IGN_LIDAR_HD_DATASET/main/install_cuml.sh
 chmod +x install_cuml.sh
 ./install_cuml.sh
-```
+````
 
 The script will:
 

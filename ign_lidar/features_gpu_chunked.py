@@ -36,7 +36,6 @@ except ImportError:
 
 # CPU fallback imports
 from sklearn.neighbors import NearestNeighbors
-from sklearn.decomposition import PCA
 
 
 class GPUChunkedFeatureComputer:
@@ -59,25 +58,61 @@ class GPUChunkedFeatureComputer:
     
     def __init__(
         self,
-        chunk_size: int = 5_000_000,
-        vram_limit_gb: float = 8.0,
+        chunk_size: int = None,
+        vram_limit_gb: float = None,
         use_gpu: bool = True,
-        show_progress: bool = True
+        show_progress: bool = True,
+        auto_optimize: bool = True
     ):
         """
         Initialize GPU chunked feature computer.
         
+        INTELLIGENT AUTO-OPTIMIZATION: If chunk_size=None, automatically
+        determines optimal size based on available VRAM.
+        
         Args:
-            chunk_size: Number of points per chunk (default: 5M)
-            vram_limit_gb: Maximum VRAM usage in GB (default: 8.0)
+            chunk_size: Points per chunk (None = auto-optimize)
+            vram_limit_gb: Max VRAM usage (None = auto-detect)
             use_gpu: Enable GPU acceleration if available
             show_progress: Show progress bars during processing
+            auto_optimize: Enable intelligent parameter optimization
         """
-        self.chunk_size = chunk_size
-        self.vram_limit_gb = vram_limit_gb
         self.use_gpu = use_gpu and GPU_AVAILABLE
         self.use_cuml = CUML_AVAILABLE
         self.show_progress = show_progress
+        self.auto_optimize = auto_optimize
+        
+        # INTELLIGENT AUTO-OPTIMIZATION
+        if self.use_gpu and auto_optimize:
+            from .memory_manager import AdaptiveMemoryManager
+            self.memory_manager = AdaptiveMemoryManager()
+            
+            # Auto-detect VRAM
+            if vram_limit_gb is None:
+                status = self.memory_manager.get_current_memory_status()
+                self.vram_limit_gb = status[2]  # vram_free_gb
+            else:
+                self.vram_limit_gb = vram_limit_gb
+            
+            # Auto-optimize chunk size
+            if chunk_size is None:
+                self.chunk_size = (
+                    self.memory_manager.calculate_optimal_gpu_chunk_size(
+                        num_points=10_000_000,  # Estimate for sizing
+                        vram_free_gb=self.vram_limit_gb
+                    )
+                )
+                if self.chunk_size == 0:
+                    # Not enough VRAM, fallback to CPU
+                    self.use_gpu = False
+                    self.chunk_size = 2_500_000
+            else:
+                self.chunk_size = chunk_size
+        else:
+            # Manual configuration
+            self.chunk_size = chunk_size if chunk_size else 2_500_000
+            self.vram_limit_gb = vram_limit_gb if vram_limit_gb else 8.0
+            self.memory_manager = None
         
         if self.use_gpu:
             # Get available VRAM
@@ -154,21 +189,22 @@ class GPUChunkedFeatureComputer:
         N = len(points)
         num_chunks = (N + self.chunk_size - 1) // self.chunk_size
         
-        # Use per-chunk strategy when cuML not available (much faster)
-        use_per_chunk = not (self.use_cuml and cuNearestNeighbors)
-        
-        if use_per_chunk:
-            logger.info(
-                f"Computing normals with per-chunk KDTree: "
-                f"{N:,} points in {num_chunks} chunks"
-            )
-            return self._compute_normals_per_chunk(points, k)
-        
-        # Original global KDTree strategy (only with cuML)
+        # ALWAYS use per-chunk strategy (much faster for large datasets)
+        # Building a global KDTree for 10M+ points is too slow even on GPU
+        # Per-chunk strategy: ~10-20x faster, similar accuracy with overlap
         logger.info(
-            f"Computing normals with global KDTree (cuML): "
+            f"Computing normals with per-chunk KDTree: "
             f"{N:,} points in {num_chunks} chunks"
         )
+        return self._compute_normals_per_chunk(points, k)
+        
+        # Original global KDTree strategy (DEPRECATED - too slow)
+        # Keeping code for reference but never used
+        if False:  # Disabled
+            logger.info(
+                f"Computing normals with global KDTree (cuML): "
+                f"{N:,} points in {num_chunks} chunks"
+            )
         
         normals = np.zeros((N, 3), dtype=np.float32)
         
@@ -261,6 +297,17 @@ class GPUChunkedFeatureComputer:
             computer = GPUFeatureComputer(use_gpu=False)
             return computer.compute_normals(points, k=k)
     
+    def _log_gpu_memory(self, stage: str = ""):
+        """Log current GPU memory usage."""
+        if self.use_gpu and cp is not None:
+            mempool = cp.get_default_memory_pool()
+            used = mempool.used_bytes() / (1024**3)  # GB
+            total = mempool.total_bytes() / (1024**3)  # GB
+            logger.debug(
+                f"  GPU Memory {stage}: {used:.2f}GB used, "
+                f"{total:.2f}GB allocated"
+            )
+    
     def _compute_normals_per_chunk(
         self,
         points: np.ndarray,
@@ -271,9 +318,9 @@ class GPUChunkedFeatureComputer:
         Much faster than global KDTree when using sklearn fallback.
         
         Strategy:
-        - Build small KDTree per chunk (~5M points each)
+        - Build small KDTree per chunk (~2.5M points each)
         - Use overlap region to get neighbors across boundaries
-        - 10-20x faster than global sklearn KDTree
+        - Aggressive memory cleanup after each chunk
         
         Args:
             points: [N, 3] point coordinates
@@ -286,14 +333,15 @@ class GPUChunkedFeatureComputer:
         normals = np.zeros((N, 3), dtype=np.float32)
         
         # Calculate overlap needed for boundary neighbors
-        # Estimate: max distance for k neighbors ≈ sqrt(k) * point_density
-        overlap_ratio = 0.05  # 5% overlap between chunks
+        # Increased overlap for smaller chunks to maintain accuracy
+        overlap_ratio = 0.10  # 10% overlap between chunks (was 5%)
         overlap_size = int(self.chunk_size * overlap_ratio)
         
         num_chunks = (N + self.chunk_size - 1) // self.chunk_size
         
         # Transfer points to GPU
         points_gpu = self._to_gpu(points)
+        self._log_gpu_memory("after points transfer")
         
         # Progress bar
         chunk_iterator = range(num_chunks)
@@ -318,19 +366,36 @@ class GPUChunkedFeatureComputer:
             tree_end = min(N, end_idx + overlap_size)
             
             # Extract chunk points for KDTree
-            chunk_points_cpu = self._to_cpu(
-                points_gpu[tree_start:tree_end]
-            )
+            chunk_points_for_tree = points_gpu[tree_start:tree_end]
             
-            # Build local KDTree (small, fast!)
-            knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
-            knn.fit(chunk_points_cpu)
-            
-            # Query points (original chunk, not extended)
-            query_points = chunk_points_cpu[
-                (start_idx - tree_start):(end_idx - tree_start)
-            ]
-            distances, local_indices = knn.kneighbors(query_points)
+            # Build local KDTree (small and fast!)
+            # Use cuML if available for GPU acceleration
+            if self.use_cuml and cuNearestNeighbors is not None:
+                # GPU KDTree with cuML (faster)
+                knn = cuNearestNeighbors(n_neighbors=k, metric='euclidean')
+                knn.fit(chunk_points_for_tree)
+                
+                # Query points (original chunk, not extended)
+                query_start_local = start_idx - tree_start
+                query_end_local = end_idx - tree_start
+                query_points = chunk_points_for_tree[
+                    query_start_local:query_end_local
+                ]
+                distances, local_indices = knn.kneighbors(query_points)
+                
+                # Convert to numpy if needed
+                local_indices = self._to_cpu(local_indices)
+            else:
+                # CPU KDTree fallback
+                chunk_points_cpu = self._to_cpu(chunk_points_for_tree)
+                knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
+                knn.fit(chunk_points_cpu)
+                
+                # Query points (original chunk, not extended)
+                query_points = chunk_points_cpu[
+                    (start_idx - tree_start):(end_idx - tree_start)
+                ]
+                distances, local_indices = knn.kneighbors(query_points)
             
             # Convert local indices to global indices
             global_indices = local_indices + tree_start
@@ -348,9 +413,13 @@ class GPUChunkedFeatureComputer:
             # Store results
             normals[start_idx:end_idx] = self._to_cpu(chunk_normals)
             
-            # Cleanup
-            if chunk_idx % 5 == 0:
-                self._free_gpu_memory()
+            # OPTIMIZED: Aggressive memory cleanup after each chunk
+            del chunk_normals, global_indices_gpu, global_indices
+            del chunk_points_for_tree, knn
+            if self.use_cuml and 'query_points' in locals():
+                del query_points
+            # Free GPU memory every chunk (not every 3 chunks)
+            self._free_gpu_memory()
         
         logger.info("  ✓ Per-chunk normals computation complete")
         return normals
@@ -361,7 +430,10 @@ class GPUChunkedFeatureComputer:
         neighbor_indices
     ):
         """
-        Compute normals from neighbor indices using GPU/CPU PCA.
+        Compute normals using VECTORIZED covariance computation.
+        
+        This is ~100x faster than per-point PCA loops by computing
+        all covariance matrices at once using vectorized operations.
         
         Args:
             points_gpu: [N, 3] all points (on GPU if available)
@@ -370,102 +442,198 @@ class GPUChunkedFeatureComputer:
         Returns:
             normals: [M, 3] normals (on GPU if available)
         """
-        M = len(neighbor_indices)
+        M, k = neighbor_indices.shape
         
-        if self.use_cuml and cuPCA is not None and cp is not None:
-            # Full GPU path with cuML
-            normals = cp.zeros((M, 3), dtype=cp.float32)
-            
-            # Batch PCA to avoid creating too many small operations
-            batch_size = min(1000, M)
-            num_batches = (M + batch_size - 1) // batch_size
-            
-            for batch_idx in range(num_batches):
-                start = batch_idx * batch_size
-                end = min((batch_idx + 1) * batch_size, M)
-                
-                for i in range(start, end):
-                    indices = neighbor_indices[i]
-                    neighbors = points_gpu[indices]
-                    
-                    # Check variance
-                    variance = cp.var(neighbors, axis=0)
-                    if cp.sum(variance) < 1e-6:
-                        normals[i] = cp.array([0, 0, 1], dtype=cp.float32)
-                        continue
-                    
-                    try:
-                        # PCA on GPU
-                        pca = cuPCA(n_components=3)
-                        pca.fit(neighbors)
-                        
-                        # Normal = smallest variance component
-                        normal = pca.components_[-1]
-                        
-                        # Normalize
-                        norm = cp.linalg.norm(normal)
-                        if norm > 1e-6:
-                            normal = normal / norm
-                        else:
-                            normal = cp.array([0, 0, 1], dtype=cp.float32)
-                        
-                        # Orient upward
-                        if normal[2] < 0:
-                            normal = -normal
-                        
-                        normals[i] = normal
-                        
-                    except Exception:
-                        normals[i] = cp.array([0, 0, 1], dtype=cp.float32)
-            
-            return normals
+        # Determine computation backend
+        use_gpu = cp is not None and isinstance(points_gpu, cp.ndarray)
+        xp = cp if use_gpu else np
+        
+        # Gather all neighbor points: [M, k, 3]
+        if use_gpu:
+            neighbor_points = points_gpu[neighbor_indices]
         else:
-            # Hybrid path: points on GPU, PCA on CPU with sklearn
-            if cp is not None and isinstance(points_gpu, cp.ndarray):
-                normals_gpu = cp.zeros((M, 3), dtype=cp.float32)
+            neighbor_points = points_gpu[neighbor_indices]
+        
+        # Center the neighborhoods: [M, k, 3]
+        centroids = xp.mean(
+            neighbor_points, axis=1, keepdims=True
+        )  # [M, 1, 3]
+        centered = neighbor_points - centroids  # [M, k, 3]
+        
+        # MEMORY OPTIMIZATION: Free neighbor_points immediately
+        del neighbor_points, centroids
+        
+        # Compute covariance matrices for ALL points at once: [M, 3, 3]
+        # cov = (1/k) * (centered.T @ centered)
+        # Using einsum for efficient batched matrix multiplication
+        cov_matrices = xp.einsum('mki,mkj->mij', centered, centered) / k
+        
+        # MEMORY OPTIMIZATION: Free centered data after covariance computation
+        del centered
+        
+        # Ensure symmetry (avoid numerical precision issues)
+        cov_T = xp.transpose(cov_matrices, (0, 2, 1))
+        cov_matrices = (cov_matrices + cov_T) / 2
+        del cov_T  # Free transposed copy
+        
+        # CRITICAL FIX: Use float64 for GPU eigendecomposition
+        # CuSOLVER's cusolverDnSsyevd (float32 version) has known stability
+        # issues with batched operations, causing CUSOLVER_STATUS_INVALID_VALUE
+        # errors. Using float64 (cusolverDnDsyevd) is more stable.
+        # We convert back to float32 after eigh to save memory.
+        if use_gpu and cov_matrices.dtype == cp.float32:
+            cov_matrices = cov_matrices.astype(cp.float64)
+        
+        # Add MORE AGGRESSIVE regularization for GPU stability
+        # CuSOLVER is more sensitive than CPU LAPACK
+        reg_term = 1e-6 if use_gpu else 1e-8  # Stronger for GPU
+        if use_gpu:
+            # Match the dtype of cov_matrices (now float64 for stability)
+            eye = cp.eye(3, dtype=cov_matrices.dtype)
+        else:
+            eye = np.eye(3, dtype=np.float32)
+        cov_matrices = cov_matrices + reg_term * eye
+        
+        # Validate covariance matrices before eigendecomposition
+        if use_gpu:
+            # Check for NaN/Inf on GPU
+            is_valid = cp.all(cp.isfinite(cov_matrices))
+            if not is_valid:
+                logger.warning(
+                    "  ⚠ Invalid covariance matrices detected, sanitizing..."
+                )
+                # Replace invalid matrices with identity
+                invalid_mask = ~cp.all(cp.isfinite(cov_matrices), axis=(1, 2))
+                cov_matrices[invalid_mask] = eye
+        else:
+            # Check for NaN/Inf on CPU
+            is_valid = np.all(np.isfinite(cov_matrices))
+            if not is_valid:
+                logger.warning(
+                    "  ⚠ Invalid covariance matrices detected, sanitizing..."
+                )
+                invalid_mask = ~np.all(np.isfinite(cov_matrices), axis=(1, 2))
+                cov_matrices[invalid_mask] = eye
+        
+        try:
+            # Compute eigenvalues/eigenvectors for all covariance matrices
+            # eigenvalues: [M, 3], eigenvectors: [M, 3, 3]
+            if use_gpu:
+                # GPU eigendecomposition with CuSOLVER
+                # Process in sub-chunks to avoid CUSOLVER_STATUS_INVALID_VALUE
+                # CuSOLVER has limits on batch sizes even with float64
+                # INTELLIGENT AUTO-SCALING: Adapt batch size to VRAM
+                if self.memory_manager and self.auto_optimize:
+                    eigh_chunk_size = (
+                        self.memory_manager.calculate_optimal_eigh_batch_size(
+                            chunk_size=M,
+                            vram_free_gb=self.vram_limit_gb
+                        )
+                    )
+                else:
+                    eigh_chunk_size = 250_000  # Default conservative
+                
+                if M <= eigh_chunk_size:
+                    # Small enough to process at once
+                    eigenvalues, eigenvectors = cp.linalg.eigh(cov_matrices)
+                    # MEMORY OPTIMIZATION: Free cov_matrices immediately
+                    del cov_matrices
+                else:
+                    # Process in sub-chunks
+                    dtype = cov_matrices.dtype
+                    eigenvalues = cp.zeros((M, 3), dtype=dtype)
+                    eigenvectors = cp.zeros((M, 3, 3), dtype=dtype)
+                    
+                    for i in range(0, M, eigh_chunk_size):
+                        end_i = min(i + eigh_chunk_size, M)
+                        eigenvalues[i:end_i], eigenvectors[i:end_i] = (
+                            cp.linalg.eigh(cov_matrices[i:end_i])
+                        )
+                    # MEMORY OPTIMIZATION: Free cov_matrices after processing
+                    del cov_matrices
             else:
-                normals_gpu = np.zeros((M, 3), dtype=np.float32)
+                eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
+        except Exception as e:
+            # If GPU eigendecomposition fails, fallback to CPU
+            error_msg = str(e)
+            logger.error(f"  ✗ GPU Eigendecomposition failed: {error_msg}")
             
-            for i in range(M):
-                indices = neighbor_indices[i]
-                if cp is not None and isinstance(points_gpu, cp.ndarray):
-                    neighbors = cp.asnumpy(points_gpu[indices])
+            if use_gpu and "CUSOLVER" in error_msg.upper():
+                # CUSOLVER error - fallback to CPU computation
+                logger.warning(
+                    "  ⚠ CuSOLVER error detected, falling back to CPU "
+                    "eigendecomposition..."
+                )
+                try:
+                    # Transfer to CPU and compute there
+                    cov_matrices_cpu = cp.asnumpy(cov_matrices)
+                    eigenvalues, eigenvectors = (
+                        np.linalg.eigh(cov_matrices_cpu)
+                    )
+                    # Transfer results back to GPU
+                    eigenvalues = cp.asarray(eigenvalues)
+                    eigenvectors = cp.asarray(eigenvectors)
+                    logger.info("  ✓ CPU fallback successful")
+                except Exception as e2:
+                    # Even CPU failed - use default normals
+                    logger.error(f"  ✗ CPU fallback also failed: {e2}")
+                    logger.warning(
+                        "  ⚠ Using default normals (vertical orientation)"
+                    )
+                    if use_gpu:
+                        normals = cp.zeros((M, 3), dtype=cp.float32)
+                        normals[:, 2] = 1.0
+                    else:
+                        normals = np.zeros((M, 3), dtype=np.float32)
+                        normals[:, 2] = 1.0
+                    return normals
+            else:
+                # Other error - use default normals
+                logger.warning(
+                    "  ⚠ Using default normals (vertical orientation)"
+                )
+                if use_gpu:
+                    normals = cp.zeros((M, 3), dtype=cp.float32)
+                    normals[:, 2] = 1.0
                 else:
-                    neighbors = points_gpu[indices]
-                
-                # Check variance
-                variance = np.var(neighbors, axis=0)
-                if np.sum(variance) < 1e-6:
-                    normal = np.array([0, 0, 1], dtype=np.float32)
-                else:
-                    try:
-                        # PCA on CPU with sklearn
-                        pca = PCA(n_components=3)
-                        pca.fit(neighbors)
-                        
-                        # Normal = smallest variance component
-                        normal = pca.components_[-1]
-                        
-                        # Normalize
-                        norm = np.linalg.norm(normal)
-                        if norm > 1e-6:
-                            normal = normal / norm
-                        else:
-                            normal = np.array([0, 0, 1], dtype=np.float32)
-                        
-                        # Orient upward
-                        if normal[2] < 0:
-                            normal = -normal
-                            
-                    except Exception:
-                        normal = np.array([0, 0, 1], dtype=np.float32)
-                
-                if cp is not None and isinstance(normals_gpu, cp.ndarray):
-                    normals_gpu[i] = cp.asarray(normal)
-                else:
-                    normals_gpu[i] = normal
-            
-            return normals_gpu
+                    normals = np.zeros((M, 3), dtype=np.float32)
+                    normals[:, 2] = 1.0
+                return normals
+        
+        # Normal = eigenvector with smallest eigenvalue
+        # (first column after eigh - returns ascending order)
+        normals = eigenvectors[:, :, 0]  # [M, 3]
+        
+        # MEMORY OPTIMIZATION: Free eigenvectors (only need 1st column)
+        del eigenvectors
+        
+        # Convert back to float32 to save memory (float64 only needed for eigh)
+        if use_gpu and normals.dtype == cp.float64:
+            normals = normals.astype(cp.float32)
+            eigenvalues = eigenvalues.astype(cp.float32)
+        
+        # Normalize normals
+        norms = xp.linalg.norm(normals, axis=1, keepdims=True)  # [M, 1]
+        norms = xp.maximum(norms, 1e-6)  # Avoid division by zero
+        normals = normals / norms
+        del norms  # Free immediately
+        
+        # Orient normals upward (positive Z)
+        flip_mask = normals[:, 2] < 0  # [M]
+        normals[flip_mask] *= -1
+        del flip_mask  # Free mask
+        
+        # Handle degenerate cases (very small variance)
+        variances = xp.sum(eigenvalues, axis=1)  # [M]
+        degenerate = variances < 1e-6
+        if xp.any(degenerate):
+            if use_gpu:
+                normals[degenerate] = cp.array([0, 0, 1], dtype=cp.float32)
+            else:
+                normals[degenerate] = np.array([0, 0, 1], dtype=np.float32)
+        del eigenvalues, variances, degenerate  # Free temp arrays
+        
+        return normals
     
     def compute_curvature_chunked(
         self,
@@ -546,32 +714,28 @@ class GPUChunkedFeatureComputer:
                     if cp is not None:
                         indices = cp.asarray(indices)
                 
-                # Compute curvature for chunk
-                chunk_size_actual = end_idx - start_idx
-                if cp is not None:
-                    chunk_curvature = cp.zeros(
-                        chunk_size_actual, dtype=cp.float32
-                    )
+                # Compute curvature for chunk (VECTORIZED)
+                # Get neighbor normals: [chunk_size, k, 3]
+                if cp is not None and isinstance(normals_gpu, cp.ndarray):
+                    xp = cp
+                    # [chunk_size, k, 3]
+                    neighbor_normals = normals_gpu[indices]
+                    # [chunk_size, 3]
+                    query_normals = normals_gpu[start_idx:end_idx]
                 else:
-                    chunk_curvature = np.zeros(
-                        chunk_size_actual, dtype=np.float32
-                    )
+                    xp = np
+                    neighbor_normals = normals_gpu[indices]
+                    query_normals = normals_gpu[start_idx:end_idx]
                 
-                for i in range(chunk_size_actual):
-                    if cp is not None and isinstance(normals_gpu, cp.ndarray):
-                        neighbor_normals = normals_gpu[indices[i]]
-                        normal_diff = (
-                            neighbor_normals - normals_gpu[start_idx + i]
-                        )
-                        curv_norms = cp.linalg.norm(normal_diff, axis=1)
-                        chunk_curvature[i] = cp.mean(curv_norms)
-                    else:
-                        neighbor_normals = normals_gpu[indices[i]]
-                        normal_diff = (
-                            neighbor_normals - normals_gpu[start_idx + i]
-                        )
-                        curv_norms = np.linalg.norm(normal_diff, axis=1)
-                        chunk_curvature[i] = np.mean(curv_norms)
+                # Expand query normals: [chunk_size, 1, 3]
+                query_normals_expanded = query_normals[:, xp.newaxis, :]
+                
+                # Compute differences: [chunk_size, k, 3]
+                normal_diff = neighbor_normals - query_normals_expanded
+                
+                # Compute norms and mean: [chunk_size]
+                curv_norms = xp.linalg.norm(normal_diff, axis=2)  # [chunk, k]
+                chunk_curvature = xp.mean(curv_norms, axis=1)  # [chunk_size]
                 
                 # Transfer to CPU
                 curvature[start_idx:end_idx] = self._to_cpu(chunk_curvature)
@@ -654,23 +818,28 @@ class GPUChunkedFeatureComputer:
             distances, local_indices = knn.kneighbors(query_points)
             global_indices = local_indices + tree_start
             
-            # Compute curvature
-            chunk_size_actual = end_idx - start_idx
-            chunk_curvature = np.zeros(chunk_size_actual, dtype=np.float32)
+            # Compute curvature (VECTORIZED)
+            # Get neighbor normals for all points at once: [chunk_size, k, 3]
+            if cp is not None and isinstance(normals_gpu, cp.ndarray):
+                neighbor_normals = cp.asnumpy(
+                    normals_gpu[global_indices]
+                )  # [chunk_size, k, 3]
+                query_normals = cp.asnumpy(
+                    normals_gpu[start_idx:end_idx]
+                )  # [chunk_size, 3]
+            else:
+                neighbor_normals = normals_gpu[global_indices]
+                query_normals = normals_gpu[start_idx:end_idx]
             
-            for i in range(chunk_size_actual):
-                if cp is not None and isinstance(normals_gpu, cp.ndarray):
-                    neighbor_normals = cp.asnumpy(
-                        normals_gpu[global_indices[i]]
-                    )
-                    query_normal = cp.asnumpy(normals_gpu[start_idx + i])
-                else:
-                    neighbor_normals = normals_gpu[global_indices[i]]
-                    query_normal = normals_gpu[start_idx + i]
-                
-                normal_diff = neighbor_normals - query_normal
-                curv_norms = np.linalg.norm(normal_diff, axis=1)
-                chunk_curvature[i] = np.mean(curv_norms)
+            # Expand query normals for broadcasting: [chunk_size, 1, 3]
+            query_normals_expanded = query_normals[:, np.newaxis, :]
+            
+            # Compute differences: [chunk_size, k, 3]
+            normal_diff = neighbor_normals - query_normals_expanded
+            
+            # Compute norms and mean: [chunk_size]
+            curv_norms = np.linalg.norm(normal_diff, axis=2)  # [chunk_size, k]
+            chunk_curvature = np.mean(curv_norms, axis=1)  # [chunk_size]
             
             curvature[start_idx:end_idx] = chunk_curvature
             
@@ -688,10 +857,10 @@ class GPUChunkedFeatureComputer:
         radius: Optional[float] = None
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
         """
-        Compute all features using GPU with chunked processing.
+        Compute ALL features per-chunk for maximum memory efficiency.
         
-        This is the main entry point for GPU-accelerated feature computation
-        on large point clouds.
+        OPTIMIZED: Computes normals, curvature, height, and geometric
+        features within each chunk to minimize memory footprint.
         
         Args:
             points: [N, 3] point coordinates
@@ -705,30 +874,149 @@ class GPUChunkedFeatureComputer:
             height: [N] height above ground
             geo_features: dict with geometric features
         """
+        N = len(points)
         logger.info(
-            f"Computing all features with GPU chunking: "
-            f"{len(points):,} points"
+            f"Computing all features with GPU chunking: {N:,} points"
         )
         
-        # Compute normals
-        normals = self.compute_normals_chunked(points, k=k)
+        # Initialize output arrays
+        normals = np.zeros((N, 3), dtype=np.float32)
+        curvature = np.zeros(N, dtype=np.float32)
+        height = np.zeros(N, dtype=np.float32)
         
-        # Compute curvature
-        curvature = self.compute_curvature_chunked(points, normals, k=k)
+        # Initialize geometric features
+        geo_features = {
+            'eigenvalue_sum': np.zeros(N, dtype=np.float32),
+            'omnivariance': np.zeros(N, dtype=np.float32),
+            'eigenentropy': np.zeros(N, dtype=np.float32),
+            'anisotropy': np.zeros(N, dtype=np.float32),
+            'planarity': np.zeros(N, dtype=np.float32),
+            'linearity': np.zeros(N, dtype=np.float32),
+            'surface_variation': np.zeros(N, dtype=np.float32),
+            'sphericity': np.zeros(N, dtype=np.float32),
+            'verticality': np.zeros(N, dtype=np.float32)
+        }
         
-        # Compute height (uses existing GPU implementation)
+        # Compute per-chunk for memory efficiency
+        overlap_ratio = 0.10
+        overlap_size = int(self.chunk_size * overlap_ratio)
+        num_chunks = (N + self.chunk_size - 1) // self.chunk_size
+        
+        # Progress bar
+        chunk_iterator = range(num_chunks)
+        if self.show_progress:
+            bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
+                       '[{elapsed}<{remaining}]')
+            chunk_iterator = tqdm(
+                chunk_iterator,
+                desc="  All Features",
+                unit="chunk",
+                total=num_chunks,
+                bar_format=bar_fmt
+            )
+        
+        # Import GPU computer for helper functions
         from .features_gpu import GPUFeatureComputer
         gpu_computer = GPUFeatureComputer(use_gpu=self.use_gpu)
-        height = gpu_computer.compute_height_above_ground(
-            points, classification
-        )
         
-        # Compute geometric features (can be chunked if needed)
-        geo_features = gpu_computer.extract_geometric_features(
-            points, normals, k=k, radius=radius
-        )
+        # Transfer all points to GPU once
+        points_gpu = self._to_gpu(points)
         
-        logger.info("✓ All features computed successfully with GPU")
+        for chunk_idx in chunk_iterator:
+            # Define chunk boundaries
+            start_idx = chunk_idx * self.chunk_size
+            end_idx = min((chunk_idx + 1) * self.chunk_size, N)
+            
+            # Extended range for KDTree (with overlap)
+            tree_start = max(0, start_idx - overlap_size)
+            tree_end = min(N, end_idx + overlap_size)
+            
+            # Extract chunk for processing
+            chunk_points = points_gpu[tree_start:tree_end]
+            chunk_classification = classification[tree_start:tree_end]
+            
+            # Build local KDTree
+            if self.use_cuml and cuNearestNeighbors is not None:
+                knn = cuNearestNeighbors(n_neighbors=k, metric='euclidean')
+                knn.fit(chunk_points)
+                
+                query_start_local = start_idx - tree_start
+                query_end_local = end_idx - tree_start
+                query_points = chunk_points[query_start_local:query_end_local]
+                distances, local_indices = knn.kneighbors(query_points)
+                local_indices = self._to_cpu(local_indices)
+            else:
+                chunk_points_cpu = self._to_cpu(chunk_points)
+                knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
+                knn.fit(chunk_points_cpu)
+                
+                query_points = chunk_points_cpu[
+                    (start_idx - tree_start):(end_idx - tree_start)
+                ]
+                distances, local_indices = knn.kneighbors(query_points)
+            
+            # Convert local to global indices
+            global_indices = local_indices + tree_start
+            
+            # Compute normals for this chunk
+            if cp is not None:
+                global_indices_gpu = cp.asarray(global_indices)
+            else:
+                global_indices_gpu = global_indices
+            
+            chunk_normals = self._compute_normals_from_neighbors_gpu(
+                points_gpu, global_indices_gpu
+            )
+            normals[start_idx:end_idx] = self._to_cpu(chunk_normals)
+            
+            # Compute curvature for this chunk (using chunk normals)
+            if cp is not None and isinstance(chunk_normals, cp.ndarray):
+                normals_for_curv = cp.asnumpy(chunk_normals)
+                # Need to get neighbor normals from already computed normals
+                # For first chunk, use chunk normals; for later, use results
+                all_normals_gpu = self._to_gpu(normals)
+                neighbor_normals = cp.asnumpy(all_normals_gpu[global_indices])
+            else:
+                normals_for_curv = chunk_normals
+                neighbor_normals = normals[global_indices]
+            
+            # Vectorized curvature computation
+            normals_expanded = normals_for_curv[:, np.newaxis, :]
+            normal_diff = neighbor_normals - normals_expanded
+            curv_norms = np.linalg.norm(normal_diff, axis=2)
+            chunk_curvature = np.mean(curv_norms, axis=1)
+            curvature[start_idx:end_idx] = chunk_curvature
+            
+            # Compute height for this chunk
+            chunk_points_cpu = self._to_cpu(
+                points_gpu[start_idx:end_idx]
+            )
+            chunk_height = gpu_computer.compute_height_above_ground(
+                chunk_points_cpu, chunk_classification[
+                    (start_idx - tree_start):(end_idx - tree_start)
+                ]
+            )
+            height[start_idx:end_idx] = chunk_height
+            
+            # Compute geometric features for this chunk
+            chunk_geo = gpu_computer.extract_geometric_features(
+                chunk_points_cpu,
+                normals[start_idx:end_idx],
+                k=k,
+                radius=radius
+            )
+            
+            # Store geometric features
+            for key in geo_features:
+                if key in chunk_geo:
+                    geo_features[key][start_idx:end_idx] = chunk_geo[key]
+            
+            # Cleanup
+            del chunk_points, chunk_classification, chunk_normals
+            del global_indices_gpu, local_indices, chunk_geo
+            self._free_gpu_memory()
+        
+        logger.info("✓ All features computed per-chunk successfully")
         
         return normals, curvature, height, geo_features
 

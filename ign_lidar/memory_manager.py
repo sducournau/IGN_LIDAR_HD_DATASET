@@ -54,9 +54,15 @@ class AdaptiveMemoryManager:
     # Augmentation memory multiplier
     AUGMENTATION_MULTIPLIER = 3.5  # Peak memory during augmentation
     
-    # Safety margins
-    RAM_SAFETY_MARGIN = 0.20  # Keep 20% RAM free
-    VRAM_SAFETY_MARGIN = 0.15  # Keep 15% VRAM free
+    # INTELLIGENT AUTO-SCALING: Adaptive safety margins
+    # Lower margins when more memory available = better utilization
+    RAM_SAFETY_MARGIN_HIGH = 0.15   # High RAM (>32GB): use more
+    RAM_SAFETY_MARGIN_MED = 0.20    # Medium RAM (16-32GB): balanced
+    RAM_SAFETY_MARGIN_LOW = 0.30    # Low RAM (<16GB): conservative
+    
+    VRAM_SAFETY_MARGIN_HIGH = 0.10  # High VRAM (>12GB): use more
+    VRAM_SAFETY_MARGIN_MED = 0.15   # Medium VRAM (8-12GB): balanced
+    VRAM_SAFETY_MARGIN_LOW = 0.25   # Low VRAM (<8GB): conservative
     
     def __init__(
         self,
@@ -279,9 +285,18 @@ class AdaptiveMemoryManager:
         # Memory per worker estimate (GB)
         gb_per_worker = 5.0 if mode == 'full' else 2.5
         
+        # Get total RAM
+        mem = psutil.virtual_memory()
+        total_ram_gb = mem.total / (1024**3)
+        
+        # Get adaptive safety margin based on total RAM
+        safety_margin = self.get_adaptive_safety_margin(
+            total_ram_gb, 'RAM'
+        )
+        
         # Calculate safe worker count
         max_safe_workers = int(
-            available_ram_gb * (1 - self.RAM_SAFETY_MARGIN)
+            available_ram_gb * (1 - safety_margin)
             / gb_per_worker
         )
         
@@ -407,6 +422,151 @@ class AdaptiveMemoryManager:
         logger.info(f"{'='*60}\n")
         
         return config
+    
+    def get_adaptive_safety_margin(
+        self,
+        total_memory_gb: float,
+        memory_type: str = 'ram'
+    ) -> float:
+        """
+        Get adaptive safety margin based on available memory.
+        More memory = lower margin = better utilization.
+        
+        Args:
+            total_memory_gb: Total memory available
+            memory_type: 'ram' or 'vram'
+            
+        Returns:
+            Safety margin (0.0-1.0)
+        """
+        if memory_type == 'vram':
+            if total_memory_gb >= 12.0:
+                return self.VRAM_SAFETY_MARGIN_HIGH
+            elif total_memory_gb >= 8.0:
+                return self.VRAM_SAFETY_MARGIN_MED
+            else:
+                return self.VRAM_SAFETY_MARGIN_LOW
+        else:  # RAM
+            if total_memory_gb >= 32.0:
+                return self.RAM_SAFETY_MARGIN_HIGH
+            elif total_memory_gb >= 16.0:
+                return self.RAM_SAFETY_MARGIN_MED
+            else:
+                return self.RAM_SAFETY_MARGIN_LOW
+    
+    def calculate_optimal_gpu_chunk_size(
+        self,
+        num_points: int,
+        vram_free_gb: Optional[float] = None
+    ) -> int:
+        """
+        Calculate optimal GPU chunk size based on VRAM.
+        INTELLIGENT: Scale up with more VRAM for better performance.
+        
+        Args:
+            num_points: Total points to process
+            vram_free_gb: Available VRAM (None = auto-detect)
+            
+        Returns:
+            Optimal GPU chunk size
+        """
+        if vram_free_gb is None:
+            _, _, vram_free_gb = self.get_current_memory_status()
+        
+        if vram_free_gb < 4.0:
+            logger.warning("⚠️  Low VRAM, using CPU mode")
+            return 0  # Signal to use CPU
+        
+        # Get adaptive safety margin
+        safety_margin = self.get_adaptive_safety_margin(
+            vram_free_gb, 'vram'
+        )
+        
+        # Available VRAM for processing
+        usable_vram_gb = vram_free_gb * (1 - safety_margin)
+        
+        # Memory per point on GPU (includes neighbor gathering, covariance)
+        # Conservative estimate: ~150 bytes per point
+        bytes_per_point_gpu = 150
+        
+        # Calculate chunk size
+        chunk_size = int(
+            (usable_vram_gb * 1024**3) / bytes_per_point_gpu
+        )
+        
+        # INTELLIGENT SCALING: Adapt to VRAM tiers
+        if vram_free_gb >= 16.0:
+            # High VRAM (16GB+): Can handle larger chunks
+            chunk_size = min(chunk_size, 5_000_000)
+            logger.info(
+                f"🚀 High VRAM mode: {vram_free_gb:.1f}GB "
+                f"→ {chunk_size:,} points per chunk"
+            )
+        elif vram_free_gb >= 12.0:
+            # Medium-High VRAM (12-16GB): Good balance
+            chunk_size = min(chunk_size, 3_500_000)
+            logger.info(
+                f"🚀 Medium-High VRAM mode: {vram_free_gb:.1f}GB "
+                f"→ {chunk_size:,} points per chunk"
+            )
+        elif vram_free_gb >= 8.0:
+            # Medium VRAM (8-12GB): Conservative
+            chunk_size = min(chunk_size, 2_500_000)
+            logger.info(
+                f"⚡ Medium VRAM mode: {vram_free_gb:.1f}GB "
+                f"→ {chunk_size:,} points per chunk"
+            )
+        else:
+            # Low VRAM (4-8GB): Very conservative
+            chunk_size = min(chunk_size, 1_500_000)
+            logger.info(
+                f"💡 Low VRAM mode: {vram_free_gb:.1f}GB "
+                f"→ {chunk_size:,} points per chunk"
+            )
+        
+        # Ensure minimum
+        chunk_size = max(500_000, chunk_size)
+        
+        return chunk_size
+    
+    def calculate_optimal_eigh_batch_size(
+        self,
+        chunk_size: int,
+        vram_free_gb: Optional[float] = None
+    ) -> int:
+        """
+        Calculate optimal eigendecomposition batch size.
+        INTELLIGENT: Scale with VRAM and chunk size.
+        
+        Args:
+            chunk_size: GPU chunk size
+            vram_free_gb: Available VRAM
+            
+        Returns:
+            Optimal eigh batch size
+        """
+        if vram_free_gb is None:
+            _, _, vram_free_gb = self.get_current_memory_status()
+        
+        # Base on VRAM availability
+        if vram_free_gb >= 16.0:
+            # High VRAM: can handle larger batches
+            eigh_batch = 500_000
+        elif vram_free_gb >= 12.0:
+            eigh_batch = 350_000
+        elif vram_free_gb >= 8.0:
+            eigh_batch = 250_000
+        else:
+            eigh_batch = 150_000
+        
+        # Cap at chunk size
+        eigh_batch = min(eigh_batch, chunk_size)
+        
+        logger.info(
+            f"  Eigendecomposition batch size: {eigh_batch:,} matrices"
+        )
+        
+        return eigh_batch
     
     def monitor_during_processing(
         self,

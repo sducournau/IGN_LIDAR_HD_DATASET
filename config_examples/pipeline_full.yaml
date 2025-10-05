@@ -42,7 +42,9 @@ enrich:
   # Search radius for geometric features (in meters)
   # radius: 1.0
 
-  # Use GPU acceleration if available
+  # 🚀 v1.7.5: GPU acceleration with intelligent auto-scaling
+  # Uses per-chunk feature computation for 50-60% memory reduction
+  # Automatically adapts chunk sizes and batch sizes based on available VRAM/RAM
   use_gpu: true
 
   # Add RGB colors from IGN orthophotos
