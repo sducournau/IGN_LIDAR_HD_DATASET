@@ -634,7 +634,7 @@ def _enrich_single_file(args_tuple):
                 try:
                     # Import building-specific feature functions
                     from .features import (
-                        compute_verticality, compute_wall_score,
+                        compute_wall_score,
                         compute_roof_score, compute_num_points_in_radius
                     )
                     
@@ -643,14 +643,15 @@ def _enrich_single_file(args_tuple):
                             "  Computing additional features..."
                         )
                     
-                    # Verticality
-                    verticality = compute_verticality(normals)
-                    las_out.add_extra_dim(
-                        laspy.ExtraBytesParams(
-                            name='verticality', type=np.float32
-                        )
-                    )
-                    las_out.verticality = verticality
+                    # Note: verticality is already in geometric_features from
+                    # compute_all_features_*() - no need to add it again
+                    
+                    # Get verticality from geometric_features for wall/roof scores
+                    verticality = geometric_features.get('verticality')
+                    if verticality is None:
+                        # Fallback: compute if not present
+                        from .features import compute_verticality
+                        verticality = compute_verticality(normals)
                     
                     # Wall score
                     wall_score = compute_wall_score(
@@ -1140,8 +1141,13 @@ def cmd_enrich(args):
     radius = getattr(args, 'radius', None)  # Get radius if available
     for laz in laz_files_sorted:
         # Calculate relative path to preserve directory structure
-        rel_path = laz.relative_to(input_path)
-        output_path = output_dir / rel_path
+        if input_path.is_file():
+            # Single file input - output directly to output_dir with same filename
+            output_path = output_dir / laz.name
+        else:
+            # Directory input - preserve subdirectory structure
+            rel_path = laz.relative_to(input_path)
+            output_path = output_dir / rel_path
         worker_args.append(
             (laz, output_path, args.k_neighbors, args.use_gpu,
              mode, skip_existing, add_rgb, rgb_cache_dir, radius,
