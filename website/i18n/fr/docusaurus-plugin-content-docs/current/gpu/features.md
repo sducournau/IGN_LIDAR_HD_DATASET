@@ -1,123 +1,115 @@
 ---
 sidebar_position: 2
-title: "GPU Feature Computation"
-description: "Technical details of GPU-accelerated feature extraction"
+title: "Calcul de Caractéristiques GPU"
+description: "Détails techniques de l'extraction de caractéristiques accélérée par GPU"
 keywords: [gpu, features, performance, cupy, benchmarks, api]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: gpu/features.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
+# Calcul de Caractéristiques GPU
 
+**Disponible dans :** v1.3.0+  
+**Accélération :** 5 à 10x plus rapide que le CPU  
+**Corrigé dans v1.6.2 :** Les formules GPU correspondent maintenant au CPU (voir les changements incompatibles ci-dessous)
 
-# GPU Feature Computation
-
-**Available in:** v1.3.0+  
-**Acceleration:** 5-10x speedup over CPU  
-**Fixed in v1.6.2:** GPU formulas now match CPU (see breaking changes below)
-
-:::warning Breaking Change in v1.6.2
-GPU feature formulas were corrected to match CPU and standard literature (Weinmann et al., 2015). If you used GPU acceleration in v1.6.1 or earlier, feature values have changed. You'll need to retrain models or switch to CPU for compatibility with old models.
+:::warning Changement Incompatible dans v1.6.2
+Les formules de caractéristiques GPU ont été corrigées pour correspondre au CPU et à la littérature standard (Weinmann et al., 2015). Si vous avez utilisé l'accélération GPU dans v1.6.1 ou antérieure, les valeurs de caractéristiques ont changé. Vous devrez réentraîner les modèles ou passer au CPU pour la compatibilité avec les anciens modèles.
 :::
 
-This guide covers the technical details of GPU-accelerated feature computation, including which features are accelerated, API reference, and advanced optimization techniques.
+Ce guide couvre les détails techniques du calcul de caractéristiques accéléré par GPU, incluant quelles caractéristiques sont accélérées, la référence API et les techniques d'optimisation avancées.
 
-## Fonctionnalités Accelerated
+## Caractéristiques Accélérées
 
-The following features are computed on GPU when GPU acceleration is enabled:
+Les caractéristiques suivantes sont calculées sur GPU lorsque l'accélération GPU est activée :
 
-### Core Geometric Features
+### Caractéristiques Géométriques de Base
 
-- ✅ **Surface normals** (nx, ny, nz) - Normal vectors for each point
-- ✅ **Curvature** values - Surface curvature at each point
-- ✅ **Height above ground** - Normalized height values
+- ✅ **Normales de surface** (nx, ny, nz) - Vecteurs normaux pour chaque point
+- ✅ **Valeurs de courbure** - Courbure de surface à chaque point
+- ✅ **Hauteur au-dessus du sol** - Valeurs de hauteur normalisées
 
-### Avancé Geometric Features
+### Caractéristiques Géométriques Avancées
 
-- ✅ **Planarity** - Measure of how flat a surface is (useful for roofs, roads)
-- ✅ **Linearity** - Measure of linear structures (useful for edges, cables)
-- ✅ **Sphericity** - Measure of spherical structures (useful for vegetation)
-- ✅ **Anisotropy** - Directional structure measure
-- ✅ **Roughness** - Surface texture and irregularity
-- ✅ **Local density** - Point density in local neighborhood
+- ✅ **Planarité** - Mesure du degré de planéité d'une surface (utile pour toits, routes)
+- ✅ **Linéarité** - Mesure des structures linéaires (utile pour bords, câbles)
+- ✅ **Sphéricité** - Mesure des structures sphériques (utile pour végétation)
+- ✅ **Anisotropie** - Mesure de structure directionnelle
+- ✅ **Rugosité** - Texture et irrégularité de surface
+- ✅ **Densité locale** - Densité de points dans le voisinage local
 
-### Building-Specific Features
+### Caractéristiques Spécifiques aux Bâtiments
 
-- ✅ **Verticality** - Measure of vertical alignment (walls)
-- ✅ **Horizontality** - Measure of horizontal alignment (roofs, floors)
-- ✅ **Wall score** - Probability of being a wall element
-- ✅ **Roof score** - Probability of being a roof element
+- ✅ **Verticalité** - Mesure d'alignement vertical (murs)
+- ✅ **Horizontalité** - Mesure d'alignement horizontal (toits, planchers)
+- ✅ **Score de mur** - Probabilité d'être un élément de mur
+- ✅ **Score de toit** - Probabilité d'être un élément de toit
 
-### Performance by Feature Type
+### Performance par Type de Caractéristique
 
-| Feature Type          | CPU Time | GPU Time | Speedup |
-| --------------------- | -------- | -------- | ------- |
-| Surface Normals       | 2.5s     | 0.3s     | 8.3x    |
-| Curvature             | 3.0s     | 0.4s     | 7.5x    |
-| Height Above Ground   | 1.5s     | 0.2s     | 7.5x    |
-| Geometric Features    | 4.0s     | 0.6s     | 6.7x    |
-| Building Features     | 5.0s     | 0.8s     | 6.3x    |
-| **Total (1M points)** | **16s**  | **2.3s** | **7x**  |
+| Type de Caractéristique  | Temps CPU | Temps GPU | Accélération |
+| ------------------------ | --------- | --------- | ------------ |
+| Normales de Surface      | 2.5s      | 0.3s      | 8.3x         |
+| Courbure                 | 3.0s      | 0.4s      | 7.5x         |
+| Hauteur au-dessus du Sol | 1.5s      | 0.2s      | 7.5x         |
+| Caractéristiques Géom.   | 4.0s      | 0.6s      | 6.7x         |
+| Caractéristiques Bât.    | 5.0s      | 0.8s      | 6.3x         |
+| **Total (1M points)**    | **16s**   | **2.3s**  | **7x**       |
 
-## What Changed in v1.6.2
+## Changements dans v1.6.2
 
-### Formula Corrections
+### Corrections de Formules
 
-GPU formulas were corrected to match CPU and standard literature:
+Les formules GPU ont été corrigées pour correspondre au CPU et à la littérature standard :
 
-**Before v1.6.2** (INCORRECT):
+**Avant v1.6.2** (INCORRECT) :
 
 ```python
-planarity = (λ1 - λ2) / λ0  # Wrong normalization
-linearity = (λ0 - λ1) / λ0  # Wrong normalization
-sphericity = λ2 / λ0         # Wrong normalization
+planarity = (λ1 - λ2) / λ0  # Normalisation incorrecte
+linearity = (λ0 - λ1) / λ0  # Normalisation incorrecte
+sphericity = λ2 / λ0         # Normalisation incorrecte
 ```
 
-**v1.6.2+** (CORRECT - matches [Weinmann et al., 2015](https://www.sciencedirect.com/science/article/pii/S0924271615001842)):
+**v1.6.2+** (CORRECT - correspond à [Weinmann et al., 2015](https://www.sciencedirect.com/science/article/pii/S0924271615001842)) :
 
 ```python
 sum_λ = λ0 + λ1 + λ2
-planarity = (λ1 - λ2) / sum_λ   # Standard formulation
-linearity = (λ0 - λ1) / sum_λ   # Standard formulation
-sphericity = λ2 / sum_λ          # Standard formulation
+planarity = (λ1 - λ2) / sum_λ   # Formulation standard
+linearity = (λ0 - λ1) / sum_λ   # Formulation standard
+sphericity = λ2 / sum_λ          # Formulation standard
 ```
 
-### New Robustness Features
+### Nouvelles Fonctionnalités de Robustesse
 
-1. **Degenerate Case Filtering**: Points with insufficient neighbors or near-zero eigenvalues now return 0.0 instead of NaN/Inf
-2. **Robust Curvature**: Uses Median Absolute Deviation (MAD) instead of std for outlier resistance
-3. **Radius Search Support**: Optional radius-based neighbor search (falls back to CPU)
+1. **Filtrage des Cas Dégénérés** : Les points avec voisins insuffisants ou valeurs propres proches de zéro retournent maintenant 0.0 au lieu de NaN/Inf
+2. **Courbure Robuste** : Utilise la Déviation Absolue Médiane (MAD) au lieu de std pour la résistance aux valeurs aberrantes
+3. **Support Recherche par Rayon** : Recherche de voisinage optionnelle basée sur le rayon (bascule vers CPU)
 
 ### Validation
 
-GPU now produces identical results to CPU (validated: max difference < 0.0001%):
+Le GPU produit maintenant des résultats identiques au CPU (validé : différence max < 0.0001%) :
 
 ```python
-# Run validation test
+# Exécuter le test de validation
 python tests/test_feature_fixes.py
-# Expected: ✓✓✓ ALL TESTS PASSED ✓✓✓
+# Attendu : ✓✓✓ TOUS LES TESTS RÉUSSIS ✓✓✓
 ```
 
-For more details, see:
+Pour plus de détails, voir :
 
-- [v1.6.2 Release Notes](/docs/release-notes/v1.6.2)
-- Repository files: `GEOMETRIC_FEATURES_ANALYSIS.md`, `IMPLEMENTATION_SUMMARY.md`
+- [Notes de Version v1.6.2](/docs/release-notes/v1.6.2)
+- Fichiers du dépôt : `GEOMETRIC_FEATURES_ANALYSIS.md`, `IMPLEMENTATION_SUMMARY.md`
 
 ---
 
 ## Référence API
 
-### GPUFeatureComputer Class
+### Classe GPUFeatureComputer
 
-The main class for GPU-accelerated feature computation.
+La classe principale pour le calcul de caractéristiques accéléré par GPU.
 
 ```python
 from ign_lidar.features_gpu import GPUFeatureComputer
 
-# Initialize GPU feature computer
+# Initialiser le calculateur de caractéristiques GPU
 computer = GPUFeatureComputer(
     use_gpu=True,
     batch_size=100000,
@@ -126,30 +118,30 @@ computer = GPUFeatureComputer(
 )
 ```
 
-#### Constructor Parameters
+#### Paramètres du Constructeur
 
-| Parameter      | Type  | Default  | Description                    |
-| -------------- | ----- | -------- | ------------------------------ |
-| `use_gpu`      | bool  | `True`   | Enable GPU acceleration        |
-| `batch_size`   | int   | `100000` | Points processed per GPU batch |
-| `memory_limit` | float | `0.8`    | GPU memory usage limit (0-1)   |
-| `device_id`    | int   | `0`      | CUDA device ID (for multi-GPU) |
+| Paramètre      | Type  | Défaut   | Description                              |
+| -------------- | ----- | -------- | ---------------------------------------- |
+| `use_gpu`      | bool  | `True`   | Activer l'accélération GPU               |
+| `batch_size`   | int   | `100000` | Points traités par lot GPU               |
+| `memory_limit` | float | `0.8`    | Limite d'utilisation mémoire GPU (0-1)   |
+| `device_id`    | int   | `0`      | ID du périphérique CUDA (pour multi-GPU) |
 
-### Main Methods
+### Méthodes Principales
 
 #### compute_all_features_with_gpu()
 
-Compute all features for a point cloud using GPU acceleration.
+Calculer toutes les caractéristiques pour un nuage de points en utilisant l'accélération GPU.
 
 ```python
 from ign_lidar.features import compute_all_features_with_gpu
 import numpy as np
 
-# Your point cloud data
+# Vos données de nuage de points
 points = np.random.rand(1000000, 3).astype(np.float32)
 classification = np.random.randint(0, 10, 1000000).astype(np.uint8)
 
-# Compute features
+# Calculer les caractéristiques
 normals, curvature, height, geo_features = compute_all_features_with_gpu(
     points=points,
     classification=classification,
@@ -160,29 +152,29 @@ normals, curvature, height, geo_features = compute_all_features_with_gpu(
 )
 ```
 
-**Parameters:**
+**Paramètres :**
 
-| Parameter        | Type       | Required | Description                                              |
-| ---------------- | ---------- | -------- | -------------------------------------------------------- |
-| `points`         | np.ndarray | Yes      | Point coordinates (N, 3)                                 |
-| `classification` | np.ndarray | Yes      | Point classifications (N,)                               |
-| `k`              | int        | No       | Number of neighbors for features (default: 20)           |
-| `auto_k`         | bool       | No       | Automatically adjust k based on density (default: False) |
-| `use_gpu`        | bool       | No       | Enable GPU acceleration (default: True)                  |
-| `batch_size`     | int        | No       | Batch size for GPU processing (default: 100000)          |
+| Paramètre        | Type       | Requis | Description                                                 |
+| ---------------- | ---------- | ------ | ----------------------------------------------------------- |
+| `points`         | np.ndarray | Oui    | Coordonnées des points (N, 3)                               |
+| `classification` | np.ndarray | Oui    | Classifications des points (N,)                             |
+| `k`              | int        | Non    | Nombre de voisins pour les caractéristiques (défaut : 20)   |
+| `auto_k`         | bool       | Non    | Ajuster automatiquement k selon la densité (défaut : False) |
+| `use_gpu`        | bool       | Non    | Activer l'accélération GPU (défaut : True)                  |
+| `batch_size`     | int        | Non    | Taille de lot pour le traitement GPU (défaut : 100000)      |
 
-**Returns:**
+**Retourne :**
 
-| Return Value   | Type       | Shape  | Description                      |
-| -------------- | ---------- | ------ | -------------------------------- |
-| `normals`      | np.ndarray | (N, 3) | Surface normal vectors           |
-| `curvature`    | np.ndarray | (N,)   | Curvature values                 |
-| `height`       | np.ndarray | (N,)   | Height above ground              |
-| `geo_features` | dict       | -      | Dictionary of geometric features |
+| Valeur Retournée | Type       | Forme  | Description                           |
+| ---------------- | ---------- | ------ | ------------------------------------- |
+| `normals`        | np.ndarray | (N, 3) | Vecteurs normaux de surface           |
+| `curvature`      | np.ndarray | (N,)   | Valeurs de courbure                   |
+| `height`         | np.ndarray | (N,)   | Hauteur au-dessus du sol              |
+| `geo_features`   | dict       | -      | Dictionnaire de caractéristiques géom |
 
 #### compute_normals_gpu()
 
-Compute surface normals using GPU.
+Calculer les normales de surface en utilisant le GPU.
 
 ```python
 from ign_lidar.features_gpu import compute_normals_gpu
@@ -196,7 +188,7 @@ normals = compute_normals_gpu(
 
 #### compute_curvature_gpu()
 
-Compute curvature values using GPU.
+Calculer les valeurs de courbure en utilisant le GPU.
 
 ```python
 from ign_lidar.features_gpu import compute_curvature_gpu
@@ -211,7 +203,7 @@ curvature = compute_curvature_gpu(
 
 #### compute_geometric_features_gpu()
 
-Compute all geometric features using GPU.
+Calculer toutes les caractéristiques géométriques en utilisant le GPU.
 
 ```python
 from ign_lidar.features_gpu import compute_geometric_features_gpu
@@ -223,82 +215,82 @@ geo_features = compute_geometric_features_gpu(
     batch_size=100000
 )
 
-# Access individual features
+# Accéder aux caractéristiques individuelles
 planarity = geo_features['planarity']
 linearity = geo_features['linearity']
 sphericity = geo_features['sphericity']
 ```
 
-## Avancé Usage
+## Utilisation Avancée
 
-### Batch Processing Optimization
+### Optimisation du Traitement par Lots
 
-For processing multiple tiles, reuse the GPU computer instance:
+Pour traiter plusieurs tuiles, réutiliser l'instance de calculateur GPU :
 
 ```python
 from ign_lidar.features_gpu import GPUFeatureComputer
 from pathlib import Path
 
-# Initialize once
+# Initialiser une fois
 computer = GPUFeatureComputer(use_gpu=True, batch_size=100000)
 
-# Process multiple tiles
+# Traiter plusieurs tuiles
 for tile_path in Path("tiles/").glob("*.laz"):
-    # Load tile
+    # Charger la tuile
     points, classification = load_tile(tile_path)
 
-    # Compute features (GPU stays initialized)
+    # Calculer les caractéristiques (GPU reste initialisé)
     normals, curvature, height, geo_features = computer.compute_all(
         points=points,
         classification=classification,
         k=20
     )
 
-    # Save results
+    # Sauvegarder les résultats
     save_enriched_tile(tile_path, normals, curvature, height, geo_features)
 ```
 
-### Memory Management
+### Gestion de la Mémoire
 
-Control GPU memory usage for large tiles:
+Contrôler l'utilisation de la mémoire GPU pour les grandes tuiles :
 
 ```python
 from ign_lidar.features_gpu import GPUFeatureComputer
 
-# For very large tiles (>5M points)
+# Pour les très grandes tuiles (>5M points)
 computer = GPUFeatureComputer(
     use_gpu=True,
-    batch_size=50000,  # Smaller batch size
-    memory_limit=0.6   # Use less GPU memory
+    batch_size=50000,  # Taille de lot plus petite
+    memory_limit=0.6   # Utiliser moins de mémoire GPU
 )
 
-# For small to medium tiles (less than 1M points)
+# Pour les tuiles petites à moyennes (moins de 1M points)
 computer = GPUFeatureComputer(
     use_gpu=True,
-    batch_size=200000,  # Larger batch size
-    memory_limit=0.9    # Use more GPU memory
+    batch_size=200000,  # Taille de lot plus grande
+    memory_limit=0.9    # Utiliser plus de mémoire GPU
 )
 ```
 
-### Multi-GPU Support (Experimental)
+### Support Multi-GPU (Expérimental)
 
-:::caution Experimental Feature
-Multi-GPU support is experimental in v1.5.0. Use with caution in production.
+:::caution Fonctionnalité Expérimentale
+Le support multi-GPU est expérimental dans v1.5.0. Utiliser avec précaution en production.
 :::
 
 ```python
 import os
 
-# Specify GPU device
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # Use first GPU
+# Spécifier le périphérique GPU
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # Utiliser le premier GPU
 
-# Or for specific GPU
-computer = GPUFeatureComputer(use_gpu=True, device_id=1)  # Use second GPU
+# Ou pour un GPU spécifique
+computer = GPUFeatureComputer(use_gpu=True, device_id=1)  # Utiliser le second GPU
 ```
 
-### Custom Feature Computation
+### Calcul de Caractéristiques Personnalisées
 
-Implement custom GPU-accelerated features:
+Implémenter des caractéristiques personnalisées accélérées par GPU :
 
 ```python
 import cupy as cp
@@ -306,92 +298,92 @@ from ign_lidar.features_gpu import GPUFeatureComputer
 
 class CustomGPUComputer(GPUFeatureComputer):
     def compute_custom_feature(self, points_gpu):
-        """Compute a custom feature on GPU"""
-        # Your custom GPU computation using CuPy
+        """Calculer une caractéristique personnalisée sur GPU"""
+        # Votre calcul GPU personnalisé utilisant CuPy
         feature = cp.mean(points_gpu, axis=1)
         return cp.asnumpy(feature)
 
-# Use custom computer
+# Utiliser le calculateur personnalisé
 computer = CustomGPUComputer(use_gpu=True)
 ```
 
-## Performance Optimization Tips
+## Conseils d'Optimisation des Performances
 
-### 1. Optimal Batch Size
+### 1. Taille de Lot Optimale
 
-Choose batch size based on GPU memory:
+Choisir la taille de lot selon la mémoire GPU :
 
-| GPU Memory | Recommended Batch Size | Max Point Cloud |
-| ---------- | ---------------------- | --------------- |
-| 4 GB       | 50,000                 | 2M points       |
-| 8 GB       | 100,000                | 5M points       |
-| 12 GB      | 150,000                | 8M points       |
-| 16 GB+     | 200,000+               | 10M+ points     |
+| Mémoire GPU | Taille de Lot Recommandée | Nuage de Points Max |
+| ----------- | ------------------------- | ------------------- |
+| 4 GB        | 50 000                    | 2M points           |
+| 8 GB        | 100 000                   | 5M points           |
+| 12 GB       | 150 000                   | 8M points           |
+| 16 GB+      | 200 000+                  | 10M+ points         |
 
-### 2. K-Neighbors Selection
+### 2. Sélection de K-Neighbors
 
-Larger k values benefit more from GPU:
+Les valeurs k plus grandes bénéficient plus du GPU :
 
 ```python
-# Optimal for GPU (k >= 20)
+# Optimal pour GPU (k >= 20)
 features = compute_all_features_with_gpu(points, classification, k=20, use_gpu=True)
 
-# Less optimal for GPU (k < 10)
+# Moins optimal pour GPU (k < 10)
 features = compute_all_features_with_gpu(points, classification, k=5, use_gpu=True)
 ```
 
-### 3. Memory Transfer Optimization
+### 3. Optimisation des Transferts Mémoire
 
-Minimize CPU-GPU transfers by batching operations:
+Minimiser les transferts CPU-GPU en regroupant les opérations :
 
 ```python
-# ❌ Bad: Multiple transfers
+# ❌ Mauvais : Transferts multiples
 normals = compute_normals_gpu(points)
-curvature = compute_curvature_gpu(points, normals)  # Transfer normals back
-geo = compute_geometric_features_gpu(points, normals)  # Transfer again
+curvature = compute_curvature_gpu(points, normals)  # Transférer normales retour
+geo = compute_geometric_features_gpu(points, normals)  # Transférer à nouveau
 
-# ✅ Good: Single batch
+# ✅ Bon : Lot unique
 normals, curvature, height, geo = compute_all_features_with_gpu(points, classification)
 ```
 
-### 4. Persistent GPU Memory
+### 4. Mémoire GPU Persistante
 
-For repeated processing, keep data on GPU:
+Pour le traitement répété, garder les données sur GPU :
 
 ```python
 import cupy as cp
 
-# Transfer to GPU once
+# Transférer vers GPU une fois
 points_gpu = cp.asarray(points)
 
-# Process multiple times without re-transfer
+# Traiter plusieurs fois sans re-transfert
 for k in [10, 20, 30]:
     normals = compute_normals_gpu(points_gpu, k=k)
 ```
 
-## Benchmarking
+## Benchmark
 
-### Running Benchmarks
+### Exécuter les Benchmarks
 
-The library includes comprehensive benchmarking tools:
+La bibliothèque inclut des outils de benchmark complets :
 
 ```bash
-# Synthetic benchmark (quick test)
+# Benchmark synthétique (test rapide)
 python scripts/benchmarks/benchmark_gpu.py --synthetic
 
-# Real data benchmark
+# Benchmark avec données réelles
 python scripts/benchmarks/benchmark_gpu.py path/to/tile.laz
 
-# Multi-size benchmark
+# Benchmark multi-tailles
 python scripts/benchmarks/benchmark_gpu.py --multi-size
 
-# Compare different k values
+# Comparer différentes valeurs de k
 python scripts/benchmarks/benchmark_gpu.py --test-k
 ```
 
-### Interpreting Results
+### Interprétation des Résultats
 
-Example benchmark output:
+Exemple de sortie de benchmark :
 
 ```
 GPU Benchmark Results
@@ -424,127 +416,127 @@ Peak Memory:       1.8 GB
 CPU Memory Used:   2.4 GB
 ```
 
-### Performance Factors
+### Facteurs de Performance
 
-GPU performance depends on:
+Les performances GPU dépendent de :
 
-1. **Point cloud size**: Larger = better GPU utilization
-2. **K-neighbors value**: Larger = more parallelizable work
-3. **GPU model**: Newer = faster processing
-4. **Memory bandwidth**: Higher = faster transfers
-5. **CUDA compute capability**: Higher = more features
+1. **Taille du nuage de points** : Plus grand = meilleure utilisation GPU
+2. **Valeur K-neighbors** : Plus grand = plus de travail parallélisable
+3. **Modèle GPU** : Plus récent = traitement plus rapide
+4. **Bande passante mémoire** : Plus élevée = transferts plus rapides
+5. **Capacité de calcul CUDA** : Plus élevée = plus de fonctionnalités
 
 ## Dépannage
 
-### Performance Issues
+### Problèmes de Performance
 
-#### GPU Slower Than Expected
+#### GPU Plus Lent que Prévu
 
-**Symptoms**: GPU processing not much faster than CPU
+**Symptômes** : Le traitement GPU n'est pas beaucoup plus rapide que le CPU
 
-**Possible Causes**:
+**Causes Possibles** :
 
-1. Small point clouds (&lt;10K points) - GPU overhead dominates
-2. Low k value (&lt;10) - Not enough parallelizable work
-3. Memory transfer bottleneck
-4. GPU not fully utilized
+1. Petits nuages de points (&lt;10K points) - La surcharge GPU domine
+2. Valeur k faible (&lt;10) - Pas assez de travail parallélisable
+3. Goulot d'étranglement de transfert mémoire
+4. GPU pas entièrement utilisé
 
-**Solutions**:
+**Solutions** :
 
 ```bash
-# Check GPU utilization
+# Vérifier l'utilisation GPU
 nvidia-smi -l 1
 
-# Should show high GPU usage during processing
-# If GPU usage is low:
+# Devrait afficher une utilisation GPU élevée pendant le traitement
+# Si l'utilisation GPU est faible :
 ```
 
 ```python
-# Increase batch size
+# Augmenter la taille de lot
 computer = GPUFeatureComputer(batch_size=200000)
 
-# Increase k value
+# Augmenter la valeur k
 features = compute_all_features_with_gpu(points, classification, k=30)
 
-# Use larger tiles or batch processing
+# Utiliser des tuiles plus grandes ou du traitement par lots
 ```
 
-#### Out of Memory Errors
+#### Erreurs de Mémoire Insuffisante
 
-**Symptoms**: CUDA out of memory errors
+**Symptômes** : Erreurs CUDA de mémoire insuffisante
 
-**Solutions**:
+**Solutions** :
 
 ```python
-# Reduce batch size
+# Réduire la taille de lot
 computer = GPUFeatureComputer(batch_size=50000)
 
-# Reduce memory limit
+# Réduire la limite mémoire
 computer = GPUFeatureComputer(memory_limit=0.6)
 
-# Process in smaller chunks
+# Traiter par morceaux plus petits
 for chunk in split_point_cloud(points, chunk_size=500000):
     features = compute_all_features_with_gpu(chunk, classification)
 ```
 
-#### CuPy Import Errors
+#### Erreurs d'Importation CuPy
 
-**Symptoms**: ImportError or CUDA version mismatch warnings
+**Symptômes** : ImportError ou avertissements d'incompatibilité de version CUDA
 
-**Solutions**:
+**Solutions** :
 
 ```bash
-# Check CUDA version
+# Vérifier la version CUDA
 nvidia-smi | grep "CUDA Version"
 
-# Reinstall matching CuPy
+# Réinstaller CuPy correspondant
 pip uninstall cupy
-pip install cupy-cuda11x  # or cupy-cuda12x
+pip install cupy-cuda11x  # ou cupy-cuda12x
 ```
 
-### Memory Leaks
+### Fuites Mémoire
 
-If GPU memory keeps increasing:
+Si la mémoire GPU continue d'augmenter :
 
 ```python
-# Force GPU memory cleanup
+# Forcer le nettoyage de la mémoire GPU
 import cupy as cp
 cp.get_default_memory_pool().free_all_blocks()
 
-# Or use context manager
+# Ou utiliser un gestionnaire de contexte
 from ign_lidar.features_gpu import GPUMemoryManager
 
 with GPUMemoryManager():
-    # GPU memory automatically freed after this block
+    # Mémoire GPU automatiquement libérée après ce bloc
     features = compute_all_features_with_gpu(points, classification)
 ```
 
 ## Limitations
 
-### Current Limitations
+### Limitations Actuelles
 
-1. **GPU Memory**: Limited by available GPU RAM
-2. **Single GPU**: Multi-GPU support is experimental
-3. **NVIDIA Only**: Requires NVIDIA GPU with CUDA
-4. **K-NN Implementation**: Uses brute-force for k < 50, KD-tree for k >= 50
+1. **Mémoire GPU** : Limitée par la RAM GPU disponible
+2. **GPU Unique** : Le support multi-GPU est expérimental
+3. **NVIDIA Uniquement** : Nécessite un GPU NVIDIA avec CUDA
+4. **Implémentation K-NN** : Utilise force brute pour k < 50, KD-tree pour k >= 50
 
-### Future Improvements (Roadmap)
+### Améliorations Futures (Feuille de Route)
 
-- 🔄 **Multi-GPU support** (v1.6.0) - Distribute work across multiple GPUs
-- 🔄 **Mixed precision** (v1.6.0) - Use FP16 for faster computation
-- 🔄 **AMD GPU support** (v2.0.0) - ROCm support for AMD GPUs
-- 🔄 **Chunked processing** (v1.6.0) - Automatic chunking for very large tiles
-- 🔄 **Persistent GPU cache** (v1.7.0) - Cache preprocessed data on GPU
+- 🔄 **Support Multi-GPU** (v1.6.0) - Distribuer le travail sur plusieurs GPUs
+- 🔄 **Précision Mixte** (v1.6.0) - Utiliser FP16 pour un calcul plus rapide
+- 🔄 **Support GPU AMD** (v2.0.0) - Support ROCm pour GPUs AMD
+- 🔄 **Traitement par Morceaux** (v1.6.0) - Découpage automatique pour très grandes tuiles
+- 🔄 **Cache GPU Persistant** (v1.7.0) - Mettre en cache les données prétraitées sur GPU
 
-## See Also
+## Voir Aussi
 
-- **[GPU Overview](overview.md)** - GPU setup and installation
-- **[RGB GPU Acceleration](rgb-augmentation.md)** - GPU-accelerated RGB augmentation
-- **[Architecture](../architecture.md)** - System architecture
-- **[Workflows](../workflows.md)** - GPU workflow examples
+- **[Vue d'ensemble GPU](overview.md)** - Configuration et installation GPU
+- **[Accélération RGB GPU](rgb-augmentation.md)** - Augmentation RGB accélérée par GPU
+- **[Architecture](../architecture.md)** - Architecture système
+- **[Flux de Travail](../workflows.md)** - Exemples de flux de travail GPU
 
-## References
+## Références
 
-- [CuPy Documentation](https://docs.cupy.dev/)
-- [CUDA Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)
-- [GPU Optimization Guide](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/)
+- [Documentation CuPy](https://docs.cupy.dev/)
+- [Guide de Programmation CUDA](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)
+- [Guide d'Optimisation GPU](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/)
