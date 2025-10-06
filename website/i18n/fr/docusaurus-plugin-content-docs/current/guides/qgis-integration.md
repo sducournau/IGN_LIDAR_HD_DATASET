@@ -5,39 +5,39 @@ description: Guide pour utiliser les fichiers LAZ enrichis dans QGIS pour la vis
 keywords: [qgis, visualisation, laz, nuage de points, sig]
 ---
 
-# Guide d'Intégration QGIS
+# QGIS Integration Guide
 
-Apprenez à visualiser et analyser les fichiers LiDAR enrichis dans QGIS avec des caractéristiques géométriques pour l'analyse des composants de bâtiment.
+Learn how to visualize and analyze enriched LiDAR files in QGIS with caractéristiques géométriques for building component analysis.
 
-## Vue d'Ensemble
+## Vue d'ensemble
 
-Les fichiers LAZ enrichis de cette bibliothèque sont entièrement compatibles avec QGIS et incluent plus de 30 caractéristiques géométriques parfaites pour :
+Enrichissemented LAZ files from this library are fully compatible with QGIS and include 30+ caractéristiques géométriques perfect for:
 
-- Visualisation des composants de bâtiment
-- Analyse de surface (murs, toits, sol)
-- Détection de contours et analyse de linéarité
-- Cartographie de densité et de rugosité
+- Building component visualization
+- Surface analysis (walls, roofs, ground)
+- Edge detection and linearity analysis
+- Density and roughness mapping
 
-## Prérequis
+## Prerequisites
 
-### Exigences QGIS
+### QGIS Requirements
 
-- **QGIS 3.10+** avec support des nuages de points
-- **Plugin lecteur LAZ/LAS** (habituellement inclus)
+- **QGIS 3.10+** with point cloud support
+- **LAZ/LAS reader plugin** (usually included)
 
-### Vérifier l'Installation
+### Verify Installation
 
 ```bash
-# Vérifier si QGIS peut lire les nuages de points
-# Ouvrir QGIS et chercher : Couche > Ajouter une couche > Ajouter une couche de nuages de points
+# Check if QGIS can read point clouds
+# Open QGIS and look for: Layer > Add Layer > Add Nuage de points Layer
 ```
 
-## Étape 1 : Enrichir les Fichiers LAZ
+## Étape 1: Enrichissement LAZ Files
 
-D'abord, créer des fichiers LAZ enrichis avec des caractéristiques géométriques :
+First, create enriched LAZ files with caractéristiques géométriques:
 
 ```bash
-# Enrichir les tuiles avec toutes les caractéristiques
+# Enrichissement tiles with all features
 ign-lidar-hd enrich \
   --input-dir /chemin/vers/tuiles_brutes/ \
   --output /chemin/vers/tuiles_enrichies/ \
@@ -45,194 +45,294 @@ ign-lidar-hd enrich \
   --num-workers 4
 ```
 
-Cela ajoute plus de 30 attributs à chaque point incluant :
+This adds 30+ attributes to each point including:
 
-- **Propriétés de surface** : planarité, sphéricité, linéarité
-- **Géométrie locale** : courbure, verticalité, normalité
-- **Contexte spatial** : densité, rugosité, homogénéité
+- **Surface properties**: planarity, sphericity, linearity
+- **Geometric features**: normals, curvature, roughness
+- **Building analysis**: verticality, wall_score, roof_score
+- **Height metrics**: height_above_ground, vertical_std
 
-## Étape 2 : Charger dans QGIS
+## Étape 2: Load in QGIS
 
-### Ajouter une Couche de Nuages de Points
+### Import Nuage de points
 
-1. **Ouvrir QGIS** et créer un nouveau projet
-2. **Aller à** : `Couche > Ajouter une couche > Ajouter une couche de nuages de points`
-3. **Sélectionner** votre fichier LAZ enrichi
-4. **Cliquer** sur Ajouter
+1. **Open QGIS**
+2. **Menu**: Layer → Add Layer → Add Nuage de points Layer
+3. **Browse**: Select your enriched LAZ file
+4. **Click Add**: Point cloud appears in the map
 
-### Configuration Initiale
+### Initial Display
 
-```text
-Type de fichier : LAS/LAZ Point Cloud
-Système de coordonnées : EPSG:2154 (RGF93 / Lambert-93)
-Encodage : UTF-8
-```
+The point cloud will initially display with default elevation coloring. You'll see your LiDAR data as colored points.
 
-## Étape 3 : Visualisation des Caractéristiques
+## Étape 3: Visualize Features
 
-### Propriétés de la Couche
+### Access Symbology
 
-1. **Clic droit** sur la couche → `Propriétés`
-2. **Aller à** l'onglet `Symbologie`
-3. **Choisir** le mode de rendu
+1. **Right-click** on the layer → Properties
+2. **Symbology tab**
+3. **Rendered by**: Attribute
+4. **Attribute**: Select feature to visualize
 
-### Modes de Rendu Recommandés
+### Available Features
 
-#### Classification par Attribut
+#### Core Caractéristiques géométriques
 
-```text
-Type de rendu : Classifié par valeurs d'attribut
-Attribut : building_component (ou autre attribut enrichi)
-Palette de couleurs : Spectral ou Custom
-```
+| Feature      | Description            | Range  | Use Case                             |
+| ------------ | ---------------------- | ------ | ------------------------------------ |
+| `planarity`  | Surface flatness score | 0-1    | Detect walls, roofs, ground          |
+| `linearity`  | Edge/line score        | 0-1    | Find building edges, cables          |
+| `sphericity` | 3D spherical score     | 0-1    | Identify vegetation, rounded objects |
+| `curvature`  | Surface curvature      | varies | Edge detection, surface analysis     |
+| `roughness`  | Surface texture        | varies | Material classification              |
 
-#### Visualisation par Intensité
+#### Building-Specific Features
 
-```text
-Type de rendu : Par valeur d'attribut
-Attribut : planarity (planarité)
-Plage : 0.0 - 1.0
-Couleurs : Bleu (faible) → Rouge (forte)
-```
+| Feature               | Description                | Range  | Use Case                 |
+| --------------------- | -------------------------- | ------ | ------------------------ |
+| `verticality`         | Vertical orientation score | 0-1    | Wall detection           |
+| `wall_score`          | Wall probability           | 0-1    | Building facade analysis |
+| `roof_score`          | Roof probability           | 0-1    | Roof surface detection   |
+| `height_above_ground` | Normalized height          | meters | Multi-story analysis     |
 
-### Attributs Utiles pour la Visualisation
+#### Normal Vectors
 
-| Attribut             | Plage   | Description                   |
-| -------------------- | ------- | ----------------------------- |
-| `building_component` | 0-14    | Classification des composants |
-| `planarity`          | 0.0-1.0 | Degré de planarité            |
-| `sphericity`         | 0.0-1.0 | Degré de sphéricité           |
-| `verticality`        | 0.0-1.0 | Degré de verticalité          |
-| `curvature`          | 0.0-1.0 | Courbure de surface           |
-| `roughness`          | 0.0-1.0 | Rugosité locale               |
+| Feature    | Description                   | Range   | Use Case            |
+| ---------- | ----------------------------- | ------- | ------------------- |
+| `normal_x` | X component of surface normal | -1 to 1 | Surface orientation |
+| `normal_y` | Y component of surface normal | -1 to 1 | Surface orientation |
+| `normal_z` | Z component of surface normal | -1 to 1 | Surface orientation |
 
-## Étape 4 : Analyse Avancée
+## Étape 4: Recommended Visualizations
 
-### Filtrage par Attributs
+### Building Wall Detection
 
-1. **Ouvrir** la table d'attributs
-2. **Utiliser** l'expression de filtrage :
+**Goal**: Highlight building walls
+
+**Settings**:
+
+- **Attribute**: `wall_score`
+- **Color Ramp**: RdYlGn (Red-Yellow-Green)
+- **Min**: 0.0, **Max**: 1.0
+- **Filter**: `wall_score > 0.7` (optionnel)
+
+**Interpretation**:
+
+- Red (0.0-0.3): Non-wall points (ground, vegetation)
+- Yellow (0.4-0.6): Possible walls
+- Green (0.7-1.0): High confidence walls
+
+### Roof Surface Analysis
+
+**Goal**: Identify flat roof surfaces
+
+**Settings**:
+
+- **Attribute**: `planarity`
+- **Color Ramp**: Viridis
+- **Min**: 0.0, **Max**: 1.0
+- **Filter**: `roof_score > 0.5 AND verticality < 0.3`
+
+**Interpretation**:
+
+- Dark blue (0.0-0.3): Irregular surfaces
+- Green-yellow (0.7-1.0): Flat surfaces (roof candidates)
+
+### Building Edge Detection
+
+**Goal**: Find building corners and edges
+
+**Settings**:
+
+- **Attribute**: `linearity`
+- **Color Ramp**: Hot (Black to White)
+- **Min**: 0.0, **Max**: 1.0
+- **Filter**: `linearity > 0.6`
+
+**Interpretation**:
+
+- Black (0.0-0.3): Flat surfaces
+- White (0.7-1.0): Linear features (edges, corners)
+
+### Height-based Analysis
+
+**Goal**: Visualize building stories
+
+**Settings**:
+
+- **Attribute**: `height_above_ground`
+- **Color Ramp**: Turbo or Plasma
+- **Min**: 0, **Max**: 30 (adjust to your data)
+- **Filter**: `wall_score > 0.5`
+
+**Interpretation**:
+
+- Blue (0-3m): Ground floor
+- Green (3-6m): First floor
+- Yellow-Red (6m+): Upper floors
+
+## Advanced Filtering
+
+### Multi-attribute Filtering
+
+Use QGIS expressions for complex filtering:
 
 ```sql
--- Filtrer seulement les murs (composant 1)
-"building_component" = 1
+-- High-confidence building walls above ground floor
+"wall_score" > 0.8 AND "height_above_ground" > 3 AND "height_above_ground" < 20
 
--- Points très planaires (surfaces lisses)
-"planarity" > 0.8
+-- Flat roof surfaces
+"planarity" > 0.7 AND "roof_score" > 0.6 AND "verticality" < 0.2
 
--- Combinaison : murs planaires
-"building_component" = 1 AND "planarity" > 0.7
+-- Building edges at upper levels
+"linearity" > 0.6 AND "height_above_ground" > 3
+
+-- Vegetation points (high sphericity, low planarity)
+"sphericity" > 0.5 AND "planarity" < 0.4
 ```
 
-### Styles Personnalisés
+### Expression Builder
 
-#### Style Composants de Bâtiment
+1. **Right-click layer** → Filter
+2. **Expression builder** opens
+3. **Enter expression** using attribute names
+4. **Test** and **Apply**
 
-```text
-Règles de style :
-- Sol (0) : Brun (#8B4513)
-- Mur (1) : Rouge (#FF0000)
-- Toit (2) : Bleu (#0000FF)
-- Végétation (3) : Vert (#00FF00)
-- Autre (4) : Gris (#808080)
-```
+## Visualization Exemples
 
-#### Style Qualité de Surface
+### Exemple 1: Building Component Classification
 
-```text
-Planarity > 0.9 : Vert (surface très lisse)
-Planarity 0.7-0.9 : Jaune (surface lisse)
-Planarity 0.5-0.7 : Orange (surface rugueuse)
-Planarity < 0.5 : Rouge (surface très rugueuse)
-```
+**Étapes**:
 
-## Étape 5 : Exportation et Partage
+1. Load enriched LAZ file
+2. Create **3 separate layers** (duplicate the layer)
+3. **Layer 1**: Walls (`wall_score > 0.7`, red color)
+4. **Layer 2**: Roofs (`roof_score > 0.7 AND verticality < 0.3`, blue color)
+5. **Layer 3**: Ground (`height_above_ground < 1`, green color)
 
-### Export en Formats Standards
+**Result**: Color-coded building components
 
-```bash
-# Exporter vers d'autres formats depuis QGIS
-Couche → Exporter → Exporter vers un fichier
-```
+### Exemple 2: Surface Quality Analysis
 
-**Formats supportés :**
+**Étapes**:
 
-- **Shapefile** (avec attributs)
-- **GeoPackage** (recommandé)
-- **CSV** (points + attributs)
-- **PLY** (nuage de points)
+1. Visualize by `roughness` attribute
+2. Use discrete classes: Smooth (0-0.1), Medium (0.1-0.3), Rough (0.3+)
+3. Apply to identify material types
 
-### Création de Cartes
+### Exemple 3: Architectural Detail Detection
 
-1. **Basculer** vers le composeur d'impression
-2. **Ajouter** des éléments de carte
-3. **Configurer** les légendes pour les attributs enrichis
-4. **Exporter** en PDF/PNG
+**Étapes**:
 
-## Optimisation des Performances
-
-### Pour de Gros Fichiers
-
-```text
-Paramètres de rendu :
-- Taille max de points : 1M
-- Niveau de détail : Moyen
-- Cache : Activé
-```
-
-### Indexation Spatiale
-
-```bash
-# Créer un index spatial pour de meilleures performances
-# Outils → Traitement → Créer un index spatial
-```
+1. Filter: `linearity > 0.6 AND height_above_ground > 2`
+2. Color by `height_above_ground`
+3. Result: Building edges and architectural details colored by height
 
 ## Dépannage
 
-### Problèmes Courants
+### Issue: LAZ File Won't Open
 
-**"Impossible de charger la couche"**
+**Symptoms**: "Cannot read file" error
 
-- Vérifier le chemin du fichier
-- Confirmer que le fichier LAZ n'est pas corrompu
-- Vérifier les permissions de fichier
+**Solutions**:
 
-**"Attributs non visibles"**
+1. Check QGIS version (needs 3.10+)
+2. Verify LAZ support: Plugins → Manage Plugins → Search "LAZ"
+3. Try converting to LAS format if needed
 
-- S'assurer que le fichier a été enrichi
-- Vérifier la table d'attributs de la couche
-- Recalculer les statistiques de la couche
+### Issue: No Custom Attributes Visible
 
-**"Rendu lent"**
+**Symptoms**: Only X, Y, Z, Intensity available
 
-- Réduire la taille d'affichage des points
-- Utiliser le niveau de détail adaptatif
-- Filtrer les points non nécessaires
+**Verification**:
 
-## Exemples d'Analyse
-
-### Détection de Bâtiments
-
-```sql
--- Identifier les structures verticales (murs potentiels)
-"verticality" > 0.8 AND "planarity" > 0.6
-
--- Structures horizontales (toits/sols potentiels)
-"verticality" < 0.2 AND "planarity" > 0.7
+```bash
+# Check if enrichment worked
+python -c "
+import laspy
+las = laspy.read('enriched_file.laz')
+print('Extra dimensions:', las.point_format.extra_dimension_names)
+"
 ```
 
-### Analyse de Qualité
+**Solutions**:
 
-```sql
--- Points de bonne qualité pour l'entraînement
-"planarity" > 0.5 AND "roughness" < 0.3
+1. Re-run enrichment process
+2. Ensure enrichment completed successfully
+3. Check file wasn't overwritten
 
--- Points ambigus nécessitant une vérification
-"planarity" < 0.3 OR "sphericity" > 0.8
+### Issue: Visualization Looks Noisy
+
+**Symptoms**: Point cloud shows scan line artifacts
+
+**Cause**: Using old fixed k-neighbors instead of adaptive radius
+
+**Solution**: Update to latest version with radius-based feature computation
+
+### Issue: Performance Problems
+
+**Symptoms**: QGIS slow with large files
+
+**Solutions**:
+
+1. **Limit point display**: Set maximum points in layer properties
+2. **Use Level of Detail**: Enable in rendering settings
+3. **Clip to area**: Use spatial filter for region of interest
+4. **Simplify**: Traitement smaller tiles or downsample
+
+## Data Export
+
+### Export Filtered Points
+
+1. **Right-click layer** → Export → Save Features As
+2. **Format**: LAS/LAZ
+3. **Filter**: Use current filter or create new one
+4. **Save**: Filtered point cloud as new file
+
+### Export to Other Formats
+
+- **CSV**: For spreadsheet analysis
+- **Shapefile**: For vector GIS analysis (centroids)
+- **GeoJSON**: For web mapping
+
+## Performance Tips
+
+### Large Dataset Handling
+
+```bash
+# Traitement smaller tiles for better QGIS performance
+ign-lidar-hd process \
+  --input large_tile.laz \
+  --output patches/ \
+  --patch-size 20.0  # Smaller patches
+
+# Or clip large files geographically
+# Use QGIS Clip tool or command line utilities
 ```
 
-## Voir Aussi
+### Display Optimization
 
-- [Guide d'Utilisation de Base](basic-usage.md) - Premiers pas avec la bibliothèque
-- [Optimisation Mémoire](../reference/memory-optimization.md) - Traiter de gros fichiers
-- [Commandes CLI](cli-commands.md) - Référence complète des commandes
+- **Point budget**: Limit to 1M points for smooth interaction
+- **Level of detail**: Enable automatic point reduction
+- **Attribute caching**: QGIS will cache attribute statistics
+
+## Integration with Other Tools
+
+### Combine with Vector Data
+
+- **Building footprints**: Overlay building polygons
+- **Road networks**: Add context with street data
+- **Property boundaries**: Combine with cadastral data
+
+### Export Results
+
+- **Screenshots**: High-resolution map exports
+- **Analysis results**: Statistical summaries
+- **Filtered datasets**: Export classified points
+
+## See Also
+
+- [Utilisation de base Guide](basic-usage.md) - Creating enriched LAZ files
+- [CLI Commands](cli-commands.md) - Enrichissementment command reference
+- [QGIS Dépannage](qgis-troubleshooting.md) - Common issues and solutions
+- [Memory Optimization](../reference/memory-optimization) - Performance tuning

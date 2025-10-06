@@ -5,502 +5,452 @@ description: Guide pour l'adaptation régionale des paramètres de traitement Li
 keywords: [régional, adaptation, paramètres, géographie, spécialisation]
 ---
 
-## Guide de Traitement Régional
+# Regional Traitementing
 
-Adaptation des paramètres de traitement LiDAR selon les spécificités géographiques et architecturales régionales françaises.
+Optimized configurations for different French regions to account for geographic and climatic variations.
 
 ## Vue d'ensemble
 
-Le traitement régional permet d'optimiser automatiquement les paramètres selon :
+Different regions in France require specific processing parameters to account for:
 
-- **Caractéristiques géographiques** : Relief, climat, géologie
-- **Styles architecturaux** : Patrimoine régional, urbanisme local
-- **Données spécifiques** : Densité urbaine, couverture forestière
-- **Contexte historique** : Évolution urbaine, contraintes patrimoniales
+- **Climate variations** (Mediterranean vs Atlantic vs Alpine)
+- **Urban density** (Paris region vs rural areas)
+- **Terrain characteristics** (mountains, plains, coastal areas)
+- **Vegetation types** (deciduous, coniferous, Mediterranean)
 
-## Régions supportées
+## Metropolitan Regions
 
-### Île-de-France
+### Île-de-France (Paris Region)
 
-```bash
-ign-lidar-hd enrich input.las output.las \
-  --regional-config ile-de-france \
-  --urban-density high \
-  --heritage-preservation true
+High urban density, complex building patterns, extensive infrastructure.
+
+```python
+from ign_lidar import Config
+
+ile_de_france_config = Config(
+    region="ile-de-france",
+    features={
+        'buildings': {
+            'min_points': 50,  # Dense buildings
+            'height_threshold': 2.5,
+            'edge_detection': 'enhanced',
+            'roof_complexity': 'high'
+        },
+        'vegetation': {
+            'urban_parks': True,
+            'street_trees': True,
+            'min_canopy_height': 3.0
+        },
+        'infrastructure': {
+            'roads': 'detailed',
+            'railways': True,
+            'bridges': True,
+            'tunnels': True
+        }
+    },
+    preprocessing={
+        'noise_removal': 'aggressive',
+        'ground_classification': 'urban'
+    }
+)
 ```
 
-**Spécificités :**
+### Provence-Alpes-Côte d'Azur (PACA)
 
-- Haute densité urbaine
-- Architecture haussmannienne
-- Patrimoine historique dense
-- Infrastructures complexes
+Mediterranean climate, varied terrain from coast to high mountains.
 
-**Optimisations :**
-
-- Détection fine des toitures en zinc
-- Filtrage du bruit urbain intense
-- Préservation des détails architecturaux
-
-### Provence-Alpes-Côte d'Azur
-
-```bash
-ign-lidar-hd enrich input.las output.las \
-  --regional-config paca \
-  --terrain-type mountainous \
-  --coastal-zones true
+```python
+paca_config = Config(
+    region="paca",
+    features={
+        'buildings': {
+            'mediterranean_style': True,
+            'roof_tiles': 'terracotta',
+            'flat_roofs': True
+        },
+        'vegetation': {
+            'drought_resistant': True,
+            'olive_trees': True,
+            'garrigue': True,
+            'alpine_vegetation': True  # For mountain areas
+        },
+        'terrain': {
+            'coastal': True,
+            'mountainous': True,
+            'cliff_detection': True
+        }
+    },
+    climate_adaptation={
+        'heat_island_effect': True,
+        'wind_erosion': 'moderate'
+    }
+)
 ```
 
-**Spécificités :**
+### Bretagne (Brittany)
 
-- Terrain montagneux
-- Architecture méditerranéenne
-- Zones côtières
-- Végétation sclérophylle
+Atlantic climate, coastal features, traditional architecture.
 
-**Optimisations :**
-
-- Gestion des pentes fortes
-- Détection des toitures en tuiles
-- Filtrage des embruns marins
-
-### Bretagne
-
-```bash
-ign-lidar-hd enrich input.las output.las \
-  --regional-config bretagne \
-  --coastal-climate true \
-  --stone-architecture true
+```python
+bretagne_config = Config(
+    region="bretagne",
+    features={
+        'buildings': {
+            'slate_roofs': True,
+            'granite_construction': True,
+            'traditional_architecture': True
+        },
+        'vegetation': {
+            'maritime_pine': True,
+            'heathland': True,
+            'bocage': True,  # Hedgerow landscapes
+            'coastal_vegetation': True
+        },
+        'coastal': {
+            'cliff_erosion': True,
+            'tidal_zones': True,
+            'salt_marsh': True
+        }
+    },
+    climate_adaptation={
+        'high_humidity': True,
+        'salt_corrosion': True,
+        'wind_exposure': 'high'
+    }
+)
 ```
-
-**Spécificités :**
-
-- Climat océanique
-- Architecture en pierre locale
-- Bocage traditionnel
-- Littoral découpé
-
-**Optimisations :**
-
-- Résistance à l'humidité
-- Détection des constructions en granite
-- Gestion des haies bocagères
 
 ### Auvergne-Rhône-Alpes
 
-```bash
-ign-lidar-hd enrich input.las output.las \
-  --regional-config auvergne-rhone-alpes \
-  --alpine-conditions true \
-  --snow-reflection true
-```
-
-**Spécificités :**
-
-- Conditions alpines
-- Architecture de montagne
-- Réflexion de la neige
-- Vallées encaissées
-
-**Optimisations :**
-
-- Correction des réflexions neigeuses
-- Détection des toitures pentues
-- Gestion des ombres de relief
-
-## Configuration par type de territoire
-
-### Zones urbaines denses
-
-```yaml
-# config/urban_dense.yaml
-regional_config:
-  territory_type: "urban_dense"
-  parameters:
-    building_detection:
-      min_height: 3.0
-      max_footprint: 5000
-      roof_complexity: high
-
-    noise_filtering:
-      traffic_noise: true
-      reflection_noise: true
-      intensity_threshold: 0.15
-
-    feature_extraction:
-      architectural_details: true
-      infrastructure: complete
-```
-
-### Zones périurbaines
-
-```yaml
-# config/periurban.yaml
-regional_config:
-  territory_type: "periurban"
-  parameters:
-    building_detection:
-      residential_focus: true
-      garden_detection: true
-      swimming_pool: true
-
-    vegetation_analysis:
-      urban_trees: true
-      private_gardens: true
-      mixed_land_use: true
-```
-
-### Zones rurales
-
-```yaml
-# config/rural.yaml
-regional_config:
-  territory_type: "rural"
-  parameters:
-    agriculture:
-      crop_detection: true
-      farming_structures: true
-      field_boundaries: true
-
-    natural_features:
-      forest_analysis: detailed
-      water_bodies: natural
-      topography: preserve_detail
-```
-
-### Zones forestières
-
-```yaml
-# config/forest.yaml
-regional_config:
-  territory_type: "forest"
-  parameters:
-    canopy_analysis:
-      multi_layer: true
-      species_differentiation: true
-      density_mapping: true
-
-    undergrowth:
-      penetration_enhancement: true
-      ground_detection: adaptive
-```
-
-## Adaptation climatique
-
-### Régions humides
-
-```bash
-# Optimisation pour climat océanique
-ign-lidar-hd enrich input.las output.las \
-  --climate-adaptation oceanic \
-  --humidity-compensation true \
-  --vegetation-density high
-```
-
-**Ajustements :**
-
-- Compensation de l'absorption atmosphérique
-- Détection améliorée sous couvert dense
-- Filtrage adaptatif du bruit atmosphérique
-
-### Régions méditerranéennes
-
-```bash
-# Optimisation pour climat méditerranéen
-ign-lidar-hd enrich input.las output.las \
-  --climate-adaptation mediterranean \
-  --drought-adaptation true \
-  --heat-reflection true
-```
-
-**Ajustements :**
-
-- Correction des réflexions de chaleur
-- Adaptation à la végétation clairsemée
-- Gestion des sols nus étendus
-
-### Régions de montagne
-
-```bash
-# Optimisation pour zones de montagne
-ign-lidar-hd enrich input.las output.las \
-  --climate-adaptation alpine \
-  --altitude-compensation true \
-  --snow-season-mode auto
-```
-
-**Ajustements :**
-
-- Compensation altitudinale
-- Mode saison neigeuse
-- Gestion des pentes extrêmes
-
-## Patrimoine architectural
-
-### Architecture classique
-
-```yaml
-heritage_settings:
-  style: "classical"
-  conservation_level: "strict"
-
-  detection_parameters:
-    roof_types: ["mansard", "slate", "tile"]
-    facade_details: true
-    ornamental_elements: true
-    symmetry_analysis: true
-```
-
-### Architecture vernaculaire
-
-```yaml
-heritage_settings:
-  style: "vernacular"
-  regional_specificity: high
-
-  materials:
-    stone_detection: true
-    timber_framing: true
-    thatch_roofing: true
-
-  preservation:
-    detail_level: maximum
-    historical_accuracy: true
-```
-
-### Architecture contemporaine
-
-```yaml
-heritage_settings:
-  style: "contemporary"
-  innovation_detection: true
-
-  modern_features:
-    glass_facades: true
-    metal_roofing: true
-    green_roofs: true
-    solar_panels: true
-```
-
-## Géologie et relief
-
-### Terrain calcaire
-
-```bash
-# Adaptation terrain calcaire (causses, karst)
-ign-lidar-hd enrich input.las output.las \
-  --geology-type limestone \
-  --karst-features true \
-  --cave-detection true
-```
-
-### Terrain granitique
-
-```bash
-# Adaptation terrain granitique (Bretagne, Massif Central)
-ign-lidar-hd enrich input.las output.las \
-  --geology-type granite \
-  --boulder-fields true \
-  --weathered-granite true
-```
-
-### Terrain sédimentaire
-
-```bash
-# Adaptation bassin sédimentaire (Bassin Parisien)
-ign-lidar-hd enrich input.las output.las \
-  --geology-type sedimentary \
-  --erosion-patterns true \
-  --agricultural-adaptation true
-```
-
-## Utilisation avancée
-
-### Analyse multi-régionale
+Alpine terrain, varied elevations, ski infrastructure.
 
 ```python
-from ign_lidar import RegionalProcessor
-
-# Processeur régional adaptatif
-processor = RegionalProcessor(
-    auto_detect_region=True,
-    cross_border_adaptation=True,
-    historical_context=True
+auvergne_rhone_alpes_config = Config(
+    region="auvergne-rhone-alpes",
+    features={
+        'buildings': {
+            'alpine_architecture': True,
+            'steep_roofs': True,  # Snow load
+            'ski_infrastructure': True
+        },
+        'vegetation': {
+            'coniferous_forests': True,
+            'alpine_meadows': True,
+            'treeline_detection': True
+        },
+        'terrain': {
+            'high_altitude': True,
+            'steep_slopes': True,
+            'glacial_features': True,
+            'avalanche_zones': True
+        }
+    },
+    elevation_processing={
+        'altitude_correction': True,
+        'slope_analysis': 'detailed'
+    }
 )
-
-# Traitement avec détection automatique
-result = processor.process_with_regional_adaptation(
-    input_path="input.las",
-    output_path="output.las"
-)
-
-print(f"Région détectée: {result.detected_region}")
-print(f"Paramètres appliqués: {result.applied_parameters}")
 ```
 
-### Base de données régionale
+## Overseas Territories
+
+### Guyane (French Guiana)
+
+Tropical rainforest, high humidity, unique ecosystem.
 
 ```python
-from ign_lidar.regional import RegionalDatabase
-
-# Accès à la base de connaissances régionales
-db = RegionalDatabase()
-
-# Requête par coordonnées
-region_info = db.get_region_info(
-    latitude=48.8566,
-    longitude=2.3522
+guyane_config = Config(
+    region="guyane",
+    features={
+        'vegetation': {
+            'tropical_rainforest': True,
+            'canopy_layers': 'multi-story',
+            'emergent_trees': True,
+            'epiphytes': True
+        },
+        'hydrology': {
+            'river_systems': 'complex',
+            'wetlands': True,
+            'seasonal_flooding': True
+        }
+    },
+    climate_adaptation={
+        'high_humidity': True,
+        'rapid_growth': True,
+        'cloud_cover_frequent': True
+    },
+    preprocessing={
+        'atmospheric_correction': 'tropical',
+        'canopy_penetration': 'enhanced'
+    }
 )
-
-print(f"Région: {region_info.name}")
-print(f"Caractéristiques: {region_info.characteristics}")
-print(f"Paramètres recommandés: {region_info.recommended_params}")
 ```
 
-### Apprentissage adaptatif
+### Guadeloupe & Martinique
 
-```bash
-# Mode apprentissage pour nouvelle région
-ign-lidar-hd learn-region \
-  --training-data sample_tiles/ \
-  --region-name "custom_region" \
-  --export-config custom_region_config.yaml
-```
-
-## Configuration personnalisée
-
-### Création de profil régional
-
-```yaml
-# custom_region.yaml
-region_profile:
-  name: "Ma Région Personnalisée"
-  characteristics:
-    climate: "temperate"
-    relief: "hilly"
-    urbanization: "mixed"
-    heritage: "19th_century"
-
-  processing_parameters:
-    building_detection:
-      min_height: 2.5
-      roof_materials: ["tile", "slate"]
-      architectural_period: "1850-1950"
-
-    vegetation:
-      forest_type: "deciduous"
-      agricultural_use: "mixed_farming"
-
-    quality_targets:
-      heritage_preservation: 0.95
-      modern_accuracy: 0.90
-      processing_speed: "balanced"
-```
-
-### Validation régionale
-
-```bash
-# Test de configuration régionale
-ign-lidar-hd validate-regional-config \
-  --config custom_region.yaml \
-  --test-data validation_tiles/ \
-  --quality-report validation_report.html
-```
-
-## Cas d'usage spécialisés
-
-### Inventaire du patrimoine
-
-```bash
-# Mode patrimoine avec précision maximale
-ign-lidar-hd heritage-inventory input.las output.las \
-  --heritage-mode strict \
-  --architectural-details true \
-  --historical-dating true \
-  --conservation-state-analysis true
-```
-
-### Aménagement du territoire
-
-```bash
-# Mode urbanisme avec analyse prospective
-ign-lidar-hd urban-planning input.las output.las \
-  --development-potential true \
-  --constraint-analysis true \
-  --density-optimization true
-```
-
-### Gestion forestière
-
-```bash
-# Mode forestier avec analyse dendrométrique
-ign-lidar-hd forest-management input.las output.las \
-  --species-classification true \
-  --biomass-estimation true \
-  --harvest-planning true
-```
-
-## Intégration avec les données IGN
-
-### Référentiels géographiques
+Caribbean islands, volcanic terrain, tropical climate.
 
 ```python
-# Utilisation des référentiels IGN
-from ign_lidar.integration import IGNReferentials
-
-referencer = IGNReferentials()
-
-# Enrichissement avec BD TOPO
-enriched = referencer.enrich_with_bdtopo(
-    lidar_data="input.las",
-    bdtopo_layers=["full", "road", "vegetation"]
-)
-
-# Enrichissement avec RGE ALTI
-alti_enhanced = referencer.enrich_with_rge_alti(
-    lidar_data="input.las",
-    dem_resolution=1.0
+antilles_config = Config(
+    region="antilles",
+    features={
+        'buildings': {
+            'hurricane_resistant': True,
+            'concrete_construction': True,
+            'galvanized_roofs': True
+        },
+        'vegetation': {
+            'tropical_vegetation': True,
+            'palm_trees': True,
+            'sugar_cane': True,
+            'mangroves': True
+        },
+        'terrain': {
+            'volcanic': True,
+            'coastal': True,
+            'hurricane_damage': True
+        }
+    },
+    hazard_assessment={
+        'cyclone_vulnerability': True,
+        'volcanic_risk': True,
+        'tsunami_zones': True
+    }
 )
 ```
 
-### Géoservices IGN
+### La Réunion
+
+Volcanic island, extreme elevation changes, tropical climate.
 
 ```python
-# Intégration avec les géoservices
-from ign_lidar.geoservices import IGNGeoservices
-
-geoservice = IGNGeoservices(api_key="votre_clé_api")
-
-# Enrichissement avec orthophotos
-rgb_enhanced = geoservice.add_orthophoto_colors(
-    lidar_path="input.las",
-    resolution="20cm",
-    year="latest"
-)
-
-# Contexte administratif
-admin_context = geoservice.get_administrative_context(
-    coordinates=(2.3522, 48.8566)
+reunion_config = Config(
+    region="reunion",
+    features={
+        'terrain': {
+            'volcanic_active': True,
+            'extreme_elevation': True,  # 0-3000m
+            'cirques': True,  # Volcanic calderas
+            'lava_flows': True
+        },
+        'vegetation': {
+            'altitude_zones': 'multiple',
+            'endemic_species': True,
+            'cloud_forest': True
+        },
+        'climate': {
+            'trade_winds': True,
+            'orographic_precipitation': True
+        }
+    },
+    elevation_processing={
+        'volcanic_terrain': True,
+        'cloud_filtering': 'aggressive'
+    }
 )
 ```
 
-## Meilleures pratiques
+## Usage Exemples
 
-### Workflow régional optimal
+### Single Region Traitementing
 
-1. **Détection automatique** de la région
-2. **Validation** des paramètres proposés
-3. **Ajustement** selon le contexte spécifique
-4. **Test** sur un échantillon représentatif
-5. **Traitement** complet avec monitoring
-6. **Validation** de la qualité obtenue
+```python
+from ign_lidar import Traitementor, regional_configs
 
-### Recommandations
+# Use predefined regional configuration
+processor = Traitementor(
+    config=regional_configs.get_config("ile-de-france")
+)
 
-- Toujours valider sur des données de test
-- Documenter les adaptations spécifiques
-- Maintenir une cohérence inter-projets
-- Capitaliser les bonnes pratiques
-- Partager les configurations validées
+result = processor.process_tile("paris_75001.las")
+```
 
-Voir aussi : [Styles Architecturaux](../features/architectural-styles.md) | [Analyse Historique](../reference/historical-analysis.md)
+### Multi-Region Pipeline
+
+```python
+import os
+from ign_lidar import Traitementor, regional_configs
+
+def process_by_region(input_dir, output_dir):
+    """Traitement files with region-specific configurations."""
+
+    region_mapping = {
+        '75': 'ile-de-france',    # Paris
+        '13': 'paca',             # Bouches-du-Rhône
+        '29': 'bretagne',         # Finistère
+        '74': 'auvergne-rhone-alpes',  # Haute-Savoie
+        '973': 'guyane',          # French Guiana
+        '971': 'antilles',        # Guadeloupe
+        '974': 'reunion'          # La Réunion
+    }
+
+    for filename in os.listdir(input_dir):
+        if filename.endswith('.las'):
+            # Extract department code from filename
+            dept_code = filename.split('_')[1][:2] if len(filename.split('_')) > 1 else '75'
+
+            # Get regional configuration
+            region = region_mapping.get(dept_code, 'ile-de-france')
+            config = regional_configs.get_config(region)
+
+            # Traitement with appropriate configuration
+            processor = Traitementor(config=config)
+
+            input_path = os.path.join(input_dir, filename)
+            output_path = os.path.join(output_dir, f"processed_{filename}")
+
+            processor.process_file(input_path, output_path)
+            print(f"Traitemented {filename} with {region} configuration")
+```
+
+### Custom Regional Adaptation
+
+```python
+from ign_lidar import Config
+
+# Create custom configuration for specific needs
+custom_normandy_config = Config(
+    base_config='bretagne',  # Start with similar climate
+    modifications={
+        'buildings': {
+            'half_timbered': True,  # Norman architecture
+            'thatched_roofs': True
+        },
+        'agriculture': {
+            'apple_orchards': True,
+            'dairy_farms': True,
+            'hedgerows': 'dense'
+        },
+        'coastal': {
+            'chalk_cliffs': True,
+            'd_day_sites': True  # Historical preservation
+        }
+    }
+)
+```
+
+## Regional Data Sources
+
+### IGN Regional Data
+
+Access region-specific auxiliary data:
+
+```python
+from ign_lidar.data import RegionalDataLoader
+
+# Load regional orthophotos
+loader = RegionalDataLoader(region="paca")
+orthophoto = loader.get_orthophoto(tile_id="0631_6275")
+
+# Load regional DTM
+dtm = loader.get_dtm(tile_id="0631_6275", resolution=1)
+
+# Load administrative boundaries
+boundaries = loader.get_admin_boundaries(level="commune")
+```
+
+### Climate Data Integration
+
+```python
+from ign_lidar.climate import ClimateAdapter
+
+# Adapt processing based on local climate
+climate = ClimateAdapter(region="bretagne")
+seasonal_config = climate.get_seasonal_config(
+    season="winter",
+    phenomena=["wind", "salt_spray", "storms"]
+)
+```
+
+## Quality Control by Region
+
+### Region-Specific Validation
+
+```python
+from ign_lidar.validation import RegionalValidator
+
+validator = RegionalValidator(region="ile-de-france")
+
+# Check urban-specific features
+urban_quality = validator.check_urban_features(result)
+
+# Validate building detection accuracy
+building_accuracy = validator.validate_buildings(
+    result,
+    reference_data="bdtopo"  # IGN reference database
+)
+
+# Generate regional quality report
+report = validator.generate_report(
+    metrics=['completeness', 'accuracy', 'consistency'],
+    standards='ign_specifications'
+)
+```
+
+### Adaptive Thresholds
+
+```python
+# Automatically adjust thresholds based on region
+from ign_lidar.adaptive import RegionalThresholds
+
+thresholds = RegionalThresholds(region="paca")
+
+config = Config(
+    features={
+        'buildings': {
+            'min_height': thresholds.get('building_min_height'),
+            'roof_angle': thresholds.get('roof_angle_range')
+        },
+        'vegetation': {
+            'canopy_threshold': thresholds.get('canopy_density')
+        }
+    }
+)
+```
+
+## Performance Optimization by Region
+
+### Resource Allocation
+
+```python
+# Optimize processing based on regional characteristics
+resource_config = {
+    'ile-de-france': {
+        'memory_intensive': True,  # Dense data
+        'cpu_cores': 'max',
+        'chunk_size': 500000
+    },
+    'guyane': {
+        'io_intensive': True,  # Large forest areas
+        'preprocessing': 'heavy',
+        'chunk_size': 1000000
+    },
+    'antilles': {
+        'gpu_preferred': True,  # Complex terrain
+        'atmospheric_correction': True
+    }
+}
+```
+
+## Best Practices
+
+### Regional Configuration Management
+
+1. **Version Control**: Track regional configurations
+2. **Validation**: Test configurations with representative data
+3. **Documentation**: Document region-specific parameters
+4. **Updates**: Regular review based on seasonal changes
+
+### Quality Assurance
+
+1. **Reference Data**: Use local IGN databases for validation
+2. **Expert Review**: Collaborate with regional experts
+3. **Continuous Improvement**: Update based on processing results
+4. **Cross-Validation**: Compare with manual interpretations
+
+### Documentation
+
+- [Architectural Styles](../reference/architectural-styles)
+- [Historical Analysis](../reference/historical-analysis)
+- [Performance Guide](./performance)
+- [Configuration Reference](../api/configuration)

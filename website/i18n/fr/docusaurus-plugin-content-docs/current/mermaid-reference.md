@@ -3,29 +3,21 @@
 sidebar_position: 5
 ---
 
-<!-- 
-🇫🇷 TRADUCTION FRANÇAISE REQUISE
-Ce document doit être traduit de l'anglais vers le français.
-Veuillez traduire les titres, descriptions et texte principal.
-Conservez tous les blocs de code, commandes et exemples techniques tels quels.
--->
-
-
 # Mermaid Diagrams Reference
 
 This page demonstrates the various Mermaid diagrams used throughout the IGN LiDAR HD documentation to visualize workflows, architectures, and processes.
 
 ## 🔄 Workflow Diagrams
 
-### Basic Processing Flow
+### Basic Traitementing Flow
 
 ```mermaid
 flowchart TD
-    A[Start] --> B{Input Available?}
-    B -->|Yes| C[Process Data]
-    B -->|No| D[Download Data]
+    A[Start] --> B{Entrée Available?}
+    B -->|Yes| C[Traitement Data]
+    B -->|No| D[Téléchargement Data]
     D --> C
-    C --> E[Generate Output]
+    C --> E[Generate Sortie]
     E --> F[End]
 
     style A fill:#e8f5e8
@@ -37,18 +29,18 @@ flowchart TD
 
 ```mermaid
 graph TB
-    subgraph "Input Layer"
+    subgraph "Entrée Layer"
         I1[Raw LiDAR]
         I2[Configuration]
     end
 
-    subgraph "Processing Layer"
-        P1[Download]
-        P2[Enrich]
-        P3[Process]
+    subgraph "Traitementing Layer"
+        P1[Téléchargement]
+        P2[Enrichissement]
+        P3[Traitement]
     end
 
-    subgraph "Output Layer"
+    subgraph "Sortie Layer"
         O1[NPZ Files]
         O2[Metadata]
     end
@@ -66,11 +58,11 @@ graph TB
 
 ## 📊 Performance Charts
 
-### Processing Speed Comparison
+### Traitementing Speed Comparison
 
 ```mermaid
 xychart-beta
-    title "Processing Performance by Hardware"
+    title "Traitementing Performance by Hardware"
     x-axis [CPU-4core, CPU-8core, CPU-16core, GPU-RTX3080, GPU-RTX4090]
     y-axis "Tiles per Hour" 0 --> 100
     bar "Small Tiles" [8, 15, 25, 60, 85]
@@ -81,7 +73,7 @@ xychart-beta
 
 ```mermaid
 xychart-beta
-    title "Memory Usage During Processing"
+    title "Memory Usage During Traitementing"
     x-axis [0min, 1min, 2min, 3min, 4min, 5min]
     y-axis "Memory GB" 0 --> 16
     line "RAM Usage" [2, 4, 8, 12, 8, 4]
@@ -96,8 +88,8 @@ xychart-beta
 sequenceDiagram
     participant U as User
     participant C as CLI
-    participant D as Downloader
-    participant P as Processor
+    participant D as Téléchargementer
+    participant P as Traitementor
     participant F as FileSystem
 
     U->>C: ign-lidar download
@@ -126,7 +118,7 @@ sequenceDiagram
     participant E as ErrorHandler
 
     U->>S: Execute command
-    S->>S: Process data
+    S->>S: Traitement data
 
     alt Success
         S-->>U: Return result
@@ -148,18 +140,18 @@ sequenceDiagram
 
 ```mermaid
 gantt
-    title IGN LiDAR Processing Timeline
+    title IGN LiDAR Traitementing Timeline
     dateFormat X
     axisFormat %s
 
-    section Download
+    section Téléchargement
     Tile Discovery   :0, 30
-    File Download    :20, 120
+    File Téléchargement    :20, 120
     Validation      :100, 140
 
-    section Enrichment
+    section Enrichissementment
     Feature Setup   :120, 150
-    GPU Processing  :140, 300
+    GPU Traitementing  :140, 300
     LAZ Generation  :280, 320
 
     section ML Preparation
@@ -187,29 +179,29 @@ gantt
     Memory Free   :180, 200
 
     section Disk I/O
-    Read Input    :0, 40
+    Read Entrée    :0, 40
     Write Temp    :40, 160
-    Write Output  :160, 240
+    Write Sortie  :160, 240
 ```
 
 ## 🌐 State Diagrams
 
-### Processing States
+### Traitementing States
 
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
-    Idle --> Downloading : start_download()
-    Downloading --> Downloaded : success
-    Downloaded --> Enriching : start_enrich()
-    Enriching --> Enriched : success
-    Enriched --> Processing : start_process()
-    Processing --> Complete : success
+    Idle --> Téléchargementing : start_download()
+    Téléchargementing --> Téléchargemented : success
+    Téléchargemented --> Enrichissementing : start_enrich()
+    Enrichissementing --> Enrichissemented : success
+    Enrichissemented --> Traitementing : start_process()
+    Traitementing --> Complete : success
     Complete --> [*]
 
-    Downloading --> Error : failure
-    Enriching --> Error : failure
-    Processing --> Error : failure
+    Téléchargementing --> Error : failure
+    Enrichissementing --> Error : failure
+    Traitementing --> Error : failure
     Error --> Idle : reset()
 ```
 
@@ -222,9 +214,9 @@ stateDiagram-v2
     Default --> GPU_Mode : set_gpu()
     CPU_Mode --> Multi_Worker : add_workers()
     GPU_Mode --> GPU_Optimized : optimize()
-    Multi_Worker --> Processing
-    GPU_Optimized --> Processing
-    Processing --> [*] : complete
+    Multi_Worker --> Traitementing
+    GPU_Optimized --> Traitementing
+    Traitementing --> [*] : complete
 ```
 
 ## 🔧 Entity Relationship Diagrams
@@ -285,7 +277,7 @@ erDiagram
 flowchart TD
     Start([Choose Diagram Type]) --> Purpose{What to Show?}
 
-    Purpose -->|Process Flow| Flowchart[Use Flowchart]
+    Purpose -->|Traitement Flow| Flowchart[Use Flowchart]
     Purpose -->|System Architecture| Graph[Use Graph]
     Purpose -->|Performance Data| Chart[Use XY Chart]
     Purpose -->|Time Sequence| Sequence[Use Sequence]
@@ -306,7 +298,7 @@ flowchart TD
 ### Color Scheme Guidelines
 
 - 🟢 **Success/Completion**: `fill:#e8f5e8`
-- 🔵 **Processing/Active**: `fill:#e3f2fd`
+- 🔵 **Traitementing/Active**: `fill:#e3f2fd`
 - 🟡 **Warning/Attention**: `fill:#fff3e0`
 - 🟣 **Configuration**: `fill:#f3e5f5`
 - 🔴 **Error/Problem**: `fill:#ffebee`

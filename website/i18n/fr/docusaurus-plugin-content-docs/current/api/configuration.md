@@ -1,22 +1,22 @@
 ---
 sidebar_position: 4
 title: API de Configuration
-description: Système de configuration pour les pipelines de traitement LiDAR
-keywords: [configuration, paramètres, réglages, pipeline, api]
+description: Configuration system for LiDAR processing pipelines
+keywords: [configuration, settings, parameters, pipeline, api]
 ---
 
-# API de Configuration
+# Configuration API
 
-Système de configuration complet pour les pipelines de traitement IGN LiDAR HD.
+Comprehensive configuration system for IGN LiDAR HD processing pipelines.
 
-## Classes de Configuration
+## Configuration Classes
 
-### Configuration de Base
+### Core Configuration
 
 ```python
 from ign_lidar import Config
 
-# Configuration de base
+# Basic configuration
 config = Config(
     input_format='las',
     output_format='laz',
@@ -24,10 +24,10 @@ config = Config(
     n_jobs=-1
 )
 
-# Charger depuis un fichier
+# Load from file
 config = Config.from_file('config.yaml')
 
-# Charger depuis un dictionnaire
+# Load from dictionary
 config_dict = {
     'processing': {
         'chunk_size': 500000,
@@ -41,60 +41,10 @@ config_dict = {
 config = Config.from_dict(config_dict)
 ```
 
-### Configuration du Traitement
+### Traitementing Configuration
 
 ```python
-class ProcessingConfig:
-    """Configuration des paramètres de traitement des données."""
-
-    def __init__(self,
-                 chunk_size: int = 1000000,
-                 overlap_size: int = 10,
-                 n_jobs: int = -1,
-                 use_gpu: bool = False,
-                 memory_limit: str = '8GB'):
-        self.chunk_size = chunk_size
-        self.overlap_size = overlap_size
-        self.n_jobs = n_jobs
-        self.use_gpu = use_gpu
-        self.memory_limit = memory_limit
-
-    def validate(self):
-        """Valider les paramètres de configuration."""
-        if self.chunk_size <= 0:
-            raise ValueError("chunk_size doit être positif")
-        if self.n_jobs < -1 or self.n_jobs == 0:
-            raise ValueError("n_jobs doit être -1 ou un entier positif")
-```
-
-### Configuration des Fonctionnalités
-
-````python
-class FeatureConfig:
-    """Configuration pour l'extraction de fonctionnalités."""
-
-    def __init__(self):
-        self.buildings = BuildingConfig()
-        self.vegetation = VegetationConfig()
-        self.ground = GroundConfig()
-        self.water = WaterConfig()
-
-class BuildingConfig:
-    """Configuration de la détection des bâtiments."""
-
-    def __init__(self,
-                 min_points: int = 100,
-                 min_height: float = 2.0,
-                 max_height: float = 200.0,
-                 planarity_threshold: float = 0.1,
-                 density_threshold: float = 5.0):
-        self.min_points = min_points
-        self.min_height = min_height
-
-### Processing Configuration
-
-```python
-class ProcessingConfig:
+class TraitementingConfig:
     """Configuration for data processing parameters."""
 
     def __init__(self,
@@ -115,7 +65,7 @@ class ProcessingConfig:
             raise ValueError("chunk_size must be positive")
         if self.n_jobs < -1 or self.n_jobs == 0:
             raise ValueError("n_jobs must be -1 or positive integer")
-````
+```
 
 ### Feature Configuration
 
@@ -359,11 +309,11 @@ class ConfigValidator:
 
 ## Configuration Templates
 
-### Urban Processing Template
+### Urban Traitementing Template
 
 ```yaml
 # urban_template.yaml
-name: "Urban Processing Template"
+name: "Urban Traitementing Template"
 description: "Optimized for dense urban environments"
 
 processing:
@@ -389,11 +339,11 @@ features:
     tunnels: true
 ```
 
-### Rural Processing Template
+### Rural Traitementing Template
 
 ```yaml
 # rural_template.yaml
-name: "Rural Processing Template"
+name: "Rural Traitementing Template"
 description: "Optimized for rural and natural areas"
 
 processing:
@@ -528,7 +478,7 @@ def config():
 
 @config.command()
 @click.option('--template', help='Template name')
-@click.option('--output', help='Output file path')
+@click.option('--output', help='Sortie file path')
 def generate(template, output):
     """Generate configuration template."""
 
@@ -615,7 +565,7 @@ def load_secure_config(config_path):
 
 ## Related Documentation
 
-- [Processing Guide](../guides/getting-started.md)
-- [Performance Guide](../guides/performance.md)
-- [API Reference](./features.md)
-- [CLI Reference](./cli.md)
+- [Traitementing Guide](../guides/getting-started)
+- [Performance Guide](../guides/performance)
+- [API Reference](./features)
+- [CLI Reference](./cli)

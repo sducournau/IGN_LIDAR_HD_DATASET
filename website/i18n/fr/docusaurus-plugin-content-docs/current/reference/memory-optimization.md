@@ -5,200 +5,392 @@ description: Guide de gestion de l'utilisation mémoire lors du traitement LiDAR
 keywords: [mémoire, optimisation, performance, dépannage]
 ---
 
-# Guide d'optimisation mémoire
+# Memory Optimization Guide
 
-Apprenez à optimiser l'utilisation de la mémoire et éviter les erreurs de mémoire insuffisante lors du traitement de gros jeux de données LiDAR.
+Learn how to optimize memory usage and avoid out-of-memory errors when processing large LiDAR datasets.
 
-## Comprendre les besoins mémoire
+## Understanding Memory Requirements
 
-Le traitement LiDAR est intensif en mémoire, surtout pour l'analyse des composants de bâtiment. Voici ce qu'il faut savoir sur les modèles d'utilisation mémoire.
+LiDAR processing is memory-intensive, especially for building component analysis. Here's what you need to know about memory usage patterns.
 
-### Utilisation mémoire par mode de traitement
+### Memory Usage by Traitementing Mode
 
-#### Caractéristiques du mode Core
+#### Core Mode Features
 
-- **Caractéristiques de base** : ~40 octets par point (normales, courbure, etc.)
-- **KDTree** : ~24 octets par point
-- **Total** : ~70 octets par point
+- **Base features**: ~40 bytes per point (normals, curvature, etc.)
+- **KDTree**: ~24 bytes per point
+- **Total**: ~70 bytes per point
 
-#### Caractéristiques du mode full
+#### Building Mode Features
 
-- **Caractéristiques de base** : ~40 octets par point
-- **KDTree Building** : ~50 octets par point
-- **Caractéristiques supplémentaires** : ~60 octets par point
-- **Total** : ~150 octets par point
+- **Base features**: ~40 bytes per point
+- **Building KDTree**: ~50 bytes per point
+- **Additional features**: ~60 bytes per point
+- **Total**: ~150 bytes per point
 
-### Taille de fichier vs Besoins mémoire
+### File Size vs Memory Requirements
 
-| Taille fichier | Points      | RAM mode Core | RAM mode full |
-| -------------- | ----------- | ------------- | ------------- |
-| 100MB          | ~2M points  | ~140MB        | ~300MB        |
-| 200MB          | ~4M points  | ~280MB        | ~600MB        |
-| 300MB          | ~6M points  | ~420MB        | ~900MB        |
-| 500MB          | ~10M points | ~700MB        | ~1.5GB        |
-| 1GB            | ~20M points | ~1.4GB        | ~3GB          |
+| File Size | Points      | Core Mode RAM | Building Mode RAM |
+| --------- | ----------- | ------------- | ----------------- |
+| 100MB     | ~2M points  | ~140MB        | ~300MB            |
+| 200MB     | ~4M points  | ~280MB        | ~600MB            |
+| 300MB     | ~6M points  | ~420MB        | ~900MB            |
+| 500MB     | ~10M points | ~700MB        | ~1.5GB            |
+| 1GB       | ~20M points | ~1.4GB        | ~3GB              |
 
-## Gestion automatique de la mémoire
+## Automatic Memory Management
 
-La bibliothèque inclut des fonctionnalités de gestion mémoire intégrées :
+The library includes built-in memory management features:
 
-### 1. Vérification mémoire avant traitement
+### 1. Pre-flight Memory Check
 
-Avant le début du traitement, le système :
+Before processing starts, the system:
 
-- Vérifie la RAM disponible
-- Détecte l'utilisation du swap
-- Estime les besoins mémoire
-- Ajuste automatiquement les paramètres
-
-### 2. Traitement par chunks adaptatif
-
-```python
-from ign_lidar import LiDARProcessor
-
-# Configuration automatique basée sur la RAM disponible
-processor = LiDARProcessor(
-    auto_memory_management=True,  # Activé par défaut
-    max_memory_gb=8  # Limite maximale optionnelle
-)
-```
-
-## Optimisations manuelles
-
-### Configuration des chunks
-
-```python
-# Traitement par chunks pour gros fichiers
-processor = LiDARProcessor(
-    chunk_size=1000000,  # 1M points par chunk
-    overlap_size=50000   # Chevauchement de 50k points
-)
-```
-
-### Réduction de mémoire par mode
-
-```python
-# Mode minimal pour ressources limitées
-processor = LiDARProcessor(
-    mode="core",  # Au lieu de "full"
-    enable_gpu=False,  # Désactiver GPU si RAM limitée
-    cache_size=100  # Réduire la taille du cache
-)
-```
-
-## Configuration système recommandée
-
-### RAM minimale par mode
-
-- **Mode Core** : 4GB RAM
-- **mode full** : 8GB RAM
-- **Traitement par lots** : 16GB RAM
-
-### RAM recommandée
-
-- **Développement** : 16GB RAM
-- **Production** : 32GB RAM ou plus
-- **GPU processing** : RAM GPU 8GB+
-
-## Surveillance et dépannage
-
-### Vérifier l'utilisation mémoire
+- Checks available RAM
+- Detects swap usage
+- Estimates memory needs
+- Adjusts worker count automatically
 
 ```bash
-# Surveiller l'utilisation mémoire pendant le traitement
-ign-lidar-hd process --input-dir data/ --output patches/ --verbose
+# System automatically adjusts based on available memory
+ign-lidar-hd enrich \
+  --input-dir /chemin/vers/tiles/ \
+  --output /chemin/vers/enriched/ \
+  --mode full \
+  --num-workers 4  # May be reduced automatically
 ```
 
-### Messages d'erreur courants
+**Console output example:**
 
-#### "Out of Memory"
+```
+Available RAM: 16.2 GB
+High swap usage detected (65%) - reducing workers from 4 to 1
+Traitementing with 1 worker for safety
+```
+
+### 2. Sequential Batching
+
+For large files, the system automatically switches to sequential processing:
+
+- **Small files** (under 200MB): Traitement multiple files in parallel
+- **Medium files** (200-300MB): Reduce batch size
+- **Large files** (over 300MB): Traitement one file at a time
+
+### 3. Aggressive Chunking
+
+For very large point clouds, memory-intensive operations are chunked:
 
 ```python
-# Solution : Réduire la taille des chunks
-processor = LiDARProcessor(chunk_size=500000)
+# Automatic chunking based on file size
+if n_points > 5_000_000:
+    chunk_size = 500_000      # Very aggressive
+elif n_points > 3_000_000:
+    chunk_size = 750_000      # Moderate
+else:
+    chunk_size = 1_000_000    # Standard
 ```
 
-#### "Swap space full"
+## Manual Memory Configuration
+
+### Choosing Worker Count
+
+Base your worker count on available RAM:
 
 ```bash
-# Solution : Augmenter le swap ou utiliser moins de workers
-ign-lidar-hd process --num-workers 1
+# For 8GB RAM systems
+ign-lidar-hd enrich \
+  --input-dir tiles/ \
+  --output enriched/ \
+  --mode full \
+  --num-workers 2
+
+# For 16GB RAM systems
+ign-lidar-hd enrich \
+  --input-dir tiles/ \
+  --output enriched/ \
+  --mode full \
+  --num-workers 4
+
+# For 32GB+ RAM systems
+ign-lidar-hd enrich \
+  --input-dir tiles/ \
+  --output enriched/ \
+  --mode full \
+  --num-workers 6
 ```
 
-## Optimisations avancées
+### Safe Worker Guidelines
 
-### Traitement GPU
+| System RAM | Building Mode | Core Mode    |
+| ---------- | ------------- | ------------ |
+| 8GB        | 1-2 workers   | 2-3 workers  |
+| 16GB       | 2-4 workers   | 4-6 workers  |
+| 32GB       | 4-8 workers   | 8-12 workers |
+| 64GB+      | 8-16 workers  | 16+ workers  |
+
+### Force Conservative Traitementing
+
+For maximum safety on constrained systems:
+
+```bash
+# Guaranteed to work (slowest but safest)
+ign-lidar-hd enrich \
+  --input-dir tiles/ \
+  --output enriched/ \
+  --mode full \
+  --num-workers 1
+```
+
+## Monitoring Memory Usage
+
+### System Monitoring
+
+Monitor your system during processing:
+
+```bash
+# Monitor memory and swap
+htop
+
+# Watch memory usage
+watch -n 1 'free -h'
+
+# Check swap usage
+cat /proc/swaps
+```
+
+### Warning Signs
+
+Watch for these indicators of memory pressure:
+
+- **High swap usage** (over 50%)
+- **System becoming unresponsive**
+- **Traitement killed messages** in logs
+- **Decreasing available memory** over time
+
+### Log Messages
+
+The system provides helpful log messages:
+
+```
+⚠️  High swap usage detected (75%)
+⚠️  Reducing workers from 4 to 1 for safety
+⚠️  Large file detected (523MB) - using sequential processing
+✅ Memory check passed: 12.3GB available, 1.2GB needed
+```
+
+## Dépannage Memory Issues
+
+### Out of Memory Crashes
+
+**Symptoms:**
+
+- Traitement terminated abruptly
+- "Traitement pool was terminated" errors
+- System freezes or becomes unresponsive
+
+**Solutions:**
+
+1. **Reduce worker count:**
+
+```bash
+ign-lidar-hd enrich \
+  --input-dir tiles/ \
+  --output enriched/ \
+  --mode full \
+  --num-workers 1
+```
+
+2. **Traitement files individually:**
+
+```bash
+# Traitement each file separately
+for file in tiles/*.laz; do
+    ign-lidar-hd enrich \
+      --input-dir "$file" \
+      --output enriched/ \
+      --mode full \
+      --num-workers 1
+done
+```
+
+3. **Use core mode instead of building mode:**
+
+```bash
+ign-lidar-hd enrich \
+  --input-dir tiles/ \
+  --output enriched/ \
+  --mode core \
+  --num-workers 2
+```
+
+### High Memory Usage
+
+**Symptoms:**
+
+- Traitementing very slow
+- High swap usage
+- System warnings about low memory
+
+**Solutions:**
+
+1. **Close unnecessary applications**
+2. **Increase system swap space:**
+
+```bash
+# Add temporary swap file (Linux)
+sudo fallocate -l 8G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
+
+3. **Traitement smaller batches:**
+
+```bash
+# Split large datasets into smaller chunks
+find tiles/ -name "*.laz" | head -10 | xargs -I {} ign-lidar-hd enrich --input {}
+```
+
+### Memory Leaks
+
+**Symptoms:**
+
+- Memory usage keeps increasing
+- Eventually runs out of memory
+- Traitementing gets slower over time
+
+**Solutions:**
+
+1. **Restart processing periodically:**
+
+```bash
+# Traitement in smaller batches
+ign-lidar-hd enrich --input-dir batch1/ --output enriched/
+ign-lidar-hd enrich --input-dir batch2/ --output enriched/
+```
+
+2. **Use smart skip to resume:**
+
+```bash
+# Safe to re-run - skips completed files
+ign-lidar-hd enrich \
+  --input-dir tiles/ \
+  --output enriched/ \
+  --mode full
+```
+
+## Performance Optimization
+
+### SSD vs HDD
+
+Using SSD storage significantly improves performance:
+
+- **SSD**: Faster file I/O reduces memory pressure
+- **HDD**: Slower I/O can cause memory buildup
+
+### Memory Type
+
+- **DDR4/DDR5**: Faster RAM improves processing speed
+- **Sufficient capacity**: More important than speed for large datasets
+
+### System Configuration
+
+```bash
+# Optimize system for large dataset processing (Linux)
+echo 'vm.swappiness=10' | sudo tee -a /etc/sysctl.conf
+echo 'vm.overcommit_memory=1' | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
+## Best Practices
+
+### 1. Start Small
+
+Test with a few files first:
+
+```bash
+# Test with 2-3 files
+ign-lidar-hd enrich \
+  --input-dir sample_tiles/ \
+  --output test_enriched/ \
+  --mode full \
+  --num-workers 2
+```
+
+### 2. Monitor First Run
+
+Watch system resources during your first processing run:
+
+- Open `htop` or Task Manager
+- Monitor memory and swap usage
+- Note peak memory consumption
+- Adjust workers accordingly for subsequent runs
+
+### 3. Use Smart Skip
+
+Let smart skip handle interrupted processing:
+
+```bash
+# Safe to interrupt and restart
+ign-lidar-hd enrich \
+  --input-dir large_dataset/ \
+  --output enriched/ \
+  --mode full
+# Press Ctrl+C if needed, then re-run same command
+```
+
+### 4. Plan Disk Space
+
+Enrichissemented files are similar in size to input files:
+
+- **Entrée**: 300MB LAZ file
+- **Sortie**: ~310MB enriched LAZ file
+- **Temporary**: Up to 2x during processing
+
+Ensure sufficient disk space: `input_size × 3` for safety.
+
+### 5. Batch Traitementing Strategy
+
+For very large datasets:
+
+```bash
+# Traitement by geographic region
+ign-lidar-hd enrich --input-dir paris_tiles/ --output enriched/
+ign-lidar-hd enrich --input-dir lyon_tiles/ --output enriched/
+
+# Or process by file size
+ign-lidar-hd enrich --input-dir small_tiles/ --output enriched/
+ign-lidar-hd enrich --input-dir large_tiles/ --output enriched/
+```
+
+## Advanced Configuration
+
+### Environment Variables
+
+```bash
+# Set memory limits (if needed)
+export MEMORY_LIMIT_GB=8
+export MAX_WORKERS=2
+
+# Then run processing
+ign-lidar-hd enrich --input-dir tiles/ --output enriched/
+```
+
+### Python Memory Settings
 
 ```python
-# Le GPU peut réduire l'utilisation RAM CPU
-processor = LiDARProcessor(
-    enable_gpu=True,
-    gpu_memory_fraction=0.8  # Utiliser 80% de la RAM GPU
+# For programmatic usage
+from ign_lidar import LiDARTraitementor
+
+processor = LiDARTraitementor(
+    max_memory_gb=8,        # Limit memory usage
+    chunk_size=500_000,     # Smaller chunks
+    n_jobs=2                # Fewer workers
 )
 ```
 
-### Configuration de production
+## See Also
 
-```python
-# Configuration optimisée pour serveurs
-processor = LiDARProcessor(
-    mode="full",
-    num_workers=8,
-    chunk_size=2000000,
-    max_memory_gb=24,
-    enable_gpu=True,
-    cache_size=1000
-)
-```
-
-## Bonnes pratiques
-
-### ✅ Recommandé
-
-- **Surveiller la RAM** : Utiliser des outils de monitoring
-- **Commencer petit** : Tester avec de petits fichiers
-- **Ajuster progressivement** : Augmenter la taille des chunks graduellement
-- **Utiliser le GPU** : Quand disponible pour réduire l'utilisation RAM CPU
-
-### ❌ Éviter
-
-- **Trop de workers** : Peut surcharger la mémoire
-- **Chunks trop gros** : Risque de débordement mémoire
-- **Ignorer les avertissements** : Les messages de mémoire sont importants
-- **Traitement concurrent** : Éviter plusieurs traitements simultanés
-
-## Exemples de configuration
-
-### Configuration limitée (8GB RAM)
-
-```python
-processor = LiDARProcessor(
-    mode="core",
-    num_workers=2,
-    chunk_size=500000,
-    max_memory_gb=6
-)
-```
-
-### Configuration standard (16GB RAM)
-
-```python
-processor = LiDARProcessor(
-    mode="full",
-    num_workers=4,
-    chunk_size=1000000,
-    max_memory_gb=12
-)
-```
-
-### Configuration haute performance (32GB+ RAM)
-
-```python
-processor = LiDARProcessor(
-    mode="full",
-    num_workers=8,
-    chunk_size=2000000,
-    enable_gpu=True,
-    max_memory_gb=24
-)
-```
+- [Utilisation de base Guide](../guides/basic-usage) - Essential processing workflows
+- [CLI Commands](../guides/cli-commands) - Command-line options
+- [Smart Skip Features](../features/smart-skip) - Resuming interrupted work

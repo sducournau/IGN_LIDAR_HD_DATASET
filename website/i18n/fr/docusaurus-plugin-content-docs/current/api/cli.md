@@ -5,15 +5,15 @@ description: Référence API de l'interface en ligne de commande et intégration
 keywords: [cli, api, ligne-de-commande, intégration, automatisation]
 ---
 
-# Référence API CLI
+# CLI API Reference
 
-Documentation complète de l'API pour l'intégration avec l'interface en ligne de commande IGN LiDAR HD.
+Comprehensive API documentation for integrating with IGN LiDAR HD command-line interface.
 
-## Module CLI
+## CLI Module
 
 ### CommandLineInterface
 
-Classe d'interface CLI principale pour l'exécution programmatique des commandes.
+Main CLI interface class for programmatic command execution.
 
 ```python
 from ign_lidar.cli import CommandLineInterface
@@ -27,19 +27,19 @@ cli = CommandLineInterface(
 
 #### Paramètres
 
-- **verbose** (`bool`) : Activer la sortie détaillée
-- **log_file** (`str`) : Chemin vers le fichier de log
-- **config_file** (`str`) : Fichier de configuration par défaut
-- **working_directory** (`str`) : Répertoire de travail pour les commandes
+- **verbose** (`bool`): Enable verbose output
+- **log_file** (`str`): Path to log file
+- **config_file** (`str`): Default configuration file
+- **working_directory** (`str`): Working directory for commands
 
-#### Méthodes
+#### Methods
 
 ##### `run_command(command, args=None, **kwargs)`
 
-Exécuter des commandes CLI de manière programmatique.
+Execute CLI commands programmatically.
 
 ```python
-# Commande de téléchargement
+# Téléchargement command
 result = cli.run_command(
     command="download",
     args={
@@ -49,20 +49,20 @@ result = cli.run_command(
     }
 )
 
-# Vérifier le résultat de l'exécution
+# Check execution result
 if result.success:
-    print(f"Téléchargé {len(result.files)} fichiers")
-    print(f"Taille totale : {result.total_size_mb:.1f} MB")
+    print(f"Téléchargemented {len(result.files)} files")
+    print(f"Total size: {result.total_size_mb:.1f} MB")
 else:
-    print(f"Erreur : {result.error_message}")
+    print(f"Error: {result.error_message}")
 ```
 
 ##### `enrich_batch(input_files, **kwargs)`
 
-Traitement d'enrichissement par lots.
+Batch enrichment processing.
 
 ```python
-# Enrichir plusieurs fichiers
+# Enrichissement multiple files
 results = cli.enrich_batch(
     input_files=["tile1.las", "tile2.las", "tile3.las"],
     output_dir="/data/enriched",
@@ -72,24 +72,24 @@ results = cli.enrich_batch(
     max_workers=4
 )
 
-# Traiter les résultats
+# Traitement results
 for file_result in results:
     if file_result.success:
         print(f"✅ {file_result.input_file} -> {file_result.output_file}")
     else:
-        print(f"❌ {file_result.input_file} : {file_result.error}")
+        print(f"❌ {file_result.input_file}: {file_result.error}")
 ```
 
-### Classes de Commandes
+### Command Classes
 
-#### DownloadCommand
+#### TéléchargementCommand
 
 ```python
-from ign_lidar.cli.commands import DownloadCommand
+from ign_lidar.cli.commands import TéléchargementCommand
 
-download_cmd = DownloadCommand()
+download_cmd = TéléchargementCommand()
 
-# Configurer les paramètres de téléchargement
+# Configure download parameters
 download_result = download_cmd.execute(
     tiles=["0631_6275"],
     output_directory="/data/raw",
@@ -98,20 +98,20 @@ download_result = download_cmd.execute(
     verify_checksum=True
 )
 
-# Accéder aux informations de téléchargement
-print(f"Fichiers téléchargés : {download_result.file_count}")
-print(f"Temps de téléchargement : {download_result.duration:.2f}s")
-print(f"Vitesse moyenne : {download_result.speed_mbps:.1f} MB/s")
+# Access download information
+print(f"Files downloaded: {download_result.file_count}")
+print(f"Téléchargement time: {download_result.duration:.2f}s")
+print(f"Average speed: {download_result.speed_mbps:.1f} MB/s")
 ```
 
-#### EnrichCommand
+#### EnrichissementCommand
 
 ```python
-from ign_lidar.cli.commands import EnrichCommand
+from ign_lidar.cli.commands import EnrichissementCommand
 
-enrich_cmd = EnrichCommand()
+enrich_cmd = EnrichissementCommand()
 
-# Exécuter l'enrichissement
+# Execute enrichment
 enrich_result = enrich_cmd.execute(
     input_file="input.las",
     output_file="output.laz",
@@ -121,10 +121,10 @@ enrich_result = enrich_cmd.execute(
     overwrite=False
 )
 
-# Vérifier les résultats de l'enrichissement
-print(f"Points traités : {enrich_result.points_processed:,}")
-print(f"Fonctionnalités ajoutées : {enrich_result.features_added}")
-print(f"Temps de traitement : {enrich_result.processing_time:.2f}s")
+# Check enrichment results
+print(f"Points processed: {enrich_result.points_processed:,}")
+print(f"Features added: {enrich_result.features_added}")
+print(f"Traitementing time: {enrich_result.processing_time:.2f}s")
 ```
 
 #### PatchCommand
@@ -134,7 +134,7 @@ from ign_lidar.cli.commands import PatchCommand
 
 patch_cmd = PatchCommand()
 
-# Appliquer les correctifs de prétraitement
+# Apply preprocessing patches
 patch_result = patch_cmd.execute(
     input_file="raw.las",
     output_file="patched.las",
@@ -143,42 +143,42 @@ patch_result = patch_cmd.execute(
 )
 ```
 
-## API de Configuration
+## Configuration API
 
 ### CLIConfig
 
 ```python
 from ign_lidar.cli.config import CLIConfig
 
-# Charger la configuration CLI
+# Load CLI configuration
 config = CLIConfig.from_file("cli_config.yaml")
 
-# Configuration programmatique
+# Programmatic configuration
 config = CLIConfig(
     default_output_format="laz",
     parallel_processing=True,
     max_workers=8,
     chunk_size=1000000,
 
-    # Configuration de logging
+    # Logging configuration
     log_level="INFO",
     log_format="%(asctime)s - %(levelname)s - %(message)s",
 
-    # Paramètres de performance
+    # Performance settings
     gpu_acceleration=True,
     memory_limit="8GB"
 )
 
-# Appliquer la configuration au CLI
+# Apply configuration to CLI
 cli = CommandLineInterface(config=config)
 ```
 
-### Configuration d'Environnement
+### Environment Configuration
 
 ```python
 from ign_lidar.cli.config import setup_environment
 
-# Configurer les variables d'environnement
+# Configure environment variables
 env_config = setup_environment(
     data_directory="/data/lidar",
     cache_directory="/tmp/ign_cache",
@@ -186,14 +186,14 @@ env_config = setup_environment(
     gpu_device="cuda:0"
 )
 
-# Variables d'environnement définies :
+# Environment variables set:
 # IGN_DATA_DIR=/data/lidar
 # IGN_CACHE_DIR=/tmp/ign_cache
 # IGN_TEMP_DIR=/tmp/ign_temp
 # CUDA_VISIBLE_DEVICES=0
 ```
 
-## Suivi de la Progression
+## Progress Monitoring
 
 ### ProgressTracker
 
@@ -202,90 +202,90 @@ from ign_lidar.cli.progress import ProgressTracker, ProgressCallback
 
 class CustomProgressCallback(ProgressCallback):
     def on_start(self, total_items):
-        print(f"Début du traitement de {total_items} éléments...")
+        print(f"Starting processing {total_items} items...")
 
     def on_progress(self, completed, total, current_item):
         percent = (completed / total) * 100
-        print(f"Progression : {percent:.1f}% - {current_item}")
+        print(f"Progress: {percent:.1f}% - {current_item}")
 
     def on_complete(self, total_items, elapsed_time):
-        print(f"Terminé {total_items} éléments en {elapsed_time:.2f}s")
+        print(f"Completed {total_items} items in {elapsed_time:.2f}s")
 
-# Utiliser le suivi personnalisé de la progression
+# Use custom progress tracking
 tracker = ProgressTracker(callback=CustomProgressCallback())
 
-# Traiter avec suivi de la progression
+# Traitement with progress tracking
 cli = CommandLineInterface(progress_tracker=tracker)
 result = cli.enrich_batch(input_files)
 ```
 
-### Surveillance en Temps Réel
+### Real-time Monitoring
 
 ```python
-from ign_lidar.cli.monitoring import ProcessMonitor
+from ign_lidar.cli.monitoring import TraitementMonitor
 
-# Surveiller les processus CLI
-monitor = ProcessMonitor()
+# Monitor CLI processes
+monitor = TraitementMonitor()
 
-# Démarrer la surveillance
+# Start monitoring
 monitor.start()
 
-# Exécuter la commande CLI
+# Execute CLI command
 result = cli.run_command("enrich", args={"input": "large_file.las"})
 
-# Obtenir les données de surveillance
+# Get monitoring data
 stats = monitor.get_stats()
-print(f"Utilisation CPU : {stats.cpu_percent:.1f}%")
-print(f"Utilisation Mémoire : {stats.memory_mb:.1f} MB")
-print(f"E/S Disque : {stats.disk_io_mbps:.1f} MB/s")
+print(f"CPU Usage: {stats.cpu_percent:.1f}%")
+print(f"Memory Usage: {stats.memory_mb:.1f} MB")
+print(f"Disk I/O: {stats.disk_io_mbps:.1f} MB/s")
 
 monitor.stop()
 ```
 
-## Gestion des Erreurs
+## Error Handling
 
-### Classes d'Exception CLI
+### CLIException Classes
 
 ```python
 from ign_lidar.cli.exceptions import (
     CLIError,
     CommandNotFoundError,
     InvalidArgumentError,
-    ProcessingError,
+    TraitementingError,
     FileNotFoundError
 )
 
 try:
     result = cli.run_command("enrich", args={"invalid_arg": True})
 except InvalidArgumentError as e:
-    print(f"Argument invalide : {e.argument} - {e.message}")
+    print(f"Invalid argument: {e.argument} - {e.message}")
 except FileNotFoundError as e:
-    print(f"Fichier non trouvé : {e.filepath}")
-except ProcessingError as e:
-    print(f"Échec du traitement : {e.details}")
+    print(f"File not found: {e.filepath}")
+except TraitementingError as e:
+    print(f"Traitementing failed: {e.details}")
 ```
 
-### Nouvelle Tentative et Récupération
+### Retry and Recovery
 
 ```python
 from ign_lidar.cli.retry import RetryManager
 
-# Configurer la logique de nouvelle tentative
+# Configure retry logic
 retry_manager = RetryManager(
     max_attempts=3,
     backoff_factor=2.0,
-    retry_on=[ProcessingError, IOError],
+    retry_on=[TraitementingError, IOError],
     exclude=[InvalidArgumentError]
 )
 
-# Exécuter avec nouvelle tentative
+# Execute with retry
 def process_with_retry():
     return cli.run_command("enrich", args=enrich_args)
 
 result = retry_manager.execute(process_with_retry)
 ```
 
-## Validation et Tests
+## Validation and Testing
 
 ### CommandValidator
 
@@ -294,7 +294,7 @@ from ign_lidar.cli.validation import CommandValidator
 
 validator = CommandValidator()
 
-# Valider les arguments de commande
+# Validate command arguments
 validation_result = validator.validate_command(
     command="enrich",
     args={
@@ -306,18 +306,18 @@ validation_result = validator.validate_command(
 
 if not validation_result.is_valid:
     for error in validation_result.errors:
-        print(f"Erreur de validation : {error}")
+        print(f"Validation error: {error}")
 ```
 
-### Framework de Test CLI
+### CLI Testing Framework
 
 ```python
 from ign_lidar.cli.testing import CLITestRunner
 
-# Tester les commandes CLI
+# Test CLI commands
 test_runner = CLITestRunner()
 
-# Créer un cas de test
+# Create test case
 test_case = {
     "command": "enrich",
     "args": {
@@ -329,25 +329,25 @@ test_case = {
     "timeout": 60
 }
 
-# Exécuter le test
+# Run test
 test_result = test_runner.run_test(test_case)
 
 if test_result.passed:
-    print("✅ Test réussi")
+    print("✅ Test passed")
 else:
-    print(f"❌ Test échoué : {test_result.error_message}")
+    print(f"❌ Test failed: {test_result.error_message}")
 ```
 
-## Modèles d'Intégration
+## Integration Patterns
 
-### Intégration de Workflow
+### Workflow Integration
 
 ```python
 from ign_lidar.cli.workflows import WorkflowRunner
 
-# Définir le workflow de traitement
+# Define processing workflow
 workflow = {
-    "name": "Pipeline de Traitement Complet",
+    "name": "Complete Traitementing Pipeline",
     "steps": [
         {
             "command": "download",
@@ -368,29 +368,29 @@ workflow = {
     ]
 }
 
-# Exécuter le workflow
+# Execute workflow
 runner = WorkflowRunner(cli=cli)
 workflow_result = runner.execute_workflow(workflow)
 
-# Vérifier les résultats
+# Check results
 for step_result in workflow_result.step_results:
-    print(f"Étape {step_result.step_name} : {'✅' if step_result.success else '❌'}")
+    print(f"Étape {step_result.step_name}: {'✅' if step_result.success else '❌'}")
 ```
 
-### Traitement par Lots
+### Batch Traitementing
 
 ```python
-from ign_lidar.cli.batch import BatchProcessor
+from ign_lidar.cli.batch import BatchTraitementor
 
-# Configurer le traitement par lots
-batch_processor = BatchProcessor(
+# Configure batch processing
+batch_processor = BatchTraitementor(
     cli=cli,
     max_parallel=4,
     retry_failed=True,
     progress_tracking=True
 )
 
-# Définir le travail par lots
+# Define batch job
 batch_job = {
     "command": "enrich",
     "input_pattern": "data/raw/*.las",
@@ -401,30 +401,30 @@ batch_job = {
     }
 }
 
-# Exécuter le travail par lots
+# Execute batch job
 batch_result = batch_processor.execute_batch(batch_job)
 
-# Résumé
-print(f"Fichiers totaux : {batch_result.total_files}")
-print(f"Réussis : {batch_result.successful_files}")
-print(f"Échoués : {batch_result.failed_files}")
-print(f"Temps total : {batch_result.total_time:.2f}s")
+# Summary
+print(f"Total files: {batch_result.total_files}")
+print(f"Successful: {batch_result.successful_files}")
+print(f"Failed: {batch_result.failed_files}")
+print(f"Total time: {batch_result.total_time:.2f}s")
 ```
 
-### Intégration de Systèmes Externes
+### External System Integration
 
-#### Intégration de Base de Données
+#### Database Integration
 
 ```python
 from ign_lidar.cli.database import DatabaseIntegration
 
-# Configurer la connexion à la base de données
+# Configure database connection
 db_integration = DatabaseIntegration(
     connection_string="postgresql://user:pass@localhost/lidar_db",
     table_name="processing_jobs"
 )
 
-# Enregistrer l'exécution CLI dans la base de données
+# Log CLI execution to database
 def process_with_db_logging(command, args):
     job_id = db_integration.create_job(command, args)
 
@@ -436,21 +436,21 @@ def process_with_db_logging(command, args):
         db_integration.update_job_failure(job_id, str(e))
         raise
 
-# Utilisation
+# Usage
 result = process_with_db_logging("enrich", enrich_args)
 ```
 
-#### Intégration de File d'Attente
+#### Queue Integration
 
 ```python
 from ign_lidar.cli.queue import TaskQueue
 import redis
 
-# File d'attente de tâches basée sur Redis
+# Redis-based task queue
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
 task_queue = TaskQueue(redis_client)
 
-# Producteur : Ajouter des tâches à la file d'attente
+# Producer: Add tasks to queue
 for las_file in las_files:
     task = {
         "command": "enrich",
@@ -461,7 +461,7 @@ for las_file in las_files:
     }
     task_queue.enqueue(task)
 
-# Consommateur : Traiter les tâches de la file d'attente
+# Consumer: Traitement tasks from queue
 def process_queue_tasks():
     while True:
         task = task_queue.dequeue(timeout=30)
@@ -473,36 +473,36 @@ def process_queue_tasks():
                 task_queue.mark_failed(task["id"], str(e))
 ```
 
-## Optimisation des Performances
+## Performance Optimization
 
-### API de Mise en Cache
+### Caching API
 
 ```python
 from ign_lidar.cli.cache import CLICache
 
-# Configurer la mise en cache
+# Configure caching
 cache = CLICache(
     cache_dir="/tmp/ign_cli_cache",
     max_size_gb=10.0,
     ttl_hours=24
 )
 
-# Activer la mise en cache pour CLI
+# Enable caching for CLI
 cli = CommandLineInterface(cache=cache)
 
-# Exécution avec cache (les appels suivants avec les mêmes args retournent le résultat mis en cache)
-result1 = cli.run_command("download", {"tiles": ["0631_6275"]})  # Télécharge
-result2 = cli.run_command("download", {"tiles": ["0631_6275"]})  # Depuis le cache
+# Cached execution (subsequent calls with same args return cached result)
+result1 = cli.run_command("download", {"tiles": ["0631_6275"]})  # Téléchargements
+result2 = cli.run_command("download", {"tiles": ["0631_6275"]})  # From cache
 
-print(f"Cache utilisé : {result2.from_cache}")
+print(f"Cache hit: {result2.from_cache}")
 ```
 
-### Gestion des Ressources
+### Resource Management
 
 ```python
 from ign_lidar.cli.resources import ResourceManager
 
-# Configurer les limites de ressources
+# Configure resource limits
 resource_manager = ResourceManager(
     max_cpu_percent=80.0,
     max_memory_gb=16.0,
@@ -510,46 +510,46 @@ resource_manager = ResourceManager(
     gpu_memory_fraction=0.8
 )
 
-# Appliquer les limites de ressources au CLI
+# Apply resource limits to CLI
 cli = CommandLineInterface(resource_manager=resource_manager)
 
-# CLI se limitera automatiquement pour rester dans les limites
+# CLI will automatically throttle to stay within limits
 result = cli.run_command("enrich", large_file_args)
 ```
 
-## Fonctionnalités Avancées
+## Advanced Features
 
-### Système de Plugins
+### Plugin System
 
 ```python
 from ign_lidar.cli.plugins import CLIPlugin, register_plugin
 
 class CustomPlugin(CLIPlugin):
-    """Exemple de plugin CLI personnalisé."""
+    """Custom CLI plugin example."""
 
     def get_command_name(self):
         return "custom-process"
 
     def get_command_help(self):
-        return "Commande de traitement personnalisée"
+        return "Custom processing command"
 
     def execute(self, args):
-        # Logique de traitement personnalisée
-        return {"status": "success", "message": "Traitement personnalisé terminé"}
+        # Custom processing logic
+        return {"status": "success", "message": "Custom processing completed"}
 
-# Enregistrer le plugin
+# Register plugin
 register_plugin(CustomPlugin())
 
-# Utiliser la commande personnalisée
+# Use custom command
 result = cli.run_command("custom-process", {"input": "data.las"})
 ```
 
-### Génération de Scripts
+### Script Generation
 
 ```python
 from ign_lidar.cli.scripting import ScriptGenerator
 
-# Générer un script bash à partir des commandes CLI
+# Generate bash script from CLI commands
 generator = ScriptGenerator(target="bash")
 
 script_content = generator.generate_script([
@@ -557,25 +557,25 @@ script_content = generator.generate_script([
     ("enrich", {"input": "data/0631_6275.las", "output": "data/enriched.laz"})
 ])
 
-# Enregistrer le script
+# Save script
 with open("process_lidar.sh", "w") as f:
     f.write(script_content)
 
-# Le script généré peut être exécuté indépendamment :
+# Generated script can be executed independently:
 # #!/bin/bash
 # ign-lidar-hd download --tiles 0631_6275 --output-dir data
 # ign-lidar-hd enrich --input data/0631_6275.las --output data/enriched.laz
 ```
 
-### Gestion de Configuration
+### Configuration Management
 
 ```python
 from ign_lidar.cli.config_manager import ConfigManager
 
-# Gérer plusieurs configurations
+# Manage multiple configurations
 config_manager = ConfigManager(config_dir="~/.ign-lidar/configs")
 
-# Créer des configurations nommées
+# Create named configurations
 config_manager.save_config("production", {
     "output_format": "laz",
     "parallel_processing": True,
@@ -590,18 +590,18 @@ config_manager.save_config("development", {
     "quality_level": "medium"
 })
 
-# Utiliser une configuration spécifique
+# Use specific configuration
 cli = CommandLineInterface()
 cli.load_config("production")
 
-# Lister les configurations disponibles
+# List available configurations
 configs = config_manager.list_configs()
-print(f"Configurations disponibles : {configs}")
+print(f"Available configs: {configs}")
 ```
 
-## Bonnes Pratiques
+## Best Practices
 
-### Modèles de Gestion des Erreurs
+### Error Handling Patterns
 
 ```python
 from ign_lidar.cli.patterns import robust_execution
@@ -618,17 +618,17 @@ def process_tile(input_file):
         "gpu": True
     })
 
-# Gère automatiquement les nouvelles tentatives et les solutions de repli
+# Automatically handles retries and fallbacks
 result = process_tile("large_tile.las")
 ```
 
-### Bonnes Pratiques de Logging
+### Logging Best Practices
 
 ```python
 import logging
 from ign_lidar.cli.logging import setup_cli_logging
 
-# Configurer le logging complet
+# Configure comprehensive logging
 logger = setup_cli_logging(
     log_file="ign_processing.log",
     console_level=logging.INFO,
@@ -636,20 +636,20 @@ logger = setup_cli_logging(
     include_performance=True
 )
 
-# Les opérations CLI sont automatiquement enregistrées
+# CLI operations are automatically logged
 cli = CommandLineInterface(logger=logger)
 result = cli.run_command("enrich", args)
 
-# Les logs incluent :
-# - Détails de l'exécution des commandes
-# - Métriques de performance
-# - Traces d'erreurs
-# - Utilisation des ressources
+# Logs include:
+# - Command execution details
+# - Performance metrics
+# - Error traces
+# - Resource usage
 ```
 
-## Documentation Connexe
+## Related Documentation
 
-- [Guide des Commandes CLI](../guides/cli-commands.md)
-- [Référence de Configuration](./configuration.md)
-- [API Processor](./processor.md)
-- [Guide de Performance](../guides/performance.md)
+- [CLI Commands Guide](../guides/cli-commands)
+- [Configuration Reference](./configuration)
+- [Traitementor API](./processor)
+- [Performance Guide](../guides/performance)

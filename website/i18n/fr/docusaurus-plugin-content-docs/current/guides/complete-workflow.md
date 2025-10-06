@@ -4,52 +4,52 @@ title: Guide de Workflow Complet
 description: Guide de bout en bout pour le traitement des données LiDAR HD de l'IGN
 ---
 
-# Guide de Workflow Complet
+# Workflow complet Guide
 
-Ce guide vous accompagne dans le processus complet de transformation des données brutes LiDAR HD de l'IGN en jeux de données prêts pour l'apprentissage automatique.
+This guide walks you through the entire process of transforming raw IGN LiDAR HD data into jeux de données prêts pour l'apprentissage automatique.
 
-## 📋 Vue d'Ensemble
+## 📋 Vue d'ensemble
 
-Le workflow complet se compose de trois étapes principales :
+The complete workflow consists of three main stages:
 
-1. **Téléchargement** - Acquérir les dalles LiDAR depuis les serveurs de l'IGN
-2. **Enrichissement** - Ajouter des caractéristiques géométriques et des données RGB optionnelles
-3. **Patchs** - Créer des patchs prêts à l'entraînement pour les modèles ML
+1. **Téléchargement** - Acquire LiDAR tiles from IGN servers
+2. **Enrichissement** - Add caractéristiques géométriques and optionnel RGB data
+3. **Patch** - Create training-ready patches for ML models
 
 ```mermaid
 flowchart TD
-    subgraph "Étape 1 : Téléchargement"
-        A[Définir Zone d'Intérêt] --> B{Méthode de Sélection}
-        B -->|Boîte Englobante| C[Requête WFS IGN]
-        B -->|IDs de Dalles| D[Téléchargement Direct]
-        B -->|Stratégique| E[Sélection Urbaine/Bâtiments]
-        C --> F[Télécharger Dalles LAZ]
+    subgraph "Stage 1: Téléchargement"
+        A[Define Area of Interest] --> B{Selection Method}
+        B -->|Bounding Box| C[IGN WFS Query]
+        B -->|Tile IDs| D[Direct Téléchargement]
+        B -->|Strategic| E[Urban/Building Selection]
+        C --> F[Téléchargement LAZ Tiles]
         D --> F
         E --> F
     end
 
-    subgraph "Étape 2 : Enrichissement"
-        F --> G[Charger Nuage de Points]
-        G --> H{Mode de Traitement}
-        H -->|Bâtiments| I[Extraire Bâtiments]
-        H -->|Complet| J[Classification Complète]
-        I --> K{Ajouter RGB?}
+    subgraph "Stage 2: Enrichissement"
+        F --> G[Load Nuage de points]
+        G --> H{Traitementing Mode}
+        H -->|Building| I[Extract Buildings]
+        H -->|Full| J[Full Classification]
+        I --> K{Add RGB?}
         J --> K
-        K -->|Oui| L[Augmentation RGB<br/>depuis Orthophotos]
-        K -->|Non| M[Caractéristiques Géométriques]
+        K -->|Yes| L[RGB Augmentation<br/>from Orthophotos]
+        K -->|No| M[Caractéristiques géométriques]
         L --> M
-        M --> N{GPU Disponible?}
-        N -->|Oui| O[Accélération GPU<br/>5-10x Plus Rapide]
-        N -->|Non| P[Traitement CPU]
-        O --> Q[Exporter LAZ Enrichi]
+        M --> N{GPU Available?}
+        N -->|Yes| O[GPU Acceleration<br/>5-10x Faster]
+        N -->|No| P[CPU Traitementing]
+        O --> Q[Export Enrichissemented LAZ]
         P --> Q
     end
 
-    subgraph "Étape 3 : Génération de Patchs"
-        Q --> R[Découper en Patchs<br/>150m × 150m]
-        R --> U[Filtre de Qualité]
-        U --> V[Classification LOD<br/>LOD2 ou LOD3]
-        V --> W[Jeu de Données ML<br/>Train/Val/Test]
+    subgraph "Stage 3: Patch Generation"
+        Q --> R[Split into Patches<br/>150m × 150m]
+        R --> U[Quality Filter]
+        U --> V[LOD Classification<br/>LOD2 or LOD3]
+        V --> W[Jeu de données ML<br/>Train/Val/Test Split]
     end
 
     style A fill:#e3f2fd
@@ -60,59 +60,59 @@ flowchart TD
     style P fill:#ffccbc
 ```
 
-## 🎯 Prérequis
+## 🎯 Prerequisites
 
-### Obligatoires
+### Required
 
-- Python 3.8 ou supérieur
-- Package `ign-lidar-hd` installé
-- Connexion Internet (pour télécharger les dalles)
-- ~10 Go d'espace disque libre par 10 dalles
+- Python 3.8 or higher
+- `ign-lidar-hd` package installed
+- Internet connection (for downloading tiles)
+- ~10GB free disk space per 10 tiles
 
-### Optionnels
+### Optional
 
-- GPU NVIDIA avec support CUDA (pour accélération 5-10x)
-- Orthophotos IGN BD ORTHO® (pour augmentation RGB)
+- NVIDIA GPU with CUDA support (for 5-10x speedup)
+- IGN BD ORTHO® orthophotos (for RGB augmentation)
 
-## 🚀 Méthode 1 : Configuration Pipeline (Recommandée)
+## 🚀 Method 1: Pipeline Configuration (Recommended)
 
-La façon la plus simple d'exécuter un workflow complet est d'utiliser des fichiers de configuration YAML.
+The easiest way to run a complete workflow is using YAML configuration files.
 
-### Étape 1 : Créer un Fichier de Configuration
+### Étape 1: Create Configuration File
 
 ```bash
 ign-lidar-hd pipeline config.yaml --create-example full
 ```
 
-Ceci crée un fichier `config.yaml` avec toutes les options :
+This creates a `config.yaml` file with all options:
 
 ```yaml
-# config.yaml - Configuration Pipeline Complète
+# config.yaml - Complete Pipeline Configuration
 global:
-  num_workers: 4 # Threads de traitement parallèle
-  verbose: true # Journalisation détaillée
+  num_workers: 4 # Parallel processing threads
+  verbose: true # Detailed logging
 
 download:
-  # Boîte englobante : longitude_min, latitude_min, longitude_max, latitude_max
-  bbox: "2.3, 48.8, 2.4, 48.9" # Zone de Paris
+  # Bounding box: longitude_min, latitude_min, longitude_max, latitude_max
+  bbox: "2.3, 48.8, 2.4, 48.9" # Paris area
   output: "data/raw"
   max_tiles: 10
-  tile_selection_strategy: "urban" # ou "building_rich", "random"
+  tile_selection_strategy: "urban" # or "building_rich", "random"
 
 enrich:
   input_dir: "data/raw"
   output: "data/enriched"
-  mode: "full" # Focus sur toutes les caractéristiques
+  mode: "full" # Focus on building features
 
-  # Augmentation RGB (optionnel)
+  # RGB Augmentation (optionnel)
   add_rgb: true
   rgb_source: "ign_orthophoto"
   rgb_cache_dir: "cache/orthophotos"
 
-  # Accélération GPU (optionnel)
-  use_gpu: true # Repli automatique sur CPU si GPU indisponible
+  # GPU Acceleration (optionnel)
+  use_gpu: true # Auto-fallback to CPU if GPU unavailable
 
-  # Extraction de Caractéristiques
+  # Feature Extraction
   compute_normals: true
   compute_curvature: true
   neighborhood_size: 20
@@ -120,105 +120,109 @@ enrich:
 patch:
   input_dir: "data/enriched"
   output: "data/patches"
-  lod_level: "LOD2" # ou "LOD3"
+  lod_level: "LOD2" # or "LOD3"
   num_points: 16384
-  patch_size: 150 # mètres
-  overlap: 0.1 # 10% de chevauchement
+  patch_size: 150 # meters
+  overlap: 0.1 # 10% overlap
 
-  # Contrôle Qualité
+  # Data Augmentation
+  augment: true
+  augmentation_factor: 3 # Generate 3 augmented versions per patch
+
+  # Quality Control
   min_building_points: 1000
   filter_empty_patches: true
 ```
 
-### Étape 2 : Exécuter le Pipeline Complet
+### Étape 2: Run Complete Pipeline
 
 ```bash
 ign-lidar-hd pipeline config.yaml
 ```
 
-Le pipeline va :
+The pipeline will:
 
-1. ✅ Télécharger les dalles depuis l'IGN
-2. ✅ Enrichir avec des caractéristiques et RGB optionnel
-3. ✅ Créer des patchs d'entraînement
-4. ✅ Sauvegarder les métadonnées et statistiques
+1. ✅ Téléchargement tiles from IGN
+2. ✅ Enrichissement with features and optionnel RGB
+3. ✅ Create training patches
+4. ✅ Save metadata and statistics
 
-**Structure de Sortie :**
+**Sortie Structure:**
 
-```text
+```
 project/
 ├── config.yaml
 ├── data/
-│   ├── raw/           # Dalles téléchargées
-│   ├── enriched/      # Dalles enrichies de caractéristiques
-│   └── patches/       # Patchs prêts pour ML
+│   ├── raw/           # Téléchargemented tiles
+│   ├── enriched/      # Feature-enriched tiles
+│   └── patches/       # ML-ready patches
 │       ├── LOD2/
 │       │   ├── train/
 │       │   ├── val/
 │       │   └── test/
 │       └── metadata.json
 └── cache/
-    └── orthophotos/   # Données RGB en cache
+    └── orthophotos/   # Cached RGB data
 ```
 
-### Étape 3 : Vérifier les Résultats
+### Étape 3: Verify Results
 
 ```python
 from pathlib import Path
 import json
 
-# Charger les métadonnées
+# Load metadata
 metadata = json.loads(Path("data/patches/metadata.json").read_text())
 
-print(f"Total de patchs : {metadata['total_patches']}")
-print(f"Classes : {metadata['classes']}")
-print(f"Caractéristiques : {metadata['features']}")
+print(f"Total patches: {metadata['total_patches']}")
+print(f"Classes: {metadata['classes']}")
+print(f"Features: {metadata['features']}")
 ```
 
-## 🛠️ Méthode 2 : Ligne de Commande Étape par Étape
+## 🛠️ Method 2: Command-Line Étape by Étape
 
-Pour plus de contrôle, exécutez chaque étape séparément.
+For more control, run each stage separately.
 
-### Étape 1 : Télécharger les Dalles
+### Stage 1: Téléchargement Tiles
 
 ```bash
-# Télécharger par boîte englobante (zone de Paris)
+# Téléchargement by bounding box (Paris area)
 ign-lidar-hd download \
   --bbox 2.3,48.8,2.4,48.9 \
   --output data/raw \
   --max-tiles 10 \
   --strategy urban
 
-# Ou télécharger des dalles spécifiques
+# Or download specific tiles
 ign-lidar-hd download \
   --tiles 0750_6620 0750_6621 0750_6622 \
   --output data/raw
 ```
 
-**Options :**
+**Options:**
 
-- `--bbox` : Boîte englobante géographique (lon_min, lat_min, lon_max, lat_max)
-- `--max-tiles` : Limiter le nombre de dalles à télécharger
-- `--strategy` : Stratégie de sélection de dalles (urban/building_rich/random)
-- `--tiles` : IDs de dalles spécifiques à télécharger
+- `--bbox`: Geographic bounding box (lon_min, lat_min, lon_max, lat_max)
+- `--max-tiles`: Limit number of tiles to download
+- `--strategy`: Tile selection strategy (urban/building_rich/random)
+- `--tiles`: Specific tile IDs to download
 
-### Étape 2 : Enrichir avec des Caractéristiques
+### Stage 2: Enrichissement with Features
 
 ```bash
-# Enrichissement basique (CPU uniquement)
+# Basic enrichment (CPU only)
 ign-lidar-hd enrich \
   --input-dir data/raw \
   --output data/enriched \
   --num-workers 4
 
-# Avec accélération GPU
+# With GPU acceleration
 ign-lidar-hd enrich \
   --input-dir data/raw \
   --output data/enriched \
   --use-gpu \
   --num-workers 2
 
-# Avec augmentation RGB
+# With RGB augmentation
 ign-lidar-hd enrich \
   --input-dir data/raw \
   --output data/enriched \
@@ -227,24 +231,24 @@ ign-lidar-hd enrich \
   --num-workers 4
 ```
 
-**Options :**
+**Options:**
 
-- `--use-gpu` : Activer l'accélération GPU (nécessite CUDA)
-- `--add-rgb` : Ajouter des couleurs RGB depuis les orthophotos IGN
-- `--rgb-cache-dir` : Répertoire de cache pour les dalles d'orthophotos
-- `--num-workers` : Nombre de workers parallèles
+- `--use-gpu`: Enable GPU acceleration (requires CUDA)
+- `--add-rgb`: Add RGB colors from IGN orthophotos
+- `--rgb-cache-dir`: Cache directory for orthophoto tiles
+- `--num-workers`: Nombre de workers parallèles
 
-### Étape 3 : Créer des Patchs
+### Stage 3: Create Patches
 
 ```bash
-# Créer des patchs LOD2 (15 classes)
+# Create LOD2 patches (15 classes)
 ign-lidar-hd patch \
   --input-dir data/enriched \
   --output data/patches \
   --lod-level LOD2 \
   --num-points 16384
 
-# Créer des patchs LOD3 (30+ classes)
+# Create LOD3 patches (30+ classes)
 ign-lidar-hd patch \
   --input-dir data/enriched \
   --output data/patches \
@@ -252,42 +256,42 @@ ign-lidar-hd patch \
   --num-points 32768
 ```
 
-**Options :**
+**Options:**
 
-- `--lod-level` : LOD2 (15 classes) ou LOD3 (30+ classes)
-- `--num-points` : Points par patch (typiquement 8192-32768)
+- `--lod-level`: LOD2 (15 classes) or LOD3 (30+ classes)
+- `--num-points`: Points per patch (typically 8192-32768)
 
-## 🐍 Méthode 3 : API Python
+## 🐍 Method 3: Python API
 
-Pour une flexibilité maximale, utilisez directement l'API Python.
+For maximum flexibility, use the Python API directly.
 
-### Script de Workflow Complet
+### Workflow complet Script
 
 ```python
-from ign_lidar import LiDARProcessor, TileDownloader, PatchGenerator
+from ign_lidar import LiDARTraitementor, TileTéléchargementer, PatchGenerator
 from pathlib import Path
 
 # Configuration
-bbox = (2.3, 48.8, 2.4, 48.9)  # Zone de Paris
+bbox = (2.3, 48.8, 2.4, 48.9)  # Paris area
 raw_dir = Path("data/raw")
 enriched_dir = Path("data/enriched")
 patches_dir = Path("data/patches")
 
-# Étape 1 : Télécharger les Dalles
-print("📥 Téléchargement des dalles...")
-downloader = TileDownloader(output_dir=raw_dir)
+# Stage 1: Téléchargement Tiles
+print("📥 Téléchargementing tiles...")
+downloader = TileTéléchargementer(output_dir=raw_dir)
 tiles = downloader.download_bbox(
     bbox=bbox,
     max_tiles=10,
     strategy="urban"
 )
-print(f"✅ {len(tiles)} dalles téléchargées")
+print(f"✅ Téléchargemented {len(tiles)} tiles")
 
-# Étape 2 : Enrichir avec des Caractéristiques
-print("⚡ Enrichissement avec des caractéristiques...")
-processor = LiDARProcessor(
-    use_gpu=True,           # Activer le GPU si disponible
-    include_rgb=True,       # Ajouter les couleurs RGB
+# Stage 2: Enrichissement with Features
+print("⚡ Enrichissementing with features...")
+processor = LiDARTraitementor(
+    use_gpu=True,           # Enable GPU if available
+    include_rgb=True,       # Add RGB colors
     rgb_cache_dir=Path("cache/orthophotos"),
     num_workers=4
 )
@@ -299,36 +303,38 @@ for tile_path in raw_dir.glob("*.laz"):
     enriched_files.append(output_path)
     print(f"  ✓ {tile_path.name}")
 
-print(f"✅ {len(enriched_files)} fichiers enrichis")
+print(f"✅ Enrichissemented {len(enriched_files)} files")
 
-# Étape 3 : Créer des Patchs
-print("📦 Création de patchs...")
+# Stage 3: Create Patches
+print("📦 Creating patches...")
 generator = PatchGenerator(
     lod_level="LOD2",
-    num_points=16384
+    num_points=16384,
+    augment=True,
+    augmentation_factor=3
 )
 
 patches = generator.generate_from_directory(
     enriched_dir,
     patches_dir
 )
-print(f"✅ {len(patches)} patchs générés")
+print(f"✅ Generated {len(patches)} patches")
 
-# Résumé
-print("\n📊 Résumé :")
-print(f"  Dalles brutes : {len(tiles)}")
-print(f"  Fichiers enrichis : {len(enriched_files)}")
-print(f"  Patchs d'entraînement : {len(patches)}")
+# Summary
+print("\n📊 Summary:")
+print(f"  Raw tiles: {len(tiles)}")
+print(f"  Enrichissemented files: {len(enriched_files)}")
+print(f"  Training patches: {len(patches)}")
 ```
 
-### Avancé : Extraction de Caractéristiques Personnalisée
+### Advanced: Custom Feature Extraction
 
 ```python
-from ign_lidar import LiDARProcessor
+from ign_lidar import LiDARTraitementor
 import numpy as np
 
-# Processeur personnalisé avec caractéristiques spécifiques
-processor = LiDARProcessor(
+# Custom processor with specific features
+processor = LiDARTraitementor(
     lod_level="LOD2",
     use_gpu=True,
     features={
@@ -339,21 +345,21 @@ processor = LiDARProcessor(
         "density": True,
         "architectural_style": True
     },
-    neighborhood_size=20,  # k plus proches voisins
-    min_building_height=3.0  # mètres
+    neighborhood_size=20,  # k-nearest neighbors
+    min_building_height=3.0  # meters
 )
 
-# Traiter avec filtrage personnalisé
+# Traitement with custom filtering
 def custom_filter(points):
-    """Conserver uniquement les points de haute qualité"""
-    # Supprimer les points isolés
+    """Keep only high-quality points"""
+    # Remove isolated points
     from scipy.spatial import cKDTree
     tree = cKDTree(points[:, :3])
     distances, _ = tree.query(points[:, :3], k=10)
-    mask = distances.mean(axis=1) < 2.0  # Seuil de 2m
+    mask = distances.mean(axis=1) < 2.0  # 2m threshold
     return points[mask]
 
-# Appliquer le traitement
+# Apply processing
 enriched = processor.enrich(
     input_path="data/raw/tile.laz",
     output_path="data/enriched/tile.laz",
@@ -361,148 +367,148 @@ enriched = processor.enrich(
 )
 ```
 
-## 📊 Surveillance de la Progression
+## 📊 Monitoring Progress
 
-### Surveillance en Temps Réel
+### Real-time Monitoring
 
 ```python
-from ign_lidar import LiDARProcessor
+from ign_lidar import LiDARTraitementor
 from tqdm import tqdm
 
-processor = LiDARProcessor()
+processor = LiDARTraitementor()
 
-# Barre de progression pour traitement par lots
+# Progress bar for batch processing
 files = list(Path("data/raw").glob("*.laz"))
-for file_path in tqdm(files, desc="Traitement des dalles"):
+for file_path in tqdm(files, desc="Traitementing tiles"):
     processor.enrich(file_path, Path("data/enriched") / file_path.name)
 ```
 
-### Surveillance des Ressources
+### Resource Monitoring
 
 ```python
 import psutil
 import time
 
 def monitor_resources():
-    """Surveiller l'utilisation du CPU et de la mémoire"""
-    process = psutil.Process()
+    """Monitor CPU and memory usage"""
+    process = psutil.Traitement()
 
     while True:
         cpu_percent = process.cpu_percent(interval=1)
         memory_mb = process.memory_info().rss / 1024 / 1024
-        print(f"CPU : {cpu_percent:.1f}% | Mémoire : {memory_mb:.0f} Mo")
+        print(f"CPU: {cpu_percent:.1f}% | Memory: {memory_mb:.0f} MB")
         time.sleep(5)
 
-# Exécuter dans un thread séparé
+# Run in separate thread
 import threading
 monitor_thread = threading.Thread(target=monitor_resources, daemon=True)
 monitor_thread.start()
 
-# Votre code de traitement ici
+# Your processing code here
 processor.process_directory("data/raw", "data/enriched")
 ```
 
 ## 🔧 Dépannage
 
-### Problèmes Courants
+### Common Issues
 
-#### 1. Mémoire Insuffisante
+#### 1. Out of Memory
 
-**Solution :** Utiliser le traitement par morceaux ou réduire la taille des lots :
+**Solution:** Use chunked processing or reduce batch size:
 
 ```python
-processor = LiDARProcessor(
-    chunk_size=1_000_000,  # Traiter 1M de points à la fois
-    num_workers=2          # Réduire les workers parallèles
+processor = LiDARTraitementor(
+    chunk_size=1_000_000,  # Traitement 1M points at a time
+    num_workers=2          # Reduce parallel workers
 )
 ```
 
-#### 2. GPU Non Détecté
+#### 2. GPU Not Detected
 
-**Solution :** Vérifier l'installation de CUDA :
+**Solution:** Verify CUDA installation:
 
 ```bash
-# Vérifier la version de CUDA
+# Check CUDA version
 nvidia-smi
 
-# Tester CuPy
+# Test CuPy
 python -c "import cupy; print(cupy.cuda.runtime.getDeviceCount())"
 ```
 
-Si le GPU n'est pas disponible, la bibliothèque revient automatiquement au traitement CPU.
+If GPU is not available, the library automatically falls back to CPU processing.
 
-#### 3. L'Augmentation RGB Échoue
+#### 3. RGB Augmentation Fails
 
-**Solution :** S'assurer que les orthophotos sont accessibles :
+**Solution:** Ensure orthophotos are accessible:
 
 ```python
 from ign_lidar.rgb_augmentation import verify_rgb_source
 
-# Tester la source RGB
+# Test RGB source
 result = verify_rgb_source(
     test_tile="0750_6620",
     cache_dir=Path("cache/orthophotos")
 )
-print(f"Source RGB valide : {result}")
+print(f"RGB source valid: {result}")
 ```
 
-#### 4. Traitement Lent
+#### 4. Slow Traitementing
 
-**Solution :** Activer les optimisations :
+**Solution:** Enable optimizations:
 
 ```python
-processor = LiDARProcessor(
-    use_gpu=True,           # Activer le GPU
-    num_workers=8,          # Workers parallèles max
-    cache_features=True,    # Mettre en cache les résultats intermédiaires
-    skip_existing=True      # Sauter les fichiers déjà traités
+processor = LiDARTraitementor(
+    use_gpu=True,           # Enable GPU
+    num_workers=8,          # Max parallel workers
+    cache_features=True,    # Cache intermediate results
+    skip_existing=True      # Skip already processed files
 )
 ```
 
-## 📈 Conseils de Performance
+## 📈 Performance Tips
 
-### 1. Nombre Optimal de Workers
+### 1. Optimal Worker Count
 
 ```python
 import os
 
-# Utiliser 75% des cœurs CPU pour les tâches liées aux E/S
+# Use 75% of CPU cores for I/O-bound tasks
 optimal_workers = max(1, int(os.cpu_count() * 0.75))
 
-processor = LiDARProcessor(num_workers=optimal_workers)
+processor = LiDARTraitementor(num_workers=optimal_workers)
 ```
 
-### 2. Traitement par Lots GPU
+### 2. GPU Batch Traitementing
 
 ```python
-# Traiter plusieurs dalles sur GPU pour une meilleure utilisation
-processor = LiDARProcessor(
+# Traitement multiple tiles on GPU for better utilization
+processor = LiDARTraitementor(
     use_gpu=True,
-    gpu_batch_size=4  # Traiter 4 dalles simultanément
+    gpu_batch_size=4  # Traitement 4 tiles simultaneously
 )
 ```
 
-### 3. Optimisation des E/S Disque
+### 3. Disk I/O Optimization
 
 ```bash
-# Utiliser SSD pour le stockage intermédiaire
+# Use SSD for intermediate storage
 export TMPDIR=/mnt/ssd/tmp
 
-# Ou en Python
+# Or in Python
 import tempfile
 tempfile.tempdir = "/mnt/ssd/tmp"
 ```
 
-## 🎓 Prochaines Étapes
+## 🎓 Prochaines étapes
 
-- 📊 [Analyser les patchs générés](../reference/dataset-analysis)
-- 🧪 [Entraîner des modèles ML](../examples/training-models)
-- 🎨 [Visualiser les résultats](../guides/visualization)
-- ⚡ [Guide d'optimisation GPU](../gpu/optimization)
+- 📊 [Analyze generated patches](../reference/dataset-analysis)
+- 🧪 [Train ML models](../examples/training-models)
+- 🎨 [Visualize results](../guides/visualization)
+- ⚡ [GPU optimization guide](../gpu/optimization)
 
-## 📚 Lectures Complémentaires
+## 📚 Further Reading
 
-- [Référence Configuration Pipeline](../reference/pipeline-config)
-- [Détails Extraction de Caractéristiques](../features/geometric-features)
-- [Guide Augmentation RGB](../features/rgb-augmentation)
-- [Benchmarks de Performance](../reference/benchmarks)
+- [Pipeline Configuration Reference](../reference/pipeline-config)
+- [Feature Extraction Details](../features/geometric-features)
+- [RGB Augmentation Guide](../features/rgb-augmentation)
+- [Performance Benchmarks](../reference/benchmarks)

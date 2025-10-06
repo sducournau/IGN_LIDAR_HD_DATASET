@@ -5,7 +5,7 @@ description: Interface en ligne de commande pour l'intégration QGIS
 keywords: [cli, qgis, intégration, interface]
 ---
 
-## Interface CLI QGIS
+# Interface CLI QGIS
 
 Guide d'utilisation de l'interface en ligne de commande pour l'intégration QGIS avec IGN LiDAR HD.
 
@@ -82,6 +82,19 @@ ign-lidar-hd qgis style INPUT STYLE_NAME [OPTIONS]
 ign-lidar-hd qgis style processed.las elevation --output styled.qml
 ```
 
+### export-processing
+
+Exporte les scripts de traitement pour QGIS Traitementing.
+
+```bash
+ign-lidar-hd qgis export-processing OUTPUT_DIR [OPTIONS]
+```
+
+**Options :**
+
+- `--algorithms` : Algorithmes à exporter
+- `--format` : Format des scripts (python, model)
+
 ## Configuration QGIS
 
 ### Installation du plugin
@@ -101,11 +114,11 @@ ign-lidar-hd qgis check-plugin
 ign-lidar-hd qgis configure --qgis-path /usr/bin/qgis
 ```
 
-## Intégration avec Processing
+## Intégration avec Traitementing
 
 ### Algorithmes disponibles
 
-1. **Enrichissement LiDAR**
+1. **Enrichissementissement LiDAR**
 
    - Classification automatique
    - Détection de bâtiments
@@ -119,6 +132,25 @@ ign-lidar-hd qgis configure --qgis-path /usr/bin/qgis
 3. **Analyse spatiale**
    - Calcul de statistiques
    - Génération de rapports
+
+### Utilisation dans Traitementing
+
+```python
+# Script Python pour QGIS Traitementing
+from qgis.core import QgsApplication
+from ign_lidar.qgis import IGNLiDARProvider
+
+# Enregistrement du provider
+provider = IGNLiDARProvider()
+QgsApplication.processingRegistry().addProvider(provider)
+
+# Utilisation des algorithmes
+result = processing.run("ignlidar:enrich", {
+    'INPUT': 'input.las',
+    'OUTPUT': 'output.las',
+    'FEATURES': ['buildings', 'vegetation']
+})
+```
 
 ## Templates de projet
 
@@ -161,12 +193,83 @@ ign-lidar-hd qgis style input.las elevation \
     --output elevation_style.qml
 ```
 
+## Automatisation
+
+### Scripts batch
+
+```bash
+#!/bin/bash
+# Script d'automatisation QGIS
+
+for file in *.las; do
+    # Traitement
+    ign-lidar-hd enrich "$file" "processed_$file"
+
+    # Conversion pour QGIS
+    ign-lidar-hd qgis convert "processed_$file" "${file%.las}.ply"
+
+    # Application du style
+    ign-lidar-hd qgis style "${file%.las}.ply" classification
+done
+
+# Création du projet global
+ign-lidar-hd qgis project processed/ final_project.qgs --template complete
+```
+
+### Intégration avec PyQGIS
+
+```python
+# Script PyQGIS intégré
+import sys
+from qgis.core import QgsApplication, QgsProject
+from ign_lidar import Traitementor
+
+# Initialisation QGIS
+app = QgsApplication([], False)
+app.initQgis()
+
+# Traitement IGN LiDAR
+processor = Traitementor()
+result = processor.process_tile("input.las", "output.las")
+
+# Ajout à QGIS
+project = QgsProject.instance()
+layer = iface.addVectorLayer("output.las", "LiDAR Data", "ogr")
+
+# Nettoyage
+app.exitQgis()
+```
+
+## Résolution de problèmes
+
+### Plugin non reconnu
+
+```bash
+# Vérification de l'installation
+qgis --version
+python -c "import qgis; print(qgis.core.Qgis.version())"
+
+# Réinstallation du plugin
+ign-lidar-hd qgis install-plugin --force
+```
+
+### Erreurs de projection
+
+```bash
+# Vérification du CRS
+ign-lidar-hd info input.las --crs
+gdalinfo -proj4 orthophoto.tif
+
+# Reprojection si nécessaire
+ign-lidar-hd transform input.las output.las --crs EPSG:2154
+```
+
 ## Exemples d'usage
 
 ### Workflow complet
 
 ```bash
-# 1. Enrichissement des données
+# 1. Enrichissementissement des données
 ign-lidar-hd enrich raw_data/ enriched_data/ \
     --features all \
     --output-format laz
@@ -186,4 +289,4 @@ ign-lidar-hd qgis project qgis_data/ analysis_project.qgs \
 qgis analysis_project.qgs
 ```
 
-Voir aussi : [CLI Enrich](./cli-enrich.md) | [Guide Performance](../guides/performance.md)
+Voir aussi : [CLI Enrichissement](./cli-enrich) | [Guide Performance](../guides/performance)

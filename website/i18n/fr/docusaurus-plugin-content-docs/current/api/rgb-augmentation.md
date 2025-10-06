@@ -5,153 +5,153 @@ description: API pour intégrer les données couleur des orthophotos avec les nu
 keywords: [api, rgb, couleur, orthophoto, augmentation]
 ---
 
-## Référence API d'Augmentation RGB
+# RGB Augmentation API Reference
 
-L'API d'Augmentation RGB fournit des outils pour intégrer les données orthophoto IGN avec les nuages de points LiDAR pour créer des jeux de données enrichis en couleur.
+The RGB Augmentation API provides tools for integrating IGN orthophoto data with LiDAR point clouds to create color-enhanced datasets.
 
-## Classes principales
+## Core Classes
 
-### RGBProcessor
+### RGBTraitementor
 
-Classe principale pour les opérations d'augmentation RGB.
+Main class for RGB augmentation operations.
 
 ```python
-from ign_lidar import RGBProcessor
+from ign_lidar import RGBTraitementor
 
-processor = RGBProcessor(
+processor = RGBTraitementor(
     interpolation_method='bilinear',
     quality_threshold=0.8,
     enable_caching=True
 )
 ```
 
-## Méthodes
+## Methods
 
 ### `augment_point_cloud(points, orthophoto_path)`
 
-Ajoute des valeurs RGB au nuage de points à partir de l'orthophoto.
+Adds RGB values to point cloud from orthophoto.
 
 **Paramètres:**
 
-- `points` (numpy.ndarray): Coordonnées des points (N×3)
-- `orthophoto_path` (str): Chemin vers le fichier orthophoto
+- `points` (numpy.ndarray): Point coordinates (N×3)
+- `orthophoto_path` (str): Path to orthophoto file
 
-**Retourne:**
+**Returns:**
 
-- `numpy.ndarray`: Valeurs RGB (N×3) en uint8
+- `numpy.ndarray`: RGB values (N×3) as uint8
 
 ### `batch_augmentation(tile_list, ortho_dir)`
 
-Traite plusieurs tuiles avec augmentation RGB.
+Traitement multiple tiles with RGB augmentation.
 
 **Paramètres:**
 
-- `tile_list` (list): Liste des chemins de tuiles
-- `ortho_dir` (str): Répertoire contenant les orthophotos
+- `tile_list` (list): List of tile paths
+- `ortho_dir` (str): Directory containing orthophotos
 
-**Retourne:**
+**Returns:**
 
-- `dict`: Résultats du traitement par lot
+- `dict`: Results dictionary with augmented data
 
-### `validate_orthophoto(orthophoto_path)`
+## Configuration Options
 
-Valide la qualité et la compatibilité d'une orthophoto.
+### Interpolation Methods
 
-**Paramètres:**
+- `nearest`: Fastest, pixel-exact colors
+- `bilinear`: Smooth color transitions
+- `bicubic`: Highest quality interpolation
 
-- `orthophoto_path` (str): Chemin vers l'orthophoto
-
-**Retourne:**
-
-- `bool`: True si l'orthophoto est valide
-
-## Configuration
-
-### Paramètres d'interpolation
+### Quality Control
 
 ```python
-interpolation_options = {
-    'nearest': 'Plus proche voisin',
-    'bilinear': 'Interpolation bilinéaire',
-    'bicubic': 'Interpolation bicubique'
-}
+processor = RGBTraitementor(
+    quality_threshold=0.9,  # Color accuracy threshold
+    validate_coordinates=True,  # Check point-photo alignment
+    handle_missing_data=True   # Fill gaps gracefully
+)
 ```
 
-### Seuils de qualité
-
-- `quality_threshold`: Seuil minimum pour l'inclusion des pixels (0.0-1.0)
-- `no_data_value`: Valeur pour les pixels sans données
-- `alpha_threshold`: Seuil de transparence
-
-## Gestion des erreurs
-
-### Exceptions spécifiques
-
-- `OrthophotoError`: Erreurs liées aux orthophotos
-- `InterpolationError`: Erreurs d'interpolation
-- `ColorMappingError`: Erreurs de mappage des couleurs
-
-## Exemple d'utilisation
+## Error Handling
 
 ```python
-from ign_lidar import RGBProcessor
-import laspy
+try:
+    rgb_data = processor.augment_point_cloud(points, orthophoto)
+except OrthophotoNotFoundError:
+    print("Orthophoto file not accessible")
+except CoordinateMismatchError:
+    print("Point cloud and orthophoto coordinates don't align")
+except InsufficientOverlapError:
+    print("Not enough overlap between data sources")
+```
 
-# Initialisation
-rgb_processor = RGBProcessor(
-    interpolation_method='bilinear',
-    quality_threshold=0.9
+## Performance Optimization
+
+### GPU Acceleration
+
+```python
+processor = RGBTraitementor(
+    use_gpu=True,
+    gpu_batch_size=50000,
+    enable_gpu_caching=True
+)
+```
+
+### Memory Management
+
+```python
+# Traitement large datasets efficiently
+def process_large_dataset(points, orthophoto):
+    chunk_size = 100000
+    rgb_results = []
+
+    for i in range(0, len(points), chunk_size):
+        chunk = points[i:i+chunk_size]
+        rgb_chunk = processor.augment_point_cloud(chunk, orthophoto)
+        rgb_results.append(rgb_chunk)
+
+    return np.concatenate(rgb_results)
+```
+
+## Exemples
+
+### Basic RGB Augmentation
+
+```python
+import numpy as np
+from ign_lidar import RGBTraitementor
+
+# Initialize processor
+processor = RGBTraitementor()
+
+# Load point cloud
+points = np.load('building_points.npy')
+
+# Add RGB data
+rgb_colors = processor.augment_point_cloud(
+    points,
+    'orthophoto.tif'
 )
 
-# Lecture du fichier LAS
-las_file = laspy.read("input.las")
-points = np.vstack([las_file.x, las_file.y, las_file.z]).T
-
-# Augmentation RGB
-try:
-    colors = rgb_processor.augment_point_cloud(
-        points,
-        "orthophoto.tif"
-    )
-
-    # Sauvegarde avec couleurs
-    las_file.red = colors[:, 0] * 256
-    las_file.green = colors[:, 1] * 256
-    las_file.blue = colors[:, 2] * 256
-    las_file.write("output_rgb.las")
-
-except OrthophotoError as e:
-    print(f"Erreur orthophoto: {e}")
-except Exception as e:
-    print(f"Erreur générale: {e}")
+# Save enhanced point cloud
+enhanced_points = np.column_stack([points, rgb_colors])
 ```
 
-## Performance
+### Batch Traitementing with Quality Control
 
-### Optimisations disponibles
+```python
+processor = RGBTraitementor(
+    quality_threshold=0.85,
+    validate_coordinates=True
+)
 
-- **Cache orthophoto**: Mise en cache des tuiles fréquemment utilisées
-- **Traitement GPU**: Accélération CUDA pour l'interpolation
-- **Traitement par chunks**: Division automatique pour les gros volumes
+results = processor.batch_augmentation(
+    tile_list=['tile1.las', 'tile2.las'],
+    ortho_dir='/chemin/vers/orthophotos/'
+)
+```
 
-### Recommandations
+## Related Documentation
 
-- Utiliser des orthophotos en format GeoTIFF avec pyramides
-- Configurer le cache selon la RAM disponible
-- Préférer l'interpolation bilinéaire pour un bon compromis vitesse/qualité
-
-## Formats supportés
-
-### Orthophotos
-
-- GeoTIFF (.tif, .tiff)
-- JPEG2000 (.jp2)
-- ECW (.ecw)
-
-### Nuages de points
-
-- LAS (.las)
-- LAZ (.laz)
-- PLY (.ply)
-
-Voir aussi: [Guide d'accélération GPU](../guides/gpu-acceleration.md)
+- [Features API](./features)
+- [Traitementor API](./processor)
+- [GPU Acceleration Guide](../guides/gpu-acceleration)

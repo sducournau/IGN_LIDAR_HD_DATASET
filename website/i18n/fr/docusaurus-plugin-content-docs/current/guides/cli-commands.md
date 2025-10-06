@@ -5,124 +5,155 @@ description: Référence complète pour les commandes de l'interface en ligne de
 keywords: [cli, commandes, référence, terminal]
 ---
 
-# Référence des Commandes CLI
+# CLI Commands Reference
 
-Référence complète pour toutes les commandes de l'interface en ligne de commande de la Bibliothèque de Traitement LiDAR HD IGN.
+Complete reference for all command-line interface commands in the IGN LiDAR HD Traitementing Library.
 
-## Structure des Commandes
+## Command Structure
 
-Toutes les commandes suivent cette structure :
+All commands follow this structure:
 
 ```bash
-ign-lidar-hd COMMANDE [options]
+ign-lidar-hd COMMAND [options]
 
-# Ou en utilisant la commande installée (si dans PATH)
-ign-lidar-hd COMMANDE [options]
+# Or using the installed command (if in PATH)
+ign-lidar-hd COMMAND [options]
 ```
 
-## Commandes Disponibles
+## Available Commands
 
-- [`download`](#download) - Télécharger les tuiles LiDAR depuis les serveurs IGN
-- [`enrich`](#enrich) - Ajouter des caractéristiques de bâtiment aux fichiers LAZ
-- [`patch`](#patch) - Extraire des patches depuis les tuiles enrichies (renommée depuis `process`)
-- [`process`](#process-obsolète) - ⚠️ Alias obsolète pour `patch`
+- [`download`](#download) - Téléchargement LiDAR tiles from IGN servers
+- [`enrich`](#enrich) - Add building features to LAZ files
+- [`patch`](#patch) - Extract patches from enriched tiles (renamed from `process`)
+- [`process`](#process-deprecated) - ⚠️ Deprecated alias for `patch`
 
 ## download
 
-Télécharger les tuiles LiDAR pour une zone spécifiée.
+Téléchargement LiDAR tiles for a specified area.
 
-### Syntaxe
+### Syntax
 
 ```bash
 ign-lidar-hd download \
   --bbox MIN_LON,MIN_LAT,MAX_LON,MAX_LAT \
-  --output REPERTOIRE_SORTIE \
-  [--max-tiles MAX_TUILES] \
+  --output OUTPUT_DIR \
+  [--max-tiles MAX_TILES] \
   [--force]
 ```
 
 ### Paramètres
 
-| Paramètre     | Type                    | Requis | Description                                          |
-| ------------- | ----------------------- | ------ | ---------------------------------------------------- |
-| `--bbox`      | float,float,float,float | Oui    | Zone délimitée comme min_lon,min_lat,max_lon,max_lat |
-| `--output`    | chaîne                  | Oui    | Répertoire de sortie pour les tuiles téléchargées    |
-| `--max-tiles` | entier                  | Non    | Nombre maximum de tuiles à télécharger               |
-| `--force`     | drapeau                 | Non    | Forcer le re-téléchargement des tuiles existantes    |
+| Parameter     | Type                    | Required | Description                                     |
+| ------------- | ----------------------- | -------- | ----------------------------------------------- |
+| `--bbox`      | float,float,float,float | Yes      | Boîte englobante au format min_lon,min_lat,max_lon,max_lat |
+| `--output`    | string                  | Yes      | Sortie directory for downloaded tiles           |
+| `--max-tiles` | integer                 | No       | Nombre maximum de tuiles to download             |
+| `--force`     | flag                    | No       | Force re-download existing tiles                |
 
 ### Exemples
 
 ```bash
-# Télécharger des tuiles pour Paris centre
+# Téléchargement tiles for Paris center (up to 10 tiles)
 ign-lidar-hd download \
-  --bbox 2.3,48.85,2.35,48.87 \
-  --output ./data/raw/ \
+  --bbox 2.25,48.82,2.42,48.90 \
+  --output /data/tuiles_brutes/ \
   --max-tiles 10
 
-# Forcer le re-téléchargement
+# Téléchargement all available tiles in area
 ign-lidar-hd download \
-  --bbox 2.3,48.85,2.35,48.87 \
-  --output ./data/raw/ \
+  --bbox 2.25,48.82,2.42,48.90 \
+  --output /data/tuiles_brutes/
+
+# Force re-download existing tiles
+ign-lidar-hd download \
+  --bbox 2.25,48.82,2.42,48.90 \
+  --output /data/tuiles_brutes/ \
   --force
 ```
 
+### Sortie
+
+Téléchargements LAZ files named with IGN conventions:
+
+```
+tuiles_brutes/
+├── LIDARHD_FXX_0123_4567_LA93_IGN69_2020.laz
+├── LIDARHD_FXX_0124_4567_LA93_IGN69_2020.laz
+└── ...
+```
+
+### Notes
+
+- Coordinates must be in WGS84 (longitude/latitude)
+- Valid range for France: longitude 1-8°, latitude 42-51°
+- Files are typically 200-300 MB each
+- [Smart skip detection](../features/smart-skip) avoids re-downloading existing files
+
 ## enrich
 
-Ajouter des caractéristiques géométriques avancées aux fichiers LAZ.
+Add building component features to LiDAR point clouds.
 
-### Syntaxe
+### Syntax
 
 ```bash
 ign-lidar-hd enrich \
-  --input FICHIER_LAZ \
-  --output FICHIER_ENRICHI.laz \
-  [--workers NOMBRE_WORKERS] \
-  [--chunk-size TAILLE_CHUNK]
+  --input-dir INPUT_DIR \
+  --output OUTPUT_DIR \
+  --mode MODE \
+  [--num-workers WORKERS] \
+  [--force]
 ```
 
 ### Paramètres
 
-| Paramètre         | Type    | Requis | Description                                            |
-| ----------------- | ------- | ------ | ------------------------------------------------------ |
-| `--input-dir`     | chaîne  | Oui    | Répertoire contenant les tuiles LAZ brutes             |
-| `--output`        | chaîne  | Oui    | Répertoire de sortie pour les tuiles enrichies         |
-| `--mode`          | chaîne  | Oui    | Mode d'extraction : `core` ou `full`                   |
-| `--num-workers`   | entier  | Non    | Nombre de processus parallèles (défaut : 4)            |
-| `--force`         | drapeau | Non    | Forcer le ré-enrichissement des fichiers existants     |
-| `--preprocess`    | drapeau | Non    | 🆕 Activer le prétraitement pour réduire les artefacts |
-| `--sor-k`         | entier  | Non    | 🆕 SOR : nombre de voisins (défaut : 12)               |
-| `--sor-std`       | float   | Non    | 🆕 SOR : multiplicateur d'écart-type (défaut : 2.0)    |
-| `--ror-radius`    | float   | Non    | 🆕 ROR : rayon de recherche en mètres (défaut : 1.0)   |
-| `--ror-neighbors` | entier  | Non    | 🆕 ROR : voisins minimum requis (défaut : 4)           |
-| `--voxel-size`    | float   | Non    | 🆕 Taille de voxel en mètres (optionnel)               |
+| Parameter         | Type    | Required | Description                                     |
+| ----------------- | ------- | -------- | ----------------------------------------------- |
+| `--input-dir`     | string  | Yes      | Directory containing raw LAZ tiles              |
+| `--output`        | string  | Yes      | Sortie directory for enriched tiles             |
+| `--mode`          | string  | Yes      | Feature extraction mode: `core` or `full`       |
+| `--num-workers`   | integer | No       | Nombre de workers parallèles (default: 4)         |
+| `--force`         | flag    | No       | Force re-enrichment of existing files           |
+| `--preprocess`    | flag    | No       | 🆕 Enable preprocessing for artifact mitigation |
+| `--sor-k`         | integer | No       | 🆕 SOR: number of neighbors (default: 12)       |
+| `--sor-std`       | float   | No       | 🆕 SOR: std multiplier (default: 2.0)           |
+| `--ror-radius`    | float   | No       | 🆕 ROR: search radius in meters (default: 1.0)  |
+| `--ror-neighbors` | integer | No       | 🆕 ROR: min neighbors required (default: 4)     |
+| `--voxel-size`    | float   | No       | 🆕 Voxel downsampling size in meters (optionnel) |
 
 ### Exemples
 
 ```bash
-# Enrichir les tuiles avec toutes les caractéristiques
+# Enrichissement tiles with all features
 ign-lidar-hd enrich \
-  --input-dir /data/raw_tiles/ \
-  --output /data/enriched_tiles/ \
+  --input-dir /data/tuiles_brutes/ \
+  --output /data/tuiles_enrichies/ \
   --mode full
 
-# Utiliser 8 processus parallèles
+# Use 8 parallel workers
 ign-lidar-hd enrich \
-  --input-dir /data/raw_tiles/ \
-  --output /data/enriched_tiles/ \
+  --input-dir /data/tuiles_brutes/ \
+  --output /data/tuiles_enrichies/ \
   --mode full \
   --num-workers 8
 
-# 🆕 Avec prétraitement (atténuation des artefacts)
+# Force re-enrichment
 ign-lidar-hd enrich \
-  --input-dir /data/raw_tiles/ \
-  --output /data/enriched_tiles/ \
+  --input-dir /data/tuiles_brutes/ \
+  --output /data/tuiles_enrichies/ \
+  --mode full \
+  --force
+
+# 🆕 With preprocessing (artifact mitigation)
+ign-lidar-hd enrich \
+  --input-dir /data/tuiles_brutes/ \
+  --output /data/tuiles_enrichies/ \
   --mode full \
   --preprocess
 
-# 🆕 Prétraitement conservateur (préserver les détails)
+# 🆕 Conservative preprocessing (preserve detail)
 ign-lidar-hd enrich \
-  --input-dir /data/raw_tiles/ \
-  --output /data/enriched_tiles/ \
+  --input-dir /data/tuiles_brutes/ \
+  --output /data/tuiles_enrichies/ \
   --mode full \
   --preprocess \
   --sor-k 15 \
@@ -130,10 +161,10 @@ ign-lidar-hd enrich \
   --ror-radius 1.5 \
   --ror-neighbors 3
 
-# 🆕 Prétraitement agressif (suppression maximale des artefacts)
+# 🆕 Aggressive preprocessing (maximum artifact removal)
 ign-lidar-hd enrich \
-  --input-dir /data/raw_tiles/ \
-  --output /data/enriched_tiles/ \
+  --input-dir /data/tuiles_brutes/ \
+  --output /data/tuiles_enrichies/ \
   --mode full \
   --preprocess \
   --sor-k 10 \
@@ -143,276 +174,408 @@ ign-lidar-hd enrich \
   --voxel-size 0.3
 ```
 
-### 🆕 Prétraitement pour l'Atténuation des Artefacts
+### Sortie
 
-Le drapeau `--preprocess` active le prétraitement des nuages de points avant le calcul des caractéristiques pour réduire les artefacts de lignes de balayage LiDAR et améliorer la qualité des caractéristiques géométriques.
+Creates enriched LAZ files with additional point attributes:
 
-**Techniques Appliquées :**
+```
+tuiles_enrichies/
+├── LIDARHD_FXX_0123_4567_LA93_IGN69_2020.laz  # +30 caractéristiques géométriques
+├── LIDARHD_FXX_0124_4567_LA93_IGN69_2020.laz
+└── ...
+```
 
-1. **Suppression Statistique des Valeurs Aberrantes (SOR)**
+### Features Added
 
-   - Supprime les points avec des distances anormales aux k plus proches voisins
-   - Configurable avec `--sor-k` (voisins) et `--sor-std` (seuil)
-   - Élimine les erreurs de mesure, le bruit atmosphérique, les oiseaux
+The enrichment process adds 30+ caractéristiques géométriques per point:
 
-2. **Suppression des Valeurs Aberrantes par Rayon (ROR)**
+- **Normal vectors** (nx, ny, nz)
+- **Curvature** (mean, gaussian)
+- **Planarity** and **sphericity**
+- **Verticality** and **eigenvalues**
+- **Density** measures
+- **Height** statistics
+- And more...
 
-   - Supprime les points isolés sans suffisamment de voisins dans le rayon
-   - Configurable avec `--ror-radius` (mètres) et `--ror-neighbors` (nombre)
-   - Réduit les artefacts de lignes de balayage et le bruit de bord
+### 🆕 Preprocessing for Artifact Mitigation
 
-3. **Sous-échantillonnage par Voxel (Optionnel)**
-   - Homogénéise la densité de points en utilisant une grille de voxels
-   - Activé avec le paramètre `--voxel-size` (par ex., 0.5 pour des voxels de 0,5m)
-   - Réduit l'utilisation de la mémoire et le temps de traitement
+The `--preprocess` flag enables point cloud preprocessing before feature computation to reduce LiDAR scan line artifacts and improve geometric feature quality.
 
-**Impact Attendu :**
+**Techniques Applied:**
 
-- 🎯 Réduction de 60-80% des artefacts de lignes de balayage
-- 📊 Normales de surface 40-60% plus propres
-- 🔧 Caractéristiques de bord 30-50% plus lisses
-- ⚡ Surcharge de traitement de 15-30% (lorsqu'activé)
+1. **Statistical Outlier Removal (SOR)**
 
-**Préréglages Recommandés :**
+   - Removes points with abnormal distances to k-nearest neighbors
+   - Configurable with `--sor-k` (neighbors) and `--sor-std` (threshold)
+   - Eliminates measurement errors, atmospheric noise, birds
+
+2. **Radius Outlier Removal (ROR)**
+
+   - Removes isolated points without sufficient neighbors in radius
+   - Configurable with `--ror-radius` (meters) and `--ror-neighbors` (count)
+   - Reduces scan line artifacts and edge noise
+
+3. **Voxel Downsampling (Optional)**
+   - Homogenizes point density using voxel grid
+   - Enabled with `--voxel-size` parameter (e.g., 0.5 for 0.5m voxels)
+   - Reduces memory usage and processing time
+
+**Expected Impact:**
+
+- 🎯 60-80% reduction in scan line artifacts
+- 📊 40-60% cleaner surface normals
+- 🔧 30-50% smoother edge features
+- ⚡ 15-30% processing overhead (when enabled)
+
+**Recommended Presets:**
 
 ```bash
-# Conservateur (préserver les détails maximaux)
+# Conservative (preserve maximum detail)
 --preprocess --sor-k 15 --sor-std 3.0 --ror-radius 1.5 --ror-neighbors 3
 
-# Standard (qualité/vitesse équilibrée)
+# Standard (balanced quality/speed)
 --preprocess --sor-k 12 --sor-std 2.0 --ror-radius 1.0 --ror-neighbors 4
 
-# Agressif (suppression maximale des artefacts)
+# Aggressive (maximum artifact removal)
 --preprocess --sor-k 10 --sor-std 1.5 --ror-radius 0.8 --ror-neighbors 5 --voxel-size 0.3
 ```
 
-Voir le [Guide de Prétraitement](preprocessing.md) pour des informations détaillées.
+See the [Preprocessing Guide](../../PHASE1_SPRINT1_COMPLETE) for detailed information.
+
+### Notes
+
+- Only `building` mode is currently supported
+- Traitementing time: ~2-5 minutes per tile (depends on point density)
+- Traitementing time with preprocessing: +15-30% overhead
+- Memory usage: ~2-4 GB per worker
+- [Smart skip detection](../features/smart-skip) avoids re-enriching existing files
 
 ## patch
 
-Extraire des patches d'entraînement depuis les tuiles enrichies avec augmentation RGB optionnelle.
+Extract machine learning patches from enriched tiles with optionnel RGB augmentation.
 
-### Syntaxe
+### Syntax
 
 ```bash
 ign-lidar-hd patch \
-  --input REPERTOIRE_TUILES \
-  --output REPERTOIRE_PATCHES \
-  [--patch-size TAILLE] \
-  [--overlap CHEVAUCHEMENT] \
-  [--min-points MIN_POINTS] \
+  --input INPUT_PATH \
+  --output OUTPUT_DIR \
+  --lod-level LOD_LEVEL \
+  [--patch-size PATCH_SIZE] \
+  [--num-workers WORKERS] \
   [--include-rgb] \
-  [--rgb-cache-dir REPERTOIRE_CACHE]
+  [--rgb-cache-dir CACHE_DIR] \
+  [--force]
 ```
 
 ### Paramètres
 
-| Paramètre         | Type    | Requis | Description                                         |
-| ----------------- | ------- | ------ | --------------------------------------------------- |
-| `--input`         | chaîne  | Oui    | Répertoire contenant les tuiles enrichies           |
-| `--output`        | chaîne  | Oui    | Répertoire de sortie pour les patches               |
-| `--patch-size`    | entier  | Non    | Taille des patches en mètres (défaut: 50)           |
-| `--overlap`       | float   | Non    | Chevauchement entre patches (défaut: 0.1)           |
-| `--min-points`    | entier  | Non    | Nombre minimum de points par patch                  |
-| `--include-rgb`   | drapeau | Non    | Ajouter les couleurs RGB depuis les orthophotos IGN |
-| `--rgb-cache-dir` | chaîne  | Non    | Répertoire de cache pour les orthophotos            |
+| Parameter         | Type    | Required | Description                              |
+| ----------------- | ------- | -------- | ---------------------------------------- |
+| `--input`         | string  | Yes      | Path to enriched LAZ file or directory   |
+| `--output`        | string  | Yes      | Sortie directory for patches             |
+| `--lod-level`     | string  | Yes      | Classification level: `LOD2` or `LOD3`   |
+| `--patch-size`    | float   | No       | Patch size in meters (default: 10.0)     |
+| `--num-workers`   | integer | No       | Nombre de workers parallèles (default: 4)  |
+| `--include-rgb`   | flag    | No       | Add RGB colors from IGN orthophotos      |
+| `--rgb-cache-dir` | string  | No       | Cache directory for orthophoto downloads |
+| `--force`         | flag    | No       | Force reprocessing existing patches      |
 
 ### Exemples
 
 ```bash
-# Créer des patches (géométrie uniquement)
+# Create patches for LOD2 (geometry only)
 ign-lidar-hd patch \
-  --input ./data/enriched/ \
-  --output ./data/patches/ \
-  --patch-size 50
+  --input /data/tuiles_enrichies/tile.laz \
+  --output /data/patches/ \
+  --lod-level LOD2
 
-# Créer des patches avec augmentation RGB depuis les orthophotos IGN
+# Create patches with RGB augmentation from IGN orthophotos
 ign-lidar-hd patch \
-  --input ./data/enriched/ \
-  --output ./data/patches/ \
+  --input /data/tuiles_enrichies/ \
+  --output /data/patches/ \
+  --lod-level LOD2 \
   --include-rgb \
-  --rgb-cache-dir ./cache/
+  --rgb-cache-dir /data/cache/
 
-# Traitement complet avec RGB
+# Traitement entire directory for LOD3 with RGB
 ign-lidar-hd patch \
-  --input ./data/enriched/ \
-  --output ./data/patches/ \
-  --patch-size 100 \
-  --overlap 0.2 \
+  --input /data/tuiles_enrichies/ \
+  --output /data/patches/ \
+  --lod-level LOD3 \
+  --patch-size 15.0 \
+  --num-workers 6 \
+  --include-rgb
+
+# Force reprocessing with RGB
+ign-lidar-hd patch \
+  --input /data/tuiles_enrichies/ \
+  --output /data/patches/ \
+  --lod-level LOD2 \
   --include-rgb \
-  --rgb-cache-dir ./cache/ \
-  --workers 8
+  --force
 ```
 
-### Augmentation RGB
+### Sortie
 
-Lorsque `--include-rgb` est utilisé, la bibliothèque :
+Creates NPZ patch files organized by source tile:
 
-1. Récupère automatiquement les orthophotos depuis le service IGN BD ORTHO® (résolution 20cm)
-2. Mappe chaque point 3D à son pixel 2D correspondant dans l'orthophoto
-3. Extrait les couleurs RGB et les normalise dans la plage [0, 1]
-4. Met en cache les orthophotos téléchargées pour améliorer les performances
+```
+patches/
+├── tile_0123_4567/
+│   ├── patch_0001.npz
+│   ├── patch_0002.npz
+│   └── ...
+├── tile_0124_4567/
+│   ├── patch_0001.npz
+│   └── ...
+```
 
-**Avantages :**
+### Patch Contents
 
-- Apprentissage multi-modal (géométrie + photométrie)
-- Meilleure précision des modèles ML
-- Capacités de visualisation améliorées
-- Automatique - aucun téléchargement manuel d'orthophotos nécessaire
+Each NPZ file contains:
 
-**Prérequis :**
+- `points`: Point coordinates (N×3 array)
+- `features`: Geometric features (N×30+ array)
+- `labels`: Building component labels (N×1 array)
+- `rgb`: RGB colors (N×3 array, normalized 0-1) - **only if `--include-rgb` is used**
+- `metadata`: Patch information (dict)
+
+### RGB Augmentation
+
+When using `--include-rgb`, the library automatically:
+
+1. Fetches orthophotos from IGN BD ORTHO® service (20cm resolution)
+2. Maps each 3D point to its corresponding 2D orthophoto pixel
+3. Extracts RGB colors and normalizes them to [0, 1] range
+4. Caches downloaded orthophotos for performance
+
+**Benefits:**
+
+- Multi-modal learning (geometry + photometry)
+- Enhanced ML model accuracy
+- Better visualization capabilities
+- Automatic - no manual orthophoto downloads needed
+
+**Requirements:**
 
 ```bash
 pip install requests Pillow
 ```
 
-Voir le [Guide d'Augmentation RGB](../features/rgb-augmentation.md) pour plus d'informations.
+See the [RGB Augmentation Guide](../features/rgb-augmentation) for detailed information.
 
-## process (Obsolète)
+### Niveaux de classification
 
-:::warning Commande Obsolète
-La commande `process` a été renommée en `patch` pour plus de clarté. Bien que `process` fonctionne toujours pour la compatibilité ascendante, elle sera supprimée dans une future version majeure. Veuillez utiliser `patch` à la place.
+**LOD2 (15 classes)**: Basic building components
+
+- Wall, Roof, Ground, Vegetation, Window, Door, etc.
+
+**LOD3 (30 classes)**: Detailed building components
+
+- All LOD2 classes plus roof details, facade elements, etc.
+
+### Notes
+
+- Patch size affects the number of points per patch
+- Smaller patches = more patches, fewer points each
+- Larger patches = fewer patches, more points each
+- Traitementing time: ~1-3 minutes per tile (geometry only), ~2-5 minutes with RGB
+- RGB augmentation adds ~196KB per patch (16384 points × 3 × 4 bytes)
+- [Smart skip detection](../features/smart-skip) avoids reprocessing existing patches
+
+## process (Deprecated)
+
+:::warning Deprecated Command
+The `process` command has been renamed to `patch` for clarity. While `process` still works for backwards compatibility, it will be removed in a future major version. Please use `patch` instead.
 :::
 
 ### Migration
 
-Remplacez simplement `process` par `patch` dans vos commandes :
+Simply replace `process` with `patch` in your commands:
 
 ```bash
-# Ancien (obsolète)
-ign-lidar-hd process --input tuiles/ --output patches/
+# Old (deprecated)
+ign-lidar-hd process --input tiles/ --output patches/
 
-# Nouveau (recommandé)
-ign-lidar-hd patch --input tuiles/ --output patches/
+# New (recommended)
+ign-lidar-hd patch --input tiles/ --output patches/
 ```
 
-Tous les paramètres et fonctionnalités restent identiques. Voir la [documentation de la commande `patch`](#patch) ci-dessus.
+All parameters and functionality remain identical. See the [`patch` command documentation](#patch) above.
 
-## Options Globales
+## Global Options
 
-### Gestion de la Mémoire
+### Logging
+
+Control output verbosity:
 
 ```bash
---memory-limit 4GB     # Limiter l'utilisation mémoire
---low-memory          # Mode mémoire réduite
+# Default logging
+ign-lidar-hd command [args]
+
+# Verbose output (debug level)
+ign-lidar-hd command [args] --verbose
+
+# Quiet mode (errors only)
+ign-lidar-hd command [args] --quiet
 ```
 
-### Journalisation
+### Help
+
+Get help for any command:
 
 ```bash
---verbose             # Journalisation détaillée
---quiet              # Mode silencieux
---log-file FILE      # Écrire les logs dans un fichier
+# General help
+ign-lidar-hd --help
+
+# Command-specific help
+ign-lidar-hd download --help
+ign-lidar-hd enrich --help
+ign-lidar-hd process --help
 ```
 
-### Parallélisation
+## Common Workflows
+
+### Full Pipeline
+
+Complete processing workflow:
 
 ```bash
---workers N          # Nombre de processus parallèles
---gpu               # Utiliser l'accélération GPU (si disponible)
-```
-
-## Exemples de Flux de Travail Complets
-
-### Traitement Basique
-
-```bash
-# 1. Télécharger les données
+# 1. Téléchargement
 ign-lidar-hd download \
-  --bbox 2.3,48.85,2.35,48.87 \
-  --output ./data/raw/
+  --bbox 2.25,48.82,2.42,48.90 \
+  --output tuiles_brutes/ \
+  --max-tiles 5
 
-# 2. Enrichir les tuiles
+# 2. Enrichissement
 ign-lidar-hd enrich \
-  --input ./data/raw/*.laz \
-  --output ./data/enriched/ \
-  --workers 4
+  --input-dir tuiles_brutes/ \
+  --output tuiles_enrichies/ \
+  --mode full \
+  --num-workers 4
 
-# 3. Extraire les patches (commande renommée)
-ign-lidar-hd patch \
-  --input ./data/enriched/ \
-  --output ./data/patches/ \
-  --patch-size 50
+# 3. Traitement
+ign-lidar-hd process \
+  --input tuiles_enrichies/ \
+  --output patches/ \
+  --lod-level LOD2 \
+  --num-workers 4
 ```
 
-### Traitement avec Augmentation RGB
+### Resume Interrupted Work
+
+Thanks to [smart skip detection](../features/smart-skip), you can safely re-run commands:
 
 ```bash
-# Pipeline complet avec couleurs RGB depuis les orthophotos IGN
-# 1. Télécharger
-ign-lidar-hd download \
-  --bbox 2.3,48.85,2.35,48.87 \
-  --output ./data/raw/
+# If download was interrupted, just re-run
+ign-lidar-hd download --bbox ... --output tuiles_brutes/
+# Will skip existing files and download only missing ones
 
-# 2. Enrichir
-ign-lidar-hd enrich \
-  --input ./data/raw/*.laz \
-  --output ./data/enriched/ \
-  --workers 4
-
-# 3. Créer patches avec RGB
-ign-lidar-hd patch \
-  --input ./data/enriched/ \
-  --output ./data/patches/ \
-  --include-rgb \
-  --rgb-cache-dir ./cache/ \
-  --patch-size 50
+# Same pour traiter
+ign-lidar-hd process --input enriched/ --output patches/ --lod-level LOD2
+# Will skip tiles that already have patches
 ```
 
-### Traitement Avancé avec Optimisations
+### Force Reprocessing
+
+Override smart skip when needed:
 
 ```bash
-# Traitement optimisé avec contrôle mémoire et RGB
-ign-lidar-hd patch \
-  --input ./data/enriched/ \
-  --output ./data/patches/ \
-  --patch-size 100 \
-  --overlap 0.2 \
-  --workers 8 \
-  --include-rgb \
-  --rgb-cache-dir ./cache/ \
-  --memory-limit 8GB \
-  --gpu \
-  --verbose
+# Force re-download
+ign-lidar-hd download --bbox ... --output tuiles_brutes/ --force
+
+# Force re-enrichment
+ign-lidar-hd enrich --input-dir raw/ --output enriched/ --mode full --force
+
+# Force reprocessing
+ign-lidar-hd process --input enriched/ --output patches/ --lod-level LOD2 --force
 ```
 
-## Codes de Sortie
+## Performance Tips
 
-| Code | Description                    |
-| ---- | ------------------------------ |
-| 0    | Succès                         |
-| 1    | Erreur générale                |
-| 2    | Arguments invalides            |
-| 3    | Fichier non trouvé             |
-| 4    | Erreur de mémoire insuffisante |
-| 5    | Interruption utilisateur       |
+### Worker Configuration
+
+Choose worker count based on your system:
+
+```bash
+# For 8-core CPU with 16GB RAM
+--num-workers 4
+
+# For 16-core CPU with 32GB RAM
+--num-workers 8
+
+# For systems with limited memory
+--num-workers 2
+```
+
+### Memory Management
+
+Monitor memory usage:
+
+```bash
+# Check memory during processing
+htop
+
+# If memory is limited, reduce workers
+ign-lidar-hd process --input tiles/ --output patches/ --num-workers 1
+```
+
+See the [Memory Optimization Guide](../reference/memory-optimization) for detailed strategies.
 
 ## Dépannage
 
-### Erreurs Courantes
+### Command Not Found
 
-**"Module not found"**
-
-```bash
-pip install ign-lidar-hd
-```
-
-**"Memory error during processing"**
+If `ign-lidar-hd` doesn't work:
 
 ```bash
-# Réduire la taille des chunks ou utiliser le mode low-memory
-ign-lidar-hd process --low-memory --chunk-size 1000
+# Check if package is installed
+pip list | grep ign-lidar
+
+# Reinstall if needed
+pip install -e .
+
+# Try the installed command name
+ign-lidar-hd --help
 ```
 
-**"GPU acceleration not available"**
+### Permission Errors
 
 ```bash
-# Installer les dépendances GPU
-pip install ign-lidar-hd[gpu]
+# Check directory permissions
+ls -la /chemin/vers/output/
+
+# Create directories if needed
+mkdir -p /chemin/vers/output/
 ```
 
-## Voir Aussi
+### Network Issues
 
-- [Guide d'Utilisation de Base](basic-usage.md) - Premiers pas
-- [Fonctionnalités Smart Skip](../features/smart-skip.md) - Éviter le retraitement
-- [Optimisation Mémoire](../reference/memory-optimization.md) - Gestion des ressources
+```bash
+# Test connectivity for downloads
+ping geoservices.ign.fr
+
+# Check firewall/proxy settings
+curl -I https://geoservices.ign.fr/
+```
+
+### Traitementing Errors
+
+```bash
+# Verify LAZ file integrity
+lasinfo tile.laz
+
+# Check available disk space
+df -h /chemin/vers/output/
+
+# Reduce workers if getting memory errors
+--num-workers 1
+```
+
+## See Also
+
+- [Utilisation de base Guide](basic-usage.md) - Étape-by-step workflow tutorial
+- [Smart Skip Features](../features/smart-skip) - Automatic skip detection
+- [Memory Optimization](../reference/memory-optimization) - Performance tuning
+- [Python API Reference](../api/processor) - Programmatic usage

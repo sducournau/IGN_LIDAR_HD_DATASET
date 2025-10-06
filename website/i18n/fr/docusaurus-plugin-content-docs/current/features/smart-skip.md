@@ -5,220 +5,336 @@ description: Ignorer automatiquement les téléchargements, fichiers enrichis et
 keywords: [saut, idempotent, reprendre, workflow]
 ---
 
-La détection intelligente de saut évite les opérations redondantes en détectant et ignorant automatiquement les fichiers existants lors des workflows de téléchargement, enrichissement et traitement.
+Détection intelligente de saut prevents redundant operations by automatically detecting and skipping existing files during downloads, enrichment, and processing workflows.
 
 ## Vue d'ensemble
 
-Cette fonctionnalité ajoute une détection intelligente de saut à tous les workflows :
+This feature adds intelligent skip detection to all workflows:
 
-- **Saut de téléchargement** - Éviter de re-télécharger les tuiles existantes
-- **Saut d'enrichissement** - Ignorer les fichiers déjà enrichis
-- **Saut de traitement** - Ignorer les tuiles avec patches existants
+- **Téléchargement Skip** - Avoid re-downloading existing tiles
+- **Enrichissementment Skip** - Skip files that are already enriched
+- **Traitementing Skip** - Skip tiles with existing patches
 
-## Avantages clés
+## Key Benefits
 
-### ⚡ Économies de temps
+### ⚡ Time Savings
 
-- **Téléchargements** : Ignorer le re-téléchargement de tuiles (~60 min économisées sur 50 tuiles)
-- **Traitement** : Ignorer le retraitement de tuiles (~90 min économisées sur 50 tuiles)
-- **Total** : ~150 minutes économisées sur un workflow typique
+- **Téléchargements**: Skip re-downloading tiles (~60 min saved on 50 tiles)
+- **Traitementing**: Skip reprocessing tiles (~90 min saved on 50 tiles)
+- **Total**: ~150 minutes saved on typical workflow
 
-### 💾 Économies de ressources
+### 💾 Resource Savings
 
-- **Bande passante** : Éviter le téléchargement de gros fichiers en double (12+ GB sur 50 tuiles)
-- **Espace disque** : Éviter la création de patches en double
-- **CPU/Mémoire** : Éviter le calcul redondant de caractéristiques
+- **Bandwidth**: Avoid downloading duplicate large files (12+ GB on 50 tiles)
+- **Disk Space**: Avoid creating duplicate patches
+- **CPU/Memory**: Avoid redundant feature computation
 
-### 🔄 Améliorations du workflow
+### 🔄 Workflow Improvements
 
-- **Capacité de reprise** : Reprendre facilement après les interruptions
-- **Constructions incrémentales** : Ajouter de nouvelles données aux jeux existants
-- **Opérations idempotentes** : Sûr d'exécuter les commandes plusieurs fois
+- **Resume Capability**: Easily resume after interruptions
+- **Incremental Builds**: Add new data to existing datasets
+- **Idempotent Operations**: Safe to run commands multiple times
 
-## Saut intelligent de téléchargement
+## Smart Téléchargement Skip
 
-Ignore automatiquement les tuiles existantes lors du téléchargement :
+Automatically skips existing tiles during download:
 
 ```bash
-# Télécharge seulement les tuiles manquantes
+# Téléchargements only missing tiles
 ign-lidar-hd download \
   --bbox 2.0,48.8,2.5,49.0 \
-  --output tuiles/
+  --output tiles/
 
-# La sortie montre ce qui est ignoré vs téléchargé
-⏭️  tuile_001.laz existe déjà (245 MB), ignore
-Téléchargement tuile_002.laz...
-✅ Téléchargé tuile_002.laz (238 MB)
+# Sortie shows what's skipped vs downloaded
+⏭️  tile_001.laz already exists (245 MB), skipping
+Téléchargementing tile_002.laz...
+✅ Téléchargemented tile_002.laz (238 MB)
 
-📊 Résumé du téléchargement :
-  Total de tuiles demandées : 10
-  ✅ Téléchargées avec succès : 7
-  ⏭️  Ignorées (déjà présentes) : 2
-  ❌ Échec : 1
+📊 Téléchargement Summary:
+  Total tiles requested: 10
+  ✅ Successfully downloaded: 7
+  ⏭️  Skipped (already present): 2
+  ❌ Failed: 1
 ```
 
-## Saut intelligent d'enrichissement
+### Force Re-download
 
-Ignore automatiquement les fichiers déjà enrichis :
+Use `--force` flag to override skip behavior:
 
 ```bash
-# Enrichit seulement les nouveaux fichiers
+# Force re-download all tiles
+ign-lidar-hd download \
+  --bbox 2.0,48.8,2.5,49.0 \
+  --output tiles/ \
+  --force
+```
+
+## Smart Enrichissementment Skip
+
+Automatically skips LAZ files that are already enriched:
+
+```bash
+# Enrichissementes only files without building features
 ign-lidar-hd enrich \
-  --input-dir tuiles_brutes/ \
-  --output tuiles_enrichies/
+  --input-dir /chemin/vers/tuiles_brutes/ \
+  --output /chemin/vers/tuiles_enrichies/ \
+  --mode full
 
-# Détection automatique des fichiers enrichis
-⏭️  tuile_001_enrichie.laz existe déjà, ignore
-Enrichissement tuile_002.laz...
-✅ Fichier enrichi sauvegardé : tuile_002_enrichie.laz
+# Shows progress and skip statistics
+[1/20] Traitementing: tile_001.laz
+  ✅ Enrichissemented: 1.2M points in 15.3s
+[2/20] ⏭️  tile_002.laz: Already enriched, skipping
+[3/20] Traitementing: tile_003.laz
+  ✅ Enrichissemented: 980K points in 12.1s
 ```
 
-## Saut intelligent de traitement
+### Force Re-enrichment
 
-Ignore automatiquement les tuiles avec patches existants :
+Use `--force` flag to re-enrich files:
 
 ```bash
-# Traite seulement les nouvelles tuiles
-ign-lidar-hd process \
-  --input-dir tuiles_enrichies/ \
-  --output patches/
+# Force re-enrichment of all files
+ign-lidar-hd enrich \
+  --input-dir /chemin/vers/tuiles_brutes/ \
+  --output /chemin/vers/tuiles_enrichies/ \
+  --mode full \
+  --force
+```
 
-# Détection automatique des patches existants
-⏭️  tuile_001 a déjà 156 patches, ignore
-Traitement tuile_002...
-✅ Créé 142 patches depuis tuile_002
+## Smart Traitementing Skip
+
+Automatically skips tiles with existing patches:
+
+```bash
+# Traitementes only tiles without patches
+ign-lidar-hd process \
+  --input tuiles_enrichies/ \
+  --output patches/ \
+  --lod-level LOD2
+
+# Shows detailed skip/process statistics
+[1/20] Traitementing: tile_001.laz
+  ✅ Completed: 48 patches in 23.5s
+[2/20] ⏭️  tile_002.laz: 52 patches exist, skipping
+[3/20] Traitementing: tile_003.laz
+  ✅ Completed: 45 patches in 21.2s
+
+📊 Traitementing Summary:
+  Total tiles: 20
+  ✅ Traitemented: 15
+  ⏭️  Skipped: 5
+  📦 Total patches created: 712
+```
+
+### Force Reprocessing
+
+Use `--force` flag to reprocess all tiles:
+
+```bash
+# Force reprocess all tiles
+ign-lidar-hd process \
+  --input tuiles_enrichies/ \
+  --output patches/ \
+  --lod-level LOD2 \
+  --force
+```
+
+## Common Use Cases
+
+### 1. Resume After Interruption
+
+```bash
+# Start big job
+ign-lidar-hd download --bbox ... --output tiles/ --max-tiles 100
+ign-lidar-hd process --input tiles/ --output patches/
+
+# System crashes at tile 45...
+
+# Resume - automatically skips completed work
+ign-lidar-hd download --bbox ... --output tiles/ --max-tiles 100  # Skips 45 tiles
+ign-lidar-hd process --input tiles/ --output patches/          # Skips 45 tiles
+```
+
+### 2. Incremental Dataset Building
+
+```bash
+# Week 1: Téléchargement Paris
+ign-lidar-hd download --bbox 2.0,48.8,2.5,49.0 --output france_tiles/
+ign-lidar-hd process --input france_tiles/ --output france_patches/
+
+# Week 2: Add Lyon (some overlap)
+ign-lidar-hd download --bbox 4.7,45.6,5.0,45.9 --output france_tiles/
+# Skips any overlapping tiles
+ign-lidar-hd process --input france_tiles/ --output france_patches/
+# Skips Paris tiles, processes only Lyon tiles
+```
+
+### 3. Batch Traitementing with Mixed Status
+
+```bash
+# Traitement a directory with mixed completion status
+ign-lidar-hd process --input mixed_tiles/ --output patches/
+
+# Sortie shows what's done vs what needs processing
+⏭️  Tiles with existing patches: 15
+✅ New tiles processed: 8
+❌ Failed tiles: 2
+```
+
+## Python API
+
+### Téléchargement with Skip Control
+
+```python
+from ign_lidar import IGNLiDARTéléchargementer
+from pathlib import Path
+
+downloader = IGNLiDARTéléchargementer(Path("tiles/"))
+
+# Skip existing by default
+results = downloader.batch_download(tile_list)
+
+# Force re-download
+results = downloader.batch_download(tile_list, skip_existing=False)
+
+# Check individual results
+success, was_skipped = downloader.download_tile(filename)
+if was_skipped:
+    print(f"Skipped {filename} (already exists)")
+elif success:
+    print(f"Téléchargemented {filename}")
+else:
+    print(f"Failed to download {filename}")
+```
+
+### Traitementing with Skip Control
+
+```python
+from ign_lidar import LiDARTraitementor
+from pathlib import Path
+
+processor = LiDARTraitementor(lod_level='LOD2')
+
+# Skip existing patches by default
+patches = processor.process_directory(
+    Path("tuiles_enrichies/"),
+    Path("patches/")
+)
+
+# Force reprocessing
+patches = processor.process_directory(
+    Path("tuiles_enrichies/"),
+    Path("patches/"),
+    skip_existing=False
+)
+```
+
+## Performance Impact
+
+### Skip Check Performance
+
+- **File existence check**: ~0.001-0.01s per file
+- **Patch directory check**: ~0.01-0.05s per tile
+- **Enrichissementment check**: ~0.02-0.1s per file
+
+### Time Comparison
+
+```
+100 tiles, 50% already processed:
+
+Without Skip Detection:
+  Téléchargement: 100 tiles × 45s = 75 min
+  Traitement: 100 tiles × 35s = 58 min
+  Total: 133 minutes
+
+With Skip Detection:
+  Téléchargement: 50 skipped (0.5 min) + 50 new (37.5 min) = 38 min
+  Traitement: 50 skipped (0.4 min) + 50 new (29 min) = 29.4 min
+  Total: 67.4 minutes
+
+Time saved: 65.6 minutes (49% reduction)
 ```
 
 ## Configuration
 
-### Activer/Désactiver le saut
+Smart skip detection is **enabled by default** for all operations. You can control it via:
+
+### CLI Flags
+
+```bash
+# Default: Skip existing
+ign-lidar-hd command [args]
+
+# Force override: Traitement everything
+ign-lidar-hd command [args] --force
+```
+
+### Python Paramètres
 
 ```python
-from ign_lidar import LiDARProcessor
+# Default: skip_existing=True
+processor.process_tile(file, output_dir)
 
-# Désactiver la détection de saut
-processor = LiDARProcessor(skip_existing=False)
-
-# Ou via CLI
-ign-lidar-hd process --no-skip
+# Override: skip_existing=False
+processor.process_tile(file, output_dir, skip_existing=False)
 ```
 
-### Forcer le retraitement
+## Skip Detection Logic
 
-```bash
-# Forcer le re-téléchargement
-ign-lidar-hd download --force
+### Téléchargement Skip
 
-# Forcer le re-enrichissement
-ign-lidar-hd enrich --force
+- Checks if LAZ file exists in output directory
+- Compares file size (skips if > 1MB, indicating complete download)
+- Logs skip reason and file size
 
-# Forcer le retraitement
-ign-lidar-hd process --force
-```
+### Enrichissementment Skip
 
-## Détection de fichiers
+- Checks if output file already exists
+- Validates that file contains building features
+- Skips if features are already present
 
-### Fichiers de téléchargement
+### Traitementing Skip
 
-Recherche les fichiers `.laz` correspondants :
-
-```text
-tuiles/
-├── LIDARHD_FXX_0123_4567_LA93_IGN69_2020.laz ✅ Skip
-├── LIDARHD_FXX_0124_4567_LA93_IGN69_2020.laz ✅ Skip
-└── LIDARHD_FXX_0125_4567_LA93_IGN69_2020.laz ❌ Télécharger
-```
-
-### Fichiers enrichis
-
-Recherche les fichiers avec suffixe `_enriched` :
-
-```text
-enrichies/
-├── tuile_001_enriched.laz ✅ Skip
-├── tuile_002_enriched.laz ✅ Skip
-└── tuile_003.laz → tuile_003_enriched.laz ❌ Enrichir
-```
-
-### Patches de traitement
-
-Recherche les répertoires de patches existants :
-
-```text
-patches/
-├── tuile_001/ ✅ Skip (156 fichiers .npz)
-├── tuile_002/ ✅ Skip (142 fichiers .npz)
-└── tuile_003/ ❌ Traiter (répertoire manquant)
-```
-
-## Exemples pratiques
-
-### Workflow de reprise
-
-```bash
-# Le traitement initial s'arrête après 3 tuiles
-ign-lidar-hd process --input-dir data/ --output patches/
-# ❌ Erreur après tuile_003
-
-# Reprendre automatiquement depuis la tuile_004
-ign-lidar-hd process --input-dir data/ --output patches/
-# ⏭️  tuile_001 ignorée (patches existants)
-# ⏭️  tuile_002 ignorée (patches existants)
-# ⏭️  tuile_003 ignorée (patches existants)
-# ✅ Traitement tuile_004...
-```
-
-### Construction incrémentale
-
-```bash
-# Traiter le lot initial
-ign-lidar-hd process --input-dir lot1/ --output patches/
-
-# Ajouter plus de données plus tard
-ign-lidar-hd process --input-dir lot2/ --output patches/
-# Traite seulement les nouvelles tuiles du lot2
-```
-
-## Meilleures pratiques
-
-### ✅ Recommandé
-
-- **Activer par défaut** - Laisser la détection de saut activée
-- **Utiliser --force avec prudence** - Seulement quand nécessaire
-- **Organiser par workflows** - Séparer téléchargement/enrichissement/traitement
-- **Vérifier les logs** - S'assurer que les bons fichiers sont ignorés
-
-### ❌ Éviter
-
-- **Forcer sans raison** - Gaspille temps et ressources
-- **Mélanger les versions** - Peut créer de la confusion
-- **Ignorer les avertissements** - Les messages d'erreur sont importants
+- Checks if patch directory exists for the tile
+- Counts existing .npz patches
+- Skips if patches already exist (non-zero count)
 
 ## Dépannage
 
-### Fichiers non détectés
+### Files Not Being Skipped
 
-Si des fichiers existants ne sont pas détectés :
-
-```bash
-# Vérifier les noms de fichiers
-ls -la tuiles/
-
-# Vérifier les permissions
-chmod 644 tuiles/*.laz
-
-# Forcer la régénération si nécessaire
-ign-lidar-hd process --force
-```
-
-### Patches corrompus
-
-Si des patches sont corrompus :
+Check that file paths and naming are consistent:
 
 ```bash
-# Supprimer les patches corrompus
-rm -rf patches/tuile_problematique/
-
-# Retraiter cette tuile
-ign-lidar-hd process --input-dir data/ --output patches/
+# Verify file naming patterns
+ls -la tiles/
+ls -la patches/
 ```
+
+### Unexpected Skips
+
+Use verbose logging to see skip decisions:
+
+```bash
+# Enable debug logging
+ign-lidar-hd process --input tiles/ --output patches/ --verbose
+```
+
+### Force Reprocessing
+
+When you need to reprocess everything:
+
+```bash
+# Method 1: Use --force flag
+ign-lidar-hd process --input tiles/ --output patches/ --force
+
+# Method 2: Clear output directory
+rm -rf patches/*
+ign-lidar-hd process --input tiles/ --output patches/
+```
+
+## See Also
+
+- [Utilisation de base Guide](../guides/basic-usage)
+- [CLI Commands Reference](../guides/cli-commands)
+- [Memory Optimization](../reference/memory-optimization)

@@ -6,15 +6,7 @@ description: Download IGN LiDAR HD tiles from official servers
 keywords: [cli, download, tiles, ign, lidar]
 ---
 
-<!-- 
-🇫🇷 TRADUCTION FRANÇAISE REQUISE
-Ce document doit être traduit de l'anglais vers le français.
-Veuillez traduire les titres, descriptions et texte principal.
-Conservez tous les blocs de code, commandes et exemples techniques tels quels.
--->
-
-
-# CLI Download Command Reference
+# CLI Téléchargement Command Reference
 
 The `ign-lidar download` command retrieves LiDAR HD tiles from IGN's official servers.
 
@@ -24,21 +16,21 @@ The `ign-lidar download` command retrieves LiDAR HD tiles from IGN's official se
 ign-lidar download [OPTIONS] TILE_IDS OUTPUT_DIR
 ```
 
-## Basic Usage
+## Utilisation de base
 
-### Download Single Tile
+### Téléchargement Single Tile
 
 ```bash
 ign-lidar download C_3945-6730_2022 ./tiles/
 ```
 
-### Download Multiple Tiles
+### Téléchargement Multiple Tiles
 
 ```bash
 ign-lidar download C_3945-6730_2022 C_3945-6735_2022 ./tiles/
 ```
 
-### Download from List
+### Téléchargement from List
 
 ```bash
 ign-lidar download --from-file tile_list.txt ./tiles/
@@ -46,7 +38,7 @@ ign-lidar download --from-file tile_list.txt ./tiles/
 
 ## Command Options
 
-### Input Options
+### Entrée Options
 
 #### `TILE_IDS` (required)
 
@@ -58,22 +50,22 @@ Read tile IDs from text file (one per line).
 
 #### `--bbox`
 
-Download all tiles within bounding box.
+Téléchargement all tiles within bounding box.
 Format: `xmin,ymin,xmax,ymax`
 
-### Output Options
+### Sortie Options
 
 #### `OUTPUT_DIR` (required)
 
-Directory to save downloaded tiles.
+Répertoire pour sauvegarder downloaded tiles.
 
 #### `--format`
 
-Download format.
+Téléchargement format.
 **Options:** `laz`, `las`
 **Default:** `laz`
 
-### Download Options
+### Téléchargement Options
 
 #### `--overwrite`
 
@@ -88,15 +80,15 @@ Verify downloaded files.
 Number of parallel downloads.
 **Default:** `4`
 
-## Examples
+## Exemples
 
-### Download by Bounding Box
+### Téléchargement by Bounding Box
 
 ```bash
 ign-lidar download --bbox 3945000,6730000,3950000,6735000 ./tiles/
 ```
 
-### Parallel Downloads with Verification
+### Parallel Téléchargements with Verification
 
 ```bash
 ign-lidar download --parallel 8 --verify --from-file tiles.txt ./data/
@@ -104,5 +96,5 @@ ign-lidar download --parallel 8 --verify --from-file tiles.txt ./data/
 
 ## Related Commands
 
-- [`ign-lidar enrich`](./cli-enrich.md) - Enrich downloaded tiles
-- [`ign-lidar patch`](./cli-patch.md) - Generate training patches
+- [`ign-lidar enrich`](./cli-enrich) - Enrichissement downloaded tiles
+- [`ign-lidar patch`](./cli-patch) - Generate training patches

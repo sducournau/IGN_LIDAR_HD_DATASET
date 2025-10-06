@@ -1,0 +1,290 @@
+[
+  {
+    "file": "api/configuration.md",
+    "en_words": 152,
+    "fr_words": 1029,
+    "diff_pct": 576.9736842105262,
+    "en_headings": 46,
+    "fr_headings": 48,
+    "heading_diff": -2
+  },
+  {
+    "file": "guides/qgis-troubleshooting.md",
+    "en_words": 142,
+    "fr_words": 380,
+    "diff_pct": 167.6056338028169,
+    "en_headings": 10,
+    "fr_headings": 36,
+    "heading_diff": -26
+  },
+  {
+    "file": "guides/preprocessing.md",
+    "en_words": 1056,
+    "fr_words": 2147,
+    "diff_pct": 103.31439393939394,
+    "en_headings": 50,
+    "fr_headings": 88,
+    "heading_diff": -38
+  },
+  {
+    "file": "reference/workflow-diagrams.md",
+    "en_words": 26,
+    "fr_words": 49,
+    "diff_pct": 88.46153846153845,
+    "en_headings": 4,
+    "fr_headings": 7,
+    "heading_diff": -3
+  },
+  {
+    "file": "api/rgb-augmentation.md",
+    "en_words": 162,
+    "fr_words": 294,
+    "diff_pct": 81.48148148148148,
+    "en_headings": 22,
+    "fr_headings": 22,
+    "heading_diff": 0
+  },
+  {
+    "file": "reference/config-examples.md",
+    "en_words": 45,
+    "fr_words": 77,
+    "diff_pct": 71.11111111111111,
+    "en_headings": 12,
+    "fr_headings": 22,
+    "heading_diff": -10
+  },
+  {
+    "file": "guides/regional-processing.md",
+    "en_words": 265,
+    "fr_words": 452,
+    "diff_pct": 70.56603773584905,
+    "en_headings": 38,
+    "fr_headings": 67,
+    "heading_diff": -29
+  },
+  {
+    "file": "release-notes/v1.7.4.md",
+    "en_words": 980,
+    "fr_words": 1544,
+    "diff_pct": 57.55102040816327,
+    "en_headings": 63,
+    "fr_headings": 71,
+    "heading_diff": -8
+  },
+  {
+    "file": "guides/qgis-integration.md",
+    "en_words": 1109,
+    "fr_words": 549,
+    "diff_pct": 50.49594229035167,
+    "en_headings": 49,
+    "fr_headings": 38,
+    "heading_diff": 11
+  },
+  {
+    "file": "guides/quick-start.md",
+    "en_words": 703,
+    "fr_words": 1002,
+    "diff_pct": 42.53200568990042,
+    "en_headings": 54,
+    "fr_headings": 58,
+    "heading_diff": -4
+  },
+  {
+    "file": "features/auto-params.md",
+    "en_words": 138,
+    "fr_words": 194,
+    "diff_pct": 40.57971014492754,
+    "en_headings": 42,
+    "fr_headings": 41,
+    "heading_diff": 1
+  },
+  {
+    "file": "guides/basic-usage.md",
+    "en_words": 463,
+    "fr_words": 287,
+    "diff_pct": 38.01295896328294,
+    "en_headings": 47,
+    "fr_headings": 19,
+    "heading_diff": 28
+  },
+  {
+    "file": "guides/getting-started.md",
+    "en_words": 473,
+    "fr_words": 640,
+    "diff_pct": 35.30655391120507,
+    "en_headings": 106,
+    "fr_headings": 88,
+    "heading_diff": 18
+  },
+  {
+    "file": "reference/memory-optimization.md",
+    "en_words": 721,
+    "fr_words": 467,
+    "diff_pct": 35.22884882108183,
+    "en_headings": 59,
+    "fr_headings": 38,
+    "heading_diff": 21
+  },
+  {
+    "file": "installation/quick-start.md",
+    "en_words": 204,
+    "fr_words": 275,
+    "diff_pct": 34.80392156862745,
+    "en_headings": 43,
+    "fr_headings": 48,
+    "heading_diff": -5
+  },
+  {
+    "file": "api/cli.md",
+    "en_words": 184,
+    "fr_words": 236,
+    "diff_pct": 28.26086956521739,
+    "en_headings": 109,
+    "fr_headings": 109,
+    "heading_diff": 0
+  },
+  {
+    "file": "architecture.md",
+    "en_words": 339,
+    "fr_words": 432,
+    "diff_pct": 27.43362831858407,
+    "en_headings": 13,
+    "fr_headings": 13,
+    "heading_diff": 0
+  },
+  {
+    "file": "features/pipeline-configuration.md",
+    "en_words": 311,
+    "fr_words": 396,
+    "diff_pct": 27.331189710610932,
+    "en_headings": 53,
+    "fr_headings": 52,
+    "heading_diff": 1
+  },
+  {
+    "file": "release-notes/v1.7.2.md",
+    "en_words": 265,
+    "fr_words": 336,
+    "diff_pct": 26.79245283018868,
+    "en_headings": 20,
+    "fr_headings": 20,
+    "heading_diff": 0
+  },
+  {
+    "file": "release-notes/v1.7.5.md",
+    "en_words": 1096,
+    "fr_words": 1385,
+    "diff_pct": 26.368613138686133,
+    "en_headings": 43,
+    "fr_headings": 45,
+    "heading_diff": -2
+  },
+  {
+    "file": "reference/cli-download.md",
+    "en_words": 143,
+    "fr_words": 179,
+    "diff_pct": 25.174825174825177,
+    "en_headings": 22,
+    "fr_headings": 23,
+    "heading_diff": -1
+  },
+  {
+    "file": "guides/gpu-acceleration.md",
+    "en_words": 1405,
+    "fr_words": 1749,
+    "diff_pct": 24.483985765124554,
+    "en_headings": 80,
+    "fr_headings": 92,
+    "heading_diff": -12
+  },
+  {
+    "file": "release-notes/v1.7.0.md",
+    "en_words": 298,
+    "fr_words": 370,
+    "diff_pct": 24.161073825503358,
+    "en_headings": 16,
+    "fr_headings": 16,
+    "heading_diff": 0
+  },
+  {
+    "file": "guides/complete-workflow.md",
+    "en_words": 444,
+    "fr_words": 549,
+    "diff_pct": 23.64864864864865,
+    "en_headings": 58,
+    "fr_headings": 58,
+    "heading_diff": 0
+  },
+  {
+    "file": "guides/troubleshooting.md",
+    "en_words": 370,
+    "fr_words": 456,
+    "diff_pct": 23.243243243243246,
+    "en_headings": 41,
+    "fr_headings": 41,
+    "heading_diff": 0
+  },
+  {
+    "file": "release-notes/v1.7.3.md",
+    "en_words": 539,
+    "fr_words": 659,
+    "diff_pct": 22.263450834879407,
+    "en_headings": 31,
+    "fr_headings": 31,
+    "heading_diff": 0
+  },
+  {
+    "file": "mermaid-reference.md",
+    "en_words": 168,
+    "fr_words": 204,
+    "diff_pct": 21.428571428571427,
+    "en_headings": 22,
+    "fr_headings": 23,
+    "heading_diff": -1
+  },
+  {
+    "file": "gpu/overview.md",
+    "en_words": 1297,
+    "fr_words": 1569,
+    "diff_pct": 20.971472629144177,
+    "en_headings": 85,
+    "fr_headings": 85,
+    "heading_diff": 0
+  },
+  {
+    "file": "gpu/rgb-augmentation.md",
+    "en_words": 490,
+    "fr_words": 589,
+    "diff_pct": 20.20408163265306,
+    "en_headings": 60,
+    "fr_headings": 60,
+    "heading_diff": 0
+  },
+  {
+    "file": "reference/cli-qgis.md",
+    "en_words": 298,
+    "fr_words": 247,
+    "diff_pct": 17.114093959731544,
+    "en_headings": 49,
+    "fr_headings": 27,
+    "heading_diff": 22
+  },
+  {
+    "file": "guides/cli-commands.md",
+    "en_words": 1187,
+    "fr_words": 1017,
+    "diff_pct": 14.321819713563604,
+    "en_headings": 93,
+    "fr_headings": 57,
+    "heading_diff": 36
+  },
+  {
+    "file": "features/smart-skip.md",
+    "en_words": 431,
+    "fr_words": 390,
+    "diff_pct": 9.51276102088167,
+    "en_headings": 64,
+    "fr_headings": 50,
+    "heading_diff": 14
+  }
+]

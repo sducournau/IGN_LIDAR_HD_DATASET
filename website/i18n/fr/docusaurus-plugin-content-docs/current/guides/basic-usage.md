@@ -5,35 +5,37 @@ description: Apprenez les workflows essentiels pour traiter les données IGN LiD
 keywords: [tutoriel, workflow, traitement, base]
 ---
 
-Ce guide couvre les workflows essentiels pour traiter les données IGN LiDAR HD en jeux de données prêts pour l'apprentissage automatique.
+# Utilisation de base
+
+This guide covers the essential workflows pour traiter IGN LiDAR HD data into jeux de données prêts pour l'apprentissage automatique.
 
 ## Vue d'ensemble
 
-Le workflow de traitement IGN LiDAR HD consiste en trois étapes principales :
+The IGN LiDAR HD processing workflow consists of three main steps:
 
 1. **Téléchargement** - Obtenir les tuiles LiDAR depuis les serveurs IGN
 2. **Enrichissement** - Ajouter des caractéristiques de composants de bâtiment aux points
 3. **Traitement** - Extraire des patches pour l'apprentissage automatique
 
-### 🔄 Pipeline complet du workflow
+### 🔄 Workflow complet Pipeline
 
 ```mermaid
 flowchart TD
     subgraph "Entrée"
-        IGN[Service Web<br/>IGN LiDAR HD]
+        IGN[IGN LiDAR HD<br/>Service Web]
     end
 
     subgraph "Étape 1: Téléchargement"
         D1[Requête service WFS]
-        D2[Téléchargement tuiles LAZ]
+        D2[Téléchargement LAZ Tiles]
         D3[Validation fichiers]
     end
 
     subgraph "Étape 2: Enrichissement"
-        E1[Chargement nuage de points]
-        E2[Calcul caractéristiques géométriques]
-        E3[Classification composants bâtiment]
-        E4[Sauvegarde LAZ enrichi]
+        E1[Load Nuage de points]
+        E2[Compute Caractéristiques géométriques]
+        E3[Classify Composants de bâtiment]
+        E4[Save Enrichissemented LAZ]
     end
 
     subgraph "Étape 3: Traitement"
@@ -67,12 +69,36 @@ flowchart TD
     style P1 fill:#fce4ec
 ```
 
-## Étape 1 : Télécharger les tuiles LiDAR
+### 📊 Data Transformation Flow
 
-Téléchargez les tuiles LiDAR pour votre zone d'intérêt :
+```mermaid
+graph LR
+    subgraph "Données brutes"
+        Raw[Nuage de points<br/>XYZ + Intensity<br/>~1M points/tile]
+    end
+
+    subgraph "Enrichissemented Data"
+        Enrichissemented[Enhanced Cloud<br/>XYZ + 30 Features<br/>Building Classification]
+    end
+
+    subgraph "Jeu de données ML"
+        Patches[Patches d'entraînement<br/>16K points/patch<br/>LOD Labels]
+    end
+
+    Raw -->|Enrichissement Traitement| Enrichissemented
+    Enrichissemented -->|Extraction patches| Patches
+
+    style Raw fill:#ffebee
+    style Enrichissemented fill:#e8f5e8
+    style Patches fill:#e3f2fd
+```
+
+## Étape 1: Téléchargement LiDAR Tiles
+
+Téléchargement LiDAR tiles for your area of interest:
 
 ```bash
-# Télécharger les tuiles pour le centre de Paris
+# Téléchargement tiles for Paris center
 ign-lidar-hd download \
   --bbox 2.25,48.82,2.42,48.90 \
   --output /chemin/vers/tuiles_brutes/ \
@@ -81,27 +107,27 @@ ign-lidar-hd download \
 
 ### Paramètres
 
-- `--bbox` : Boîte englobante au format `min_lon,min_lat,max_lon,max_lat`
-- `--output` : Répertoire pour sauvegarder les tuiles téléchargées
-- `--max-tiles` : Nombre maximum de tuiles à télécharger (optionnel)
+- `--bbox`: Boîte englobante au format `min_lon,min_lat,max_lon,max_lat`
+- `--output`: Répertoire pour sauvegarder downloaded tiles
+- `--max-tiles`: Nombre maximum de tuiles to download (optionnel)
 
 ### Sortie
 
-Les tuiles téléchargées sont sauvegardées en tant que fichiers LAZ :
+Téléchargemented tiles are saved as LAZ files:
 
-```text
+```
 tuiles_brutes/
 ├── LIDARHD_FXX_0123_4567_LA93_IGN69_2020.laz
 ├── LIDARHD_FXX_0124_4567_LA93_IGN69_2020.laz
 └── ...
 ```
 
-## Étape 2 : Enrichir avec des caractéristiques de bâtiment
+## Étape 2: Enrichissement with Building Features
 
-Ajoutez des caractéristiques de classification des composants de bâtiment aux nuages de points :
+Add building component classification features to the point clouds:
 
 ```bash
-# Enrichir les tuiles avec toutes les caractéristiques
+# Enrichissement tiles with building features
 ign-lidar-hd enrich \
   --input-dir /chemin/vers/tuiles_brutes/ \
   --output /chemin/vers/tuiles_enrichies/ \
@@ -109,77 +135,210 @@ ign-lidar-hd enrich \
   --num-workers 4
 ```
 
-### Paramètres enrichissement
+### Paramètres
 
-- `--input-dir` : Répertoire contenant les tuiles LAZ brutes
-- `--output` : Répertoire pour sauvegarder les tuiles enrichies
-- `--mode` : Mode d'extraction de caractéristiques (`core` ou `full`)
-- `--num-workers` : Nombre de workers parallèles (optionnel)
+- `--input-dir`: Directory containing raw LAZ tiles
+- `--output`: Répertoire pour sauvegarder enriched tiles
+- `--mode`: Feature extraction mode (currently only `building`)
+- `--num-workers`: Nombre de workers parallèles (optionnel)
 
-## Étape 3 : Extraire des patches pour l'apprentissage automatique
+### Sortie
 
-Créez des patches d'entraînement depuis les tuiles enrichies :
+Enrichissemented tiles contain additional point attributes for building classification:
 
-```bash
-# Extraire des patches d'entraînement
-ign-lidar-hd process \
-  --input-dir /chemin/vers/tuiles_enrichies/ \
-  --output /chemin/vers/patches/ \
-  --lod-level LOD2 \
-  --patch-size 16000
+```
+tuiles_enrichies/
+├── LIDARHD_FXX_0123_4567_LA93_IGN69_2020.laz  # With building features
+├── LIDARHD_FXX_0124_4567_LA93_IGN69_2020.laz
+└── ...
 ```
 
-### Paramètres traitement
+Chaque point dispose maintenant de 30+ caractéristiques géométriques pour la classification des composants de bâtiment.
 
-- `--input-dir` : Répertoire contenant les tuiles LAZ enrichies
-- `--output` : Répertoire pour sauvegarder les patches NPZ
-- `--lod-level` : Niveau de détail (LOD2 ou LOD3)
-- `--patch-size` : Nombre de points par patch
+## Étape 3: Extraction patches
 
-## Exemple complet
+Extract small patches suitable for machine learning:
 
-Voici un exemple complet de workflow :
+```bash
+# Extract patches for LOD2 building classification
+ign-lidar-hd process \
+  --input /chemin/vers/tuiles_enrichies/ \
+  --output /chemin/vers/patches/ \
+  --lod-level LOD2 \
+  --patch-size 10.0 \
+  --num-workers 4
+```
+
+### Paramètres
+
+- `--input`: Directory containing enriched LAZ tiles
+- `--output`: Répertoire pour sauvegarder extracted patches
+- `--lod-level`: Classification level (`LOD2` or `LOD3`)
+- `--patch-size`: Patch size in meters (default: 10.0)
+- `--num-workers`: Nombre de workers parallèles (optionnel)
+
+### Sortie
+
+Patches are saved as NPZ files with point clouds and labels:
+
+```
+patches/
+├── tile_0123_4567/
+│   ├── patch_0001.npz
+│   ├── patch_0002.npz
+│   └── ...
+├── tile_0124_4567/
+│   └── ...
+```
+
+Each patch contains:
+
+- Point coordinates (X, Y, Z)
+- Geometric features (30+ attributes)
+- Building component labels
+- Patch metadata
+
+## Niveaux de classification
+
+### LOD2 (15 Classes)
+
+Basic building components suitable for urban analysis:
+
+- Wall, Roof, Ground, Vegetation
+- Window, Door, Balcony, Chimney
+- And 7 more classes...
+
+### LOD3 (30 Classes)
+
+Detailed building components for architectural analysis:
+
+- All LOD2 classes plus:
+- Roof details (tiles, gutters, dormers)
+- Facade elements (shutters, decorative features)
+- And 15 additional detailed classes...
+
+## Workflow complet Exemple
+
+Here's a complete example processing the 13th arrondissement of Paris:
+
+```bash
+# 1. Téléchargement tiles
+ign-lidar-hd download \
+  --bbox 2.32,48.82,2.38,48.86 \
+  --output data/tuiles_brutes/ \
+  --max-tiles 20
+
+# 2. Enrichissement with features
+ign-lidar-hd enrich \
+  --input-dir data/tuiles_brutes/ \
+  --output data/tuiles_enrichies/ \
+  --mode full \
+  --num-workers 6
+
+# 3. Extract patches
+ign-lidar-hd process \
+  --input data/tuiles_enrichies/ \
+  --output data/patches/ \
+  --lod-level LOD2 \
+  --patch-size 10.0 \
+  --num-workers 6
+```
+
+Expected processing time for 20 tiles:
+
+- Téléchargement: ~15 minutes (depends on network)
+- Enrichissement: ~45 minutes (with 6 workers)
+- Traitement: ~30 minutes (with 6 workers)
+
+## Chargement des données
+
+Once you have patches, load them for machine learning:
 
 ```python
-from ign_lidar import LiDARProcessor
-import os
+import numpy as np
 
-# Configuration
-bbox = (2.25, 48.82, 2.42, 48.90)  # Centre de Paris
-raw_dir = "data/raw/"
-enriched_dir = "data/enriched/"
-patches_dir = "data/patches/"
+# Load a single patch
+data = np.load('patches/tile_0123_4567/patch_0001.npz')
+points = data['points']        # Shape: (N, 3) - X, Y, Z
+features = data['features']    # Shape: (N, 30+) - Geometric features
+labels = data['labels']        # Shape: (N,) - Building component labels
 
-# Étape 1: Initialiser le processeur
-processor = LiDARProcessor(
-    lod_level="LOD2",
-    num_workers=4
-)
+print(f"Patch has {len(points)} points")
+print(f"Feature dimensions: {features.shape[1]}")
+print(f"Unique labels: {np.unique(labels)}")
+```
 
-# Étape 2: Télécharger les données
-processor.download(
-    bbox=bbox,
-    output_dir=raw_dir,
-    max_tiles=10
-)
+## Considérations sur la mémoire
 
-# Étape 3: Enrichir avec des caractéristiques
-processor.enrich_directory(
-    input_dir=raw_dir,
-    output_dir=enriched_dir
-)
+For large datasets, monitor memory usage:
 
-# Étape 4: Extraire les patches
-patches = processor.process_directory(
-    input_dir=enriched_dir,
-    output_dir=patches_dir
-)
+```bash
+# Check memory usage during processing
+htop
 
-print(f"Traitement terminé ! {len(patches)} patches créés.")
+# Reduce workers if memory is limited
+ign-lidar-hd process --num-workers 2
+
+# Traitement tiles one by one for very large tiles
+ign-lidar-hd process --num-workers 1
+```
+
+See the [Memory Optimization Guide](../reference/memory-optimization) for detailed memory management strategies.
+
+## Détection intelligente de saut
+
+All commands automatically skip existing outputs:
+
+```bash
+# Run the same command twice - second run skips existing files
+ign-lidar-hd download --bbox 2.32,48.82,2.38,48.86 --output data/tuiles_brutes/
+# First run: Téléchargements new tiles
+# Second run: Skips existing tiles automatically
+
+# Force reprocessing with --force flag
+ign-lidar-hd process --input data/enriched/ --output data/patches/ --force
+```
+
+See the [Smart Skip Features](../features/smart-skip) guide for details.
+
+## Dépannage
+
+### Téléchargement Issues
+
+```bash
+# Check network connectivity
+ping geoservices.ign.fr
+
+# Verify bbox coordinates (should be in France)
+# Valid range: longitude 1-8, latitude 42-51
+```
+
+### Traitementing Errors
+
+```bash
+# Check file permissions
+ls -la /chemin/vers/tiles/
+
+# Verify LAZ file integrity
+lasinfo tile.laz
+
+# Reduce workers if getting memory errors
+ign-lidar-hd process --num-workers 1
+```
+
+### Missing Features
+
+```bash
+# Verify enrichment completed successfully
+lasinfo enriched_tile.laz | grep "extra bytes"
+
+# Re-enrich if features are missing
+ign-lidar-hd enrich --input-dir raw/ --output enriched/ --force
 ```
 
 ## Prochaines étapes
 
-- Explorez les [Commandes CLI avancées](cli-commands.md)
-- En savoir plus sur l'[Intégration QGIS](qgis-integration.md)
-- Découvrez les [Fonctionnalités de saut intelligent](../features/smart-skip.md)
+- **Advanced Traitementing**: Learn about [GPU acceleration](gpu-acceleration.md)
+- **QGIS Integration**: See [QGIS integration guide](qgis-integration.md)
+- **Batch Traitementing**: Check out [parallel processing examples](../examples/parallel_processing_example.py)
+- **Custom Features**: Develop [custom feature extractors](../tutorials/custom-features)

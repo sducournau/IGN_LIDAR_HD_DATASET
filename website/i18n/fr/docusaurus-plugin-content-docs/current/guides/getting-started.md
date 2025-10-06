@@ -5,47 +5,47 @@ description: Guide complet du débutant pour le traitement IGN LiDAR HD
 keywords: [démarrage, débutant, tutoriel, premiers-pas, introduction]
 ---
 
-# Premiers Pas avec IGN LiDAR HD
+# Getting Started with IGN LiDAR HD
 
-Bienvenue dans IGN LiDAR HD ! Ce guide complet vous aidera à démarrer avec le traitement des données LiDAR de l'Institut national de l'information géographique et forestière (IGN).
+Welcome to IGN LiDAR HD! This comprehensive guide will help you get started with processing French National Geographic Institute LiDAR data.
 
-## Qu'est-ce qu'IGN LiDAR HD ?
+## What is IGN LiDAR HD?
 
-IGN LiDAR HD est une bibliothèque Python conçue pour traiter les données LiDAR haute densité de l'IGN en jeux de données prêts pour l'apprentissage automatique. Elle fournit des outils pour :
+IGN LiDAR HD is a Python library designed to process high-density LiDAR data from the French National Geographic Institute (IGN) into jeux de données prêts pour l'apprentissage automatique. It provides tools for:
 
-- **Téléchargement de Données** : Téléchargement automatisé des dalles LiDAR IGN
-- **Extraction de Caractéristiques** : Détection de bâtiments, classification de végétation, analyse du sol
-- **Augmentation RGB** : Enrichissement en couleurs depuis orthophotos
-- **Export de Données** : Multiples formats de sortie pour différentes applications
-- **Accélération GPU** : Traitement haute performance pour gros jeux de données
+- **Data Téléchargement**: Automated downloading of IGN LiDAR tiles
+- **Feature Extraction**: Building detection, vegetation classification, ground analysis
+- **RGB Augmentation**: Color enrichment from orthophotos
+- **Data Export**: Multiple output formats for different applications
+- **GPU Acceleration**: High-performance processing for large datasets
 
-## Prérequis
+## Prerequisites
 
-### Configuration Système
+### System Requirements
 
-**Configuration Minimale :**
+**Minimum Requirements:**
 
-- Python 3.8 ou supérieur
-- 8 GB RAM
-- 10 GB d'espace disque libre
-- Connexion Internet pour téléchargement de données
+- Python 3.8 or higher
+- 8GB RAM
+- 10GB free disk space
+- Internet connection for data download
 
-**Configuration Recommandée :**
+**Recommended Requirements:**
 
 - Python 3.11
-- 16 GB+ RAM
-- Stockage SSD avec 50 GB+ d'espace libre
-- GPU NVIDIA avec 8 GB+ VRAM (optionnel)
+- 16GB+ RAM
+- SSD storage with 50GB+ free space
+- NVIDIA GPU with 8GB+ VRAM (optionnel)
 
-### Environnement Python
+### Python Environment
 
-Nous recommandons fortement l'utilisation d'un environnement virtuel :
+We strongly recommend using a virtual environment:
 
 ```bash
-# Créer environnement virtuel
+# Create virtual environment
 python -m venv ign_lidar_env
 
-# Activer l'environnement
+# Activate environment
 # Linux/macOS:
 source ign_lidar_env/bin/activate
 # Windows:
@@ -54,81 +54,81 @@ ign_lidar_env\Scripts\activate
 
 ## Installation
 
-### Installation Standard
+### Standard Installation
 
 ```bash
-# Installer depuis PyPI
+# Install from PyPI
 pip install ign-lidar-hd
 
-# Vérifier l'installation
+# Verify installation
 ign-lidar-hd --version
 ```
 
-### Installation Développement
+### Development Installation
 
 ```bash
-# Cloner le dépôt
+# Clone repository
 git clone https://github.com/sducournau/IGN_LIDAR_HD_DATASET.git
 cd IGN_LIDAR_HD_DATASET
 
-# Installer en mode développement
+# Install in development mode
 pip install -e .
 
-# Installer avec dépendances optionnelles
+# Install with optionnel dependencies
 pip install -e .[gpu,dev,docs]
 ```
 
-### Support GPU (Optionnel)
+### GPU Support (Optional)
 
-Pour l'accélération GPU :
+For GPU acceleration:
 
 ```bash
-# Installer avec support GPU
+# Install with GPU support
 pip install ign-lidar-hd[gpu]
 
-# Vérifier la configuration GPU
-python -c "import torch; print(f'CUDA Disponible: {torch.cuda.is_available()}')"
+# Verify GPU setup
+python -c "import torch; print(f'CUDA Available: {torch.cuda.is_available()}')"
 ```
 
-## Premiers Pas
+## First Étapes
 
-### 1. Informations Système
+### 1. System Information
 
-Vérifier votre configuration système :
+Check your system configuration:
 
 ```bash
-# Afficher les informations système
+# Display system information
 ign-lidar-hd system-info
 
-# Sortie attendue :
-# IGN LiDAR HD v1.7.5
+# Expected output:
+# IGN LiDAR HD v1.7.1
 # Python: 3.11.5
-# Plateforme: Linux-6.2.0-39-generic
-# Cœurs CPU: 16
-# RAM Disponible: 31.3 GB
-# GPU Disponible: True (NVIDIA RTX 4090)
+# Platform: Linux-6.2.0-39-generic
+# CPU Cores: 16
+# Available RAM: 31.3 GB
+# GPU Available: True (NVIDIA RTX 4090)
 ```
 
-### 2. Configuration
+### 2. Configuration Setup
 
-Créer votre premier fichier de configuration :
+Create your first configuration file:
 
 ```bash
-# Générer configuration par défaut
-ign-lidar-hd config --template > ma_config.yaml
+# Generate default configuration
+ign-lidar-hd config --template > my_config.yaml
 ```
 
-Éditer la configuration :
+Edit the configuration:
 
 ```yaml
-# ma_config.yaml
+# my_config.yaml
 processing:
   chunk_size: 1000000
-  n_jobs: -1 # Utiliser tous les cœurs CPU
-  use_gpu: false # Mettre à true si GPU disponible
+  n_jobs: -1 # Use all CPU cores
+  use_gpu: false # Set to true if GPU available
 
 output:
-  format: "laz" # Format de sortie
+  format: "laz" # Sortie format
   compression: 7
 
 features:
@@ -141,352 +141,444 @@ quality:
   generate_reports: true
 ```
 
-### 3. Votre Premier Téléchargement
+### 3. Your First Téléchargement
 
-Télécharger votre première dalle LiDAR :
+Téléchargement your first LiDAR tile:
 
 ```bash
-# Télécharger une dalle d'exemple (région parisienne)
+# Téléchargement a sample tile (Paris area)
 ign-lidar-hd download --tiles 0631_6275 --output-dir ./data
 
-# Vérifier les fichiers téléchargés
+# Check downloaded files
 ls -la ./data/
-# Attendu: 0631_6275.las (ou .laz)
+# Expected: 0631_6275.las (or .laz)
 ```
 
-### 4. Traitement Basique
+### 4. Basic Traitementing
 
-Traiter la dalle téléchargée :
+Traitement the downloaded tile:
 
 ```bash
-# Enrichissement basique
+# Basic enrichment
 ign-lidar-hd enrich \
   --input ./data/0631_6275.las \
   --output ./data/enriched_0631_6275.laz \
   --features buildings vegetation
 
-# Vérifier les résultats
+# Check the results
 ign-lidar-hd info ./data/enriched_0631_6275.laz
 ```
 
-## Comprendre Vos Données
+## Understanding Your Data
 
-### Structure des Fichiers LiDAR
+### LiDAR File Structure
 
-Les fichiers LiDAR IGN contiennent des données de nuage de points avec ces attributs :
+IGN LiDAR files contain point cloud data with these attributes:
 
 ```python
-# Attributs basiques des points
-attributs_points = {
-    'X': 'Coordonnée Est (Lambert 93)',
-    'Y': 'Coordonnée Nord (Lambert 93)',
-    'Z': 'Élévation (NGF-IGN69)',
-    'Intensity': 'Valeur d\'intensité du retour',
-    'Return_Number': 'Séquence de retour (1er, 2ème, etc.)',
-    'Number_of_Returns': 'Total de retours par impulsion',
-    'Classification': 'Code de classification du point',
-    'Scanner_Channel': 'ID du canal du scanner',
-    'User_Data': 'Données utilisateur additionnelles',
-    'Point_Source_ID': 'Identifiant de source',
-    'GPS_Time': 'Horodatage GPS'
+# Basic point attributes
+point_attributes = {
+    'X': 'Easting coordinate (Lambert 93)',
+    'Y': 'Northing coordinate (Lambert 93)',
+    'Z': 'Elevation (NGF-IGN69)',
+    'Intensity': 'Return intensity value',
+    'Return_Number': 'Return sequence (1st, 2nd, etc.)',
+    'Number_of_Returns': 'Total returns per pulse',
+    'Classification': 'Point classification code',
+    'Scanner_Channel': 'Scanner channel ID',
+    'User_Data': 'Additional user data',
+    'Point_Source_ID': 'Source identifier',
+    'GPS_Time': 'GPS timestamp'
 }
 
-# Après enrichissement, attributs additionnels:
-attributs_enrichis = {
-    'Building_ID': 'Identifiant d\'instance de bâtiment',
-    'Vegetation_Type': 'Classification de végétation',
-    'Red': 'Couleur RGB - Canal Rouge',
-    'Green': 'Couleur RGB - Canal Vert',
-    'Blue': 'Couleur RGB - Canal Bleu',
-    'NIR': 'Proche infrarouge',
-    'Planarity': 'Planarité (0-1)',
-    'Linearity': 'Linéarité (0-1)',
-    'Curvature': 'Courbure',
-    'Normal_X': 'Normale X',
-    'Normal_Y': 'Normale Y',
-    'Normal_Z': 'Normale Z'
+# After enrichment, additional attributes:
+enriched_attributes = {
+    'Building_ID': 'Building instance identifier',
+    'Vegetation_Type': 'Vegetation classification',
+    'Red': 'RGB color - Red channel',
+    'Green': 'RGB color - Green channel',
+    'Blue': 'RGB color - Blue channel'
 }
 ```
 
-### Classes LiDAR Standard
+### Coordinate System
 
-Les classes de points LiDAR IGN suivent la norme ASPRS :
+IGN LiDAR data uses the French coordinate system:
 
-| Code | Description        | Couleur       |
-| ---- | ------------------ | ------------- |
-| 0    | Non classifié      | Gris          |
-| 1    | Non attribué       | Gris clair    |
-| 2    | Sol                | Marron        |
-| 3    | Végétation basse   | Vert clair    |
-| 4    | Végétation moyenne | Vert          |
-| 5    | Végétation haute   | Vert foncé    |
-| 6    | Bâtiment           | Rouge         |
-| 7    | Point bas          | Orange        |
-| 9    | Eau                | Bleu          |
-| 17   | Pont               | Violet        |
+- **Projection**: Lambert 93 (EPSG:2154)
+- **Vertical Datum**: NGF-IGN69
+- **Units**: Meters
 
-## Workflows Courants
+### Data Quality
 
-### Workflow 1 : Traitement Basique
-
-Pour un traitement simple avec extraction de caractéristiques :
+Check data quality with:
 
 ```bash
-# 1. Télécharger les données
+# Validate LiDAR file
+ign-lidar-hd validate ./data/0631_6275.las
+
+# Get detailed statistics
+ign-lidar-hd stats ./data/0631_6275.las --detailed
+```
+
+## Basic Workflows
+
+### Workflow 1: Simple Enrichissementment
+
+Téléchargement, process, and export a single tile:
+
+```bash
+#!/bin/bash
+# simple_workflow.sh
+
+# 1. Téléchargement data
+echo "Téléchargementing LiDAR data..."
 ign-lidar-hd download --tiles 0631_6275 --output-dir ./data
 
-# 2. Enrichir avec caractéristiques géométriques
+# 2. Enrichissement with features
+echo "Enrichissementing with building features..."
 ign-lidar-hd enrich \
-  --input-dir ./data \
-  --output ./enriched \
-  --auto-params \
-  --preprocess
+  --input ./data/0631_6275.las \
+  --output ./data/enriched_0631_6275.laz \
+  --config my_config.yaml
 
-# 3. Visualiser dans QGIS
-ign-lidar-hd qgis-convert ./enriched/0631_6275.laz
+# 3. Generate report
+echo "Generating processing report..."
+ign-lidar-hd report ./data/enriched_0631_6275.laz --output ./reports/
+
+echo "Workflow complete!"
 ```
 
-### Workflow 2 : Traitement avec RGB
+### Workflow 2: Batch Traitementing
 
-Ajouter de la couleur depuis orthophotos IGN :
+Traitement multiple tiles:
 
 ```bash
-# Enrichir avec couleurs RGB
-ign-lidar-hd enrich \
-  --input-dir ./data \
-  --output ./enriched \
-  --auto-params \
-  --preprocess \
-  --add-rgb \
-  --cache-dir ./cache
+#!/bin/bash
+# batch_workflow.sh
+
+# List of tiles to process
+TILES=("0631_6275" "0631_6276" "0632_6275")
+
+for TILE in "${TILES[@]}"; do
+    echo "Traitementing tile: $TILE"
+
+    # Téléchargement
+    ign-lidar-hd download --tiles $TILE --output-dir ./data
+
+    # Traitement
+    ign-lidar-hd enrich \
+      --input ./data/${TILE}.las \
+      --output ./data/enriched_${TILE}.laz \
+      --features buildings vegetation ground \
+      --parallel
+done
+
+echo "Batch processing complete!"
 ```
 
-### Workflow 3 : Traitement Multi-Modal Complet
+### Workflow 3: RGB Augmentation
 
-Extraire toutes les caractéristiques (géométrie + RGB + NIR) :
+Add color information from orthophotos:
 
 ```bash
-# Traitement complet avec GPU
+# Téléchargement orthophoto (if available)
+ign-lidar-hd download-orthophoto \
+  --tile 0631_6275 \
+  --output-dir ./orthophotos
+
+# Enrichissement with RGB colors
 ign-lidar-hd enrich \
-  --input-dir ./data \
-  --output ./enriched \
-  --auto-params \
-  --preprocess \
-  --add-rgb \
-  --add-infrared \
-  --use-gpu \
-  --cache-dir ./cache
+  --input ./data/0631_6275.las \
+  --output ./data/rgb_enriched_0631_6275.laz \
+  --rgb-source ./orthophotos/0631_6275.tif \
+  --features buildings vegetation
 ```
 
-### Workflow 4 : Traitement par Lot
+## Python API Basics
 
-Traiter plusieurs dalles en parallèle :
-
-```bash
-# Télécharger plusieurs dalles
-ign-lidar-hd download \
-  --region "Île-de-France" \
-  --output-dir ./data \
-  --max-tiles 10
-
-# Traiter en parallèle (4 workers)
-ign-lidar-hd batch-process \
-  --input-dir ./data \
-  --output ./enriched \
-  --n-jobs 4 \
-  --auto-params \
-  --preprocess \
-  --add-rgb
-```
-
-## API Python
-
-En plus du CLI, vous pouvez utiliser l'API Python directement :
-
-### Exemple Basique
+### Using the Python API
 
 ```python
-from ign_lidar import Processor
+from ign_lidar import Traitementor, Config
 
-# Initialiser le processeur
-processor = Processor(
-    verbose=True,
+# Create configuration
+config = Config(
+    chunk_size=500000,
     use_gpu=False,
-    auto_params=True
+    features={
+        'buildings': True,
+        'vegetation': True,
+        'ground': False
+    }
 )
 
-# Traiter un fichier
-result = processor.process_tile(
+# Initialize processor
+processor = Traitementor(config=config)
+
+# Traitement a file
+result = processor.process_file(
     input_path="data/0631_6275.las",
-    output_path="enriched/0631_6275.laz",
-    add_rgb=True,
-    preprocess=True
+    output_path="data/processed_0631_6275.laz"
 )
 
-print(f"Traité {result['points_count']} points")
-print(f"Classes détectées: {result['classes_found']}")
+# Check results
+print(f"Points processed: {result.points_count:,}")
+print(f"Buildings detected: {result.buildings_count}")
+print(f"Traitementing time: {result.processing_time:.2f}s")
 ```
 
-### Exemple Avancé
+### Working with Nuage de pointss
 
 ```python
-from ign_lidar import Processor
-from ign_lidar.config import ProcessingConfig
+import numpy as np
+from ign_lidar import PointCloud
 
-# Configuration personnalisée
-config = ProcessingConfig(
-    chunk_size=1000000,
-    n_neighbors=50,
-    search_radius=2.0,
-    use_gpu=True,
-    gpu_mode='full'  # 'hybrid' ou 'full'
-)
+# Load point cloud
+pc = PointCloud.from_file("data/0631_6275.las")
 
-# Initialiser avec configuration
-processor = Processor(config=config)
+# Basic information
+print(f"Number of points: {len(pc):,}")
+print(f"Bounds: {pc.bounds}")
+print(f"Point density: {pc.density:.1f} pts/m²")
 
-# Traiter avec options avancées
-result = processor.process_tile(
-    input_path="data/large_tile.las",
-    output_path="enriched/large_tile.laz",
-    add_rgb=True,
-    add_infrared=True,
-    preprocess=True,
-    # Options de prétraitement
-    sor_k=20,
-    sor_std=2.0,
-    voxel_size=0.2
-)
+# Access point data
+points = pc.points  # (N, 3) array of XYZ coordinates
+colors = pc.colors  # (N, 3) array of RGB values
+classifications = pc.classifications  # (N,) array of class labels
 
-# Analyser les résultats
-print(f"Statistiques:")
-print(f"  Points: {result['points_count']}")
-print(f"  Bâtiments: {result['building_count']}")
-print(f"  Temps CPU: {result['cpu_time']:.2f}s")
-print(f"  Temps GPU: {result['gpu_time']:.2f}s")
+# Filter points
+buildings = pc.filter_by_classification([6])  # Building points
+vegetation = pc.filter_by_classification([3, 4, 5])  # Vegetation points
+
+# Export filtered data
+buildings.save("buildings_only.laz")
+vegetation.save("vegetation_only.laz")
 ```
 
-### Traitement par Lot avec Callbacks
+### Feature Extraction
 
 ```python
-from ign_lidar import BatchProcessor
+from ign_lidar.features import BuildingDetector, VegetationClassifier
 
-def progress_callback(tile_name, progress, status):
-    print(f"{tile_name}: {progress:.1f}% - {status}")
-
-def error_callback(tile_name, error):
-    print(f"ERREUR {tile_name}: {error}")
-
-# Traitement par lot
-batch = BatchProcessor(
-    n_jobs=4,
-    verbose=True,
-    on_progress=progress_callback,
-    on_error=error_callback
+# Initialize feature extractors
+building_detector = BuildingDetector(
+    min_points=100,
+    min_height=2.0,
+    planarity_threshold=0.1
 )
 
-# Traiter répertoire
-results = batch.process_directory(
-    input_dir="data/",
-    output_dir="enriched/",
-    pattern="*.las",
-    add_rgb=True,
-    preprocess=True
+vegetation_classifier = VegetationClassifier(
+    height_threshold=0.5,
+    density_threshold=1.0
 )
 
-# Résumé
-print(f"\nTraité {len(results['success'])} dalles avec succès")
-print(f"Échecs: {len(results['failed'])}")
+# Extract buildings
+buildings = building_detector.extract_buildings(pc)
+
+# Classify vegetation
+vegetation_types = vegetation_classifier.classify_vegetation(pc)
+
+print(f"Detected {len(buildings)} buildings")
+print(f"Vegetation coverage: {vegetation_types.coverage:.1%}")
 ```
 
-## Résolution de Problèmes
+## Common Tasks
 
-### Problèmes Courants
-
-#### 1. Erreur Mémoire Insuffisante
+### Task 1: Convert File Formats
 
 ```bash
-# Symptôme: MemoryError ou OOMError
-# Solution: Réduire chunk_size
+# Convert LAS to LAZ (compressed)
+ign-lidar-hd convert \
+  --input data/input.las \
+  --output data/output.laz \
+  --format laz
 
-ign-lidar-hd enrich --input data.las --output out.laz \
-  --chunk-size 500000  # Réduire de 1M à 500k
+# Convert to ASCII format
+ign-lidar-hd convert \
+  --input data/input.las \
+  --output data/output.txt \
+  --format ascii \
+  --fields "x,y,z,classification,intensity"
 ```
 
-#### 2. GPU Non Détecté
+### Task 2: Extract Specific Features
 
 ```bash
-# Vérifier CUDA
-python -c "import torch; print(torch.cuda.is_available())"
+# Extract only buildings
+ign-lidar-hd extract \
+  --input data/tile.las \
+  --output data/buildings.laz \
+  --feature buildings \
+  --min-height 2.0
 
-# Si False, vérifier les drivers NVIDIA
-nvidia-smi
-
-# Réinstaller avec support CUDA
-pip uninstall torch
-pip install torch --index-url https://download.pytorch.org/whl/cu118
+# Extract ground points
+ign-lidar-hd extract \
+  --input data/tile.las \
+  --output data/ground.laz \
+  --feature ground \
+  --method cloth_simulation
 ```
 
-#### 3. Téléchargement Échoue
+### Task 3: Quality Analysis
 
 ```bash
-# Vérifier la connexion réseau
-ping geoservices.ign.fr
+# Check data completeness
+ign-lidar-hd quality \
+  --input data/tile.las \
+  --checks completeness,density,accuracy \
+  --report quality_report.html
 
-# Utiliser l'option retry
-ign-lidar-hd download --tiles 0631_6275 \
+# Validate against standards
+ign-lidar-hd validate \
+  --input data/tile.las \
+  --standard ign_hd \
+  --output validation_report.json
+```
+
+## Dépannage Common Issues
+
+### Issue 1: Out of Memory Errors
+
+```bash
+# Reduce chunk size
+ign-lidar-hd enrich \
+  --input large_file.las \
+  --output processed.laz \
+  --chunk-size 500000  # Smaller chunks
+
+# Use streaming processing
+ign-lidar-hd enrich \
+  --input large_file.las \
+  --output processed.laz \
+  --streaming \
+  --max-memory 4GB
+```
+
+### Issue 2: Slow Traitementing
+
+```bash
+# Enable parallel processing
+ign-lidar-hd enrich \
+  --input file.las \
+  --output processed.laz \
+  --parallel \
+  --workers 8
+
+# Use GPU acceleration (if available)
+ign-lidar-hd enrich \
+  --input file.las \
+  --output processed.laz \
+  --gpu \
+  --batch-size 50000
+```
+
+### Issue 3: Téléchargement Failures
+
+```bash
+# Retry with different settings
+ign-lidar-hd download \
+  --tiles 0631_6275 \
   --output-dir ./data \
-  --retry 5 \
-  --timeout 300
+  --retry 3 \
+  --timeout 300 \
+  --verify-checksums
+
+# Use alternative download method
+ign-lidar-hd download \
+  --tiles 0631_6275 \
+  --output-dir ./data \
+  --method direct \
+  --mirror alternative
 ```
 
-#### 4. Fichiers de Sortie Corrompus
+## Prochaines étapes
+
+### Learning Path
+
+1. **📖 Read the Documentation**
+
+   - [Utilisation de base Guide](./basic-usage)
+   - [CLI Commands Reference](./cli-commands)
+   - [API Documentation](../api/processor)
+
+2. **🔧 Try Advanced Features**
+
+   - [GPU Acceleration](./gpu-acceleration)
+   - [Pipeline Configuration](../features/pipeline-configuration)
+   - [RGB Augmentation](../features/rgb-augmentation)
+
+3. **🎯 Explore Use Cases**
+   - [QGIS Integration](./qgis-integration)
+   - [Custom Features](../tutorials/custom-features)
+   - [Regional Traitementing](./regional-processing)
+
+### Community and Support
+
+- **📚 Documentation**: Complete guides and API reference
+- **🐛 Issue Tracker**: Report bugs and request features
+- **💬 Discussions**: Community support and examples
+- **📧 Contact**: Direct support for users
+
+### Exemple Projects
+
+Get inspired by these example projects:
 
 ```bash
-# Valider le fichier de sortie
-ign-lidar-hd validate ./enriched/output.laz
+# Clone examples repository
+git clone https://github.com/sducournau/ign-lidar-examples.git
+cd ign-lidar-examples
 
-# Utiliser le mode sûr
-ign-lidar-hd enrich --input data.las --output out.laz \
-  --safe-mode  # Validations supplémentaires
+# Try the examples
+python examples/building_extraction.py
+python examples/vegetation_analysis.py
+python examples/urban_planning_workflow.py
 ```
 
-### Obtenir de l'Aide
+## Configuration Reference
 
-Si vous rencontrez des problèmes :
+### Basic Configuration Options
 
-1. **Vérifier les logs** :
-   ```bash
-   ign-lidar-hd enrich ... --verbose --log-file debug.log
-   ```
+```yaml
+# Complete configuration example
+processing:
+  chunk_size: 1000000 # Points per processing chunk
+  n_jobs: -1 # CPU cores (-1 = all)
+  use_gpu: false # Enable GPU acceleration
+  memory_limit: "8GB" # Maximum memory usage
 
-2. **Activer le mode débogage** :
-   ```python
-   import logging
-   logging.basicConfig(level=logging.DEBUG)
-   ```
+input:
+  coordinate_system: "EPSG:2154" # Lambert 93
+  validation: true # Validate input files
 
-3. **Signaler un problème** :
-   - [Issues GitHub](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)
-   - Inclure : version, OS, logs, commande utilisée
+output:
+  format: "laz" # Sortie format
+  compression: 7 # Compression level (1-9)
+  precision: 0.01 # Coordinate precision
 
-## Prochaines Étapes
+features:
+  buildings:
+    enabled: true
+    min_points: 100
+    min_height: 2.0
 
-Maintenant que vous avez les bases, explorez :
+  vegetation:
+    enabled: true
+    height_threshold: 0.5
 
-- 📖 [Guide d'Utilisation Basique](/guides/basic-usage) - Workflows détaillés
-- 🚀 [Guide d'Accélération GPU](/guides/gpu-acceleration) - Configuration GPU et optimisation
-- 🎨 [Augmentation RGB](/features/rgb-augmentation) - Ajout de couleurs
-- 🌿 [Augmentation Infrarouge](/features/infrared-augmentation) - NIR et NDVI
-- 🔧 [Référence API](/api/cli) - Documentation complète des commandes
+  ground:
+    enabled: false
+    method: "cloth_simulation"
 
-## Ressources Supplémentaires
+quality:
+  validation: true # Validate outputs
+  generate_reports: true # Create quality reports
+  error_threshold: 0.1 # Maximum acceptable error
+```
 
-- 📺 [Tutoriel Vidéo](https://www.youtube.com/watch?v=ksBWEhkVqQI)
-- 📚 [Exemples de Code](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples)
-- 🎓 [Tutoriels Avancés](/tutorials/custom-features)
-- 💬 [Discussions Communautaires](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/discussions)
+## Related Documentation
 
----
-
-**Félicitations /mnt/d/Users/Simon/OneDrive/Documents/GitHub/IGN_LIDAR_HD_DATASET/website && python3 /tmp/update_fr_intro.py* Vous êtes maintenant prêt à commencer le traitement de données LiDAR avec IGN LiDAR HD. 🎉
+- [Installation Guide](../installation/quick-start)
+- [Utilisation de base](./basic-usage)
+- [CLI Commands](./cli-commands)
+- [Configuration API](../api/configuration)
