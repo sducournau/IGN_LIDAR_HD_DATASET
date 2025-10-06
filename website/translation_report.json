@@ -1,0 +1,14 @@
+{
+  "generated_at": "2025-10-06T09:12:27.354346",
+  "summary": {
+    "total_en_files": 57,
+    "total_fr_files": 59,
+    "missing_in_fr": [],
+    "extra_in_fr": [
+      "examples/index.md",
+      "guides/visualization.md"
+    ],
+    "common_files": 57
+  },
+  "files": {}
+}

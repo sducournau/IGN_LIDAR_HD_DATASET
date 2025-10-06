@@ -2,19 +2,27 @@
 sidebar_position: 1
 ---
 
-# Fonctionnalités Personnalisées
+<!-- 
+🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
+Ce fichier provient de: tutorials/custom-features.md
+Traduit automatiquement - nécessite une révision humaine.
+Conservez tous les blocs de code, commandes et noms techniques identiques.
+-->
 
-Apprenez à créer et intégrer des extracteurs de fonctionnalités personnalisés pour des tâches spécialisées de traitement LiDAR.
 
-## Vue d'Ensemble
+# Custom Features
 
-La bibliothèque IGN LiDAR HD fournit un framework flexible pour implémenter des algorithmes d'extraction de fonctionnalités personnalisés. Ce tutoriel montre comment créer vos propres extracteurs de fonctionnalités.
+Learn how to create and integrate custom feature extractors for specialized LiDAR processing tasks.
 
-## Création de Fonctionnalités Personnalisées
+## Vue d'ensemble
 
-### Extracteur de Fonctionnalités de Base
+The IGN LiDAR HD library provides a flexible framework for implementing custom feature extraction algorithms. This tutorial shows how to create your own feature extractors.
 
-Créez une classe de fonctionnalité personnalisée en héritant de la classe de base FeatureExtractor :
+## Creating Custom Features
+
+### Basique Feature Extractor
+
+Create a custom feature class by inheriting from the base FeatureExtractor:
 
 ```python
 from ign_lidar.features import FeatureExtractor
@@ -25,19 +33,19 @@ class CustomFeature(FeatureExtractor):
         super().__init__(name="custom_feature", radius=radius)
 
     def extract(self, points, neighborhoods):
-        """Extraire une fonctionnalité personnalisée des voisinages de points."""
+        """Extract custom feature from point neighborhoods."""
         features = []
 
         for neighbors in neighborhoods:
-            # Implémentez votre calcul de fonctionnalité personnalisée
+            # Implement your custom feature calculation
             feature_value = self._calculate_feature(neighbors)
             features.append(feature_value)
 
         return np.array(features)
 
     def _calculate_feature(self, neighbors):
-        """Implémentez votre calcul personnalisé ici."""
-        # Exemple : variance de distance
+        """Implement your custom calculation here."""
+        # Example: distance variance
         if len(neighbors) < 3:
             return 0.0
 
@@ -45,9 +53,9 @@ class CustomFeature(FeatureExtractor):
         return np.var(distances)
 ```
 
-### Fonctionnalité Avancée avec Paramètres
+### Avancé Feature with Parameters
 
-Créez des fonctionnalités plus sophistiquées avec des paramètres configurables :
+Create more sophisticated features with configurable parameters:
 
 ```python
 class AdvancedFeature(FeatureExtractor):
@@ -64,12 +72,12 @@ class AdvancedFeature(FeatureExtractor):
                 features.append(0.0)
                 continue
 
-            # Appliquer une pondération basée sur la distance
+            # Apply weighting based on distance
             center = points[i]
             distances = np.linalg.norm(neighbors - center, axis=1)
             weights = self._compute_weights(distances)
 
-            # Calcul de fonctionnalité pondérée
+            # Weighted feature calculation
             weighted_values = self._compute_weighted_values(neighbors, weights)
             features.append(weighted_values)
 
@@ -85,23 +93,23 @@ class AdvancedFeature(FeatureExtractor):
             return np.ones_like(distances)
 ```
 
-## Enregistrement de Fonctionnalités Personnalisées
+## Registering Custom Features
 
-### Enregistrement de Fonctionnalité Unique
+### Single Feature Registration
 
-Enregistrez votre fonctionnalité personnalisée avec le processeur :
+Register your custom feature with the processor:
 
 ```python
 from ign_lidar import Processor, Config
 
-# Créer un processeur avec des fonctionnalités personnalisées
+# Create processor with custom features
 processor = Processor()
 
-# Enregistrer une fonctionnalité personnalisée
+# Register custom feature
 custom_feature = CustomFeature(radius=3.0)
 processor.register_feature(custom_feature)
 
-# Utiliser dans le traitement
+# Use in processing
 config = Config(
     feature_types=["height_above_ground", "custom_feature"],
     feature_radius=3.0
@@ -110,61 +118,61 @@ config = Config(
 result = processor.process_tile("input.las", config=config)
 ```
 
-### Enregistrement de Fonctionnalités par Lots
+### Batch Feature Registration
 
-Enregistrez plusieurs fonctionnalités personnalisées :
+Register multiple custom features:
 
 ```python
-# Créer plusieurs fonctionnalités personnalisées
+# Create multiple custom features
 features = [
     CustomFeature(radius=2.0),
     AdvancedFeature(radius=3.0, min_points=15),
-    CustomFeature(radius=1.0)  # Paramètres différents
+    CustomFeature(radius=1.0)  # Different parameters
 ]
 
-# Enregistrer toutes les fonctionnalités
+# Register all features
 for feature in features:
     processor.register_feature(feature)
 
-# Configurer le traitement
+# Configure processing
 config = Config(
     feature_types=["custom_feature", "advanced_feature"],
-    enable_gpu=True  # Accélération GPU pour les fonctionnalités personnalisées
+    enable_gpu=True  # GPU acceleration for custom features
 )
 ```
 
-## Combinaison de Fonctionnalités
+## Feature Combination
 
-### Combiner Plusieurs Fonctionnalités
+### Combining Multiple Features
 
-Créez des fonctionnalités composites qui combinent plusieurs calculs :
+Create composite features that combine multiple calculations:
 
 ```python
 class CompositeFeature(FeatureExtractor):
     def __init__(self, radius=2.0):
         super().__init__(name="composite_feature", radius=radius)
 
-        # Initialiser les sous-fonctionnalités
+        # Initialize sub-features
         self.geometric_feature = CustomFeature(radius)
         self.intensity_feature = IntensityFeature(radius)
 
     def extract(self, points, neighborhoods):
-        # Extraire les fonctionnalités individuelles
+        # Extract individual features
         geometric = self.geometric_feature.extract(points, neighborhoods)
         intensity = self.intensity_feature.extract(points, neighborhoods)
 
-        # Combiner les fonctionnalités (exemple : somme pondérée)
+        # Combine features (example: weighted sum)
         weights = [0.7, 0.3]
         combined = weights[0] * geometric + weights[1] * intensity
 
         return combined
 ```
 
-## Optimisation des Performances
+## Performance Optimization
 
-### Fonctionnalités Accélérées par GPU
+### GPU-Accelerated Features
 
-Implémentez l'accélération GPU pour les fonctionnalités personnalisées :
+Implement GPU acceleration for custom features:
 
 ```python
 try:
@@ -182,24 +190,24 @@ try:
                 return self._extract_cpu(points, neighborhoods)
 
         def _extract_gpu(self, points, neighborhoods):
-            # Implémentation GPU utilisant CuPy
+            # GPU implementation using CuPy
             gpu_points = cp.asarray(points)
-            # ... calculs accélérés par GPU
+            # ... GPU-accelerated calculations
             return cp.asnumpy(result)
 
         def _extract_cpu(self, points, neighborhoods):
-            # Implémentation CPU de secours
+            # Fallback CPU implementation
             pass
 
 except ImportError:
-    print("Accélération GPU non disponible")
+    print("GPU acceleration not available")
 ```
 
-## Test des Fonctionnalités Personnalisées
+## Testing Custom Features
 
-### Tests Unitaires
+### Unit Testing
 
-Créez des tests pour vos fonctionnalités personnalisées :
+Create tests for your custom features:
 
 ```python
 import unittest
@@ -211,14 +219,14 @@ class TestCustomFeature(unittest.TestCase):
         self.test_points = generate_test_points(1000)
 
     def test_feature_shape(self):
-        """Tester que la sortie de la fonctionnalité a la forme correcte."""
+        """Test that feature output has correct shape."""
         neighborhoods = self.feature.get_neighborhoods(self.test_points)
         features = self.feature.extract(self.test_points, neighborhoods)
 
         self.assertEqual(len(features), len(self.test_points))
 
     def test_feature_range(self):
-        """Tester que les valeurs de fonctionnalité sont dans la plage attendue."""
+        """Test that feature values are in expected range."""
         neighborhoods = self.feature.get_neighborhoods(self.test_points)
         features = self.feature.extract(self.test_points, neighborhoods)
 
@@ -226,10 +234,10 @@ class TestCustomFeature(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(features)))
 ```
 
-## Bonnes Pratiques
+## Best Practices
 
-1. **Normalisation** : Toujours normaliser les valeurs de fonctionnalités dans la plage [0,1] ou [-1,1]
-2. **Gestion des Erreurs** : Gérer les cas limites (voisinages vides, valeurs NaN)
-3. **Documentation** : Fournir des docstrings claires expliquant la signification des fonctionnalités
-4. **Tests** : Écrire des tests unitaires complets
-5. **Performance** : Considérer l'implémentation GPU pour les fonctionnalités intensives en calcul
+1. **Normalization**: Always normalize feature values to [0,1] or [-1,1] range
+2. **Error Handling**: Handle edge cases (empty neighborhoods, NaN values)
+3. **Documentation**: Provide clear docstrings explaining feature meaning
+4. **Testing**: Write comprehensive unit tests
+5. **Performance**: Consider GPU implementation for computationally intensive features

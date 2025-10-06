@@ -1,63 +1,72 @@
 ---
 sidebar_position: 4
-title: Guide des Workflows
-description: Workflows courants de traitement LiDAR avec diagrammes visuels
-keywords: [workflow, pipeline, traitement, gpu, parallèle, lod]
+title: Workflow Guide
+description: Common LiDAR processing workflows with visual diagrams
+keywords: [workflow, pipeline, processing, gpu, parallel, lod]
 ---
 
-# Guide des Workflows
+<!-- 
+🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
+Ce fichier provient de: workflows.md
+Traduit automatiquement - nécessite une révision humaine.
+Conservez tous les blocs de code, commandes et noms techniques identiques.
+-->
 
-Ce guide présente les workflows de traitement courants avec des représentations visuelles pour vous aider à comprendre le flux de données et les points de décision.
+
+# Flux de travail Guide
+
+This guide demonstrates common processing workflows with visual representations to help you understand the data flow and decision points.
 
 :::tip Navigation
 
-- [Workflow de Base](#-workflow-de-base) - Pipeline de traitement standard
-- [Workflow Accéléré GPU](#-workflow-accéléré-gpu) - Traitement GPU haute performance
-- [Workflow Saut Intelligent](#-workflow-saut-intelligent) - Reprendre les tâches interrompues
-- [Traitement Parallèle](#-workflow-de-traitement-parallèle) - Traitement multi-worker
-- [Bonnes Pratiques](#-workflows-de-bonnes-pratiques) - Workflows optimisés pour différents scénarios
+- [Basic Workflow](#-basic-workflow) - Standard processing pipeline
+- [GPU-Accelerated Workflow](#-gpu-accelerated-workflow) - High-performance GPU processing
+- [Smart Skip Workflow](#-smart-skip-workflow) - Resume interrupted jobs
+- [Parallel Processing](#-parallel-processing-workflow) - Multi-worker processing
+- [Best Practices](#-best-practice-workflows) - Optimized workflows for different scenarios
   :::
 
-## 🚀 Workflow de Base
+## 🚀 Basic Workflow
 
-Le workflow le plus courant pour traiter les données LiDAR en datasets prêts pour le ML.
+The most common workflow for processing LiDAR data into ML-ready datasets.
 
-:::tip Référence de Diagramme
-Pour le diagramme complet du workflow de base, voir [Diagrammes de Workflows - Pipeline de Traitement de Base](reference/workflow-diagrams.md#pipeline-de-traitement-de-base).
+:::tip Diagram Reference
+For the complete basic workflow diagram, see [Workflow Diagrams - Basic Processing Pipeline](reference/workflow-diagrams.md#basic-processing-pipeline).
 :::
 
-Ce workflow comprend les étapes clés suivantes :
+The workflow includes the following key stages:
 
-1. **Vérification de Disponibilité des Données** : Vérifier si les tuiles LiDAR sont déjà téléchargées
-2. **Téléchargement** : Acquérir les tuiles depuis les serveurs IGN si nécessaire
-3. **Validation** : S'assurer que les fichiers téléchargés sont valides
-4. **Enrichissement** : Ajouter des features géométriques et la classification des composants de bâtiments
-5. **Augmentation RGB** : Optionnellement ajouter des informations de couleur depuis les orthophotos
-6. **Traitement** : Créer des patches d'entraînement pour l'apprentissage automatique
+1. **Data Availability Check**: Verify if LiDAR tiles are already downloaded
+2. **Download**: Acquire tiles from IGN servers if needed
+3. **Validation**: Ensure downloaded files are valid
+4. **Enrichment**: Add geometric features and building component classification
+5. **RGB Augmentation**: Optionally add color information from orthophotos
+6. **Processing**: Create training patches for machine learning
+   RGB -->|No| SkipRGB[LiDAR Only]
 
-Référez-vous aux [Diagrammes de Flux de Travail](../reference/workflow-diagrams.md) pour des visualisations complètes.
-SkipRGB --> Features
+   FetchRGB --> Features[Enriched LAZ Ready]
+   SkipRGB --> Features
 
-Features --> Process[Créer Patches d'Entraînement]
-Process --> Output[Dataset ML Prêt]
-Output --> End([Traitement Terminé])
+   Features --> Process[Create Training Patches]
+   Process --> Output[ML Dataset Ready]
+   Output --> End([Process Complete])
 
-Error1 --> End
+   Error1 --> End
 
-style Start fill:#e8f5e8
-style End fill:#e8f5e8
-style Download fill:#e3f2fd
-style Analyze fill:#c8e6c9
-style CleanData fill:#fff9c4
-style Enrich fill:#fff3e0
-style Process fill:#f3e5f5
-style Output fill:#e8f5e8
+   style Start fill:#e8f5e8
+   style End fill:#e8f5e8
+   style Download fill:#e3f2fd
+   style Analyze fill:#c8e6c9
+   style CleanData fill:#fff9c4
+   style Enrich fill:#fff3e0
+   style Process fill:#f3e5f5
+   style Output fill:#e8f5e8
 
 ````
 
-## ⚡ Workflow Accéléré GPU
+## ⚡ GPU-Accelerated Workflow
 
-Workflow pour traiter de grands datasets avec l'accélération GPU (v1.3.0+, corrigé en v1.6.2).
+Workflow for processing large datasets with GPU acceleration (v1.3.0+).
 
 ```mermaid
 flowchart TD
@@ -247,17 +256,96 @@ flowchart LR
     style LOD3_Process fill:#fff3e0
 ```
 
+## 🎯 Enhanced Enrich Pipeline (v1.7.1)
+
+Detailed view of the complete enrich workflow with auto-params and preprocessing.
+
+```mermaid
+flowchart TD
+    Start[Load LAZ Tile] --> AutoCheck{Auto-Params<br/>Enabled?}
+
+    AutoCheck -->|Yes| Sample[Sample 50K Points]
+    AutoCheck -->|No| ManualParams[Use Manual Parameters]
+
+    Sample --> CalcDensity[Calculate:<br/>• Point Density<br/>• NN Distance<br/>• Noise Level]
+    CalcDensity --> Optimize[Determine Optimal:<br/>• Radius: 0.5-3.0m<br/>• SOR k: 8-15<br/>• SOR std: 1.5-2.5<br/>• ROR radius: 1.0-2.0m<br/>• ROR neighbors: 2-6]
+
+    Optimize --> Report[📊 Display Analysis Report]
+    ManualParams --> Report
+    Report --> PreCheck{Preprocessing<br/>Enabled?}
+
+    PreCheck -->|Yes| SOR[Statistical Outlier Removal<br/>Filter noise points]
+    PreCheck -->|No| SkipPre[Skip to Features]
+
+    SOR --> ROR[Radius Outlier Removal<br/>Remove scan artifacts]
+    ROR --> VoxelCheck{Voxel<br/>Downsampling?}
+
+    VoxelCheck -->|Yes| Voxel[Homogenize Point Density]
+    VoxelCheck -->|No| CleanData[Clean Point Cloud]
+    Voxel --> CleanData
+    SkipPre --> Features
+
+    CleanData --> Features[🔧 Feature Computation]
+    Features --> SearchMode{Search Mode}
+
+    SearchMode -->|Radius-based<br/>v1.6.5| RadiusSearch[Radius Search<br/>Artifact-free]
+    SearchMode -->|k-NN<br/>legacy| KNNSearch[k-Nearest Neighbors]
+
+    RadiusSearch --> BuildKDTree[Build KD-Tree]
+    KNNSearch --> BuildKDTree
+
+    BuildKDTree --> CoreFeatures[Compute Core Features:<br/>• Normals<br/>• Curvature<br/>• Planarity<br/>• Verticality]
+
+    CoreFeatures --> ModeCheck{Feature Mode}
+    ModeCheck -->|Core| SaveCore[Core Features Only]
+    ModeCheck -->|Building| BuildFeatures[Building Features:<br/>• Wall probability<br/>• Roof probability<br/>• Edge detection<br/>• Corner detection]
+
+    BuildFeatures --> RGBCheck{Add RGB?}
+    SaveCore --> RGBCheck
+
+    RGBCheck -->|Yes| FetchOrtho[Fetch IGN Orthophoto]
+    RGBCheck -->|No| SaveLAZ[Save Enriched LAZ]
+
+    FetchOrtho --> InterpolateRGB[Interpolate RGB Colors]
+    InterpolateRGB --> SaveLAZ
+
+    SaveLAZ --> End[✅ Enriched Tile Complete]
+
+    style Start fill:#e3f2fd
+    style Sample fill:#c8e6c9
+    style Optimize fill:#c8e6c9
+    style Report fill:#fff9c4
+    style SOR fill:#fff9c4
+    style ROR fill:#fff9c4
+    style Features fill:#fff3e0
+    style RadiusSearch fill:#c8e6c9
+    style SaveLAZ fill:#e8f5e8
+    style End fill:#e8f5e8
+```
+
 ## 📊 Feature Extraction Pipeline
 
 Detailed view of the geometric feature computation process.
 
 ```mermaid
 graph TD
-    Points[Raw Point Cloud] --> KNN[K-Nearest Neighbors]
-    KNN --> Normals[Surface Normals]
-    KNN --> Curvature[Principal Curvature]
+    Points[Raw Point Cloud] --> SearchMethod{Search Method}
+    SearchMethod -->|Radius-based| Radius[Radius Search<br/>Eliminates Artifacts]
+    SearchMethod -->|k-NN| KNN[K-Nearest Neighbors<br/>Legacy Mode]
 
-    Normals --> Planarity[Planarity Measure]
+    Radius --> Neighbors[Variable Neighbors<br/>Per Point]
+    KNN --> FixedNeighbors[Fixed k Neighbors<br/>Per Point]
+
+    Neighbors --> Normals[Surface Normals]
+    FixedNeighbors --> Normals
+
+    Normals --> Eigenvalues[Compute Eigenvalues<br/>Covariance Matrix]
+    Eigenvalues --> Curvature[Principal Curvature]
+
+    Curvature --> Planarity[Planarity Measure]
+    Curvature --> Linearity[Linearity Measure]
+    Curvature --> Anisotropy[Anisotropy Measure]
+
     Normals --> Verticality[Verticality Measure]
     Normals --> Horizontality[Horizontality Measure]
 
@@ -265,8 +353,9 @@ graph TD
     Points --> Height[Height Above Ground]
     Points --> Intensity[Normalized Intensity]
 
-    Curvature --> GeometricFeatures[Geometric Features]
-    Planarity --> GeometricFeatures
+    Planarity --> GeometricFeatures[Geometric Features]
+    Linearity --> GeometricFeatures
+    Anisotropy --> GeometricFeatures
     Verticality --> GeometricFeatures
     Horizontality --> GeometricFeatures
     Density --> GeometricFeatures

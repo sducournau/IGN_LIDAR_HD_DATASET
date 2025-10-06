@@ -1,67 +1,75 @@
 ---
 sidebar_position: 3
-title: "Augmentation RGB GPU"
-description: "Augmentation RGB 24x plus rapide avec accélération GPU"
-keywords: [gpu, rgb, orthophoto, couleur, performance]
+title: "GPU RGB Augmentation"
+description: "24x faster RGB augmentation with GPU acceleration"
+keywords: [gpu, rgb, orthophoto, color, performance]
 ---
 
-# Augmentation RGB Accélérée par GPU
+<!-- 
+🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
+Ce fichier provient de: gpu/rgb-augmentation.md
+Traduit automatiquement - nécessite une révision humaine.
+Conservez tous les blocs de code, commandes et noms techniques identiques.
+-->
 
-**Disponible depuis :** v1.5.0+  
-**Performance :** 24x plus rapide que CPU  
-**Prérequis :** GPU NVIDIA, CuPy  
-**Statut :** ✅ Prêt pour la Production
 
----
+# GPU-Accelerated RGB Augmentation
 
-## 📊 Aperçu
-
-L'augmentation RGB accélérée par GPU offre des accélérations spectaculaires pour ajouter des couleurs des orthophotos IGN aux nuages de points LiDAR. En déplaçant l'interpolation de couleur vers le GPU et en implémentant une mise en cache intelligente, nous obtenons une amélioration de performance d'environ 24x par rapport aux méthodes basées sur CPU.
-
-### Comparaison de Performance
-
-| Points | Temps CPU | Temps GPU | Accélération |
-| ------ | --------- | --------- | ------------ |
-| 10K    | 0,12s     | 0,005s    | 24x          |
-| 100K   | 1,2s      | 0,05s     | 24x          |
-| 1M     | 12s       | 0,5s      | 24x          |
-| 10M    | 120s      | 5s        | 24x          |
+**Available in:** v1.5.0+  
+**Performance:** 24x faster than CPU  
+**Requirements:** NVIDIA GPU, CuPy  
+**Status:** ✅ Production Ready
 
 ---
 
-## 🚀 Démarrage Rapide
+## 📊 Overview
+
+GPU-accelerated RGB augmentation provides dramatic speedups for adding colors from IGN orthophotos to LiDAR point clouds. By moving color interpolation to the GPU and implementing smart caching, we achieve ~24x performance improvement over CPU-based methods.
+
+### Performance Comparison
+
+| Points | CPU Time | GPU Time | Speedup |
+| ------ | -------- | -------- | ------- |
+| 10K    | 0.12s    | 0.005s   | 24x     |
+| 100K   | 1.2s     | 0.05s    | 24x     |
+| 1M     | 12s      | 0.5s     | 24x     |
+| 10M    | 120s     | 5s       | 24x     |
+
+---
+
+## 🚀 Quick Start
 
 ### Installation
 
 ```bash
-# Installer avec support GPU
+# Install with GPU support
 pip install ign-lidar-hd[gpu]
 
-# Ou installer CuPy séparément (correspondant à votre version CUDA)
-pip install cupy-cuda11x  # Pour CUDA 11.x
-pip install cupy-cuda12x  # Pour CUDA 12.x
+# Or install CuPy separately (match your CUDA version)
+pip install cupy-cuda11x  # For CUDA 11.x
+pip install cupy-cuda12x  # For CUDA 12.x
 ```
 
-### Utilisation de Base
+### Basique Usage
 
 ```python
 from ign_lidar.processor import LiDARProcessor
 
-# Activer GPU pour les caractéristiques et RGB
+# Enable GPU for both features and RGB
 processor = LiDARProcessor(
     include_rgb=True,
     rgb_cache_dir='rgb_cache/',
-    use_gpu=True  # Activer l'accélération GPU
+    use_gpu=True  # Enable GPU acceleration
 )
 
-# Traiter une dalle
+# Process a tile
 processor.process_tile('input.laz', 'output.laz')
 ```
 
-### Utilisation CLI
+### CLI Usage
 
 ```bash
-# Activer l'augmentation RGB GPU
+# Enable GPU RGB augmentation
 ign-lidar-hd enrich \
   --input tiles/ \
   --output enriched/ \
@@ -72,28 +80,28 @@ ign-lidar-hd enrich \
 
 ---
 
-## 🔧 Comment Ça Fonctionne
+## 🔧 How It Works
 
-L'augmentation RGB accélérée par GPU se compose de trois composants principaux :
+GPU-accelerated RGB augmentation consists of three main components:
 
-### 1. Interpolation de Couleur GPU
+### 1. GPU Color Interpolation
 
-**Approche CPU (Lente) :**
+**CPU Approach (Slow):**
 
 ```python
-# Interpolation basée PIL sur CPU
+# PIL-based interpolation on CPU
 from PIL import Image
-# Recherche de couleur lente point par point
-# ~12s pour 1M points
+# Slow per-point color lookup
+# ~12s for 1M points
 ```
 
-**Approche GPU (Rapide) :**
+**GPU Approach (Fast):**
 
 ```python
-# Interpolation bilinéaire basée CuPy
+# CuPy-based bilinear interpolation
 import cupy as cp
-# Interpolation GPU parallèle
-# ~0,5s pour 1M points
+# Parallel GPU interpolation
+# ~0.5s for 1M points
 ```
 
 **Implementation:**
@@ -111,42 +119,42 @@ colors_gpu = computer.interpolate_colors_gpu(
 )
 ```
 
-### 2. Mise en Cache Mémoire GPU
+### 2. GPU Memory Caching
 
-**Avantages :**
+**Benefits:**
 
-- Dalles RGB mises en cache dans la mémoire GPU (accès rapide)
-- Politique d'éviction LRU (gestion automatique)
-- Taille de cache configurable
+- RGB tiles cached in GPU memory (fast access)
+- LRU eviction policy (automatic management)
+- Configurable cache size
 
-**Configuration :**
+**Configuration:**
 
 ```python
 from ign_lidar.rgb_augmentation import IGNOrthophotoFetcher
 
 fetcher = IGNOrthophotoFetcher(
-    cache_dir='rgb_cache/',  # Cache disque
-    use_gpu=True             # Cache mémoire GPU
+    cache_dir='rgb_cache/',  # Disk cache
+    use_gpu=True             # GPU memory cache
 )
 
-# Ajuster la taille du cache GPU
-fetcher.gpu_cache_max_size = 20  # Mettre en cache jusqu'à 20 dalles
+# Adjust GPU cache size
+fetcher.gpu_cache_max_size = 20  # Cache up to 20 tiles
 ```
 
-### 3. Pipeline GPU de Bout en Bout
+### 3. End-to-End GPU Pipeline
 
-**Workflow :**
+**Workflow:**
 
 ```
-1. Charger points → GPU
-2. Calculer caractéristiques (GPU)
-3. Récupérer dalle RGB → Cache GPU
-4. Interpoler couleurs (GPU)
-5. Combiner caractéristiques + RGB (GPU)
-6. Transférer vers CPU (une fois à la fin)
+1. Load points → GPU
+2. Compute features (GPU)
+3. Fetch RGB tile → GPU cache
+4. Interpolate colors (GPU)
+5. Combine features + RGB (GPU)
+6. Transfer to CPU (once at end)
 ```
 
-**Pas de transferts CPU ↔ GPU** jusqu'à l'export final = Performance maximale !
+**No CPU ↔ GPU transfers** until final export = Maximum performance!
 
 ---
 
@@ -380,7 +388,7 @@ print(f"GPU cache: {fetcher.gpu_cache is not None}")
 
 ## 📚 Examples
 
-### Example 1: Basic RGB GPU Usage
+### Exemple 1: Basic RGB GPU Usage
 
 ```python
 from ign_lidar.processor import LiDARProcessor
@@ -398,7 +406,7 @@ stats = processor.process_tile('tile.laz', 'output.laz')
 print(f"Processed {stats['num_points']:,} points")
 ```
 
-### Example 2: Batch Processing with GPU
+### Exemple 2: Batch Processing with GPU
 
 ```python
 from ign_lidar.processor import LiDARProcessor
@@ -419,7 +427,7 @@ for laz_file in input_dir.glob('*.laz'):
     processor.process_tile(laz_file, output_dir / laz_file.name)
 ```
 
-### Example 3: Low-Level RGB Interpolation
+### Exemple 3: Low-Level RGB Interpolation
 
 ```python
 import numpy as np
@@ -500,16 +508,16 @@ Where:
 
 ---
 
-## Voir Aussi
+## See Also
 
-- **[Aperçu GPU](overview.md)** - Configuration de l'accélération GPU
-- **[Caractéristiques GPU](features.md)** - Détails du calcul des caractéristiques
-- **[Augmentation RGB (CPU)](../features/rgb-augmentation.md)** - Version CPU
-- **[Architecture](../architecture.md)** - Architecture du système
-- **[Workflows](../workflows.md)** - Exemples de workflow GPU
+- **[GPU Overview](overview.md)** - Setup GPU acceleration
+- **[GPU Features](features.md)** - Feature computation details
+- **[RGB Augmentation (CPU)](../features/rgb-augmentation.md)** - CPU version
+- **[Architecture](../architecture.md)** - System architecture
+- **[Workflows](../workflows.md)** - GPU workflow examples
 
 ---
 
-**Dernière Mise à Jour :** 3 octobre 2025  
-**Version :** v1.5.0  
-**Statut :** ✅ Implémenté
+**Last Updated:** October 3, 2025  
+**Version:** v1.5.0  
+**Status:** ✅ Implemented

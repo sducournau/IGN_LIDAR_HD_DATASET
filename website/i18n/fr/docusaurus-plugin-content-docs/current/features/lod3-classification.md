@@ -1,148 +1,183 @@
 ---
 sidebar_position: 3
-title: Classification Level of Detail (LOD)
-description: Comprendre les niveaux de détail des bâtiments pour l'analyse architecturale
+title: Level of Detail (LOD) Classification
+description: Understanding building detail levels for architectural analysis
 ---
 
-# Classification Level of Detail (LOD)
+<!-- 
+🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
+Ce fichier provient de: features/lod3-classification.md
+Traduit automatiquement - nécessite une révision humaine.
+Conservez tous les blocs de code, commandes et noms techniques identiques.
+-->
 
-![Modèle de Bâtiment LOD3](/img/lod3.png)
 
-## Aperçu
+# Level of Detail (LOD) Classification
 
-Le Level of Detail (LOD) est un concept fondamental dans la modélisation 3D de bâtiments et l'analyse architecturale. Cette bibliothèque se concentre sur la classification des bâtiments basée sur leur complexité géométrique et leur niveau de détail, ciblant particulièrement la classification **LOD3** à partir de nuages de points LiDAR.
+![LOD3 Building Model](/img/lod3.png)
 
-## Niveaux LOD Expliqués
+## Vue d'ensemble
 
-### LOD0 - Niveau Régional/Emprise
+Level of Detail (LOD) is a fundamental concept in 3D building modeling and architectural analysis. This library focuses on classifying buildings based on their geometric complexity and detail level, particularly targeting **LOD3** classification from LiDAR point clouds.
 
-- **Description** : Emprises de bâtiments 2D sans information de hauteur
-- **Cas d'usage** : Planification urbaine, analyse d'occupation du sol
-- **Source de données** : Cartes cadastrales, imagerie satellite
+## LOD Levels Explained
 
-### LOD1 - Modèle Bloc
+### LOD0 - Regional/Footprint Level
 
-- **Description** : Blocs de bâtiments simples extrudés avec hauteur uniforme
-- **Géométrie** : Prismes rectangulaires de base
-- **Cas d'usage** : Visualisation à l'échelle de la ville, études de morphologie urbaine
+- **Description**: 2D building footprints without height information
+- **Use Cases**: Urban planning, land use analysis
+- **Data Source**: Cadastral maps, satellite imagery
 
-### LOD2 - Structure de Toit
+### LOD1 - Block Model
 
-- **Description** : Bâtiments avec structures de toit détaillées et éléments architecturaux majeurs
-- **Caractéristiques** : Formes de toit, lucarnes, cheminées
-- **Cas d'usage** : Analyse du potentiel solaire, modélisation urbaine détaillée
+- **Description**: Simple extruded building blocks with uniform height
+- **Geometry**: Basic rectangular prisms
+- **Use Cases**: City-scale visualization, urban morphology studies
 
-### LOD3 - Détail Architectural (Cible)
+### LOD2 - Roof Structure
 
-- **Description** : Modèles de bâtiments détaillés incluant les éléments de façade
-- **Caractéristiques** :
-  - Fenêtres et portes
-  - Balcons et terrasses
-  - Ornements architecturaux
-  - Textures de bâtiment
-- **Cas d'usage** : Documentation patrimoniale, visualisation détaillée, analyse architecturale
+- **Description**: Buildings with detailed roof structures and major architectural elements
+- **Features**: Roof shapes, dormers, chimneys
+- **Use Cases**: Solar potential analysis, detailed urban modeling
 
-### LOD4 - Structure Intérieure
+### LOD3 - Architectural Detail (Target)
 
-- **Description** : Modèles de bâtiments complets incluant les espaces intérieurs
-- **Caractéristiques** : Aménagements de pièces, mobilier, éléments architecturaux intérieurs
-- **Cas d'usage** : Navigation intérieure, gestion d'installations
+- **Description**: Detailed building models including facade elements
+- **Features**:
+  - Windows and doors
+  - Balconies and terraces
+  - Architectural ornaments
+  - Building textures
+- **Use Cases**: Heritage documentation, detailed visualization, architectural analysis
 
-## Classification dans Cette Bibliothèque
+### LOD4 - Interior Structure
 
-### Objectif LOD3
+- **Description**: Complete building models including interior spaces
+- **Features**: Room layouts, furniture, interior architectural elements
+- **Use Cases**: Indoor navigation, facility management
 
-Cette bibliothèque est spécifiquement conçue pour extraire des caractéristiques de niveau LOD3 à partir de données LiDAR haute densité de l'IGN :
+## LOD3 Classification with LiDAR
 
-```python
-from ign_lidar.classes import LOD3_CLASSES
+### Why LOD3?
 
-# Classes LOD3 disponibles
-print(LOD3_CLASSES)
-# ['roof', 'wall', 'window', 'door', 'balcony', 'chimney', 'dormer']
+LOD3 represents the optimal balance between geometric detail and computational feasibility for LiDAR-based analysis:
+
+- **Sufficient Detail**: Captures essential architectural features visible in high-resolution LiDAR
+- **Processing Efficiency**: Manageable computational requirements
+- **Practical Applications**: Supports real-world use cases in architecture and urban planning
+
+### Key Features for LOD3 Detection
+
+1. **Facade Complexity**
+
+   - Window and door openings
+   - Balcony protrusions
+   - Architectural ornaments
+
+2. **Geometric Regularity**
+
+   - Consistent architectural patterns
+   - Repetitive structural elements
+   - Symmetrical facades
+
+3. **Point Density Analysis**
+   - High-resolution detail capture
+   - Surface texture information
+   - Edge definition quality
+
+## Classification Workflow
+
+```mermaid
+flowchart TD
+    A[LiDAR Point Cloud] --> B[Building Segmentation]
+    B --> C[Feature Extraction]
+    C --> D[Geometric Analysis]
+    D --> E[LOD3 Classification]
+    E --> F[Architectural Style Detection]
+
+    C --> C1[Surface Normals]
+    C --> C2[Planarity Metrics]
+    C --> C3[Edge Detection]
+    D --> D1[Complexity Score]
+    D --> D2[Detail Density]
+    D --> D3[Regularity Index]
+
+    style A fill:#e1f5fe
+    style E fill:#e8f5e8
+    style F fill:#fff3e0
 ```
 
-### Méthodologie d'Extraction
-
-1. **Segmentation géométrique** : Identification des composants de bâtiment basée sur la géométrie
-2. **Analyse des normales de surface** : Classification des surfaces (toit vs mur vs détails)
-3. **Détection de motifs** : Reconnaissance des caractéristiques architecturales répétitives
-4. **Validation contextuelle** : Vérification des classifications contre les connaissances architecturales
-
-### Caractéristiques Extraites
-
-#### Caractéristiques de Toit
-
-- **Orientation** : Direction de la pente du toit
-- **Pente** : Angle d'inclinaison
-- **Type** : Plat, en pente, complexe
-- **Matériaux** : Classification basée sur les propriétés de réflectance
-
-#### Caractéristiques de Mur
-
-- **Orientation de façade** : Direction cardinale
-- **Verticalité** : Mesure de la planéité verticale
-- **Rugosité de surface** : Texture et détails
-- **Ouvertures** : Détection de fenêtres et portes
-
-#### Éléments Architecturaux
-
-- **Balcons** : Projections horizontales depuis les murs
-- **Cheminées** : Structures verticales sur les toits
-- **Lucarnes** : Fenêtres de toit en saillie
-
-## Applications Pratiques
-
-### Analyse Urbaine
-
-- Documentation du patrimoine architectural
-- Études d'impact visuel
-- Planification de la densification
-
-### Évaluation Énergétique
-
-- Calcul de surface pour l'isolation
-- Analyse d'orientation pour l'efficacité solaire
-- Modélisation thermique détaillée
-
-### Conservation du Patrimoine
-
-- Documentation 3D de bâtiments historiques
-- Suivi des changements architecturaux
-- Plans de restauration
-
-## Validation de Qualité
-
-### Métriques de Précision
+## Implementation Example
 
 ```python
-from ign_lidar.processor import LiDARProcessor
+from ign_lidar import Processor
+from ign_lidar.architectural_styles import ArchitecturalAnalyzer
 
-# Configurer l'extraction LOD3
-processor = LiDARProcessor(
-    lod_level=3,
-    classification_confidence=0.85,
-    min_feature_size=0.5  # 50cm minimum
+# Initialize processor with LOD3 focus
+processor = Processor(
+    target_lod='LOD3',
+    detail_threshold=0.8,
+    complexity_analysis=True
 )
 
-# Traiter et valider
-results = processor.process_tile('building.laz')
-quality_metrics = processor.get_classification_metrics()
+# Analyze architectural details
+analyzer = ArchitecturalAnalyzer()
+
+# Process building for LOD3 classification
+results = processor.classify_building_lod(
+    point_cloud_path="building.las",
+    architectural_analysis=True
+)
+
+print(f"Detected LOD: {results['lod_level']}")
+print(f"Confidence: {results['confidence']:.2f}")
+print(f"Key features: {results['detected_features']}")
 ```
 
-### Seuils de Confiance
+## Quality Metrics
 
-| Élément  | Confiance Min | Taille Min | Notes              |
-| -------- | ------------- | ---------- | ------------------ |
-| Toit     | 0.90          | 2.0 m²     | Surface principale |
-| Mur      | 0.85          | 1.0 m²     | Façades verticales |
-| Fenêtre  | 0.75          | 0.25 m²    | Petits détails     |
-| Balcon   | 0.80          | 0.5 m²     | Projections        |
-| Cheminée | 0.70          | 0.1 m²     | Éléments fins      |
+### LOD3 Classification Confidence
 
-## Voir Aussi
+- **High Confidence (>0.8)**: Clear architectural details, regular patterns
+- **Medium Confidence (0.5-0.8)**: Some architectural elements, moderate detail
+- **Low Confidence (&lt;0.5)**: Minimal architectural detail, simple geometry
 
-- [Guide des Caractéristiques](/docs/features/overview) : Caractéristiques détaillées disponibles
-- [Workflow Complet](/docs/guides/complete-workflow) : Pipeline de traitement de bout en bout
-- [Classification LOD2](/docs/reference/lod2-reference) : Comparaison avec LOD2
-- [API de Classification](/docs/api/classification) : Référence technique complète
+### Validation Criteria
+
+1. **Facade Detail Score**: Measures window/door detection accuracy
+2. **Geometric Complexity**: Quantifies architectural ornament presence
+3. **Pattern Regularity**: Evaluates structural consistency
+4. **Point Density Quality**: Assesses LiDAR capture resolution
+
+## Best Practices
+
+### For Optimal LOD3 Classification
+
+1. **Input Data Quality**
+
+   - Use high-density LiDAR (>10 points/m²)
+   - Ensure good building coverage
+   - Minimize occlusion effects
+
+2. **Processing Parameters**
+
+   - Adjust detail thresholds based on building type
+   - Consider regional architectural styles
+   - Validate results with ground truth data
+
+3. **Post-Processing**
+   - Review classification confidence scores
+   - Manual verification for critical applications
+   - Cross-reference with architectural databases
+
+## Related Documentation
+
+- [Architectural Styles](./architectural-styles.md) - Understanding regional building patterns
+- [Axonometry Analysis](./axonometry.md) - 3D geometric representation methods
+- [Feature Extraction](../api/features.md) - Technical implementation details
+
+## Further Reading
+
+- **CityGML LOD Specification**: Official standards for 3D city modeling
+- **IGN Technical Documentation**: French national mapping agency guidelines
+- **Architectural Pattern Recognition**: Academic research on building classification

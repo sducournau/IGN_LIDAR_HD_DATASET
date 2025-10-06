@@ -1,99 +1,107 @@
 ---
 sidebar_position: 3
-title: Commande CLI Download
-description: Télécharger tuiles IGN LiDAR HD depuis serveurs officiels
-keywords: [cli, téléchargement, tuiles, ign, lidar]
+title: CLI Download Command
+description: Download IGN LiDAR HD tiles from official servers
+keywords: [cli, download, tiles, ign, lidar]
 ---
 
-# Référence Commande CLI Download
+<!-- 
+🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
+Ce fichier provient de: reference/cli-download.md
+Traduit automatiquement - nécessite une révision humaine.
+Conservez tous les blocs de code, commandes et noms techniques identiques.
+-->
 
-La commande `ign-lidar download` récupère les tuiles LiDAR HD depuis les serveurs officiels IGN.
 
-## Syntaxe
+# CLI Download Command Reference
+
+The `ign-lidar download` command retrieves LiDAR HD tiles from IGN's official servers.
+
+## Syntax
 
 ```bash
-ign-lidar download [OPTIONS] IDS_TUILES REPERTOIRE_SORTIE
+ign-lidar download [OPTIONS] TILE_IDS OUTPUT_DIR
 ```
 
-## Utilisation de Base
+## Basique Usage
 
-### Télécharger Tuile Unique
+### Download Single Tile
 
 ```bash
 ign-lidar download C_3945-6730_2022 ./tiles/
 ```
 
-### Télécharger Tuiles Multiples
+### Download Multiple Tiles
 
 ```bash
 ign-lidar download C_3945-6730_2022 C_3945-6735_2022 ./tiles/
 ```
 
-### Télécharger depuis Liste
+### Download from List
 
 ```bash
 ign-lidar download --from-file tile_list.txt ./tiles/
 ```
 
-## Options de Commande
+## Commande Options
 
-### Options Entrée
+### Entrée Options
 
-#### `IDS_TUILES` (requis)
+#### `TILE_IDS` (required)
 
-Un ou plusieurs identifiants de tuiles à télécharger.
+One or more tile identifiers to download.
 
 #### `--from-file, -f`
 
-Lire IDs tuiles depuis fichier texte (un par ligne).
+Read tile IDs from text file (one per line).
 
 #### `--bbox`
 
-Télécharger toutes tuiles dans emprise.
-Format : `xmin,ymin,xmax,ymax`
+Download all tiles within bounding box.
+Format: `xmin,ymin,xmax,ymax`
 
-### Options Sortie
+### Sortie Options
 
-#### `REPERTOIRE_SORTIE` (requis)
+#### `OUTPUT_DIR` (required)
 
-Répertoire pour sauvegarder tuiles téléchargées.
+Directory to save downloaded tiles.
 
 #### `--format`
 
-Format de téléchargement.
-**Options :** `laz`, `las`
-**Défaut :** `laz`
+Download format.
+**Options:** `laz`, `las`
+**Default:** `laz`
 
-### Options Téléchargement
+### Download Options
 
 #### `--overwrite`
 
-Écraser fichiers existants.
+Overwrite existing files.
 
 #### `--verify`
 
-Vérifier fichiers téléchargés.
+Verify downloaded files.
 
 #### `--parallel, -p`
 
-Nombre téléchargements parallèles.
-**Défaut :** `4`
+Number of parallel downloads.
+**Default:** `4`
 
 ## Exemples
 
-### Télécharger par Emprise
+### Download by Bounding Box
 
 ```bash
 ign-lidar download --bbox 3945000,6730000,3950000,6735000 ./tiles/
 ```
 
-### Téléchargements Parallèles avec Vérification
+### Parallel Downloads with Verification
 
 ```bash
 ign-lidar download --parallel 8 --verify --from-file tiles.txt ./data/
 ```
 
-## Commandes Associées
+## Related Commands
 
-- [`ign-lidar enrich`](./cli-enrich.md) - Enrichir tuiles téléchargées
-- [`ign-lidar patch`](./cli-patch.md) - Générer patches entraînement
+- [`ign-lidar enrich`](./cli-enrich.md) - Enrich downloaded tiles
+- [`ign-lidar patch`](./cli-patch.md) - Generate training patches

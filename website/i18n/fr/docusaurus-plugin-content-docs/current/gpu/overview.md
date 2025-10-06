@@ -1,121 +1,134 @@
 ---
 sidebar_position: 1
-title: "Aperçu de l'Accélération GPU"
-description: "Configuration et utilisation de l'accélération GPU pour un traitement LiDAR plus rapide"
-keywords: [gpu, cuda, cupy, performance, accélération]
+title: "GPU Acceleration Overview"
+description: "Setup and use GPU acceleration for faster LiDAR processing"
+keywords: [gpu, cuda, cupy, performance, acceleration]
 ---
 
-# Aperçu de l'Accélération GPU
+<!-- 
+🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
+Ce fichier provient de: gpu/overview.md
+Traduit automatiquement - nécessite une révision humaine.
+Conservez tous les blocs de code, commandes et noms techniques identiques.
+-->
 
-**Disponible depuis :** v1.3.0+  
-**Boost de Performance :** 5-10x plus rapide que CPU  
-**Requis :** GPU NVIDIA avec CUDA 11.0+
 
-:::tip Statut du Développement GPU
-🚧 **Amélioration GPU Majeure en Cours** - Nous implémentons une accélération GPU complète à travers tout le pipeline. Voir notre feuille de route détaillée dans la section "Développement Futur" ci-dessous pour les fonctionnalités à venir.
+# GPU Acceleration Overview
+
+**Available in:** v1.3.0+  
+**Performance Boost:** 5-10x faster than CPU  
+**Requirements:** NVIDIA GPU with CUDA 11.0+
+
+:::tip GPU Development Status
+🚧 **Major GPU Enhancement in Progress** - We're implementing comprehensive GPU acceleration across the entire pipeline. See our detailed roadmap in the "Future Development" section below for upcoming features.
 :::
 
-## Aperçu
+## Vue d'ensemble
 
-L'accélération GPU peut fournir une **accélération de 4-10x** pour le calcul des caractéristiques par rapport au traitement CPU, ce qui la rend essentielle pour les grands jeux de données LiDAR et les pipelines de production.
+GPU acceleration can provide **4-10x speedup** for feature computation compared to CPU processing, making it essential for large-scale LiDAR datasets and production pipelines.
 
-### Avantages
+### Benefits
 
-- ⚡ **4-10x plus rapide** calcul des caractéristiques
-- 🔄 **Repli automatique sur CPU** quand GPU indisponible
-- 📦 **Aucun changement de code** requis - juste un flag
-- 🎯 **Prêt pour la production** avec gestion complète des erreurs
-- 💾 **Efficace en mémoire** avec traitement par lots intelligent
+- ⚡ **4-10x faster** feature computation
+- 🔄 **Automatic CPU fallback** when GPU unavailable
+- 📦 **No code changes** required - just add a flag
+- 🎯 **Production-ready** with comprehensive error handling
+- 💾 **Memory efficient** with smart batching
 
-:::tip Gains de Performance
-L'accélération GPU est plus bénéfique pour les nuages de points avec >100K points. Pour les petits datasets, le traitement CPU peut être plus rapide en raison de l'overhead d'initialisation GPU.
+:::tip Performance Gains
+Accélération GPU is most beneficial for point clouds with >100K points. For smaller datasets, CPU processing may be faster due to GPU initialization overhead.
 :::
 
-## Prérequis
+## Exigences
 
-### Prérequis Matériels
+### Hardware Requirements
 
-- **GPU :** GPU NVIDIA avec support CUDA
-- **Mémoire :** 4GB+ RAM GPU recommandée (8GB+ pour grandes dalles)
-- **Capacité de Calcul :** 3.5 ou supérieur
+- **GPU:** NVIDIA GPU with CUDA support
+- **Memory:** 4GB+ GPU RAM recommended (8GB+ for large tiles)
+- **Compute Capability:** 3.5 or higher
 
-### Prérequis Logiciels
+### Software Requirements
 
-- **CUDA Toolkit :** 11.0 ou supérieur (11.8 ou 12.x recommandé)
-- **Python :** 3.8 ou supérieur
-- **Packages Python :** CuPy (requis), RAPIDS cuML (optionnel, meilleures performances)
+- **CUDA Toolkit:** 11.0 or higher (11.8 or 12.x recommended)
+- **Python:** 3.8 or higher
+- **Python packages:** CuPy (required), RAPIDS cuML (optional, better performance)
 
-### Modèles GPU Testés
+### Tested GPU Models
 
-| Modèle GPU  | Mémoire | Performance | Notes                    |
-| ----------- | ------- | ----------- | ------------------------ |
-| RTX 4090    | 24 GB   | Excellente  | Meilleure performance    |
-| RTX 3080    | 10 GB   | Très Bonne  | Bon rapport qualité/prix |
-| RTX 3060    | 12 GB   | Bonne       | Économique               |
-| Tesla V100  | 16 GB   | Très Bonne  | Serveur/cloud            |
-| GTX 1080 Ti | 11 GB   | Modérée     | Ancienne génération      |
+| GPU Model   | Memory | Performance | Notes                  |
+| ----------- | ------ | ----------- | ---------------------- |
+| RTX 4090    | 24 GB  | Excellent   | Best performance       |
+| RTX 3080    | 10 GB  | Very Good   | Good price/performance |
+| RTX 3060    | 12 GB  | Good        | Budget-friendly        |
+| Tesla V100  | 16 GB  | Very Good   | Server/cloud           |
+| GTX 1080 Ti | 11 GB  | Moderate    | Older generation       |
 
 ## Installation
 
-### Étape 1 : Vérifier la Disponibilité CUDA
+### Step 1: Check CUDA Availability
 
-D'abord, vérifiez que vous avez un GPU NVIDIA et CUDA installé :
+First, verify you have an NVIDIA GPU and CUDA installed:
 
 ```bash
-# Vérifier si vous avez un GPU NVIDIA
+# Check if you have an NVIDIA GPU
 nvidia-smi
 
-# Devrait afficher les infos de votre GPU et la version CUDA
+# Should show your GPU info and CUDA version
 ```
 
-Si `nvidia-smi` n'est pas trouvé, vous devez d'abord installer les pilotes NVIDIA et le CUDA Toolkit.
+If `nvidia-smi` is not found, you need to install NVIDIA drivers and CUDA Toolkit first.
 
-### Étape 2 : Installer le CUDA Toolkit
+### Step 2: Install CUDA Toolkit
 
-Visitez [NVIDIA CUDA Downloads](https://developer.nvidia.com/cuda-downloads) et suivez les instructions pour votre OS.
+Visit [NVIDIA CUDA Downloads](https://developer.nvidia.com/cuda-downloads) and follow instructions for your OS.
 
-**Versions recommandées :**
+**Recommended versions:**
 
-- CUDA 11.8 (le plus compatible)
-- CUDA 12.x (dernières fonctionnalités)
+- CUDA 11.8 (most compatible)
+- CUDA 12.x (latest features)
 
-:::info Support WSL2
-L'accélération GPU fonctionne sur WSL2 ! Prérequis :
+:::info WSL2 Support
+Accélération GPU works on WSL2! Requirements:
 
-- Windows 11 ou Windows 10 21H2+
-- Pilotes NVIDIA installés sur Windows
-- CUDA toolkit installé dans WSL2
+- Windows 11 or Windows 10 21H2+
+- NVIDIA drivers installed on Windows
+- CUDA toolkit installed in WSL2
 
-Voir le [guide NVIDIA WSL](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) pour les détails.
+See [NVIDIA WSL guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) for details.
 :::
 
-### Étape 3 : Installer les Dépendances GPU Python
+### Step 3: Install Python GPU Dependencies
+
+:::warning CuPy Installation
+CuPy must be installed separately as it requires a specific version matching your CUDA Toolkit. Installing via `pip install ign-lidar-hd[gpu]` will **not work** as it would attempt to build CuPy from source.
+:::
 
 ```bash
 # Option 1: Basic GPU support with CuPy (recommended for most users)
-pip install ign-lidar-hd[gpu]
+pip install ign-lidar-hd
+pip install cupy-cuda11x  # For CUDA 11.x
+# OR
+pip install cupy-cuda12x  # For CUDA 12.x
 
 # Option 2: Advanced GPU with RAPIDS cuML (best performance)
-pip install ign-lidar-hd[gpu-full]
-
-# Option 3: RAPIDS via conda (recommended for RAPIDS cuML)
+pip install ign-lidar-hd
+pip install cupy-cuda12x  # Choose based on your CUDA version
 conda install -c rapidsai -c conda-forge -c nvidia cuml
-pip install ign-lidar-hd[gpu]
 
-# Option 4: Manual installation
-# For CUDA 11.x
-pip install cupy-cuda11x
-pip install cuml-cu11  # Optional: RAPIDS cuML
-
-# For CUDA 12.x
-pip install cupy-cuda12x
-pip install cuml-cu12  # Optional: RAPIDS cuML
+# Option 3: RAPIDS via pip (may require more configuration)
+pip install ign-lidar-hd
+pip install cupy-cuda11x  # For CUDA 11.x
+pip install cuml-cu11     # For CUDA 11.x
+# OR
+pip install cupy-cuda12x  # For CUDA 12.x
+pip install cuml-cu12     # For CUDA 12.x
 ```
 
 **Installation Recommendations:**
 
-- **CuPy only** (`[gpu]`): Easiest installation, 5-6x speedup
-- **CuPy + RAPIDS** (`[gpu-full]`): Best performance, up to 10x speedup
+- **Install CuPy separately**: Always choose `cupy-cuda11x` or `cupy-cuda12x` based on your CUDA version
+- **CuPy only**: Simplest installation, 5-6x speedup
+- **CuPy + RAPIDS**: Best performance, up to 10x speedup
 - **Conda for RAPIDS**: More reliable for RAPIDS cuML dependencies
 
 ### Step 4: Verify Installation
@@ -134,20 +147,20 @@ GPU (CuPy) available: True
 RAPIDS cuML available: True
 ```
 
-## Démarrage Rapide
+## Démarrage rapide
 
-### Interface en Ligne de Commande
+### Commande Line Interface
 
-Ajoutez simplement le flag `--use-gpu` à n'importe quelle commande `enrich` :
+Simply add the `--use-gpu` flag to any `enrich` command:
 
 ```bash
-# Utilisation de base
+# Basique usage
 ign-lidar-hd enrich \
   --input tiles/ \
   --output enriched/ \
   --use-gpu
 
-# Avec options additionnelles
+# With additional options
 ign-lidar-hd enrich \
   --input tiles/ \
   --output enriched/ \
@@ -156,8 +169,8 @@ ign-lidar-hd enrich \
   --num-workers 4
 ```
 
-:::tip Repli Automatique
-Le flag `--use-gpu` basculera automatiquement sur CPU si le GPU n'est pas disponible. Votre traitement continuera sans erreurs.
+:::tip Automatic Fallback
+The `--use-gpu` flag will automatically fall back to CPU if GPU is not available. Your processing will continue without errors.
 :::
 
 ### Python API
@@ -284,19 +297,19 @@ flowchart TD
     style Fallback fill:#fff3e0
 ```
 
-## Benchmarks de Performance
+## Performance Benchmarks
 
-### Accélérations Attendues
+### Expected Speedups
 
-Basé sur des tests avec différents GPU :
+Based on testing with various GPUs:
 
-| Nombre de Points | CPU (12 cœurs) | GPU (RTX 3080) | Accélération |
-| ---------------- | -------------- | -------------- | ------------ |
-| 1K points        | 0.02s          | 0.01s          | 2x           |
-| 10K points       | 0.15s          | 0.03s          | 5x           |
-| 100K points      | 0.50s          | 0.08s          | 6.3x         |
-| 1M points        | 4.5s           | 0.8s           | 5.6x         |
-| 10M points       | 45s            | 8s             | 5.6x         |
+| Point Count | CPU (12 cores) | GPU (RTX 3080) | Speedup |
+| ----------- | -------------- | -------------- | ------- |
+| 1K points   | 0.02s          | 0.01s          | 2x      |
+| 10K points  | 0.15s          | 0.03s          | 5x      |
+| 100K points | 0.50s          | 0.08s          | 6.3x    |
+| 1M points   | 4.5s           | 0.8s           | 5.6x    |
+| 10M points  | 45s            | 8s             | 5.6x    |
 
 **Factors affecting performance:**
 
@@ -317,15 +330,15 @@ xychart-beta
     bar "GPU (RTX 4090)" [60, 40, 28, 16]
 ```
 
-### Benchmarking de Votre Système
+### Benchmarking Your System
 
-Utilisez le script de benchmark inclus pour tester les performances GPU vs CPU :
+Use the included benchmark script to test GPU vs CPU performance:
 
 ```bash
-# Benchmark synthétique rapide
+# Quick synthetic benchmark
 python scripts/benchmarks/benchmark_gpu.py --synthetic
 
-# Benchmark avec des données réelles
+# Benchmark with real data
 python scripts/benchmarks/benchmark_gpu.py path/to/file.laz
 
 # Comprehensive multi-size benchmark
@@ -370,7 +383,7 @@ watch -n 1 nvidia-smi
 nvidia-smi -l 1
 ```
 
-## Troubleshooting
+## Dépannage
 
 ### "GPU requested but CuPy not available"
 
@@ -433,7 +446,7 @@ import warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='cupy')
 ```
 
-### Troubleshooting Decision Tree
+### Dépannage Decision Tree
 
 ```mermaid
 flowchart TD
@@ -518,41 +531,44 @@ processor = LiDARProcessor(use_gpu=True)
 | 1.3.0+       | 10.0+ | 11.0 - 12.x | 3.8+   |
 | 1.2.1+       | 10.0+ | 11.0+       | 3.8+   |
 
-## 🚀 Développement Futur
+## 🚀 Future Development
 
-Nous étendons continuellement les capacités d'accélération GPU :
+We're continuously expanding GPU acceleration capabilities:
 
-### Phase 3 : Pipeline GPU Avancé (En Cours)
+### Phase 3: Advanced GPU Pipeline (In Progress)
 
-- **Traitement GPU Universel** : Accélération GPU complète du pipeline
-- **Support Multi-GPU** : Traitement distribué sur plusieurs GPU
-- **Algorithmes Avancés** : Indexation spatiale et recherche de voisinage basées GPU
-- **Optimisation Mémoire** : Pooling mémoire avancé et streaming
-- **Analytiques de Performance** : Surveillance des performances GPU en temps réel
+- **Universal GPU Processing**: Full pipeline GPU acceleration
+- **Multi-GPU Support**: Distributed processing across multiple GPUs
+- **Advanced Algorithms**: GPU-based spatial indexing and neighborhood search
+- **Memory Optimization**: Advanced memory pooling and streaming
+- **Performance Analytics**: Real-time GPU performance monitoring
 
-**Calendrier Prévu :** Versions progressives tout au long de 2024-2025
+**Expected Timeline:** Rolling releases throughout 2024-2025
 
-### Fonctionnalités à Venir
+### Upcoming Features
 
-- 🔄 **Pooling Mémoire GPU** : Réduction de l'overhead d'allocation
-- 📊 **Tableau de Bord Performance GPU** : Surveillance temps réel
-- 🌐 **Traitement Multi-GPU** : Traitement parallèle des dalles
-- ⚡ **Traitement en Streaming** : Gestion de datasets plus grands que la mémoire GPU
-- 🎯 **Sélection GPU Automatique** : Distribution intelligente des tâches GPU/CPU
+- 🔄 **GPU Memory Pooling**: Reduce allocation overhead
+- 📊 **GPU Performance Dashboard**: Real-time monitoring
+- 🌐 **Multi-GPU Processing**: Parallel tile processing
+- ⚡ **Streaming Processing**: Handle datasets larger than GPU memory
+- 🎯 **Auto-GPU Selection**: Intelligent GPU/CPU task distribution
 
-:::info Restez Informé
-Suivez notre [dépôt GitHub](https://github.com/sducournau/IGN_LIDAR_HD_DATASET) pour les derniers développements d'accélération GPU et les annonces de version.
+:::info Stay Updated
+Follow our [GitHub repository](https://github.com/sducournau/IGN_LIDAR_HD_DATASET) for the latest GPU acceleration developments and release announcements.
 :::
 
-## Voir Aussi
+## See Also
 
-- **[Fonctionnalités GPU](features.md)** - Calcul de caractéristiques détaillé et référence API
-- **[Accélération GPU RGB](rgb-augmentation.md)** - Augmentation RGB accélérée GPU (v1.5.0+)
-- **[Architecture](../architecture.md)** - Architecture système
-- **[Workflows](../workflows.md)** - Exemples de workflows GPU
+- **[GPU Features](features.md)** - Detailed feature computation and API reference
+- **[RGB GPU Acceleration](rgb-augmentation.md)** - GPU-accelerated RGB augmentation (v1.5.0+)
+- **[Architecture](../architecture.md)** - System architecture
+- **[Workflows](../workflows.md)** - GPU workflow examples
 
-## Ressources Externes
+## External Resources
 
-- [CuPy: Bibliothèque de Tableaux Compatible NumPy](https://cupy.dev/)
-- [RAPIDS cuML: Apprentissage Automatique Accéléré GPU](https://rapids.ai/)
+- [CuPy: NumPy-compatible Array Library](https://cupy.dev/)
+- [RAPIDS cuML: GPU-Accelerated Machine Learning](https://rapids.ai/)
 - [NVIDIA CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit)
+- [RAPIDS cuML](https://rapids.ai/)
+- [NVIDIA CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit)
+- [GPU-Accelerated Computing](https://www.nvidia.com/en-us/data-center/gpu-accelerated-applications/)

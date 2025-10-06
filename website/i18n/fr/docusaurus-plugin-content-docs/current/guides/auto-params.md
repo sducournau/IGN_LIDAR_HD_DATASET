@@ -1,431 +1,368 @@
 ---
 sidebar_position: 8
-title: Guide Auto-Params (Français)
-description: Optimisation automatique des paramètres pour un traitement LiDAR de qualité optimale
-keywords: [auto-params, optimisation, paramètres, qualité, automatisation]
+title: Auto-Params Guide (English)
+description: Automatic parameter optimization for optimal LiDAR processing quality
+keywords: [auto-params, optimization, parameters, quality, automation]
 ---
 
-## Guide Auto-Paramètres (v1.7.1+)
+<!-- 
+🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
+Ce fichier provient de: guides/auto-params.md
+Traduit automatiquement - nécessite une révision humaine.
+Conservez tous les blocs de code, commandes et noms techniques identiques.
+-->
 
-**🎯 Optimisation Automatique des Paramètres**  
-**🔧 Aucun Réglage Manuel**  
-**📊 Qualité Optimale Garantie**  
-**⚡ Analyse Intelligente**
+
+# Auto-Parameters Guide (v1.7.1+)
+
+**🎯 Automatic Parameter Optimization**  
+**🔧 Zero Manual Tuning**  
+**📊 Optimal Quality Guaranteed**  
+**⚡ Intelligent Analysis**
 
 ---
 
-## 🚀 Vue d'ensemble
+## 🚀 Overview
 
-Auto-Paramètres (Auto-Params) est un système intelligent qui analyse automatiquement vos tuiles LiDAR et sélectionne les paramètres de traitement optimaux. Introduite dans la **v1.7.1**, cette fonctionnalité élimine le besoin de réglage manuel des paramètres et garantit des résultats cohérents et de haute qualité sur des jeux de données divers.
+Auto-Parameters (Auto-Params) is an intelligent system that automatically analyzes your LiDAR tiles and selects optimal processing parameters. Introduced in **v1.7.1**, this feature eliminates the need for manual parameter tuning and ensures consistent, high-quality results across diverse datasets.
 
-### Pourquoi Auto-Params ?
+### Why Auto-Params?
 
-**Avant v1.7.1 (Réglage Manuel) :**
+**Before v1.7.1 (Manual Tuning):**
 
 ```bash
-# Sélection manuelle des paramètres - expertise requise
+# Manual parameter selection - required expertise
 ign-lidar-hd enrich input.laz output.laz \
   --k-neighbors 15 \
   --radius 2.5 \
   --sor-k 20 \
   --sor-std 1.8 \
   --patch-size 32
-# ❌ Nécessite une expertise LiDAR
-# ❌ Processus d'essais-erreurs
-# ❌ Résultats sous-optimaux
-# ❌ Qualité incohérente
+# ❌ Requires LiDAR expertise
+# ❌ Trial and error process
+# ❌ Suboptimal results
+# ❌ Inconsistent quality
 ```
 
-**Avec v1.7.1 (Auto-Params) :**
+**With v1.7.1 (Auto-Params):**
 
 ```bash
-# Optimisation automatique - fonctionne pour tous
+# Automatic optimization - works for everyone
 ign-lidar-hd enrich input.laz output.laz --auto-params
-# ✅ Aucune expertise requise
-# ✅ Optimisation instantanée
-# ✅ Résultats optimaux garantis
-# ✅ Qualité cohérente
+# ✅ No expertise required
+# ✅ Instant optimization
+# ✅ Guaranteed optimal results
+# ✅ Consistent quality
 ```
 
 ---
 
-## 📊 Comment ça marche
+## 🔧 How It Works
 
-### 1. Analyse des caractéristiques
+Auto-Params analyzes your LiDAR data using four key metrics:
 
-Le système analyse automatiquement :
-
-- **Densité de points** : Nombre de points par m²
-- **Distribution spatiale** : Régularité du maillage
-- **Complexité géométrique** : Présence de structures complexes
-- **Bruit** : Niveau de bruit dans les données
-- **Couverture** : Uniformité de la couverture
-
-### 2. Sélection adaptative
-
-Basé sur l'analyse, Auto-Params sélectionne :
+### 1. Point Density Analysis
 
 ```python
-# Paramètres optimisés automatiquement
-optimal_params = {
-    'k_neighbors': auto_select_k(point_density),
-    'radius': auto_calculate_radius(spatial_distribution),
-    'sor_parameters': auto_tune_outlier_removal(noise_level),
-    'patch_size': auto_optimize_patch(complexity),
-    'chunk_size': auto_size_chunks(memory_available)
-}
+# Automatic density calculation
+density = total_points / tile_area
+density_category = classify_density(density)
+# -> "sparse", "medium", "dense", "ultra_dense"
 ```
 
-### 3. Validation et ajustement
-
-- Tests de performance en temps réel
-- Ajustements dynamiques si nécessaire
-- Garantie de qualité minimale
-
----
-
-## 🎯 Utilisation
-
-### Activation simple
-
-```bash
-# Activation d'Auto-Params
-ign-lidar-hd enrich input.laz output.laz --auto-params
-
-# Avec verbose pour voir les paramètres sélectionnés
-ign-lidar-hd enrich input.laz output.laz --auto-params --verbose
-```
-
-### Configuration avancée
-
-```bash
-# Auto-Params avec contraintes
-ign-lidar-hd enrich input.laz output.laz \
-  --auto-params \
-  --quality-target high \
-  --speed-preference balanced \
-  --memory-limit 8GB
-```
-
-### Mode batch
-
-```bash
-# Optimisation automatique pour plusieurs fichiers
-ign-lidar-hd batch-enrich data/ output/ \
-  --auto-params \
-  --adaptive-per-tile  # Paramètres uniques par tuile
-```
-
----
-
-## ⚙️ Niveaux de qualité
-
-### Quality Target
-
-```bash
-# Qualité économique (rapide)
---quality-target economy
-# Paramètres: vitesse privilégiée, qualité acceptable
-
-# Qualité équilibrée (par défaut)
---quality-target balanced
-# Paramètres: compromis vitesse/qualité optimal
-
-# Haute qualité (précis)
---quality-target high
-# Paramètres: qualité maximale, traitement plus long
-
-# Qualité premium (recherche)
---quality-target premium
-# Paramètres: qualité recherche, temps de calcul étendu
-```
-
-### Profils de vitesse
-
-```bash
-# Privilégier la vitesse
---speed-preference fast
-
-# Équilibre vitesse/qualité
---speed-preference balanced
-
-# Privilégier la qualité
---speed-preference quality
-```
-
----
-
-## 🔍 Analyse et feedback
-
-### Mode verbose
-
-```bash
-ign-lidar-hd enrich input.laz output.laz --auto-params --verbose
-```
-
-**Sortie exemple :**
-
-```
-[AUTO-PARAMS] Analyse des caractéristiques de la tuile...
-[AUTO-PARAMS] Densité détectée: 12.4 pts/m²
-[AUTO-PARAMS] Complexité géométrique: Moyenne
-[AUTO-PARAMS] Niveau de bruit: Faible
-[AUTO-PARAMS]
-[AUTO-PARAMS] Paramètres sélectionnés:
-[AUTO-PARAMS]   k-neighbors: 12
-[AUTO-PARAMS]   radius: 2.1m
-[AUTO-PARAMS]   sor-k: 18
-[AUTO-PARAMS]   sor-std: 1.6
-[AUTO-PARAMS]   patch-size: 28
-[AUTO-PARAMS]
-[AUTO-PARAMS] Temps estimé: 3.2 minutes
-[AUTO-PARAMS] Qualité attendue: 94.2%
-```
-
-### Rapport de performance
-
-```bash
-# Génération d'un rapport détaillé
-ign-lidar-hd enrich input.laz output.laz \
-  --auto-params \
-  --performance-report report.json
-```
-
----
-
-## 📈 Types de données supportés
-
-### Données urbaines
-
-```bash
-# Optimisé pour les environnements urbains
-ign-lidar-hd enrich urban_tile.laz output.laz \
-  --auto-params \
-  --data-type urban
-```
-
-**Optimisations urbaines :**
-
-- Détection de bâtiments renforcée
-- Filtrage du bruit routier
-- Gestion des surfaces réfléchissantes
-
-### Données forestières
-
-```bash
-# Optimisé pour les environnements forestiers
-ign-lidar-hd enrich forest_tile.laz output.laz \
-  --auto-params \
-  --data-type forest
-```
-
-**Optimisations forestières :**
-
-- Pénétration de canopée
-- Détection du sous-bois
-- Classification multi-strates
-
-### Données côtières
-
-```bash
-# Optimisé pour les zones côtières
-ign-lidar-hd enrich coastal_tile.laz output.laz \
-  --auto-params \
-  --data-type coastal
-```
-
-**Optimisations côtières :**
-
-- Gestion des surfaces d'eau
-- Filtrage des embruns
-- Détection des structures côtières
-
----
-
-## 🎛️ Configuration personnalisée
-
-### Fichier de configuration
-
-```yaml
-# config/auto_params.yaml
-auto_params:
-  quality_target: "balanced"
-  speed_preference: "quality"
-
-  constraints:
-    max_processing_time: "30min"
-    memory_limit: "16GB"
-    min_quality_score: 0.90
-
-  advanced:
-    adaptive_chunking: true
-    dynamic_adjustment: true
-    quality_monitoring: true
-```
-
-```bash
-# Utilisation avec configuration
-ign-lidar-hd enrich input.laz output.laz \
-  --auto-params \
-  --config config/auto_params.yaml
-```
-
-### API Python
+### 2. Spatial Distribution Assessment
 
 ```python
-from ign_lidar import AutoParamsProcessor
+# Homogeneity measurement
+spatial_variance = calculate_spatial_distribution(points)
+distribution_type = classify_distribution(spatial_variance)
+# -> "uniform", "clustered", "irregular"
+```
 
-# Configuration avancée
-processor = AutoParamsProcessor(
-    quality_target='high',
-    speed_preference='balanced',
-    adaptive_per_region=True
+### 3. Noise Level Detection
+
+```python
+# Noise characterization
+noise_level = estimate_noise_characteristics(points)
+noise_category = classify_noise(noise_level)
+# -> "clean", "moderate", "noisy"
+```
+
+### 4. Geometric Complexity Analysis
+
+```python
+# Surface complexity measurement
+complexity = analyze_geometric_complexity(points)
+complexity_level = classify_complexity(complexity)
+# -> "simple", "moderate", "complex"
+```
+
+---
+
+## 📊 Parameter Optimization
+
+Based on the analysis, Auto-Params selects optimal parameters:
+
+### Feature Extraction Parameters
+
+| Tile Type        | k_neighbors | radius  | patch_size | Quality Boost |
+| ---------------- | ----------- | ------- | ---------- | ------------- |
+| Sparse Rural     | 8-12        | 1.5-2.0 | 16-24      | +25%          |
+| Dense Urban      | 15-20       | 0.8-1.2 | 32-48      | +35%          |
+| Complex Heritage | 20-25       | 0.5-0.8 | 24-32      | +40%          |
+| Noisy Industrial | 12-18       | 1.2-1.8 | 20-28      | +30%          |
+
+### Preprocessing Parameters
+
+| Noise Level | SOR k | SOR std | ROR radius | ROR neighbors |
+| ----------- | ----- | ------- | ---------- | ------------- |
+| Clean       | 8     | 1.5     | 0.8        | 3             |
+| Moderate    | 12    | 2.0     | 1.0        | 4             |
+| Noisy       | 18    | 2.5     | 1.2        | 6             |
+
+---
+
+## 🚀 Usage
+
+### CLI Usage
+
+#### Basique Auto-Params
+
+```bash
+# Enable automatic parameter optimization
+ign-lidar-hd enrich input.laz output.laz --auto-params
+```
+
+#### With Additional Options
+
+```bash
+# Auto-params with RGB and GPU acceleration
+ign-lidar-hd enrich input.laz output.laz \
+  --auto-params \
+  --add-rgb \
+  --use-gpu \
+  --preprocess
+```
+
+#### Batch Processing
+
+```bash
+# Process multiple tiles with auto-params
+ign-lidar-hd enrich \
+  --input-dir /path/to/tiles/ \
+  --output-dir /path/to/output/ \
+  --auto-params \
+  --num-workers 4
+```
+
+### Python API Usage
+
+#### Basique Usage
+
+```python
+from ign_lidar.processor import LiDARProcessor
+
+# Enable auto-params in processor
+processor = LiDARProcessor(
+    auto_params=True,
+    include_rgb=True,
+    use_gpu=True
 )
 
-# Analyse préliminaire
-analysis = processor.analyze_tile("input.laz")
-print(f"Paramètres recommandés: {analysis.recommended_params}")
+# Process with automatic optimization
+processor.process_tile('input.laz', 'output.laz')
+```
 
-# Traitement avec auto-optimisation
-result = processor.process_with_auto_params("input.laz", "output.laz")
-print(f"Qualité atteinte: {result.quality_score}")
+#### Avancé Configuration
+
+```python
+# Custom auto-params configuration
+processor = LiDARProcessor(
+    auto_params=True,
+    auto_params_config={
+        'analysis_sample_size': 10000,  # Points to analyze
+        'quality_target': 'high',       # 'fast', 'balanced', 'high'
+        'prefer_speed': False           # Optimize for quality
+    }
+)
+```
+
+#### Manual Override
+
+```python
+# Use auto-params with manual overrides
+processor = LiDARProcessor(
+    auto_params=True,
+    k_neighbors=20,  # Manual override for k_neighbors
+    # Other parameters will be auto-optimized
+)
 ```
 
 ---
 
-## 🔬 Cas d'usage avancés
+## 📈 Performance Impact
 
-### Traitement adaptatif par région
+### Analysis Overhead
+
+| Tile Size  | Analysis Time | Overhead | Benefit      |
+| ---------- | ------------- | -------- | ------------ |
+| 1M points  | 2.3s          | +5%      | +30% quality |
+| 5M points  | 4.1s          | +3%      | +35% quality |
+| 10M points | 6.8s          | +2%      | +40% quality |
+
+### Quality Improvements
+
+**Geometric Feature Accuracy:**
+
+- **Rural Areas**: +25% improvement in edge detection
+- **Urban Areas**: +35% improvement in surface normals
+- **Complex Buildings**: +40% improvement in architectural features
+
+**Processing Consistency:**
+
+- **Standard Deviation**: Reduced by 60%
+- **Outlier Rate**: Reduced by 45%
+- **Feature Completeness**: Improved by 30%
+
+---
+
+## 🔍 Diagnostic Information
+
+### Viewing Auto-Params Results
 
 ```bash
-# Auto-Params avec adaptation régionale
-ign-lidar-hd enrich large_dataset/ output/ \
-  --auto-params \
-  --regional-adaptation \
-  --region-size 1km
+# Enable verbose logging to see selected parameters
+ign-lidar-hd enrich input.laz output.laz --auto-params --verbose
+
+# Exemple output:
+# [INFO] Auto-Params Analysis Complete:
+#   - Point Density: 847 pts/m² (dense)
+#   - Spatial Distribution: uniform
+#   - Noise Level: moderate
+#   - Geometric Complexity: complex
+# [INFO] Optimized Parameters:
+#   - k_neighbors: 18
+#   - radius: 1.2
+#   - patch_size: 28
+#   - sor_k: 15, sor_std: 2.2
+# [INFO] Expected Quality Improvement: +32%
 ```
 
-### Optimisation pour GPU
+### Parameter Justification
 
-```bash
-# Auto-Params optimisé GPU
-ign-lidar-hd enrich input.laz output.laz \
-  --auto-params \
-  --use-gpu \
-  --gpu-optimization auto
-```
+```python
+# Access auto-params analysis results
+processor = LiDARProcessor(auto_params=True, verbose=True)
+results = processor.process_tile('input.laz', 'output.laz')
 
-### Mode recherche
-
-```bash
-# Mode recherche avec journalisation complète
-ign-lidar-hd enrich input.laz output.laz \
-  --auto-params \
-  --research-mode \
-  --log-all-decisions \
-  --export-metadata
+# View analysis details
+analysis = processor.get_auto_params_analysis()
+print(f"Density: {analysis['density_category']}")
+print(f"Selected k_neighbors: {analysis['k_neighbors']}")
+print(f"Reasoning: {analysis['k_neighbors_reasoning']}")
 ```
 
 ---
 
-## 📊 Comparaison des performances
+## 🎛️ Configuration Options
 
-### Résultats typiques
+### Quality Targets
 
-| Méthode              | Temps setup | Qualité  | Consistance | Expertise requise |
-| -------------------- | ----------- | -------- | ----------- | ----------------- |
-| Manuel traditionnel  | 2-4 heures  | Variable | Faible      | Élevée            |
-| Auto-Params Economy  | 0 minutes   | 85-90%   | Élevée      | Aucune            |
-| Auto-Params Balanced | 0 minutes   | 90-95%   | Élevée      | Aucune            |
-| Auto-Params High     | 0 minutes   | 95-98%   | Élevée      | Aucune            |
-| Auto-Params Premium  | 0 minutes   | 98-99%   | Élevée      | Aucune            |
+```python
+# Speed-optimized (fastest, good quality)
+processor = LiDARProcessor(
+    auto_params=True,
+    auto_params_config={'quality_target': 'fast'}
+)
 
-### Gains de productivité
+# Balanced (default - good speed/quality trade-off)
+processor = LiDARProcessor(
+    auto_params=True,
+    auto_params_config={'quality_target': 'balanced'}
+)
 
-```bash
-# Benchmark comparatif
-ign-lidar-hd benchmark \
-  --compare-methods manual,auto-params \
-  --dataset test_tiles/ \
-  --output benchmark_results.json
+# Quality-optimized (slower, best quality)
+processor = LiDARProcessor(
+    auto_params=True,
+    auto_params_config={'quality_target': 'high'}
+)
+```
+
+### Analysis Configuration
+
+```python
+# Custom analysis settings
+config = {
+    'analysis_sample_size': 20000,    # More points for analysis
+    'min_k_neighbors': 10,            # Minimum k value
+    'max_k_neighbors': 30,            # Maximum k value
+    'prefer_conservative': True,      # Err on side of caution
+    'enable_caching': True            # Cache analysis results
+}
+
+processor = LiDARProcessor(
+    auto_params=True,
+    auto_params_config=config
+)
 ```
 
 ---
 
-## 🔧 Dépannage
+## 🚨 Troubleshooting
 
-### Problèmes courants
+### Common Issues
 
-**Auto-Params ne s'active pas :**
+#### 1. Auto-Params Not Available
 
 ```bash
-# Vérification de la version
-ign-lidar-hd --version  # Doit être >= 1.7.1
-
-# Mise à jour si nécessaire
-pip install --upgrade ign-lidar-hd
+# Error: Auto-params requires version 1.7.1+
+pip install --upgrade ign-lidar-hd>=1.7.1
 ```
 
-**Qualité insuffisante :**
+#### 2. Analysis Taking Too Long
 
-```bash
-# Forcer un niveau de qualité supérieur
-ign-lidar-hd enrich input.laz output.laz \
-  --auto-params \
-  --quality-target high \
-  --force-premium-algorithms
+```python
+# Reduce analysis sample size
+processor = LiDARProcessor(
+    auto_params=True,
+    auto_params_config={'analysis_sample_size': 5000}
+)
 ```
 
-**Traitement trop lent :**
+#### 3. Unexpected Parameter Selection
 
 ```bash
-# Privilégier la vitesse
-ign-lidar-hd enrich input.laz output.laz \
-  --auto-params \
-  --speed-preference fast \
-  --quality-target economy
+# Use verbose mode to understand reasoning
+ign-lidar-hd enrich input.laz output.laz --auto-params --verbose
 ```
 
-### Mode diagnostic
+### Manual Override When Needed
 
-```bash
-# Diagnostic Auto-Params
-ign-lidar-hd diagnostic \
-  --auto-params-test \
-  --input sample.laz \
-  --report diagnostic_report.html
+```python
+# Override specific parameters while keeping others automatic
+processor = LiDARProcessor(
+    auto_params=True,
+    k_neighbors=25,  # Manual override
+    # radius, patch_size, etc. will be auto-optimized
+)
 ```
 
 ---
 
-## 🎯 Meilleures pratiques
+## 🔮 Future Enhancements
 
-### Recommandations générales
+**Planned for v1.7.2+:**
 
-1. **Première utilisation** : Commencer avec `--quality-target balanced`
-2. **Production** : Utiliser `--auto-params` avec les paramètres par défaut
-3. **Recherche** : Utiliser `--quality-target premium` avec `--research-mode`
-4. **Lots importants** : Activer `--adaptive-per-tile`
-
-### Optimisation workflow
-
-```bash
-# Workflow de production optimisé
-ign-lidar-hd batch-enrich input_dir/ output_dir/ \
-  --auto-params \
-  --quality-target balanced \
-  --adaptive-per-tile \
-  --progress-bar \
-  --resume-on-error
-```
+- Machine learning-based parameter prediction
+- Historical optimization learning
+- Regional parameter models
+- Interactive parameter tuning GUI
 
 ---
 
-## 🔗 Ressources supplémentaires
+## 📚 See Also
 
-- [Guide de Performance](./performance.md)
-- [Dépannage](./troubleshooting.md)
-- [API Auto-Params](../api/auto-params.md)
-- [Notes de version v1.7.1](../release-notes/v1.7.1.md)
-
-**🎉 Auto-Params révolutionne le traitement LiDAR en rendant l'optimisation accessible à tous, sans compromis sur la qualité !**
+- **[CLI Commands Guide](/docs/guides/cli-commands)**: Complete CLI reference
+- **[Preprocessing Guide](/docs/guides/preprocessing)**: Data cleaning options
+- **[Performance Tuning](/docs/guides/performance)**: Advanced optimization
+- **[Release Notes v1.7.1](/docs/release-notes/v1.7.1)**: Full feature details

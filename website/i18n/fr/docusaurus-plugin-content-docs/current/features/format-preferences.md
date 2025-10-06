@@ -1,238 +1,347 @@
 ---
 sidebar_position: 2
-title: Préférences de Format
-description: Configurer les formats de sortie pour les fichiers LAZ et la compatibilité QGIS
-keywords: [format, laz, qgis, configuration, préférences]
+title: Format Preferences
+description: Configure output formats for LAZ files and QGIS compatibility
+keywords: [format, laz, qgis, configuration, preferences]
 ---
 
-# Préférences de Format de Sortie
+<!-- 
+🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
+Ce fichier provient de: features/format-preferences.md
+Traduit automatiquement - nécessite une révision humaine.
+Conservez tous les blocs de code, commandes et noms techniques identiques.
+-->
 
-Configurez comment les fichiers LAZ enrichis sont sauvegardés pour équilibrer la complétude des caractéristiques avec la compatibilité logicielle.
 
-## Vue d'Ensemble
+# Sortie Format Preferences
 
-La bibliothèque supporte deux stratégies de format de sortie :
+Configure how enriched LAZ files are saved to balance feature completeness with software compatibility.
 
-1. **LAZ Augmenté (LAZ 1.4)** - Préservation complète des caractéristiques (par défaut)
-2. **LAZ Compatible QGIS (LAZ 1.2)** - Compatibilité maximale (optionnel)
+## Vue d'ensemble
 
-## Comportement par Défaut
+The library supports two output format strategies:
 
-Par défaut, la bibliothèque préserve toutes les caractéristiques géométriques en utilisant le format LAZ 1.4 :
+1. **Augmented LAZ (LAZ 1.4)** - Full feature preservation (default)
+2. **QGIS-Compatible LAZ (LAZ 1.2)** - Maximum compatibility (optional)
+
+## Default Behavior
+
+By default, the library preserves all geometric features using LAZ 1.4 format:
 
 ```bash
-# Par défaut : Crée un LAZ augmenté avec toutes les caractéristiques
+# Default: Creates augmented LAZ with all features
 ign-lidar-hd enrich \
-  --input-dir tuiles_brutes/ \
-  --output tuiles_enrichies/ \
+  --input-dir raw_tiles/ \
+  --output enriched_tiles/ \
   --mode full
 ```
 
-**Sortie** : `tuiles_enrichies/tuile.laz` (LAZ 1.4 avec plus de 30 caractéristiques)
+**Output**: `enriched_tiles/tile.laz` (LAZ 1.4 with 30+ features)
 
-## Options de Configuration
+## Configuration Options
 
-### Préférer LAZ Augmenté (Par Défaut)
+### Prefer Augmented LAZ (Default)
 
-**Paramètre** : `PREFER_AUGMENTED_LAZ = True`
+**Setting**: `PREFER_AUGMENTED_LAZ = True`
 
-- **Format** : LAZ 1.4
-- **Caractéristiques** : Tous les 30+ attributs géométriques préservés
-- **Compatibilité** : Logiciels LiDAR modernes (CloudCompare, FME, etc.)
-- **Taille de fichier** : Légèrement plus grande en raison des attributs étendus
+- **Format**: LAZ 1.4
+- **Features**: All 30+ geometric attributes preserved
+- **Compatibility**: Modern LiDAR software (CloudCompare, FME, etc.)
+- **File Size**: Slightly larger due to extended attributes
 
-**Avantages** :
+**Benefits**:
 
-- Ensemble complet de caractéristiques disponible
-- Aucune perte de données pendant le traitement
-- Format résistant au temps
+- Complete feature set available
+- No data loss during processing
+- Future-proof format
 
-### Mode Compatibilité QGIS
+### QGIS Compatibility Mode
 
-**Paramètre** : `PREFER_AUGMENTED_LAZ = False`
+**Setting**: `AUTO_CONVERT_TO_QGIS = False` (manual conversion)
 
-- **Format** : LAZ 1.2
-- **Caractéristiques** : Sous-ensemble des attributs les plus importants
-- **Compatibilité** : QGIS 3.10+, logiciels LiDAR plus anciens
-- **Taille de fichier** : Plus compacte
-
-**Configuration** :
-
-```python
-from ign_lidar.config import Config
-
-# Activer le mode compatibilité QGIS
-config = Config()
-config.PREFER_AUGMENTED_LAZ = False
-```
-
-## Attributs Préservés par Mode
-
-### Mode LAZ Augmenté (LAZ 1.4)
-
-**Tous les attributs** sont préservés :
-
-| Catégorie              | Attributs                                  | Count |
-| ---------------------- | ------------------------------------------ | ----- |
-| **Classification**     | building_component, lod2_class, lod3_class | 3     |
-| **Géométrie Surface**  | planarity, sphericity, linearity           | 3     |
-| **Géométrie Locale**   | curvature, verticality, normalX/Y/Z        | 4     |
-| **Contexte Spatial**   | density, roughness, height_above_ground    | 3     |
-| **Détection Contours** | edge_strength, corner_likelihood           | 2     |
-| **Qualité**            | feature_confidence, point_quality          | 2     |
-| **Métadonnées**        | processing_timestamp, version_info         | 2     |
-
-**Total** : 30+ attributs géométriques complets
-
-### Mode Compatibilité QGIS (LAZ 1.2)
-
-**Attributs essentiels** seulement :
-
-| Attribut              | Type    | Description                       |
-| --------------------- | ------- | --------------------------------- |
-| `building_component`  | uint8   | Classification principale (0-14)  |
-| `planarity`           | float32 | Degré de planarité (0.0-1.0)      |
-| `verticality`         | float32 | Degré de verticalité (0.0-1.0)    |
-| `edge_strength`       | float32 | Force du contour (0.0-1.0)        |
-| `height_above_ground` | float32 | Hauteur au-dessus du sol (mètres) |
-| `point_quality`       | uint8   | Score de qualité (0-100)          |
-
-**Total** : 6 attributs essentiels
-
-## Configuration par Environnement
-
-### Variable d'Environnement
+For QGIS compatibility, use the conversion utility:
 
 ```bash
-# Forcer la compatibilité QGIS
-export IGN_LIDAR_QGIS_MODE=true
+# Method 1: Convert after enrichment
+ign-lidar-hd enrich --input-dir raw/ --output enriched/
+python scripts/batch_convert_qgis.py enriched/
 
-# Ou forcer LAZ augmenté
-export IGN_LIDAR_QGIS_MODE=false
+# Method 2: Use QGIS converter directly
+python -m ign_lidar.qgis_converter enriched/tile.laz
 ```
 
-### Configuration dans du Code
+**Output**:
 
-```python
-# Configuration programmatique
-from ign_lidar import configure_output_format
+- `enriched/tile.laz` (LAZ 1.4, full features)
+- `enriched/tile_qgis.laz` (LAZ 1.2, QGIS-compatible)
 
-# Mode QGIS
-configure_output_format(qgis_compatible=True)
+## Format Comparison
 
-# Mode augmenté
-configure_output_format(qgis_compatible=False)
-```
+| Feature            | Augmented LAZ   | QGIS LAZ            |
+| ------------------ | --------------- | ------------------- |
+| Format Version     | LAZ 1.4         | LAZ 1.2             |
+| Geometric Features | 30+ attributes  | Selected attributes |
+| File Size          | ~310MB          | ~305MB              |
+| QGIS Compatibility | Modern versions | All versions        |
+| CloudCompare       | ✅ Full support | ✅ Full support     |
+| FME                | ✅ Full support | ✅ Full support     |
+| Custom Analysis    | ✅ All features | ⚠️ Limited features |
 
-### Configuration par Fichier
+## Available Features by Format
 
-**Fichier** : `~/.ign_lidar/config.yaml`
+### Augmented LAZ (Full Feature Set)
 
-```yaml
-output:
-  prefer_augmented_laz: false # Mode QGIS
-  preserve_all_features: false
-  target_software: "qgis"
-```
+**Geometric Features**:
 
-## Considérations sur les Performances
+- `normal_x`, `normal_y`, `normal_z` - Surface normals
+- `curvature` - Surface curvature
+- `planarity`, `linearity`, `sphericity` - Shape descriptors
+- `roughness` - Surface texture
+- `anisotropy` - Directional variation
 
-### Traitement
+**Building-Specific Features**:
 
-| Mode                | Vitesse     | Mémoire     | CPU         |
-| ------------------- | ----------- | ----------- | ----------- |
-| **LAZ Augmenté**    | Normale     | Plus élevée | Normale     |
-| **QGIS Compatible** | Plus rapide | Plus faible | Plus faible |
+- `verticality` - Wall orientation score
+- `wall_score`, `roof_score` - Component probabilities
+- `height_above_ground` - Normalized elevation
+- `density` - Local point density
+- `vertical_std` - Height variation
 
-### Stockage
+**Advanced Features**:
 
-| Mode                | Taille Fichier  | Compression      |
-| ------------------- | --------------- | ---------------- |
-| **LAZ Augmenté**    | ~15% plus grand | LAZ 1.4 optimisé |
-| **QGIS Compatible** | Plus compact    | LAZ 1.2 standard |
+- `eigenvalue_1`, `eigenvalue_2`, `eigenvalue_3` - Principal components
+- `num_points_2m` - Neighborhood size
+- `neighborhood_extent` - Spatial extent
+- `height_extent_ratio` - Geometric ratios
 
-## Recommandations d'Utilisation
+### QGIS LAZ (Compatible Subset)
 
-### Utilisez LAZ Augmenté Quand
+**Core Features** (guaranteed compatibility):
 
-- **Recherche avancée** en géométrie 3D
-- **Développement d'algorithmes** ML
-- **Analyse complète** de bâtiments
-- **Archivage long terme**
+- `normal_x`, `normal_y`, `normal_z`
+- `curvature`
+- `planarity`, `linearity`, `sphericity`
+- `height_above_ground`
+- `wall_score`, `roof_score`
+- `verticality`
 
-### Utilisez Mode QGIS Quand
+**Excluded Features** (compatibility limitations):
 
-- **Visualisation dans QGIS** principalement
-- **Compatibilité** avec logiciels plus anciens
-- **Contraintes de stockage** importantes
-- **Traitement rapide** requis
+- Advanced eigenvalue decomposition
+- Complex neighborhood statistics
+- Extended geometric ratios
 
-## Migration Entre Formats
+## When to Use Each Format
 
-### Convertir LAZ Augmenté vers QGIS
+### Use Augmented LAZ When:
+
+- **Research applications** requiring full feature set
+- **Custom analysis** with machine learning models
+- **Advanced visualization** in CloudCompare or specialized tools
+- **Future processing** where feature completeness matters
+- **Archival storage** for long-term data preservation
+
+### Use QGIS LAZ When:
+
+- **GIS workflows** primarily using QGIS
+- **Visualization** focused on basic geometric properties
+- **Sharing data** with users who have older software
+- **Web mapping** applications with format constraints
+- **Teaching/demos** where compatibility is critical
+
+## Configuration Examples
+
+### Research/Development Workflow
 
 ```bash
-ign-lidar-hd convert \
-  --input enriched_augmented.laz \
-  --output enriched_qgis.laz \
-  --format qgis-compatible
-```
-
-### Ré-enrichir pour Format Complet
-
-```bash
-# Re-traitement complet pour récupérer tous les attributs
+# Full feature extraction for ML research
 ign-lidar-hd enrich \
-  --input raw_tile.laz \
-  --output enriched_full.laz \
-  --format augmented \
-  --force
+  --input-dir raw_tiles/ \
+  --output research_data/ \
+  --mode full
+
+# Keep all 30+ features in LAZ 1.4 format
+# Use for: scikit-learn, PyTorch, custom analysis
+```
+
+### GIS/Visualization Workflow
+
+```bash
+# Basique enrichment
+ign-lidar-hd enrich \
+  --input-dir raw_tiles/ \
+  --output enriched_tiles/ \
+  --mode full
+
+# Convert for QGIS
+python scripts/batch_convert_qgis.py enriched_tiles/
+
+# Result: Both formats available
+ls enriched_tiles/
+# tile.laz          (full features)
+# tile_qgis.laz     (QGIS-compatible)
+```
+
+### Production Workflow
+
+```bash
+# Process with smart skip detection
+ign-lidar-hd enrich \
+  --input-dir large_dataset/ \
+  --output processed/ \
+  --mode full
+
+# Selectively convert tiles needing QGIS compatibility
+python -m ign_lidar.qgis_converter processed/priority_tiles/
+```
+
+## Programmatic Configuration
+
+### Python API
+
+```python
+from ign_lidar import LiDARProcessor, config
+
+# Option 1: Use configuration
+config.PREFER_AUGMENTED_LAZ = True
+config.AUTO_CONVERT_TO_QGIS = False
+
+processor = LiDARProcessor()
+processor.enrich_file('input.laz', 'output/')
+
+# Option 2: Direct format control
+processor = LiDARProcessor(
+    output_format='augmented'  # or 'qgis'
+)
+```
+
+### Configuration File
+
+Create `config/local_settings.py`:
+
+```python
+# Format preferences
+PREFER_AUGMENTED_LAZ = True
+AUTO_CONVERT_TO_QGIS = False
+
+# Traitement preferences
+DEFAULT_MODE = 'full'
+DEFAULT_WORKERS = 4
+
+# Sortie preferences
+PRESERVE_DIRECTORY_STRUCTURE = True
+COPY_METADATA_FILES = True
+```
+
+## Fichier Naming Conventions
+
+### Standard Output
+
+```
+enriched_tiles/
+├── LIDARHD_FXX_0123_4567_LA93_IGN69_2020.laz    # Augmented LAZ
+└── metadata/
+    └── LIDARHD_FXX_0123_4567_LA93_IGN69_2020.json
+```
+
+### With QGIS Conversion
+
+```
+enriched_tiles/
+├── LIDARHD_FXX_0123_4567_LA93_IGN69_2020.laz         # Augmented LAZ
+├── LIDARHD_FXX_0123_4567_LA93_IGN69_2020_qgis.laz    # QGIS-compatible
+└── metadata/
+    └── LIDARHD_FXX_0123_4567_LA93_IGN69_2020.json
+```
+
+## Quality Verification
+
+### Check Format Version
+
+```python
+import laspy
+
+# Check file format
+las = laspy.read('enriched_tile.laz')
+print(f"LAZ version: {las.header.version}")
+print(f"Point format: {las.point_format.id}")
+print(f"Extra dimensions: {las.point_format.extra_dimension_names}")
+```
+
+### Validate QGIS Compatibility
+
+```bash
+# Test QGIS compatibility
+python scripts/validation/test_qgis_compatibility.py enriched_tile_qgis.laz
+
+# Expected output:
+# ✅ LAZ 1.2 format detected
+# ✅ Compatible point format (ID 6)
+# ✅ Standard dimensions present
+# ✅ Compatible extra dimensions: 8 found
+# ✅ File should load properly in QGIS
 ```
 
 ## Dépannage
 
-### Erreurs de Compatibilité
+### QGIS Won't Load File
 
-**"Unknown attributes in LAZ file"**
+**Issue**: "Unsupported file format" in QGIS
 
-- Utiliser le mode QGIS compatible
-- Mettre à jour le logiciel LiDAR
+**Solution**: Convert to QGIS format
 
-**"QGIS cannot read extended attributes"**
-
-- Vérifier la version QGIS (3.10+ requis)
-- Utiliser le mode compatible si nécessaire
-
-**"File size too large"**
-
-- Basculer vers le mode QGIS compatible
-- Considérer la compression supplémentaire
-
-### Vérification de Format
-
-```python
-from ign_lidar.utils import check_laz_format
-
-# Vérifier le format d'un fichier
-info = check_laz_format("enriched.laz")
-print(f"Version: {info.version}")
-print(f"Attributs: {info.attributes}")
-print(f"Compatible QGIS: {info.qgis_compatible}")
+```bash
+python -m ign_lidar.qgis_converter problematic_file.laz
+# Creates: problematic_file_qgis.laz
 ```
 
-## Utilisation en Mémoire
+### Missing Features in Analysis
 
-### LAZ Augmenté
+**Issue**: Can't find expected attributes
 
-- **Augmentation mémoire** pendant le traitement
-- **Attributs étendus** nécessitent plus de RAM
+**Cause**: Using QGIS-compatible format instead of full format
 
-### QGIS Compatible
+**Solution**: Use augmented LAZ for analysis
 
-- **Mémoire réduite** (moins d'attributs)
+```python
+# Load full feature set
+las = laspy.read('tile.laz')  # Not tile_qgis.laz
+features = las.point_format.extra_dimension_names
+print(f"Available features: {len(features)}")
+```
 
-## Voir Aussi
+### Large File Sizes
 
-- [Guide d'Intégration QGIS](../guides/qgis-integration.md) - Utiliser les fichiers dans QGIS
-- [Fonctionnalités Smart Skip](smart-skip.md) - Éviter le retraitement des fichiers
-- [Commandes CLI](../guides/cli-commands.md) - Options de ligne de commande
+**Issue**: Files larger than expected
+
+**Cause**: Full feature set increases file size
+
+**Solution**:
+
+1. Use QGIS format for storage-constrained applications
+2. Compress with higher LAZ compression levels
+3. Filter to essential features only
+
+## Performance Considerations
+
+### Traitement Speed
+
+- **Augmented LAZ**: Faster (no conversion overhead)
+- **QGIS LAZ**: Slower (requires attribute filtering/conversion)
+
+### Storage Requirements
+
+- **Augmented LAZ**: ~5-10% larger files
+- **QGIS LAZ**: Standard LAZ file sizes
+- **Both formats**: 2x storage if keeping both
+
+### Memory Usage
+
+- **Augmented LAZ**: Higher memory during processing
+- **QGIS LAZ**: Lower memory (fewer attributes)
+
+## See Also
+
+- [QGIS Integration Guide](../guides/qgis-integration.md) - Using files in QGIS
+- [Smart Skip Features](smart-skip.md) - Avoid reprocessing files
+- [CLI Commands](../guides/cli-commands.md) - Command-line options
