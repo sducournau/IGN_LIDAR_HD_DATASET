@@ -1,27 +1,19 @@
 ---
 sidebar_position: 5
-title: GPU API
-description: GPU acceleration API reference for high-performance LiDAR processing
+title: API GPU
+description: Référence API d'accélération GPU pour le traitement haute performance LiDAR
 keywords: [gpu, api, cuda, acceleration, pytorch, tensor]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: api/gpu-api.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
+# Référence API GPU
 
+Documentation API complète pour les composants de traitement LiDAR accélérés par GPU.
 
-# GPU API Reference
-
-Complete API documentation for GPU-accelerated LiDAR processing components.
-
-## Core GPU Classes
+## Classes GPU Principales
 
 ### GPUProcessor
 
-Main GPU-accelerated processor for LiDAR data.
+Processeur principal accéléré par GPU pour les données LiDAR.
 
 ```python
 from ign_lidar.gpu import GPUProcessor
@@ -41,7 +33,7 @@ processor = GPUProcessor(
 - **mixed_precision** (`bool`): Enable automatic mixed precision (FP16/FP32)
 - **compile_models** (`bool`): Use PyTorch 2.0 model compilation
 
-#### Methods
+#### Méthodes
 
 ##### `process_points(points, features=None)`
 
@@ -137,7 +129,7 @@ optimal_batch = memory_manager.get_optimal_batch_size(
 )
 ```
 
-#### Methods
+#### Méthodes
 
 ##### `allocate_tensor_memory(size, dtype=torch.float32)`
 
@@ -233,9 +225,9 @@ curvature = extractor.compute_curvature(
 # Retourne (N,) curvature values
 ```
 
-## GPU Utilities
+## Utilitaires GPU
 
-### Tensor Operations
+### Opérations sur les Tensors
 
 ```python
 from ign_lidar.gpu.utils import (
@@ -265,7 +257,7 @@ neighbors, distances = knn_search_gpu(
 )
 ```
 
-### Performance Monitoring
+### Surveillance des Performances
 
 ```python
 from ign_lidar.gpu.profiling import GPUProfiler, benchmark_gpu
@@ -275,11 +267,11 @@ with GPUProfiler() as profiler:
     result = processor.process_points(points)
 
 profiler.print_summary()
-# Output:
-# GPU Utilization: 85.3%
-# Memory Usage: 6.2/8.0 GB
-# Traitement Time: 2.35s
-# Throughput: 425K points/sec
+# Sortie :
+# Utilisation GPU : 85.3%
+# Utilisation Mémoire : 6.2/8.0 GB
+# Temps de Traitement : 2.35s
+# Débit : 425K points/sec
 
 # Benchmark different configurations
 benchmark_results = benchmark_gpu(
@@ -289,7 +281,7 @@ benchmark_results = benchmark_gpu(
 )
 ```
 
-## Multi-GPU Support
+## Support Multi-GPU
 
 ### DataParallel Processing
 
@@ -309,7 +301,7 @@ results = multi_processor.process_batch(
 )
 ```
 
-### Distributed Processing
+### Traitement Distribué
 
 ```python
 import torch.distributed as dist
@@ -329,9 +321,9 @@ features = processor.extract_features_distributed(
 )
 ```
 
-## Avancé GPU Operations
+## Opérations GPU Avancées
 
-### Custom CUDA Kernels
+### Noyaux CUDA Personnalisés
 
 ```python
 from ign_lidar.gpu.kernels import (
@@ -362,7 +354,7 @@ clean_points = noise_removal_cuda(
 )
 ```
 
-### Mesh Generation
+### Génération de Maillages
 
 ```python
 from ign_lidar.gpu.mesh import GPUMeshGenerator
@@ -381,7 +373,7 @@ for i, mesh in enumerate(meshes):
     mesh_generator.save_mesh(mesh, f"building_{i}.ply")
 ```
 
-## Configuration Classes
+## Classes de Configuration
 
 ### GPUConfig
 
@@ -418,7 +410,7 @@ config = GPUConfig(
 processor = GPUProcessor(config=config)
 ```
 
-### Optimization Settings
+### Paramètres d'Optimisation
 
 ```python
 # Performance tuning
@@ -437,9 +429,9 @@ config.set_optimization_level("memory_efficient")
 # - gradient_checkpointing=True
 ```
 
-## Error Handling
+## Gestion des Erreurs
 
-### GPU-Specific Exceptions
+### Exceptions Spécifiques GPU
 
 ```python
 from ign_lidar.gpu.exceptions import (
@@ -463,7 +455,7 @@ except GPUComputeError as e:
     result = cpu_processor.process_points(points.cpu())
 ```
 
-### Automatic Fallback
+### Basculement Automatique
 
 ```python
 from ign_lidar.gpu import AdaptiveProcessor
@@ -479,9 +471,9 @@ processor = AdaptiveProcessor(
 result = processor.process_points(points)
 ```
 
-## Integration Examples
+## Exemples d'Intégration
 
-### With Existing Workflows
+### Avec les Flux de Travail Existants
 
 ```python
 from ign_lidar import Processor
@@ -499,7 +491,7 @@ enable_gpu_acceleration(
 result = processor.process_tile("input.las")
 ```
 
-### Custom GPU Pipeline
+### Pipeline GPU Personnalisé
 
 ```python
 class CustomGPUPipeline:
@@ -532,9 +524,9 @@ pipeline = CustomGPUPipeline(device="cuda:0")
 result = pipeline.process(points_gpu)
 ```
 
-## Best Practices
+## Meilleures Pratiques
 
-### Memory Management
+### Gestion de la Mémoire
 
 ```python
 # Use context managers for automatic cleanup
@@ -546,7 +538,7 @@ with gpu_context(device="cuda:0", memory_fraction=0.8) as ctx:
 # GPU memory automatically cleaned up
 ```
 
-### Performance Optimization
+### Optimisation des Performances
 
 ```python
 # Optimal batch size calculation
@@ -559,7 +551,7 @@ def calculate_optimal_batch_size(gpu_memory_gb, point_features=7):
 batch_size = calculate_optimal_batch_size(8.0)  # 8GB GPU
 ```
 
-### Error Recovery
+### Récupération d'Erreurs
 
 ```python
 def robust_gpu_processing(points, max_retries=3):
@@ -577,7 +569,7 @@ def robust_gpu_processing(points, max_retries=3):
                 return cpu_processor.process_points(points.cpu())
 ```
 
-## Related Documentation
+## Documentation Associée
 
 - [GPU Setup Guide](../installation/gpu-setup.md)
 - [Performance Guide](../guides/performance.md)
