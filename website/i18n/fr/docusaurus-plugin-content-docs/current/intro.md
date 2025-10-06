@@ -6,7 +6,7 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 # Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Version 1.7.5** | Python 3.8+ | Licence MIT
+**Version 1.7.6** | Python 3.8+ | Licence MIT
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -23,7 +23,7 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 ---
 
-## 🎉 Dernière Version : v1.7.5
+## 🎉 Dernière Version : v1.7.6
 
 ### 🚀 OPTIMISATION MASSIVE des Performances - Accélération 100-200x
 

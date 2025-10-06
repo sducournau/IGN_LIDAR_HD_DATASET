@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.6] - 2025-10-06
+
+### Added
+
+- **Feature Verification System** 🔍
+  - New `verify` command in CLI for validating enriched LAZ files
+  - New `ign_lidar/verifier.py` module with `FeatureVerifier` class
+  - Comprehensive checks for RGB, NIR, and geometric features
+  - Validates feature ranges, detects anomalies, and provides statistics
+  - Supports single file or batch directory verification
+  - Options: `--quiet`, `--show-samples`, `--max-files`
+  - Python API: `verify_laz_files()` function for programmatic use
+  - Documentation: `VERIFICATION_FEATURE.md` and `VERIFICATION_QUICKREF.md`
+
+### Fixed
+
+- **Critical Fix: Verticality Computation in GPU Chunked Processing** 🐛
+
+  - **Issue**: Files processed with `--use-gpu` on large point clouds (>5M points) had verticality feature with all zeros
+  - **Root cause**: GPU chunked code (`features_gpu_chunked.py`) initialized verticality but never computed it
+  - **Impact**: Wall detection broken, building segmentation degraded
+  - **Fix**: Added verticality computation from normals in all code paths:
+    - GPU chunked processing (lines 1033-1040)
+    - Simple GPU processing (added to `compute_all_features_with_gpu`)
+    - CPU fallback path (ensures verticality always present)
+  - **Removed**: Zero-value features (`eigenvalue_sum`, `omnivariance`, `eigenentropy`, `surface_variation`) that were never computed
+  - **Result**: ~20% smaller files, correct verticality values (0-1 range), wall detection working
+  - **Documentation**: `FEATURE_VERIFICATION_FIX.md`, `VERTICALITY_IMPLEMENTATION.md`
+  - **Tests**: Comprehensive test suite in `tests/test_verticality_fix.py` and `tests/test_all_verticality_paths.py`
+
+- Minor bug fixes and documentation updates
+
 ## [1.7.5] - 2025-10-05
 
 ### Changed

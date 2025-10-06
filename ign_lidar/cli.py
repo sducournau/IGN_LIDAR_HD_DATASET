@@ -268,6 +268,17 @@ def _enrich_single_file(args_tuple):
                 if voxel_cfg.get('enable', False):
                     return_number = return_number[voxel_indices]
         
+        # Compute bbox from ORIGINAL points (before augmentation)
+        # This bbox will be used for RGB/NIR fetching for ALL versions
+        # (augmented points have transformed coordinates, but RGB/NIR
+        # should come from the original geographic location)
+        original_bbox = (
+            points[:, 0].min(),
+            points[:, 1].min(),
+            points[:, 0].max(),
+            points[:, 1].max()
+        )
+        
         # Apply data augmentation if requested
         # This creates augmented versions BEFORE feature computation
         # to ensure features are computed on augmented geometry
@@ -284,7 +295,8 @@ def _enrich_single_file(args_tuple):
                 'points': points,
                 'classification': classification,
                 'intensity': intensity,
-                'return_number': return_number
+                'return_number': return_number,
+                'original_points': points  # Keep reference to original
             })
             
             # Versions 1 to N: Augmented
@@ -315,7 +327,8 @@ def _enrich_single_file(args_tuple):
                     ),
                     'return_number': (
                         aug_return_number if return_number is not None else None
-                    )
+                    ),
+                    'original_points': points  # Keep reference to original for RGB/NIR
                 })
             
             worker_logger.info(
@@ -329,7 +342,8 @@ def _enrich_single_file(args_tuple):
                 'points': points,
                 'classification': classification,
                 'intensity': intensity,
-                'return_number': return_number
+                'return_number': return_number,
+                'original_points': points  # Keep reference to original
             })
         
         # Process each version (original + augmented)
@@ -709,20 +723,17 @@ def _enrich_single_file(args_tuple):
                             "  Fetching RGB from IGN orthophotos..."
                         )
                     
-                    # Compute bbox from versioned points
-                    bbox = (
-                        points_ver[:, 0].min(),
-                        points_ver[:, 1].min(),
-                        points_ver[:, 0].max(),
-                        points_ver[:, 1].max()
-                    )
+                    # IMPORTANT: Use original points for RGB fetching
+                    # Augmented points have transformed coordinates,
+                    # but RGB must come from the actual geographic location
+                    original_points_for_rgb = version_data['original_points']
                     
                     # Create fetcher with cache if specified
                     fetcher = IGNOrthophotoFetcher(cache_dir=rgb_cache_dir)
                     
-                    # Fetch RGB colors
+                    # Fetch RGB colors using ORIGINAL point coordinates
                     rgb = fetcher.augment_points_with_rgb(
-                        points_ver, bbox=bbox
+                        original_points_for_rgb, bbox=original_bbox
                     )
                     
                     # Add RGB to LAZ
@@ -778,22 +789,19 @@ def _enrich_single_file(args_tuple):
                             "  Fetching infrared from IGN orthophotos..."
                         )
                     
-                    # Compute bbox from versioned points
-                    bbox = (
-                        points_ver[:, 0].min(),
-                        points_ver[:, 1].min(),
-                        points_ver[:, 0].max(),
-                        points_ver[:, 1].max()
-                    )
+                    # IMPORTANT: Use original points for NIR fetching
+                    # Augmented points have transformed coordinates,
+                    # but NIR must come from the actual geographic location
+                    original_points_for_nir = version_data['original_points']
                     
                     # Create fetcher with cache if specified
                     nir_fetcher = IGNInfraredFetcher(
                         cache_dir=infrared_cache_dir
                     )
                     
-                    # Fetch infrared values
+                    # Fetch infrared values using ORIGINAL point coordinates
                     nir = nir_fetcher.augment_points_with_infrared(
-                        points_ver, bbox=bbox
+                        original_points_for_nir, bbox=original_bbox
                     )
                     
                     # Add infrared to LAZ as extra dimension
@@ -1019,6 +1027,22 @@ def cmd_enrich(args):
                 f"to {suggested_workers} to prevent OOM"
             )
             args.num_workers = suggested_workers
+    
+    # CRITICAL: GPU + multiprocessing compatibility
+    # CUDA context cannot be properly initialized in forked child processes
+    # Force single worker mode when GPU is enabled
+    if args.use_gpu and args.num_workers > 1:
+        logger.warning("⚠️  GPU mode detected with multiple workers")
+        logger.warning(
+            "⚠️  CUDA contexts cannot be initialized in forked processes"
+        )
+        logger.warning(
+            "⚠️  Forcing --num-workers=1 for GPU compatibility"
+        )
+        logger.info(
+            "   ℹ️  GPU chunking is still highly parallel within each file"
+        )
+        args.num_workers = 1
     
     # Sort files by size (process smaller files first)
     # This helps prevent memory spikes from processing large files
@@ -1521,6 +1545,26 @@ def cmd_download(args):
     return 0
 
 
+def cmd_verify(args):
+    """Verify features in enriched LAZ files."""
+    from .verifier import verify_laz_files
+    
+    try:
+        verify_laz_files(
+            input_path=args.input,
+            input_dir=args.input_dir,
+            max_files=args.max_files,
+            verbose=not args.quiet,
+            show_samples=args.show_samples
+        )
+        return 0
+    except Exception as e:
+        logger.error(f"Verification failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -1737,6 +1781,16 @@ def main():
     download_parser.add_argument('--num-workers', type=int, default=3,
                                 help='Number of parallel downloads (default: 3)')
     
+    # VERIFY command
+    verify_parser = subparsers.add_parser('verify', help='Verify features in enriched LAZ files')
+    verify_parser.add_argument('--input', type=Path, help='Input LAZ file to verify')
+    verify_parser.add_argument('--input-dir', type=Path, help='Input directory of LAZ files to verify')
+    verify_parser.add_argument('--max-files', type=int, help='Maximum number of files to verify')
+    verify_parser.add_argument('--quiet', action='store_true', 
+                              help='Suppress detailed output, show only summary')
+    verify_parser.add_argument('--show-samples', action='store_true',
+                              help='Display sample points from each file')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -1770,6 +1824,8 @@ def main():
         return cmd_download(args)
     elif args.command == 'pipeline':
         return cmd_pipeline(args)
+    elif args.command == 'verify':
+        return cmd_verify(args)
     
     return 0
 

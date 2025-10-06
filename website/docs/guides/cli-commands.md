@@ -24,8 +24,10 @@ ign-lidar-hd COMMAND [options]
 
 - [`download`](#download) - Download LiDAR tiles from IGN servers
 - [`enrich`](#enrich) - Add building features to LAZ files
+- [`verify`](#verify) - Verify features in enriched LAZ files
 - [`patch`](#patch) - Extract patches from enriched tiles (renamed from `process`)
 - [`process`](#process-deprecated) - ⚠️ Deprecated alias for `patch`
+- [`pipeline`](#pipeline) - Execute complete workflows from YAML configuration
 
 ## download
 
@@ -249,6 +251,134 @@ See the [Preprocessing Guide](../../PHASE1_SPRINT1_COMPLETE) for detailed inform
 - Processing time with preprocessing: +15-30% overhead
 - Memory usage: ~2-4 GB per worker
 - [Smart skip detection](../features/smart-skip) avoids re-enriching existing files
+
+## verify
+
+Verify features in enriched LAZ files to ensure quality and correctness.
+
+### Syntax
+
+```bash
+ign-lidar-hd verify \
+  --input INPUT_FILE \
+  [--show-samples] \
+  [--quiet]
+
+# Or verify multiple files
+ign-lidar-hd verify \
+  --input-dir INPUT_DIR \
+  [--max-files MAX_FILES] \
+  [--show-samples] \
+  [--quiet]
+```
+
+### Parameters
+
+| Parameter        | Type    | Required | Description                                 |
+| ---------------- | ------- | -------- | ------------------------------------------- |
+| `--input`        | string  | \*       | Single LAZ file to verify                   |
+| `--input-dir`    | string  | \*       | Directory of LAZ files to verify            |
+| `--max-files`    | integer | No       | Maximum number of files to verify           |
+| `--show-samples` | flag    | No       | Display sample points from each file        |
+| `--quiet`        | flag    | No       | Suppress detailed output, show only summary |
+
+_\* Either `--input` or `--input-dir` must be specified_
+
+### Examples
+
+```bash
+# Verify a single file
+ign-lidar-hd verify --input enriched/file.laz
+
+# Verify all files in directory
+ign-lidar-hd verify --input-dir enriched/
+
+# Quick check with samples
+ign-lidar-hd verify --input enriched/file.laz --show-samples
+
+# Batch verification (first 10 files)
+ign-lidar-hd verify --input-dir enriched/ --max-files 10
+
+# Quiet mode (summary only)
+ign-lidar-hd verify --input-dir enriched/ --quiet
+```
+
+### What Gets Verified
+
+The verify command checks:
+
+- **RGB Values**
+  - Presence of red, green, blue channels
+  - Value ranges (0-255)
+  - Color diversity and anomaly detection
+- **NIR (Infrared) Values**
+  - Presence of NIR channel
+  - Value distribution
+  - Default value detection
+- **Geometric Features**
+  - Linearity, planarity, sphericity
+  - Anisotropy, roughness
+  - Value range validation [0, 1]
+- **Quality Checks**
+  - Out-of-range value detection
+  - Missing feature warnings
+  - Statistical distributions
+
+### Output
+
+Detailed analysis per file:
+
+```
+================================================================================
+Analyzing: LHD_FXX_0473_6916.laz
+================================================================================
+Total points: 6,579,534
+
+1. RGB VALUES CHECK
+--------------------------------------------------------------------------------
+✓ RGB channels present
+  Red:   min= 64, max=255, mean=151.34, std= 39.22
+  ...
+  ✓ RGB values look good
+
+2. NIR (INFRARED) VALUES CHECK
+--------------------------------------------------------------------------------
+✓ NIR channel present
+  Range: 1 - 253
+  ...
+
+3. LINEARITY CHECK
+--------------------------------------------------------------------------------
+✓ Linearity present
+  Range: 0.000073 - 0.999326
+  ✓ Linearity values in valid range [0, 1]
+...
+```
+
+Summary for multiple files:
+
+```
+================================================================================
+VERIFICATION SUMMARY
+================================================================================
+Files verified: 10
+
+Feature presence:
+  ✓ rgb         : 10/10 files (100.0%)
+  ✓ nir         : 10/10 files (100.0%)
+  ✓ linearity   : 10/10 files (100.0%)
+  ...
+
+✓ No warnings detected
+================================================================================
+```
+
+### Notes
+
+- Use after enrichment to validate processing
+- Helps debug RGB/NIR fetch issues
+- Detects feature computation errors
+- See [CLI Reference - Verify](../reference/cli-verify) for detailed documentation
 
 ## patch
 

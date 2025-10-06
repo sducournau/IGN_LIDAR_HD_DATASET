@@ -105,10 +105,10 @@ class AdaptiveMemoryManager:
         if self.enable_gpu:
             try:
                 import cupy as cp
-                device = cp.cuda.Device()
-                mem_info = device.mem_info
-                vram_free = mem_info[0] / (1024**3)
-                vram_total = mem_info[1] / (1024**3)
+                # Use runtime API instead of deprecated device.mem_info
+                vram_free, vram_total = cp.cuda.runtime.memGetInfo()
+                vram_free = vram_free / (1024**3)
+                vram_total = vram_total / (1024**3)
                 vram_used = vram_total - vram_free
                 logger.info(
                     f"  VRAM: {vram_total:.1f} GB total, "
@@ -137,7 +137,9 @@ class AdaptiveMemoryManager:
         if self.enable_gpu:
             try:
                 import cupy as cp
-                vram_free_gb = cp.cuda.Device().mem_info[0] / (1024**3)
+                # Use runtime API instead of deprecated device.mem_info
+                vram_free, _ = cp.cuda.runtime.memGetInfo()
+                vram_free_gb = vram_free / (1024**3)
             except Exception:
                 pass
         

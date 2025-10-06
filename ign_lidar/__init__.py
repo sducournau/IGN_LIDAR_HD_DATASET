@@ -5,7 +5,7 @@ A Python library for processing IGN LiDAR HD data into machine learning-ready da
 with building LOD (Level of Detail) classification support.
 """
 
-__version__ = "1.7.5"
+__version__ = "1.7.6"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 

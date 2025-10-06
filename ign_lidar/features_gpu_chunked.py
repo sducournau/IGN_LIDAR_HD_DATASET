@@ -82,6 +82,18 @@ class GPUChunkedFeatureComputer:
         self.show_progress = show_progress
         self.auto_optimize = auto_optimize
         
+        # Initialize CUDA context early if GPU is requested
+        if self.use_gpu and cp is not None:
+            try:
+                cp.cuda.Device(0).use()
+            except Exception as e:
+                logger.warning(
+                    f"⚠ GPU initialization failed ({e.__class__.__name__}: "
+                    f"{e}), falling back to CPU"
+                )
+                self.use_gpu = False
+                self.use_cuml = False
+        
         # INTELLIGENT AUTO-OPTIMIZATION
         if self.use_gpu and auto_optimize:
             from .memory_manager import AdaptiveMemoryManager
@@ -115,27 +127,36 @@ class GPUChunkedFeatureComputer:
             self.memory_manager = None
         
         if self.use_gpu:
-            # Get available VRAM
+            # Get available VRAM (CUDA already initialized above)
             if cp is not None:
-                total_vram = cp.cuda.Device().mem_info[1] / (1024**3)
-                if self.use_cuml:
-                    logger.info(
-                        f"🚀 GPU chunked mode enabled with RAPIDS cuML "
-                        f"(chunk_size={chunk_size:,}, "
-                        f"VRAM limit={vram_limit_gb:.1f}GB / "
-                        f"{total_vram:.1f}GB total)"
+                try:
+                    # Use runtime API instead of deprecated device.mem_info
+                    _, total_vram = cp.cuda.runtime.memGetInfo()
+                    total_vram = total_vram / (1024**3)
+                    if self.use_cuml:
+                        logger.info(
+                            f"🚀 GPU chunked mode enabled with RAPIDS cuML "
+                            f"(chunk_size={self.chunk_size:,}, "
+                            f"VRAM limit={self.vram_limit_gb:.1f}GB / "
+                            f"{total_vram:.1f}GB total)"
+                        )
+                    else:
+                        logger.info(
+                            f"🚀 GPU chunked mode enabled with CuPy + sklearn "
+                            f"(chunk_size={self.chunk_size:,}, "
+                            f"VRAM limit={self.vram_limit_gb:.1f}GB / "
+                            f"{total_vram:.1f}GB total)"
+                        )
+                        logger.info(
+                            "   ℹ️ Install RAPIDS cuML for full GPU acceleration"
+                        )
+                except Exception as e:
+                    logger.warning(
+                        f"⚠ Failed to get VRAM info ({e.__class__.__name__}: "
+                        f"{e}), using default limits"
                     )
-                else:
-                    logger.info(
-                        f"🚀 GPU chunked mode enabled with CuPy + sklearn "
-                        f"(chunk_size={chunk_size:,}, "
-                        f"VRAM limit={vram_limit_gb:.1f}GB / "
-                        f"{total_vram:.1f}GB total)"
-                    )
-                    logger.info(
-                        "   ℹ️ Install RAPIDS cuML for full GPU acceleration"
-                    )
-        else:
+        
+        if not self.use_gpu:
             logger.info("💻 CPU mode - GPU not available or disabled")
     
     def _to_gpu(self, array: np.ndarray) -> 'cp.ndarray':
@@ -885,16 +906,14 @@ class GPUChunkedFeatureComputer:
         height = np.zeros(N, dtype=np.float32)
         
         # Initialize geometric features
+        # Only initialize features that are actually computed
         geo_features = {
-            'eigenvalue_sum': np.zeros(N, dtype=np.float32),
-            'omnivariance': np.zeros(N, dtype=np.float32),
-            'eigenentropy': np.zeros(N, dtype=np.float32),
             'anisotropy': np.zeros(N, dtype=np.float32),
             'planarity': np.zeros(N, dtype=np.float32),
             'linearity': np.zeros(N, dtype=np.float32),
-            'surface_variation': np.zeros(N, dtype=np.float32),
             'sphericity': np.zeros(N, dtype=np.float32),
-            'verticality': np.zeros(N, dtype=np.float32)
+            'roughness': np.zeros(N, dtype=np.float32),
+            'density': np.zeros(N, dtype=np.float32)
         }
         
         # Compute per-chunk for memory efficiency
@@ -1010,6 +1029,15 @@ class GPUChunkedFeatureComputer:
             for key in geo_features:
                 if key in chunk_geo:
                     geo_features[key][start_idx:end_idx] = chunk_geo[key]
+            
+            # Compute verticality from normals (for wall detection)
+            chunk_normals_for_vert = normals[start_idx:end_idx]
+            verticality_chunk = gpu_computer.compute_verticality(
+                chunk_normals_for_vert
+            )
+            if 'verticality' not in geo_features:
+                geo_features['verticality'] = np.zeros(N, dtype=np.float32)
+            geo_features['verticality'][start_idx:end_idx] = verticality_chunk
             
             # Cleanup
             del chunk_points, chunk_classification, chunk_normals

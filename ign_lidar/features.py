@@ -1149,6 +1149,10 @@ def compute_all_features_with_gpu(
                 points, normals, k=k, radius=radius
             )
             
+            # Add verticality for building detection (wall/roof scoring)
+            verticality = computer.compute_verticality(normals)
+            geo_features['verticality'] = verticality
+            
             return normals, curvature, height, geo_features
             
         except ImportError as e:
@@ -1161,8 +1165,15 @@ def compute_all_features_with_gpu(
     # CPU fallback - note: radius not used in compute_all_features_optimized
     # because it computes normals/curvature with k-NN, only geometric features
     # can use radius via extract_geometric_features separately
-    return compute_all_features_optimized(
+    normals, curvature, height, geo_features = compute_all_features_optimized(
         points, classification, k, auto_k,
         include_extra=False
     )
+    
+    # Add verticality even in CPU fallback (needed for wall/roof scoring)
+    if 'verticality' not in geo_features:
+        verticality = compute_verticality(normals)
+        geo_features['verticality'] = verticality
+    
+    return normals, curvature, height, geo_features
 

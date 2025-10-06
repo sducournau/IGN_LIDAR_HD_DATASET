@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 1.7.5** | Python 3.8+ | MIT License
+**Version 1.7.6** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -23,7 +23,7 @@ title: IGN LiDAR HD Processing Library
 
 ---
 
-## 🎉 Latest Release: v1.7.5
+## 🎉 Latest Release: v1.7.6
 
 ### 🚀 MASSIVE Performance Optimization - 100-200x Speedup!
 

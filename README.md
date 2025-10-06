@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 1.7.5** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 1.7.6** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/website/static/img/lod3.png?raw=true" alt="LoD3 Building Model Icon" width="600">
 
@@ -90,6 +90,19 @@ flowchart TD
 
 ## ✨ What's New
 
+### Version 1.7.6 - Critical Fix & Verification 🔧
+
+**Highlights:**
+
+- 🐛 **Critical Fix**: Verticality computation in GPU chunked processing
+  - Fixed: Verticality was all zeros in large files (>5M points) with `--use-gpu`
+  - Impact: Wall detection now working correctly
+  - Result: ~20% smaller files (removed uncomputed features)
+- 🔍 **New Feature Verification System**
+  - Command: `ign-lidar-hd verify --input-dir <path>`
+  - Validates RGB, NIR, geometric features in enriched files
+  - Comprehensive anomaly detection and statistics
+
 ### Version 1.7.5 - Performance Breakthrough 🚀
 
 **Highlights:**
@@ -110,11 +123,11 @@ flowchart TD
 
 ### Recent Features
 
+- **v1.7.6**: Feature verification system, verticality fix
 - **v1.7.4**: GPU acceleration with RAPIDS cuML, WSL2 support
 - **v1.7.3**: Infrared (NIR) augmentation for NDVI calculation
 - **v1.7.1**: Auto-parameter analysis for optimal processing
 - **v1.7.0**: Artifact mitigation preprocessing (60-80% reduction)
-- **v1.6.0**: Enhanced data augmentation during enrich phase
 
 ---
 
@@ -303,7 +316,37 @@ ign-lidar-hd patch \
   --num-workers 4
 ```
 
-#### 4. Pipeline Command (Recommended)
+#### 4. Verify Command
+
+Verify features in enriched LAZ files:
+
+```bash
+# Verify a single file
+ign-lidar-hd verify --input enriched/file.laz
+
+# Verify all files in a directory
+ign-lidar-hd verify --input-dir enriched/
+
+# Quick check with sample display
+ign-lidar-hd verify --input enriched/file.laz --show-samples
+
+# Batch verification (first 10 files)
+ign-lidar-hd verify --input-dir enriched/ --max-files 10
+
+# Quiet mode (summary only)
+ign-lidar-hd verify --input-dir enriched/ --quiet
+```
+
+**Verification Features:**
+
+- ✅ RGB values (presence, ranges, diversity)
+- ✅ NIR/infrared values
+- ✅ Geometric features (linearity, planarity, sphericity, anisotropy, roughness)
+- ✅ Value range validation [0, 1]
+- ✅ Anomaly detection (default values, out-of-range)
+- ✅ Statistical distributions and sample point display
+
+#### 5. Pipeline Command (Recommended)
 
 Execute complete workflows using YAML configuration:
 
