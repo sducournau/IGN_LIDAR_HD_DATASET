@@ -157,11 +157,11 @@ ign-lidar-hd enrich \
 
 ### Modes de Traitement
 
-| Mode             | Vitesse                          | Prérequis               | Cas d'Usage                      |
-| ---------------- | -------------------------------- | ----------------------- | -------------------------------- |
-| **CPU**          | Baseline (60 min/dalle)          | Python 3.8+             | Développement, petits jeux       |
-| **GPU Hybride**  | 6-8x plus rapide (7-10 min)      | GPU NVIDIA, CuPy        | Bon équilibre                    |
-| **GPU Complet**  | 12-20x plus rapide (3-5 min)     | GPU NVIDIA, RAPIDS cuML | Production, gros jeux de données |
+| Mode            | Vitesse                      | Prérequis               | Cas d'Usage                      |
+| --------------- | ---------------------------- | ----------------------- | -------------------------------- |
+| **CPU**         | Baseline (60 min/dalle)      | Python 3.8+             | Développement, petits jeux       |
+| **GPU Hybride** | 6-8x plus rapide (7-10 min)  | GPU NVIDIA, CuPy        | Bon équilibre                    |
+| **GPU Complet** | 12-20x plus rapide (3-5 min) | GPU NVIDIA, RAPIDS cuML | Production, gros jeux de données |
 
 ### Formats de Sortie
 
@@ -206,7 +206,7 @@ Avec l'optimisation vectorielle v1.7.5 :
 
 | Points | CPU  | GPU (cuML) | Accélération |
 | ------ | ---- | ---------- | ------------ |
-| 1M     | 10s  | <1s        | 15-20x       |
+| 1M     | 10s  | &lt;1s     | 15-20x       |
 | 5M     | 50s  | 3s         | 100-150x     |
 | 17M    | 180s | 30s        | **100-200x** |
 
