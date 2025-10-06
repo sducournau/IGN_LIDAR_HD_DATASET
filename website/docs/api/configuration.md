@@ -565,7 +565,7 @@ def load_secure_config(config_path):
 
 ## Related Documentation
 
-- [Processing Guide](../guides/getting-started.md)
-- [Performance Guide](../guides/performance.md)
-- [API Reference](./features.md)
-- [CLI Reference](./cli.md)
+- [Processing Guide](../guides/getting-started)
+- [Performance Guide](../guides/performance)
+- [API Reference](./features)
+- [CLI Reference](./cli)

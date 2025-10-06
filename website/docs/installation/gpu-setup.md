@@ -478,7 +478,7 @@ pip install ign-lidar-hd[gpu]
 
 ## Related Documentation
 
-- [GPU Acceleration Guide](../guides/gpu-acceleration.md)
-- [Performance Optimization](../guides/performance.md)
-- [GPU API Reference](../api/gpu-api.md)
-- [Troubleshooting Guide](../guides/troubleshooting.md)
+- [GPU Acceleration Guide](../guides/gpu-acceleration)
+- [Performance Optimization](../guides/performance)
+- [GPU API Reference](../api/gpu-api)
+- [Troubleshooting Guide](../guides/troubleshooting)

@@ -192,10 +192,10 @@ nvcc --version
 
 Now that you're installed:
 
-1. 📖 Follow the [Quick Start Guide](../guides/quick-start.md)
-2. 🖥️ Try [Basic Usage Examples](../guides/basic-usage.md)
-3. ⚡ Configure [GPU acceleration](../gpu/overview.md) (if available)
-4. 📋 Explore [Pipeline Configuration](../features/pipeline-configuration.md)
+1. 📖 Follow the [Quick Start Guide](../guides/quick-start)
+2. 🖥️ Try [Basic Usage Examples](../guides/basic-usage)
+3. ⚡ Configure [GPU acceleration](../gpu/overview) (if available)
+4. 📋 Explore [Pipeline Configuration](../features/pipeline-configuration)
 
 ## 💡 Need Help?
 

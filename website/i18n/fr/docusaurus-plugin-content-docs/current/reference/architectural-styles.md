@@ -1,17 +1,24 @@
 ---
+# 🇫🇷 Traduisez les champs title et description ci-dessous
 sidebar_position: 3
 title: Architectural Styles
 description: French architectural style detection and classification
 keywords: [architecture, buildings, styles, france, heritage]
 ---
 
-reference/architectural-styles.md
+<!-- 
+🇫🇷 TRADUCTION FRANÇAISE REQUISE
+Ce document doit être traduit de l'anglais vers le français.
+Veuillez traduire les titres, descriptions et texte principal.
+Conservez tous les blocs de code, commandes et exemples techniques tels quels.
+-->
+
 
 # Architectural Styles
 
 Classification and analysis of French architectural styles using LiDAR data.
 
-## Vue d'ensemble
+## Overview
 
 The IGN LiDAR HD dataset enables detailed analysis of architectural styles across French territories, supporting:
 
@@ -477,7 +484,7 @@ def store_architectural_data(classifications, database_connection):
 4. **Documentation**: Maintain detailed classification rationale
 5. **Version Control**: Track model and criteria versions
 
-## Documentation Associée
+## Related Documentation
 
 - [Regional Processing](../guides/regional-processing.md)
 - [Historical Analysis](./historical-analysis.md)

@@ -1,11 +1,18 @@
 ---
+# 🇫🇷 Traduisez les champs title et description ci-dessous
 sidebar_position: 7
 title: Performance Guide
 description: Optimization techniques for high-performance LiDAR processing
 keywords: [performance, optimization, gpu, memory, speed]
 ---
 
-guides/performance.md
+<!-- 
+🇫🇷 TRADUCTION FRANÇAISE REQUISE
+Ce document doit être traduit de l'anglais vers le français.
+Veuillez traduire les titres, descriptions et texte principal.
+Conservez tous les blocs de code, commandes et exemples techniques tels quels.
+-->
+
 
 # Performance Guide
 
@@ -15,7 +22,7 @@ Optimize IGN LiDAR HD processing for maximum performance across different hardwa
 **NEW in v1.7.5**: Automatic 5-10x speedup through optimized chunking! No configuration changes needed - your existing commands will run faster automatically.
 :::
 
-## Vue d'ensemble
+## Overview
 
 This guide covers performance optimization strategies for:
 
@@ -318,7 +325,7 @@ downloader.batch_download(
 )
 ```
 
-## Traitement Pipeline Optimization
+## Processing Pipeline Optimization
 
 ### Optimized Workflow
 
@@ -504,7 +511,7 @@ def log_performance_metrics(operation, duration, points_processed):
     logging.info(f"Performance: {points_per_second:,.0f} points/second")
 ```
 
-## Dépannage Performance Issues
+## Troubleshooting Performance Issues
 
 ### Common Issues and Solutions
 
@@ -529,7 +536,7 @@ def log_performance_metrics(operation, duration, points_processed):
 3. **Check thermal throttling**: Ensure adequate cooling
 4. **Update drivers**: Use latest GPU drivers
 
-## Documentation Associée
+## Related Documentation
 
 - [GPU Acceleration Guide](./gpu-acceleration.md)
 - [Installation Guide](../installation/quick-start.md)

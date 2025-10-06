@@ -489,11 +489,11 @@ ign-lidar-hd enrich \
 
 ## Related Documentation
 
-- [Artifact Analysis Report](../../../artifacts.md) - Detailed analysis of LiDAR artifacts
-- [Implementation Guide](../../../PHASE1_SPRINT1_COMPLETE.md) - Technical implementation details
-- [Integration Details](../../../PHASE1_SPRINT2_COMPLETE.md) - CLI and processor integration
+- [Artifact Analysis Report](../../../artifacts) - Detailed analysis of LiDAR artifacts
+- [Implementation Guide](../../../PHASE1_SPRINT1_COMPLETE) - Technical implementation details
+- [Integration Details](../../../PHASE1_SPRINT2_COMPLETE) - CLI and processor integration
 - [CLI Commands](cli-commands.md) - Complete CLI reference
-- [Python API](../api/processor.md) - Processor API documentation
+- [Python API](../api/processor) - Processor API documentation
 
 ## References
 

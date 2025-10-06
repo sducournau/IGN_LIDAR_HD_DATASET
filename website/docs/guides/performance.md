@@ -529,7 +529,7 @@ def log_performance_metrics(operation, duration, points_processed):
 
 ## Related Documentation
 
-- [GPU Acceleration Guide](./gpu-acceleration.md)
-- [Installation Guide](../installation/quick-start.md)
-- [Troubleshooting Guide](./troubleshooting.md)
-- [API Reference](../api/processor.md)
+- [GPU Acceleration Guide](./gpu-acceleration)
+- [Installation Guide](../installation/quick-start)
+- [Troubleshooting Guide](./troubleshooting)
+- [API Reference](../api/processor)

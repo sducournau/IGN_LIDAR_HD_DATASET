@@ -317,11 +317,11 @@ visualizer.render_buildings(
 
 ## Documentation Links
 
-- **[Installation Guide](../../installation/quick-start.md)** - Setup instructions
-- **[API Reference](../../api/features.md)** - Detailed API documentation
-- **[Performance Guide](../performance.md)** - Optimization techniques
+- **[Installation Guide](../../installation/quick-start)** - Setup instructions
+- **[API Reference](../../api/features)** - Detailed API documentation
+- **[Performance Guide](../performance)** - Optimization techniques
 - **[Examples](../../examples/)** - Code examples and tutorials
-- **[Troubleshooting](../troubleshooting.md)** - Common issues and solutions
+- **[Troubleshooting](../troubleshooting)** - Common issues and solutions
 
 ## Getting Started
 
@@ -331,4 +331,4 @@ visualizer.render_buildings(
 4. **Explore features**: Try different processing options
 5. **Optimize for your use case**: Configure pipelines
 
-For detailed getting started instructions, see the [Quick Start Guide](../quick-start.md).
+For detailed getting started instructions, see the [Quick Start Guide](../quick-start).

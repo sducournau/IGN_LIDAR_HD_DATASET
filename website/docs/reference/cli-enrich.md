@@ -424,13 +424,13 @@ ign-lidar enrich --log-file enrich.log input.las output.las
 
 ## Related Commands
 
-- [`ign-lidar download`](./cli-download.md) - Download IGN LiDAR tiles
-- [`ign-lidar patch`](./cli-patch.md) - Extract ML training patches
-- [`ign-lidar qgis`](./cli-qgis.md) - QGIS integration tools
+- [`ign-lidar download`](./cli-download) - Download IGN LiDAR tiles
+- [`ign-lidar patch`](./cli-patch) - Extract ML training patches
+- [`ign-lidar qgis`](./cli-qgis) - QGIS integration tools
 
 ## See Also
 
-- [Processing Guide](../guides/preprocessing.md)
-- [Features API](../api/features.md)
-- [Performance Optimization](../guides/performance.md)
-- [Troubleshooting](../guides/troubleshooting.md)
+- [Processing Guide](../guides/preprocessing)
+- [Features API](../api/features)
+- [Performance Optimization](../guides/performance)
+- [Troubleshooting](../guides/troubleshooting)

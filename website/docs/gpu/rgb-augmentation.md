@@ -504,9 +504,9 @@ Where:
 
 - **[GPU Overview](overview.md)** - Setup GPU acceleration
 - **[GPU Features](features.md)** - Feature computation details
-- **[RGB Augmentation (CPU)](../features/rgb-augmentation.md)** - CPU version
-- **[Architecture](../architecture.md)** - System architecture
-- **[Workflows](../workflows.md)** - GPU workflow examples
+- **[RGB Augmentation (CPU)](../features/rgb-augmentation)** - CPU version
+- **[Architecture](../architecture)** - System architecture
+- **[Workflows](../workflows)** - GPU workflow examples
 
 ---
 

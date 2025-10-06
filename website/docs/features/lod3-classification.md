@@ -164,9 +164,9 @@ print(f"Key features: {results['detected_features']}")
 
 ## Related Documentation
 
-- [Architectural Styles](./architectural-styles.md) - Understanding regional building patterns
-- [Axonometry Analysis](./axonometry.md) - 3D geometric representation methods
-- [Feature Extraction](../api/features.md) - Technical implementation details
+- [Architectural Styles](./architectural-styles) - Understanding regional building patterns
+- [Axonometry Analysis](./axonometry) - 3D geometric representation methods
+- [Feature Extraction](../api/features) - Technical implementation details
 
 ## Further Reading
 

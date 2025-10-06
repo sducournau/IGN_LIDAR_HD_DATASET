@@ -10,7 +10,7 @@ keywords: [quickstart, workflow, tutorial, examples]
 Get up and running with IGN LiDAR HD Processing Library in 5 minutes! This guide walks you through your first complete workflow from download to analysis.
 
 :::info Prerequisites
-Make sure you have IGN LiDAR HD installed. If not, see the [Installation Guide](../installation/quick-start.md) first.
+Make sure you have IGN LiDAR HD installed. If not, see the [Installation Guide](../installation/quick-start) first.
 :::
 
 ---
@@ -143,7 +143,7 @@ For production workflows, use YAML configuration files for reproducibility:
 ign-lidar-hd pipeline my_workflow.yaml --create-example full
 ```
 
-This creates a YAML configuration file. For detailed configuration examples, see [Configuration Examples](../reference/config-examples.md).
+This creates a YAML configuration file. For detailed configuration examples, see [Configuration Examples](../reference/config-examples).
 
 ### Quick Example
 

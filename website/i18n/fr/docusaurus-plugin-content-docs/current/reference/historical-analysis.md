@@ -1,17 +1,24 @@
 ---
+# 🇫🇷 Traduisez les champs title et description ci-dessous
 sidebar_position: 4
 title: Historical Analysis
 description: Tools for temporal analysis and change detection in LiDAR datasets
 keywords: [temporal, change-detection, historical, time-series, evolution]
 ---
 
-reference/historical-analysis.md
+<!-- 
+🇫🇷 TRADUCTION FRANÇAISE REQUISE
+Ce document doit être traduit de l'anglais vers le français.
+Veuillez traduire les titres, descriptions et texte principal.
+Conservez tous les blocs de code, commandes et exemples techniques tels quels.
+-->
+
 
 # Historical Analysis
 
 Tools and methods for analyzing temporal changes in LiDAR datasets and detecting urban evolution patterns.
 
-## Vue d'ensemble
+## Overview
 
 Historical analysis capabilities enable researchers to track changes in urban environments over time using multi-temporal LiDAR datasets. These tools support urban planning, environmental monitoring, and heritage preservation applications.
 
@@ -71,7 +78,7 @@ vegetation_changes = detector.analyze_vegetation_changes(
     growth_threshold=1.5       # Significant growth threshold
 )
 
-# Retourne
+# Returns
 {
     'deforestation_areas': List[Polygon],  # Areas of tree removal
     'afforestation_areas': List[Polygon],  # New vegetation areas
@@ -420,7 +427,7 @@ report.export_html("temporal_analysis_report.html")
 report.export_data("temporal_analysis_data.json")
 ```
 
-## Avancé Applications
+## Advanced Applications
 
 ### Predictive Modeling
 
@@ -590,7 +597,7 @@ optimized_detector = optimizer.optimize_change_detector(
 )
 ```
 
-## Documentation Associée
+## Related Documentation
 
 - [Regional Processing](../guides/regional-processing.md)
 - [Architectural Styles](./architectural-styles.md)

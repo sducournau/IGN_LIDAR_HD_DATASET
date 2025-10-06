@@ -1,16 +1,23 @@
 ---
+# 🇫🇷 Traduisez les champs title et description ci-dessous
 sidebar_position: 3
 title: Level of Detail (LOD) Classification
 description: Understanding building detail levels for architectural analysis
 ---
 
-features/lod3-classification.md
+<!-- 
+🇫🇷 TRADUCTION FRANÇAISE REQUISE
+Ce document doit être traduit de l'anglais vers le français.
+Veuillez traduire les titres, descriptions et texte principal.
+Conservez tous les blocs de code, commandes et exemples techniques tels quels.
+-->
+
 
 # Level of Detail (LOD) Classification
 
 ![LOD3 Building Model](/img/lod3.png)
 
-## Vue d'ensemble
+## Overview
 
 Level of Detail (LOD) is a fundamental concept in 3D building modeling and architectural analysis. This library focuses on classifying buildings based on their geometric complexity and detail level, particularly targeting **LOD3** classification from LiDAR point clouds.
 
@@ -164,7 +171,7 @@ print(f"Key features: {results['detected_features']}")
    - Manual verification for critical applications
    - Cross-reference with architectural databases
 
-## Documentation Associée
+## Related Documentation
 
 - [Architectural Styles](./architectural-styles.md) - Understanding regional building patterns
 - [Axonometry Analysis](./axonometry.md) - 3D geometric representation methods

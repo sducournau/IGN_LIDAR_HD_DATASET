@@ -1,20 +1,27 @@
 ---
+# 🇫🇷 Traduisez les champs title et description ci-dessous
 sidebar_position: 1
 ---
 
-tutorials/custom-features.md
+<!-- 
+🇫🇷 TRADUCTION FRANÇAISE REQUISE
+Ce document doit être traduit de l'anglais vers le français.
+Veuillez traduire les titres, descriptions et texte principal.
+Conservez tous les blocs de code, commandes et exemples techniques tels quels.
+-->
+
 
 # Custom Features
 
 Learn how to create and integrate custom feature extractors for specialized LiDAR processing tasks.
 
-## Vue d'ensemble
+## Overview
 
 The IGN LiDAR HD library provides a flexible framework for implementing custom feature extraction algorithms. This tutorial shows how to create your own feature extractors.
 
 ## Creating Custom Features
 
-### Basique Feature Extractor
+### Basic Feature Extractor
 
 Create a custom feature class by inheriting from the base FeatureExtractor:
 
@@ -47,7 +54,7 @@ class CustomFeature(FeatureExtractor):
         return np.var(distances)
 ```
 
-### Avancé Feature with Parameters
+### Advanced Feature with Parameters
 
 Create more sophisticated features with configurable parameters:
 

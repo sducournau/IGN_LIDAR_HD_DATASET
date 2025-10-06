@@ -496,8 +496,8 @@ class IGNInfraredFetcher:
 
 - [RGB Augmentation](rgb-augmentation.md) - Color augmentation guide
 - [Pipeline Configuration](pipeline-configuration.md) - YAML config reference
-- [GPU Acceleration](../gpu/overview.md) - GPU setup and usage
-- [Preprocessing](../guides/preprocessing.md) - Artifact mitigation
+- [GPU Acceleration](../gpu/overview) - GPU setup and usage
+- [Preprocessing](../guides/preprocessing) - Artifact mitigation
 
 ## Examples
 

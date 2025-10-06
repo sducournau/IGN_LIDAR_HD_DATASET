@@ -649,7 +649,7 @@ result = cli.run_command("enrich", args)
 
 ## Related Documentation
 
-- [CLI Commands Guide](../guides/cli-commands.md)
-- [Configuration Reference](./configuration.md)
-- [Processor API](./processor.md)
-- [Performance Guide](../guides/performance.md)
+- [CLI Commands Guide](../guides/cli-commands)
+- [Configuration Reference](./configuration)
+- [Processor API](./processor)
+- [Performance Guide](../guides/performance)

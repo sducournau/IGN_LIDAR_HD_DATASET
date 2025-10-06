@@ -1,8 +1,15 @@
 ---
+# 🇫🇷 Traduisez les champs title et description ci-dessous
 sidebar_position: 5
 ---
 
-mermaid-reference.md
+<!-- 
+🇫🇷 TRADUCTION FRANÇAISE REQUISE
+Ce document doit être traduit de l'anglais vers le français.
+Veuillez traduire les titres, descriptions et texte principal.
+Conservez tous les blocs de code, commandes et exemples techniques tels quels.
+-->
+
 
 # Mermaid Diagrams Reference
 
@@ -10,7 +17,7 @@ This page demonstrates the various Mermaid diagrams used throughout the IGN LiDA
 
 ## 🔄 Workflow Diagrams
 
-### Basique Processing Flow
+### Basic Processing Flow
 
 ```mermaid
 flowchart TD
@@ -59,7 +66,7 @@ graph TB
 
 ## 📊 Performance Charts
 
-### Traitement Speed Comparison
+### Processing Speed Comparison
 
 ```mermaid
 xychart-beta
@@ -187,7 +194,7 @@ gantt
 
 ## 🌐 State Diagrams
 
-### Traitement States
+### Processing States
 
 ```mermaid
 stateDiagram-v2

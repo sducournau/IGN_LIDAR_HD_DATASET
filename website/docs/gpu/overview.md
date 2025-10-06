@@ -553,8 +553,8 @@ Follow our [GitHub repository](https://github.com/sducournau/IGN_LIDAR_HD_DATASE
 
 - **[GPU Features](features.md)** - Detailed feature computation and API reference
 - **[RGB GPU Acceleration](rgb-augmentation.md)** - GPU-accelerated RGB augmentation (v1.5.0+)
-- **[Architecture](../architecture.md)** - System architecture
-- **[Workflows](../workflows.md)** - GPU workflow examples
+- **[Architecture](../architecture)** - System architecture
+- **[Workflows](../workflows)** - GPU workflow examples
 
 ## External Resources
 

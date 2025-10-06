@@ -590,7 +590,7 @@ optimized_detector = optimizer.optimize_change_detector(
 
 ## Related Documentation
 
-- [Regional Processing](../guides/regional-processing.md)
-- [Architectural Styles](./architectural-styles.md)
-- [Building Features](../api/features.md)
-- [Visualization Guide](../guides/visualization.md)
+- [Regional Processing](../guides/regional-processing)
+- [Architectural Styles](./architectural-styles)
+- [Building Features](../api/features)
+- [Visualization Guide](../guides/visualization)

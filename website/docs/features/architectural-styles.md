@@ -357,7 +357,7 @@ analyzer.add_custom_style(custom_style)
 
 ## Related Documentation
 
-- [LOD3 Classification](./lod3-classification.md)
-- [Building Feature Extraction](../api/features.md)
-- [Regional Processing Guide](../guides/regional-processing.md)
-- [Historical Analysis Tools](../reference/historical-analysis.md)
+- [LOD3 Classification](./lod3-classification)
+- [Building Feature Extraction](../api/features)
+- [Regional Processing Guide](../guides/regional-processing)
+- [Historical Analysis Tools](../reference/historical-analysis)

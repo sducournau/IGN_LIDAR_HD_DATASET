@@ -382,9 +382,9 @@ IGN_LIDAR_PROFILE=1 python script.py
 
 ### Documentation
 
-- [Performance Guide](./performance.md)
-- [GPU Guide](./gpu-acceleration.md)
-- [API Reference](../api/features.md)
+- [Performance Guide](./performance)
+- [GPU Guide](./gpu-acceleration)
+- [API Reference](../api/features)
 
 ### Diagnostic Tools
 

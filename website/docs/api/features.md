@@ -252,7 +252,7 @@ final_labels = classifier.refine_classification(refined_labels, points)
 
 ## Related Documentation
 
-- [Processor API](./processor.md)
-- [RGB Augmentation API](./rgb-augmentation.md)
-- [GPU Integration Guide](../guides/gpu-acceleration.md)
-- [Performance Optimization](../guides/performance.md)
+- [Processor API](./processor)
+- [RGB Augmentation API](./rgb-augmentation)
+- [GPU Integration Guide](../guides/gpu-acceleration)
+- [Performance Optimization](../guides/performance)

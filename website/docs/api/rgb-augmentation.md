@@ -152,6 +152,6 @@ results = processor.batch_augmentation(
 
 ## Related Documentation
 
-- [Features API](./features.md)
-- [Processor API](./processor.md)
-- [GPU Acceleration Guide](../guides/gpu-acceleration.md)
+- [Features API](./features)
+- [Processor API](./processor)
+- [GPU Acceleration Guide](../guides/gpu-acceleration)

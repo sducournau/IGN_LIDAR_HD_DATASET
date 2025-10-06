@@ -1,11 +1,18 @@
 ---
+# 🇫🇷 Traduisez les champs title et description ci-dessous
 sidebar_position: 8
 title: Auto-Params Guide (English)
 description: Automatic parameter optimization for optimal LiDAR processing quality
 keywords: [auto-params, optimization, parameters, quality, automation]
 ---
 
-guides/auto-params.md
+<!-- 
+🇫🇷 TRADUCTION FRANÇAISE REQUISE
+Ce document doit être traduit de l'anglais vers le français.
+Veuillez traduire les titres, descriptions et texte principal.
+Conservez tous les blocs de code, commandes et exemples techniques tels quels.
+-->
+
 
 # Auto-Parameters Guide (v1.7.1+)
 
@@ -120,7 +127,7 @@ Based on the analysis, Auto-Params selects optimal parameters:
 
 ### CLI Usage
 
-#### Basique Auto-Params
+#### Basic Auto-Params
 
 ```bash
 # Enable automatic parameter optimization
@@ -151,7 +158,7 @@ ign-lidar-hd enrich \
 
 ### Python API Usage
 
-#### Basique Usage
+#### Basic Usage
 
 ```python
 from ign_lidar.processor import LiDARProcessor
@@ -167,7 +174,7 @@ processor = LiDARProcessor(
 processor.process_tile('input.laz', 'output.laz')
 ```
 
-#### Avancé Configuration
+#### Advanced Configuration
 
 ```python
 # Custom auto-params configuration
@@ -228,7 +235,7 @@ processor = LiDARProcessor(
 # Enable verbose logging to see selected parameters
 ign-lidar-hd enrich input.laz output.laz --auto-params --verbose
 
-# Exemple output:
+# Example output:
 # [INFO] Auto-Params Analysis Complete:
 #   - Point Density: 847 pts/m² (dense)
 #   - Spatial Distribution: uniform

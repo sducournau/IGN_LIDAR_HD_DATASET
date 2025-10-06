@@ -92,5 +92,5 @@ ign-lidar patch \
 
 ## Related Commands
 
-- [`ign-lidar enrich`](./cli-enrich.md) - Enrich point clouds
-- [`ign-lidar download`](./cli-download.md) - Download tiles
+- [`ign-lidar enrich`](./cli-enrich) - Enrich point clouds
+- [`ign-lidar download`](./cli-download) - Download tiles

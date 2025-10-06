@@ -401,11 +401,11 @@ All three modes produce **identical results** (verified with feature correlation
 
 ## 🔗 Related Documentation
 
-- [Quick Start Guide](./quick-start.md)
-- [Performance Optimization](./performance.md)
-- [Troubleshooting](./troubleshooting.md)
-- [Pipeline Configuration](../api/pipeline-config.md)
-- [Installation Guide](../installation/quick-start.md)
+- [Quick Start Guide](./quick-start)
+- [Performance Optimization](./performance)
+- [Troubleshooting](./troubleshooting)
+- [Pipeline Configuration](../api/pipeline-config)
+- [Installation Guide](../installation/quick-start)
 
 ## 💡 Best Practices
 
@@ -487,4 +487,4 @@ CUDA_VISIBLE_DEVICES=1 ign-lidar-hd enrich --input dir2/ --output out2/ --use-gp
 
 ---
 
-_For more advanced GPU optimization techniques, see the [Performance Guide](./performance.md)._
+_For more advanced GPU optimization techniques, see the [Performance Guide](./performance)._

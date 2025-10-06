@@ -283,7 +283,7 @@ ign-lidar-hd process --num-workers 2
 ign-lidar-hd process --num-workers 1
 ```
 
-See the [Memory Optimization Guide](../reference/memory-optimization.md) for detailed memory management strategies.
+See the [Memory Optimization Guide](../reference/memory-optimization) for detailed memory management strategies.
 
 ## Smart Skip Detection
 
@@ -299,7 +299,7 @@ ign-lidar-hd download --bbox 2.32,48.82,2.38,48.86 --output data/raw_tiles/
 ign-lidar-hd process --input data/enriched/ --output data/patches/ --force
 ```
 
-See the [Smart Skip Features](../features/smart-skip.md) guide for details.
+See the [Smart Skip Features](../features/smart-skip) guide for details.
 
 ## Troubleshooting
 
@@ -341,4 +341,4 @@ ign-lidar-hd enrich --input-dir raw/ --output enriched/ --force
 - **Advanced Processing**: Learn about [GPU acceleration](gpu-acceleration.md)
 - **QGIS Integration**: See [QGIS integration guide](qgis-integration.md)
 - **Batch Processing**: Check out [parallel processing examples](../examples/parallel_processing_example.py)
-- **Custom Features**: Develop [custom feature extractors](../tutorials/custom-features.md)
+- **Custom Features**: Develop [custom feature extractors](../tutorials/custom-features)

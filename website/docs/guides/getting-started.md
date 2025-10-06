@@ -498,20 +498,20 @@ ign-lidar-hd download \
 
 1. **📖 Read the Documentation**
 
-   - [Basic Usage Guide](./basic-usage.md)
-   - [CLI Commands Reference](./cli-commands.md)
-   - [API Documentation](../api/processor.md)
+   - [Basic Usage Guide](./basic-usage)
+   - [CLI Commands Reference](./cli-commands)
+   - [API Documentation](../api/processor)
 
 2. **🔧 Try Advanced Features**
 
-   - [GPU Acceleration](./gpu-acceleration.md)
-   - [Pipeline Configuration](../features/pipeline-configuration.md)
-   - [RGB Augmentation](../features/rgb-augmentation.md)
+   - [GPU Acceleration](./gpu-acceleration)
+   - [Pipeline Configuration](../features/pipeline-configuration)
+   - [RGB Augmentation](../features/rgb-augmentation)
 
 3. **🎯 Explore Use Cases**
-   - [QGIS Integration](./qgis-integration.md)
-   - [Custom Features](../tutorials/custom-features.md)
-   - [Regional Processing](./regional-processing.md)
+   - [QGIS Integration](./qgis-integration)
+   - [Custom Features](../tutorials/custom-features)
+   - [Regional Processing](./regional-processing)
 
 ### Community and Support
 
@@ -578,7 +578,7 @@ quality:
 
 ## Related Documentation
 
-- [Installation Guide](../installation/quick-start.md)
-- [Basic Usage](./basic-usage.md)
-- [CLI Commands](./cli-commands.md)
-- [Configuration API](../api/configuration.md)
+- [Installation Guide](../installation/quick-start)
+- [Basic Usage](./basic-usage)
+- [CLI Commands](./cli-commands)
+- [Configuration API](../api/configuration)

@@ -1,17 +1,24 @@
 ---
+# 🇫🇷 Traduisez les champs title et description ci-dessous
 sidebar_position: 2
 title: Format Preferences
 description: Configure output formats for LAZ files and QGIS compatibility
 keywords: [format, laz, qgis, configuration, preferences]
 ---
 
-features/format-preferences.md
+<!-- 
+🇫🇷 TRADUCTION FRANÇAISE REQUISE
+Ce document doit être traduit de l'anglais vers le français.
+Veuillez traduire les titres, descriptions et texte principal.
+Conservez tous les blocs de code, commandes et exemples techniques tels quels.
+-->
 
-# Sortie Format Preferences
+
+# Output Format Preferences
 
 Configure how enriched LAZ files are saved to balance feature completeness with software compatibility.
 
-## Vue d'ensemble
+## Overview
 
 The library supports two output format strategies:
 
@@ -161,7 +168,7 @@ ign-lidar-hd enrich \
 ### GIS/Visualization Workflow
 
 ```bash
-# Basique enrichment
+# Basic enrichment
 ign-lidar-hd enrich \
   --input-dir raw_tiles/ \
   --output enriched_tiles/ \
@@ -218,16 +225,16 @@ Create `config/local_settings.py`:
 PREFER_AUGMENTED_LAZ = True
 AUTO_CONVERT_TO_QGIS = False
 
-# Traitement preferences
+# Processing preferences
 DEFAULT_MODE = 'full'
 DEFAULT_WORKERS = 4
 
-# Sortie preferences
+# Output preferences
 PRESERVE_DIRECTORY_STRUCTURE = True
 COPY_METADATA_FILES = True
 ```
 
-## Fichier Naming Conventions
+## File Naming Conventions
 
 ### Standard Output
 
@@ -276,7 +283,7 @@ python scripts/validation/test_qgis_compatibility.py enriched_tile_qgis.laz
 # ✅ File should load properly in QGIS
 ```
 
-## Dépannage
+## Troubleshooting
 
 ### QGIS Won't Load File
 
@@ -318,7 +325,7 @@ print(f"Available features: {len(features)}")
 
 ## Performance Considerations
 
-### Traitement Speed
+### Processing Speed
 
 - **Augmented LAZ**: Faster (no conversion overhead)
 - **QGIS LAZ**: Slower (requires attribute filtering/conversion)
@@ -334,7 +341,7 @@ print(f"Available features: {len(features)}")
 - **Augmented LAZ**: Higher memory during processing
 - **QGIS LAZ**: Lower memory (fewer attributes)
 
-## Voir Aussi
+## See Also
 
 - [QGIS Integration Guide](../guides/qgis-integration.md) - Using files in QGIS
 - [Smart Skip Features](smart-skip.md) - Avoid reprocessing files

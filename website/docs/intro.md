@@ -55,7 +55,7 @@ ign-lidar-hd enrich --input-dir data/ --output output/ \
 - ✅ GPU: 100% utilization, 40% VRAM usage
 - ✅ Complete pipeline: 17M points in 3-4 minutes
 
-📖 [Optimization Details](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/VECTORIZED_OPTIMIZATION.md) | [GPU Guide](/docs/guides/gpu-acceleration)
+📖 [Optimization Details](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/VECTORIZED_OPTIMIZATION.md) | [GPU Guide](/guides/gpu-acceleration)
 
 ---
 
@@ -138,7 +138,7 @@ ign-lidar-hd enrich \
   --add-infrared
 ```
 
-📖 Continue to [Installation](/docs/installation/quick-start) for detailed setup instructions.
+📖 Continue to [Installation](/installation/quick-start) for detailed setup instructions.
 
 ---
 
@@ -176,27 +176,27 @@ ign-lidar-hd enrich \
 
 📚 **Installation**
 
-- [Quick Start](/docs/installation/quick-start) - Get up and running in 5 minutes
-- [GPU Setup](/docs/installation/gpu-setup) - RAPIDS cuML configuration
+- [Quick Start](/installation/quick-start) - Get up and running in 5 minutes
+- [GPU Setup](/installation/gpu-setup) - RAPIDS cuML configuration
 
 ⚡ **Guides**
 
-- [GPU Acceleration](/docs/guides/gpu-acceleration) - Performance optimization
-- [Basic Usage](/docs/guides/basic-usage) - Common workflows
-- [Advanced Usage](/docs/guides/advanced-usage) - Power user features
+- [GPU Acceleration](/guides/gpu-acceleration) - Performance optimization
+- [Basic Usage](/guides/basic-usage) - Common workflows
+- [Advanced Usage](/guides/advanced-usage) - Power user features
 
 🎨 **Features**
 
-- [RGB Augmentation](/docs/features/rgb-augmentation) - Add true color
-- [Infrared Augmentation](/docs/features/infrared-augmentation) - NIR and NDVI
-- [Auto Parameters](/docs/features/auto-params) - Automatic optimization
-- [LoD3 Classification](/docs/features/lod3-classification) - Building detection
+- [RGB Augmentation](/features/rgb-augmentation) - Add true color
+- [Infrared Augmentation](/features/infrared-augmentation) - NIR and NDVI
+- [Auto Parameters](/features/auto-params) - Automatic optimization
+- [LoD3 Classification](/features/lod3-classification) - Building detection
 
 🔧 **API Reference**
 
-- [CLI Commands](/docs/api/cli) - Command-line interface
-- [Python API](/docs/api/features) - Programmatic usage
-- [Configuration](/docs/api/configuration) - YAML pipelines
+- [CLI Commands](/api/cli) - Command-line interface
+- [Python API](/api/features) - Programmatic usage
+- [Configuration](/api/configuration) - YAML pipelines
 
 ---
 
@@ -236,6 +236,6 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 ## Next Steps
 
-Ready to dive in? Start with the [Quick Start Guide](/docs/installation/quick-start) to install the library and process your first tile!
+Ready to dive in? Start with the [Quick Start Guide](/installation/quick-start) to install the library and process your first tile!
 
-For GPU acceleration (recommended for production), check out the [GPU Setup Guide](/docs/installation/gpu-setup).
+For GPU acceleration (recommended for production), check out the [GPU Setup Guide](/installation/gpu-setup).

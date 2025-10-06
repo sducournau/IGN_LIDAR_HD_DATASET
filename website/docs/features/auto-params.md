@@ -628,7 +628,7 @@ troubleshooting_guide_english = {
 
 ## Related Documentation
 
-- [Parameter Configuration](../configuration/parameters.md)
-- [Machine Learning Guide](../guides/machine-learning.md)
-- [Quality Assessment](../reference/quality-control.md)
-- [Troubleshooting](../troubleshooting/common-issues.md)
+- [Parameter Configuration](../configuration/parameters)
+- [Machine Learning Guide](../guides/machine-learning)
+- [Quality Assessment](../reference/quality-control)
+- [Troubleshooting](../troubleshooting/common-issues)

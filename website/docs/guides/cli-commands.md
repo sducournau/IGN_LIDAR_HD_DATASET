@@ -87,7 +87,7 @@ raw_tiles/
 - Coordinates must be in WGS84 (longitude/latitude)
 - Valid range for France: longitude 1-8°, latitude 42-51°
 - Files are typically 200-300 MB each
-- [Smart skip detection](../features/smart-skip.md) avoids re-downloading existing files
+- [Smart skip detection](../features/smart-skip) avoids re-downloading existing files
 
 ## enrich
 
@@ -240,7 +240,7 @@ The `--preprocess` flag enables point cloud preprocessing before feature computa
 --preprocess --sor-k 10 --sor-std 1.5 --ror-radius 0.8 --ror-neighbors 5 --voxel-size 0.3
 ```
 
-See the [Preprocessing Guide](../../PHASE1_SPRINT1_COMPLETE.md) for detailed information.
+See the [Preprocessing Guide](../../PHASE1_SPRINT1_COMPLETE) for detailed information.
 
 ### Notes
 
@@ -248,7 +248,7 @@ See the [Preprocessing Guide](../../PHASE1_SPRINT1_COMPLETE.md) for detailed inf
 - Processing time: ~2-5 minutes per tile (depends on point density)
 - Processing time with preprocessing: +15-30% overhead
 - Memory usage: ~2-4 GB per worker
-- [Smart skip detection](../features/smart-skip.md) avoids re-enriching existing files
+- [Smart skip detection](../features/smart-skip) avoids re-enriching existing files
 
 ## patch
 
@@ -363,7 +363,7 @@ When using `--include-rgb`, the library automatically:
 pip install requests Pillow
 ```
 
-See the [RGB Augmentation Guide](../features/rgb-augmentation.md) for detailed information.
+See the [RGB Augmentation Guide](../features/rgb-augmentation) for detailed information.
 
 ### Classification Levels
 
@@ -382,7 +382,7 @@ See the [RGB Augmentation Guide](../features/rgb-augmentation.md) for detailed i
 - Larger patches = fewer patches, more points each
 - Processing time: ~1-3 minutes per tile (geometry only), ~2-5 minutes with RGB
 - RGB augmentation adds ~196KB per patch (16384 points × 3 × 4 bytes)
-- [Smart skip detection](../features/smart-skip.md) avoids reprocessing existing patches
+- [Smart skip detection](../features/smart-skip) avoids reprocessing existing patches
 
 ## process (Deprecated)
 
@@ -465,7 +465,7 @@ ign-lidar-hd process \
 
 ### Resume Interrupted Work
 
-Thanks to [smart skip detection](../features/smart-skip.md), you can safely re-run commands:
+Thanks to [smart skip detection](../features/smart-skip), you can safely re-run commands:
 
 ```bash
 # If download was interrupted, just re-run
@@ -521,7 +521,7 @@ htop
 ign-lidar-hd process --input tiles/ --output patches/ --num-workers 1
 ```
 
-See the [Memory Optimization Guide](../reference/memory-optimization.md) for detailed strategies.
+See the [Memory Optimization Guide](../reference/memory-optimization) for detailed strategies.
 
 ## Troubleshooting
 
@@ -576,6 +576,6 @@ df -h /path/to/output/
 ## See Also
 
 - [Basic Usage Guide](basic-usage.md) - Step-by-step workflow tutorial
-- [Smart Skip Features](../features/smart-skip.md) - Automatic skip detection
-- [Memory Optimization](../reference/memory-optimization.md) - Performance tuning
-- [Python API Reference](../api/processor.md) - Programmatic usage
+- [Smart Skip Features](../features/smart-skip) - Automatic skip detection
+- [Memory Optimization](../reference/memory-optimization) - Performance tuning
+- [Python API Reference](../api/processor) - Programmatic usage

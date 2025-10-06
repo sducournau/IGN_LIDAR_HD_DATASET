@@ -334,6 +334,6 @@ print(f"Available features: {len(features)}")
 
 ## See Also
 
-- [QGIS Integration Guide](../guides/qgis-integration.md) - Using files in QGIS
+- [QGIS Integration Guide](../guides/qgis-integration) - Using files in QGIS
 - [Smart Skip Features](smart-skip.md) - Avoid reprocessing files
-- [CLI Commands](../guides/cli-commands.md) - Command-line options
+- [CLI Commands](../guides/cli-commands) - Command-line options

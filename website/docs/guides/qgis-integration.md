@@ -335,4 +335,4 @@ ign-lidar-hd process \
 - [Basic Usage Guide](basic-usage.md) - Creating enriched LAZ files
 - [CLI Commands](cli-commands.md) - Enrichment command reference
 - [QGIS Troubleshooting](qgis-troubleshooting.md) - Common issues and solutions
-- [Memory Optimization](../reference/memory-optimization.md) - Performance tuning
+- [Memory Optimization](../reference/memory-optimization) - Performance tuning

@@ -95,7 +95,7 @@ python tests/test_feature_fixes.py
 
 For more details, see:
 
-- [v1.6.2 Release Notes](/docs/release-notes/v1.6.2)
+- [v1.6.2 Release Notes](/release-notes/v1.6.2)
 - Repository files: `GEOMETRIC_FEATURES_ANALYSIS.md`, `IMPLEMENTATION_SUMMARY.md`
 
 ---
@@ -532,8 +532,8 @@ with GPUMemoryManager():
 
 - **[GPU Overview](overview.md)** - GPU setup and installation
 - **[RGB GPU Acceleration](rgb-augmentation.md)** - GPU-accelerated RGB augmentation
-- **[Architecture](../architecture.md)** - System architecture
-- **[Workflows](../workflows.md)** - GPU workflow examples
+- **[Architecture](../architecture)** - System architecture
+- **[Workflows](../workflows)** - GPU workflow examples
 
 ## References
 

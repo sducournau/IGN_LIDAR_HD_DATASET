@@ -450,9 +450,9 @@ ign-lidar-hd patch --input tiles/ --output patches/ --include-rgb
 
 ## Related Resources
 
-- [CLI Commands Reference](../guides/cli-commands.md) - Full command documentation
-- [Basic Usage Guide](../guides/basic-usage.md) - Getting started
-- [Smart Skip Detection](./smart-skip.md) - Resume interrupted workflows
+- [CLI Commands Reference](../guides/cli-commands) - Full command documentation
+- [Basic Usage Guide](../guides/basic-usage) - Getting started
+- [Smart Skip Detection](./smart-skip) - Resume interrupted workflows
 - [IGN Géoplateforme WMS](https://geoservices.ign.fr/services-web-experts-wms) - Official documentation
 
 ## FAQ
@@ -487,7 +487,7 @@ A: ~0.5-2MB per tile. For 100 tiles: ~50-200MB total.
 
 For 24x faster RGB augmentation using GPU acceleration, see:
 
-**[GPU-Accelerated RGB Augmentation Guide](../gpu/rgb-augmentation.md)**
+**[GPU-Accelerated RGB Augmentation Guide](../gpu/rgb-augmentation)**
 
 GPU acceleration (v1.5.0+) provides dramatic speedups:
 
@@ -500,7 +500,7 @@ GPU acceleration (v1.5.0+) provides dramatic speedups:
 
 ## See Also
 
-- **[GPU RGB Augmentation](../gpu/rgb-augmentation.md)** - 24x faster with GPU
-- **[GPU Overview](../gpu/overview.md)** - GPU setup and configuration
-- **[Workflows](../workflows.md)** - RGB augmentation workflows
-- **[Architecture](../architecture.md)** - System architecture
+- **[GPU RGB Augmentation](../gpu/rgb-augmentation)** - 24x faster with GPU
+- **[GPU Overview](../gpu/overview)** - GPU setup and configuration
+- **[Workflows](../workflows)** - RGB augmentation workflows
+- **[Architecture](../architecture)** - System architecture

@@ -391,6 +391,6 @@ processor = LiDARProcessor(
 
 ## See Also
 
-- [Basic Usage Guide](../guides/basic-usage.md) - Essential processing workflows
-- [CLI Commands](../guides/cli-commands.md) - Command-line options
-- [Smart Skip Features](../features/smart-skip.md) - Resuming interrupted work
+- [Basic Usage Guide](../guides/basic-usage) - Essential processing workflows
+- [CLI Commands](../guides/cli-commands) - Command-line options
+- [Smart Skip Features](../features/smart-skip) - Resuming interrupted work

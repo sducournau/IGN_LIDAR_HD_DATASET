@@ -354,7 +354,7 @@ processor = LiDARProcessor(
 
 ## 📚 See Also
 
-- **[CLI Commands Guide](/docs/guides/cli-commands)**: Complete CLI reference
-- **[Preprocessing Guide](/docs/guides/preprocessing)**: Data cleaning options
-- **[Performance Tuning](/docs/guides/performance)**: Advanced optimization
-- **[Release Notes v1.7.1](/docs/release-notes/v1.7.1)**: Full feature details
+- **[CLI Commands Guide](/guides/cli-commands)**: Complete CLI reference
+- **[Preprocessing Guide](/guides/preprocessing)**: Data cleaning options
+- **[Performance Tuning](/guides/performance)**: Advanced optimization
+- **[Release Notes v1.7.1](/release-notes/v1.7.1)**: Full feature details

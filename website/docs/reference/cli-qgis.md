@@ -289,4 +289,4 @@ ign-lidar-hd qgis project qgis_data/ analysis_project.qgs \
 qgis analysis_project.qgs
 ```
 
-Voir aussi : [CLI Enrich](./cli-enrich.md) | [Guide Performance](../guides/performance.md)
+Voir aussi : [CLI Enrich](./cli-enrich) | [Guide Performance](../guides/performance)

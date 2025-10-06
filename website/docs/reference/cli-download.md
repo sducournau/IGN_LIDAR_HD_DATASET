@@ -95,5 +95,5 @@ ign-lidar download --parallel 8 --verify --from-file tiles.txt ./data/
 
 ## Related Commands
 
-- [`ign-lidar enrich`](./cli-enrich.md) - Enrich downloaded tiles
-- [`ign-lidar patch`](./cli-patch.md) - Generate training patches
+- [`ign-lidar enrich`](./cli-enrich) - Enrich downloaded tiles
+- [`ign-lidar patch`](./cli-patch) - Generate training patches

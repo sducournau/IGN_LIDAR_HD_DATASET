@@ -450,7 +450,7 @@ resource_config = {
 
 ### Documentation
 
-- [Architectural Styles](../reference/architectural-styles.md)
-- [Historical Analysis](../reference/historical-analysis.md)
-- [Performance Guide](./performance.md)
-- [Configuration Reference](../api/configuration.md)
+- [Architectural Styles](../reference/architectural-styles)
+- [Historical Analysis](../reference/historical-analysis)
+- [Performance Guide](./performance)
+- [Configuration Reference](../api/configuration)

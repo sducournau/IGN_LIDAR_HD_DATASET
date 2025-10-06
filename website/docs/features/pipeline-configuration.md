@@ -470,7 +470,7 @@ ign-lidar-hd enrich --input-dir data/raw --output data/test
 
 ## See Also
 
-- [Enrich Command](../reference/cli-enrich.md)
-- [Patch Command](../reference/cli-patch.md)
-- [Download Command](../reference/cli-download.md)
+- [Enrich Command](../reference/cli-enrich)
+- [Patch Command](../reference/cli-patch)
+- [Download Command](../reference/cli-download)
 - [Example Configurations](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/config_examples)

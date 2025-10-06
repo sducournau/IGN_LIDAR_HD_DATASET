@@ -571,7 +571,7 @@ def robust_gpu_processing(points, max_retries=3):
 
 ## Related Documentation
 
-- [GPU Setup Guide](../installation/gpu-setup.md)
-- [Performance Guide](../guides/performance.md)
-- [GPU Acceleration Guide](../guides/gpu-acceleration.md)
-- [Processor API](./processor.md)
+- [GPU Setup Guide](../installation/gpu-setup)
+- [Performance Guide](../guides/performance)
+- [GPU Acceleration Guide](../guides/gpu-acceleration)
+- [Processor API](./processor)

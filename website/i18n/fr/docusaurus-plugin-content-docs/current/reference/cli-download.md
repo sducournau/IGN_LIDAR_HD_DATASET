@@ -1,11 +1,18 @@
 ---
+# 🇫🇷 Traduisez les champs title et description ci-dessous
 sidebar_position: 3
 title: CLI Download Command
 description: Download IGN LiDAR HD tiles from official servers
 keywords: [cli, download, tiles, ign, lidar]
 ---
 
-reference/cli-download.md
+<!-- 
+🇫🇷 TRADUCTION FRANÇAISE REQUISE
+Ce document doit être traduit de l'anglais vers le français.
+Veuillez traduire les titres, descriptions et texte principal.
+Conservez tous les blocs de code, commandes et exemples techniques tels quels.
+-->
+
 
 # CLI Download Command Reference
 
@@ -17,7 +24,7 @@ The `ign-lidar download` command retrieves LiDAR HD tiles from IGN's official se
 ign-lidar download [OPTIONS] TILE_IDS OUTPUT_DIR
 ```
 
-## Basique Usage
+## Basic Usage
 
 ### Download Single Tile
 
@@ -37,9 +44,9 @@ ign-lidar download C_3945-6730_2022 C_3945-6735_2022 ./tiles/
 ign-lidar download --from-file tile_list.txt ./tiles/
 ```
 
-## Commande Options
+## Command Options
 
-### Entrée Options
+### Input Options
 
 #### `TILE_IDS` (required)
 
@@ -54,7 +61,7 @@ Read tile IDs from text file (one per line).
 Download all tiles within bounding box.
 Format: `xmin,ymin,xmax,ymax`
 
-### Sortie Options
+### Output Options
 
 #### `OUTPUT_DIR` (required)
 
@@ -63,7 +70,7 @@ Directory to save downloaded tiles.
 #### `--format`
 
 Download format.
-**Options :** `laz`, `las`
+**Options:** `laz`, `las`
 **Default:** `laz`
 
 ### Download Options
@@ -81,7 +88,7 @@ Verify downloaded files.
 Number of parallel downloads.
 **Default:** `4`
 
-## Exemples
+## Examples
 
 ### Download by Bounding Box
 

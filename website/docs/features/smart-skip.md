@@ -335,6 +335,6 @@ ign-lidar-hd process --input tiles/ --output patches/
 
 ## See Also
 
-- [Basic Usage Guide](../guides/basic-usage.md)
-- [CLI Commands Reference](../guides/cli-commands.md)
-- [Memory Optimization](../reference/memory-optimization.md)
+- [Basic Usage Guide](../guides/basic-usage)
+- [CLI Commands Reference](../guides/cli-commands)
+- [Memory Optimization](../reference/memory-optimization)

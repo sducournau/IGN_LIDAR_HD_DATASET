@@ -675,8 +675,8 @@ optimization_config = {
 
 ## Related Documentation
 
-- [LOD Classification](./lod3-classification.md)
-- [Architectural Styles](./architectural-styles.md)
-- [Building Features](../api/features.md)
-- [3D Visualization](../guides/visualization.md)
-- [3D Visualization](../guides/visualization.md)
+- [LOD Classification](./lod3-classification)
+- [Architectural Styles](./architectural-styles)
+- [Building Features](../api/features)
+- [3D Visualization](../guides/visualization)
+- [3D Visualization](../guides/visualization)

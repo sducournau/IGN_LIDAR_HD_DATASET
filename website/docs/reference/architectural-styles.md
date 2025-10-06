@@ -477,7 +477,7 @@ def store_architectural_data(classifications, database_connection):
 
 ## Related Documentation
 
-- [Regional Processing](../guides/regional-processing.md)
-- [Historical Analysis](./historical-analysis.md)
-- [Building Features](../api/features.md)
-- [Configuration Guide](../api/configuration.md)
+- [Regional Processing](../guides/regional-processing)
+- [Historical Analysis](./historical-analysis)
+- [Building Features](../api/features)
+- [Configuration Guide](../api/configuration)

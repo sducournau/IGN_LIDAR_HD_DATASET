@@ -1,15 +1,22 @@
 ---
+# 🇫🇷 Traduisez les champs title et description ci-dessous
 sidebar_position: 5
 title: Axonometry Analysis
 description: 3D geometric representation and axonometric projection methods for LiDAR data
 keywords: [axonometry, 3d, geometry, projection, visualization, isometric]
 ---
 
-features/axonometry.md
+<!-- 
+🇫🇷 TRADUCTION FRANÇAISE REQUISE
+Ce document doit être traduit de l'anglais vers le français.
+Veuillez traduire les titres, descriptions et texte principal.
+Conservez tous les blocs de code, commandes et exemples techniques tels quels.
+-->
+
 
 Advanced 3D geometric representation and axonometric projection methods for architectural analysis of LiDAR-derived building models.
 
-## Vue d'ensemble
+## Overview
 
 Axonometry analysis provides tools for creating 3D geometric representations of buildings extracted from LiDAR data. These methods are particularly useful for:
 
@@ -488,7 +495,7 @@ building_families = bim_integration.generate_families(
 )
 ```
 
-## Avancé Applications
+## Advanced Applications
 
 ### HeritageDocumentation
 
@@ -610,7 +617,7 @@ validation_report = validator.validate_reconstruction(
 
 ## Best Practices
 
-### Flux de travail Optimization
+### Workflow Optimization
 
 ```python
 # Optimal axonometric analysis workflow
@@ -675,7 +682,7 @@ optimization_config = {
 }
 ```
 
-## Documentation Associée
+## Related Documentation
 
 - [LOD Classification](./lod3-classification.md)
 - [Architectural Styles](./architectural-styles.md)
