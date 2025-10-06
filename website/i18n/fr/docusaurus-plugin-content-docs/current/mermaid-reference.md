@@ -2,13 +2,7 @@
 sidebar_position: 5
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: mermaid-reference.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
-
+mermaid-reference.md
 
 # Mermaid Diagrams Reference
 

@@ -5,13 +5,7 @@ description: Download IGN LiDAR HD tiles from official servers
 keywords: [cli, download, tiles, ign, lidar]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: reference/cli-download.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
-
+reference/cli-download.md
 
 # CLI Download Command Reference
 
@@ -69,7 +63,7 @@ Directory to save downloaded tiles.
 #### `--format`
 
 Download format.
-**Options:** `laz`, `las`
+**Options :** `laz`, `las`
 **Default:** `laz`
 
 ### Download Options

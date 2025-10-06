@@ -5,13 +5,7 @@ description: French architectural style detection and classification
 keywords: [architecture, buildings, styles, france, heritage]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: reference/architectural-styles.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
-
+reference/architectural-styles.md
 
 # Architectural Styles
 
@@ -483,7 +477,7 @@ def store_architectural_data(classifications, database_connection):
 4. **Documentation**: Maintain detailed classification rationale
 5. **Version Control**: Track model and criteria versions
 
-## Related Documentation
+## Documentation Associée
 
 - [Regional Processing](../guides/regional-processing.md)
 - [Historical Analysis](./historical-analysis.md)

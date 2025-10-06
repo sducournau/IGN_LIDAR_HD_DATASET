@@ -5,13 +5,7 @@ description: Configure output formats for LAZ files and QGIS compatibility
 keywords: [format, laz, qgis, configuration, preferences]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: features/format-preferences.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
-
+features/format-preferences.md
 
 # Sortie Format Preferences
 
@@ -340,7 +334,7 @@ print(f"Available features: {len(features)}")
 - **Augmented LAZ**: Higher memory during processing
 - **QGIS LAZ**: Lower memory (fewer attributes)
 
-## See Also
+## Voir Aussi
 
 - [QGIS Integration Guide](../guides/qgis-integration.md) - Using files in QGIS
 - [Smart Skip Features](smart-skip.md) - Avoid reprocessing files

@@ -4,13 +4,7 @@ title: Level of Detail (LOD) Classification
 description: Understanding building detail levels for architectural analysis
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: features/lod3-classification.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
-
+features/lod3-classification.md
 
 # Level of Detail (LOD) Classification
 
@@ -170,7 +164,7 @@ print(f"Key features: {results['detected_features']}")
    - Manual verification for critical applications
    - Cross-reference with architectural databases
 
-## Related Documentation
+## Documentation Associée
 
 - [Architectural Styles](./architectural-styles.md) - Understanding regional building patterns
 - [Axonometry Analysis](./axonometry.md) - 3D geometric representation methods

@@ -5,13 +5,7 @@ description: Tools for temporal analysis and change detection in LiDAR datasets
 keywords: [temporal, change-detection, historical, time-series, evolution]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: reference/historical-analysis.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
-
+reference/historical-analysis.md
 
 # Historical Analysis
 
@@ -596,7 +590,7 @@ optimized_detector = optimizer.optimize_change_detector(
 )
 ```
 
-## Related Documentation
+## Documentation Associée
 
 - [Regional Processing](../guides/regional-processing.md)
 - [Architectural Styles](./architectural-styles.md)

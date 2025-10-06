@@ -5,13 +5,7 @@ description: Automatic parameter optimization for optimal LiDAR processing quali
 keywords: [auto-params, optimization, parameters, quality, automation]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: guides/auto-params.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
-
+guides/auto-params.md
 
 # Auto-Parameters Guide (v1.7.1+)
 

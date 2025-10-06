@@ -2,13 +2,7 @@
 sidebar_position: 1
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: tutorials/custom-features.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
-
+tutorials/custom-features.md
 
 # Custom Features
 

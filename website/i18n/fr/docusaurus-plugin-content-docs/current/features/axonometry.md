@@ -5,13 +5,7 @@ description: 3D geometric representation and axonometric projection methods for 
 keywords: [axonometry, 3d, geometry, projection, visualization, isometric]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: features/axonometry.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
-
+features/axonometry.md
 
 Advanced 3D geometric representation and axonometric projection methods for architectural analysis of LiDAR-derived building models.
 
@@ -681,7 +675,7 @@ optimization_config = {
 }
 ```
 
-## Related Documentation
+## Documentation Associée
 
 - [LOD Classification](./lod3-classification.md)
 - [Architectural Styles](./architectural-styles.md)

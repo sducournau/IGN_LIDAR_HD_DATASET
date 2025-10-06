@@ -5,13 +5,7 @@ description: Optimization techniques for high-performance LiDAR processing
 keywords: [performance, optimization, gpu, memory, speed]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: guides/performance.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
-
+guides/performance.md
 
 # Performance Guide
 
@@ -535,7 +529,7 @@ def log_performance_metrics(operation, duration, points_processed):
 3. **Check thermal throttling**: Ensure adequate cooling
 4. **Update drivers**: Use latest GPU drivers
 
-## Related Documentation
+## Documentation Associée
 
 - [GPU Acceleration Guide](./gpu-acceleration.md)
 - [Installation Guide](../installation/quick-start.md)
