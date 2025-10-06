@@ -1,27 +1,19 @@
 ---
 sidebar_position: 1
-title: "Fonctionnalités" API
-description: Core feature extraction and processing functions
+title: API Caractéristiques
+description: Fonctions principales d'extraction et de traitement des caractéristiques
 keywords: [api, features, building, classification, geometric]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: api/features.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
+# Référence API Caractéristiques
 
+L'API Caractéristiques fournit des outils complets pour extraire les caractéristiques géométriques et sémantiques des nuages de points LiDAR.
 
-# Fonctionnalités API Reference
-
-The Features API provides comprehensive tools for extracting geometric and semantic features from LiDAR point clouds.
-
-## Core Classes
+## Classes Principales
 
 ### FeatureExtractor
 
-Main class for feature extraction operations.
+Classe principale pour les opérations d'extraction de caractéristiques.
 
 ```python
 from ign_lidar import FeatureExtractor
@@ -33,23 +25,23 @@ extractor = FeatureExtractor(
 )
 ```
 
-#### Methods
+#### Méthodes
 
 ##### `extract_building_features(points, labels)`
 
-Extracts geometric features for building classification.
+Extrait les caractéristiques géométriques pour la classification des bâtiments.
 
-**Parameters:**
+**Paramètres :**
 
-- `points` (numpy.ndarray): Point cloud data (N×3)
-- `labels` (numpy.ndarray): Classification labels
-- `neighborhood_size` (int, optional): Search radius for feature computation
+- `points` (numpy.ndarray): Données du nuage de points (N×3)
+- `labels` (numpy.ndarray): Étiquettes de classification
+- `neighborhood_size` (int, optionnel): Rayon de recherche pour le calcul des caractéristiques
 
-**Returns:**
+**Retourne :**
 
-- `dict`: Dictionary containing extracted features
+- `dict`: Dictionnaire contenant les caractéristiques extraites
 
-**Example:**
+**Exemple :**
 
 ```python
 features = extractor.extract_building_features(
@@ -61,19 +53,19 @@ features = extractor.extract_building_features(
 
 ##### `compute_geometric_features(points)`
 
-Computes basic geometric features for each point.
+Calcule les caractéristiques géométriques de base pour chaque point.
 
-**Parameters:**
+**Paramètres :**
 
-- `points` (numpy.ndarray): Input point coordinates
+- `points` (numpy.ndarray): Coordonnées des points d'entrée
 
-**Returns:**
+**Retourne :**
 
-- `numpy.ndarray`: Feature array (N×F where F is number of features)
+- `numpy.ndarray`: Tableau de caractéristiques (N×F où F est le nombre de caractéristiques)
 
 ### BuildingClassifier
 
-Advanced classification for building components.
+Classification avancée pour les composants de bâtiments.
 
 ```python
 from ign_lidar import BuildingClassifier
@@ -85,58 +77,58 @@ classifier = BuildingClassifier(
 )
 ```
 
-#### Methods
+#### Méthodes
 
 ##### `classify_components(points, features)`
 
-Classifies building components (roof, wall, ground).
+Classifie les composants de bâtiments (toit, mur, sol).
 
-**Parameters:**
+**Paramètres :**
 
-- `points` (numpy.ndarray): Point coordinates
-- `features` (dict): Extracted features from FeatureExtractor
+- `points` (numpy.ndarray): Coordonnées des points
+- `features` (dict): Caractéristiques extraites de FeatureExtractor
 
-**Returns:**
+**Retourne :**
 
-- `numpy.ndarray`: Component labels (0=ground, 1=wall, 2=roof)
+- `numpy.ndarray`: Étiquettes des composants (0=sol, 1=mur, 2=toit)
 
 ##### `refine_classification(labels, points)`
 
-Post-processes classification results for better accuracy.
+Post-traite les résultats de classification pour une meilleure précision.
 
-**Parameters:**
+**Paramètres :**
 
-- `labels` (numpy.ndarray): Initial classification
-- `points` (numpy.ndarray): Point coordinates
+- `labels` (numpy.ndarray): Classification initiale
+- `points` (numpy.ndarray): Coordonnées des points
 
-**Returns:**
+**Retourne :**
 
-- `numpy.ndarray`: Refined classification labels
+- `numpy.ndarray`: Étiquettes de classification raffinées
 
-## Feature Types
+## Types de Caractéristiques
 
-### Geometric Features
+### Caractéristiques Géométriques
 
-| Feature               | Description                  | Range   |
-| --------------------- | ---------------------------- | ------- |
-| `planarity`           | Measure of local planarity   | [0, 1]  |
-| `linearity`           | Linear structure indicator   | [0, 1]  |
-| `sphericity`          | 3D structure compactness     | [0, 1]  |
-| `height_above_ground` | Normalized height            | [0, ∞]  |
-| `normal_z`            | Z-component of normal vector | [-1, 1] |
+| Caractéristique       | Description                      | Plage   |
+| --------------------- | -------------------------------- | ------- |
+| `planarity`           | Mesure de planarité locale       | [0, 1]  |
+| `linearity`           | Indicateur de structure linéaire | [0, 1]  |
+| `sphericity`          | Compacité de structure 3D        | [0, 1]  |
+| `height_above_ground` | Hauteur normalisée               | [0, ∞]  |
+| `normal_z`            | Composante Z du vecteur normal   | [-1, 1] |
 
-### Architectural Features
+### Caractéristiques Architecturales
 
-| Feature              | Description             | Application             |
-| -------------------- | ----------------------- | ----------------------- |
-| `edge_strength`      | Building edge detection | Wall/roof boundaries    |
-| `corner_likelihood`  | Corner probability      | Building corners        |
-| `surface_roughness`  | Texture measure         | Material classification |
-| `overhang_indicator` | Overhang detection      | Complex geometries      |
+| Caractéristique      | Description                     | Application                 |
+| -------------------- | ------------------------------- | --------------------------- |
+| `edge_strength`      | Détection de bords de bâtiments | Limites mur/toit            |
+| `corner_likelihood`  | Probabilité de coin             | Coins de bâtiments          |
+| `surface_roughness`  | Mesure de texture               | Classification de matériaux |
+| `overhang_indicator` | Détection de surplomb           | Géométries complexes        |
 
 ## Configuration
 
-### Feature Extraction Settings
+### Paramètres d'Extraction de Caractéristiques
 
 ```python
 config = {
@@ -161,9 +153,9 @@ config = {
 extractor = FeatureExtractor(config=config)
 ```
 
-### GPU Acceleration
+### Accélération GPU
 
-Enable GPU processing for faster feature extraction:
+Activer le traitement GPU pour une extraction plus rapide :
 
 ```python
 extractor = FeatureExtractor(
@@ -173,25 +165,25 @@ extractor = FeatureExtractor(
 )
 ```
 
-## Error Handling
+## Gestion des Erreurs
 
 ```python
 try:
     features = extractor.extract_building_features(points, labels)
 except InsufficientPointsError:
-    print("Not enough points for feature extraction")
+    print("Pas assez de points pour l'extraction de caractéristiques")
 except GPUMemoryError:
-    print("GPU memory insufficient, falling back to CPU")
+    print("Mémoire GPU insuffisante, bascule vers CPU")
     extractor.use_gpu = False
     features = extractor.extract_building_features(points, labels)
 ```
 
-## Performance Optimization
+## Optimisation des Performances
 
-### Memory Management
+### Gestion de la Mémoire
 
 ```python
-# Process large datasets in chunks
+# Traiter de grands ensembles de données par morceaux
 def process_large_dataset(large_points):
     chunk_size = 100000
     all_features = []
@@ -204,7 +196,7 @@ def process_large_dataset(large_points):
     return combine_features(all_features)
 ```
 
-### Parallel Processing
+### Traitement Parallèle
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
@@ -222,45 +214,45 @@ def parallel_feature_extraction(point_chunks):
 
 ## Exemples
 
-### Basique Feature Extraction
+### Extraction de Caractéristiques Basique
 
 ```python
 import numpy as np
 from ign_lidar import FeatureExtractor
 
-# Load point cloud
+# Charger le nuage de points
 points = np.load('building_points.npy')
 labels = np.load('building_labels.npy')
 
-# Initialize extractor
+# Initialiser l'extracteur
 extractor = FeatureExtractor()
 
-# Extract features
+# Extraire les caractéristiques
 features = extractor.extract_building_features(points, labels)
 
-# Access specific features
+# Accéder aux caractéristiques spécifiques
 planarity = features['planarity']
 height_features = features['height_above_ground']
 ```
 
-### Avancé Classification Pipeline
+### Pipeline de Classification Avancée
 
 ```python
 from ign_lidar import FeatureExtractor, BuildingClassifier
 
-# Setup processing pipeline
+# Configurer le pipeline de traitement
 extractor = FeatureExtractor(use_gpu=True)
 classifier = BuildingClassifier(model_type="gradient_boosting")
 
-# Process point cloud
+# Traiter le nuage de points
 features = extractor.extract_building_features(points, initial_labels)
 refined_labels = classifier.classify_components(points, features)
 final_labels = classifier.refine_classification(refined_labels, points)
 ```
 
-## Related Documentation
+## Documentation Associée
 
-- [Processor API](./processor.md)
-- [RGB Augmentation API](./rgb-augmentation.md)
-- [GPU Integration Guide](../guides/gpu-acceleration.md)
-- [Performance Optimization](../guides/performance.md)
+- [API Processeur](./processor.md)
+- [API Augmentation RGB](./rgb-augmentation.md)
+- [Guide d'Intégration GPU](../guides/gpu-acceleration.md)
+- [Optimisation des Performances](../guides/performance.md)
