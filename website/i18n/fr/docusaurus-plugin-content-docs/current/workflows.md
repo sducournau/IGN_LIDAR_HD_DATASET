@@ -1,47 +1,39 @@
 ---
 sidebar_position: 4
-title: Workflow Guide
-description: Common LiDAR processing workflows with visual diagrams
+title: Guide des Flux de Travail
+description: Flux de travail courants pour le traitement LiDAR avec diagrammes visuels
 keywords: [workflow, pipeline, processing, gpu, parallel, lod]
 ---
 
-<!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: workflows.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
--->
+# Guide des Flux de Travail
 
-
-# Flux de travail Guide
-
-This guide demonstrates common processing workflows with visual representations to help you understand the data flow and decision points.
+Ce guide présente les flux de travail courants de traitement avec des représentations visuelles pour vous aider à comprendre le flux de données et les points de décision.
 
 :::tip Navigation
 
-- [Basic Workflow](#-basic-workflow) - Standard processing pipeline
-- [GPU-Accelerated Workflow](#-gpu-accelerated-workflow) - High-performance GPU processing
-- [Smart Skip Workflow](#-smart-skip-workflow) - Resume interrupted jobs
-- [Parallel Processing](#-parallel-processing-workflow) - Multi-worker processing
-- [Best Practices](#-best-practice-workflows) - Optimized workflows for different scenarios
+- [Flux de Travail de Base](#-basic-workflow) - Pipeline de traitement standard
+- [Flux de Travail Accéléré GPU](#-gpu-accelerated-workflow) - Traitement GPU haute performance
+- [Flux de Travail Smart Skip](#-smart-skip-workflow) - Reprendre les tâches interrompues
+- [Traitement Parallèle](#-parallel-processing-workflow) - Traitement multi-worker
+- [Meilleures Pratiques](#-best-practice-workflows) - Flux de travail optimisés pour différents scénarios
   :::
 
-## 🚀 Basic Workflow
+## 🚀 Flux de Travail de Base
 
-The most common workflow for processing LiDAR data into ML-ready datasets.
+Le flux de travail le plus courant pour traiter les données LiDAR en jeux de données prêts pour le ML.
 
-:::tip Diagram Reference
-For the complete basic workflow diagram, see [Workflow Diagrams - Basic Processing Pipeline](reference/workflow-diagrams.md#basic-processing-pipeline).
+:::tip Référence au Diagramme
+Pour le diagramme complet du flux de travail de base, voir [Diagrammes de Flux de Travail - Pipeline de Traitement de Base](reference/workflow-diagrams.md#basic-processing-pipeline).
 :::
 
-The workflow includes the following key stages:
+Le flux de travail comprend les étapes clés suivantes :
 
-1. **Data Availability Check**: Verify if LiDAR tiles are already downloaded
-2. **Download**: Acquire tiles from IGN servers if needed
-3. **Validation**: Ensure downloaded files are valid
-4. **Enrichment**: Add geometric features and building component classification
-5. **RGB Augmentation**: Optionally add color information from orthophotos
-6. **Processing**: Create training patches for machine learning
+1. **Vérification de Disponibilité des Données** : Vérifier si les tuiles LiDAR sont déjà téléchargées
+2. **Téléchargement** : Acquérir les tuiles depuis les serveurs IGN si nécessaire
+3. **Validation** : S'assurer que les fichiers téléchargés sont valides
+4. **Enrichissement** : Ajouter des caractéristiques géométriques et la classification des composants de bâtiment
+5. **Augmentation RGB** : Ajouter optionnellement des informations de couleur depuis les orthophotos
+6. **Traitement** : Créer des patches d'entraînement pour l'apprentissage automatique
    RGB -->|No| SkipRGB[LiDAR Only]
 
    FetchRGB --> Features[Enriched LAZ Ready]
@@ -64,9 +56,9 @@ The workflow includes the following key stages:
 
 ````
 
-## ⚡ GPU-Accelerated Workflow
+## ⚡ Flux de Travail Accéléré GPU
 
-Workflow for processing large datasets with GPU acceleration (v1.3.0+).
+Flux de travail pour le traitement de grands jeux de données avec accélération GPU (v1.3.0+).
 
 ```mermaid
 flowchart TD
@@ -108,28 +100,28 @@ flowchart TD
     style Fallback fill:#fff3e0
 ````
 
-### GPU Performance Benefits
+### Bénéfices de Performance GPU
 
-| Operation          | CPU Time | GPU Time | Speedup  |
-| ------------------ | -------- | -------- | -------- |
-| Feature Extraction | 45s      | 6s       | 8x       |
-| RGB Interpolation  | 12s      | 0.5s     | 24x      |
-| Normal Computation | 30s      | 5s       | 6x       |
-| **Total (1M pts)** | ~87s     | ~11.5s   | **7.5x** |
+| Opération              | Temps CPU | Temps GPU | Accélération |
+| ---------------------- | --------- | --------- | ------------ |
+| Extraction de Features | 45s       | 6s        | 8x           |
+| Interpolation RGB      | 12s       | 0.5s      | 24x          |
+| Calcul de Normales     | 30s       | 5s        | 6x           |
+| **Total (1M pts)**     | ~87s      | ~11.5s    | **7.5x**     |
 
-:::tip GPU Optimization Tips
+:::tip Conseils d'Optimisation GPU
 
-- **Cache RGB tiles** - Reuse orthophotos across patches
-- **Batch processing** - Process multiple tiles in sequence
-- **Monitor GPU memory** - Use `nvidia-smi` to check utilization
-- **Use workers=1 with GPU** - GPU parallelizes internally
+- **Cache des tuiles RGB** - Réutiliser les orthophotos entre les patches
+- **Traitement par lot** - Traiter plusieurs tuiles en séquence
+- **Surveiller la mémoire GPU** - Utiliser `nvidia-smi` pour vérifier l'utilisation
+- **Utiliser workers=1 avec GPU** - Le GPU parallélise en interne
 
-See [GPU Overview](gpu/overview.md) for detailed setup instructions.
+Voir [Vue d'ensemble GPU](gpu/overview.md) pour les instructions de configuration détaillées.
 :::
 
-## 🔄 Smart Skip Workflow
+## 🔄 Flux de Travail Smart Skip
 
-Understanding how the smart skip system optimizes repeated runs.
+Comprendre comment le système de saut intelligent optimise les exécutions répétées.
 
 ```mermaid
 sequenceDiagram
@@ -160,9 +152,9 @@ sequenceDiagram
     Note over SkipChecker: Smart skip saves time<br/>on large datasets
 ```
 
-## 🏗️ Parallel Processing Workflow
+## 🏗️ Flux de Travail de Traitement Parallèle
 
-How the library handles multi-worker processing for optimal performance.
+Comment la bibliothèque gère le traitement multi-worker pour une performance optimale.
 
 ```mermaid
 graph TB
@@ -208,9 +200,9 @@ graph TB
     style W3 fill:#e8f5e8
 ```
 
-## 🎯 LOD Classification Workflow
+## 🎯 Flux de Travail de Classification LOD
 
-Understanding how building components are classified into LOD levels.
+Comprendre comment les composants de bâtiment sont classifiés en niveaux LOD.
 
 ```mermaid
 flowchart LR
@@ -256,9 +248,9 @@ flowchart LR
     style LOD3_Process fill:#fff3e0
 ```
 
-## 🎯 Enhanced Enrich Pipeline (v1.7.1)
+## 🎯 Pipeline d'Enrichissement Amélioré (v1.7.1)
 
-Detailed view of the complete enrich workflow with auto-params and preprocessing.
+Vue détaillée du flux de travail d'enrichissement complet avec auto-params et prétraitement.
 
 ```mermaid
 flowchart TD
@@ -323,9 +315,9 @@ flowchart TD
     style End fill:#e8f5e8
 ```
 
-## 📊 Feature Extraction Pipeline
+## 📊 Pipeline d'Extraction de Features
 
-Detailed view of the geometric feature computation process.
+Vue détaillée du processus de calcul des caractéristiques géométriques.
 
 ```mermaid
 graph TD
@@ -371,9 +363,9 @@ graph TD
     style ArchStyle fill:#f3e5f5
 ```
 
-## 🔧 Configuration Decision Tree
+## 🔧 Arbre de Décision de Configuration
 
-How to choose optimal settings for your use case.
+Comment choisir les paramètres optimaux pour votre cas d'usage.
 
 ```mermaid
 flowchart TD
@@ -418,38 +410,38 @@ flowchart TD
     style LargeConfig fill:#f3e5f5
 ```
 
-## 💡 Best Practice Workflows
+## 💡 Flux de Travail de Meilleures Pratiques
 
-### Urban Area Processing
+### Traitement de Zone Urbaine
 
 ```bash
-# Optimized for dense urban environments
+# Optimisé pour les environnements urbains denses
 ign-lidar-hd download --bbox 2.0,48.8,2.1,48.9 --output urban_tiles/
 ign-lidar-hd enrich --input-dir urban_tiles/ --output urban_enriched/ --use-gpu --k-neighbors 30
 ign-lidar-hd process --input-dir urban_enriched/ --output urban_patches/ --lod-level LOD3
 ```
 
-### Rural/Natural Area Processing
+### Traitement de Zone Rurale/Naturelle
 
 ```bash
-# Optimized for sparse rural environments
+# Optimisé pour les environnements ruraux clairsemés
 ign-lidar-hd download --bbox -1.0,46.0,0.0,47.0 --output rural_tiles/
 ign-lidar-hd enrich --input-dir rural_tiles/ --output rural_enriched/ --k-neighbors 15
 ign-lidar-hd process --input-dir rural_enriched/ --output rural_patches/ --lod-level LOD2
 ```
 
-### High-Performance Batch Processing
+### Traitement par Lot Haute Performance
 
 ```bash
-# Maximum throughput for large datasets
+# Débit maximal pour les grands jeux de données
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/ --use-gpu --num-workers 8 --batch-size large
 ign-lidar-hd process --input-dir enriched/ --output patches/ --num-workers 16 --skip-existing
 ```
 
-### GPU-Accelerated with RGB (v1.5.0+)
+### Accélération GPU avec RGB (v1.5.0+)
 
 ```bash
-# Fastest processing with GPU RGB augmentation
+# Traitement le plus rapide avec augmentation RGB GPU
 ign-lidar-hd enrich \
   --input-dir tiles/ \
   --output enriched/ \
@@ -458,7 +450,7 @@ ign-lidar-hd enrich \
   --rgb-cache-dir /data/rgb_cache/ \
   --num-workers 4
 
-# Create patches with cached RGB
+# Créer des patches avec RGB en cache
 ign-lidar-hd process \
   --input-dir enriched/ \
   --output patches/ \
@@ -468,43 +460,43 @@ ign-lidar-hd process \
 
 ---
 
-## 📚 Related Documentation
+## 📚 Documentation Associée
 
-- **[GPU Acceleration Guide](gpu/overview.md)** - Detailed GPU setup and optimization
-- **[RGB GPU Guide](gpu/rgb-augmentation.md)** - GPU-accelerated RGB augmentation (v1.5.0+)
-- **[Architecture](architecture.md)** - System architecture and components
-- **[CLI Commands](guides/cli-commands.md)** - Complete CLI reference
-- **[Smart Skip](features/smart-skip.md)** - Smart skip system details
-- **[LOD Classification](features/lod3-classification.md)** - LOD2/LOD3 classification
+- **[Guide d'Accélération GPU](gpu/overview.md)** - Configuration et optimisation GPU détaillées
+- **[Guide RGB GPU](gpu/rgb-augmentation.md)** - Augmentation RGB accélérée par GPU (v1.5.0+)
+- **[Architecture](architecture.md)** - Architecture système et composants
+- **[Commandes CLI](guides/cli-commands.md)** - Référence CLI complète
+- **[Smart Skip](features/smart-skip.md)** - Détails du système de saut intelligent
+- **[Classification LOD](features/lod3-classification.md)** - Classification LOD2/LOD3
 
 ---
 
-## 💡 Tips for Workflow Selection
+## 💡 Conseils pour la Sélection du Flux de Travail
 
-### Choose Basic Workflow when:
+### Choisir le Flux de Travail de Base quand :
 
-- ✅ Learning the library
-- ✅ Processing < 10 tiles
-- ✅ No GPU available
-- ✅ Prototyping and testing
+- ✅ Apprentissage de la bibliothèque
+- ✅ Traitement de < 10 tuiles
+- ✅ Pas de GPU disponible
+- ✅ Prototypage et tests
 
-### Choose GPU Workflow when:
+### Choisir le Flux de Travail GPU quand :
 
-- ✅ Processing > 50 tiles
-- ✅ NVIDIA GPU available
-- ✅ Production pipelines
-- ✅ Time-sensitive projects
+- ✅ Traitement de > 50 tuiles
+- ✅ GPU NVIDIA disponible
+- ✅ Pipelines de production
+- ✅ Projets urgents
 
-### Choose Smart Skip when:
+### Choisir Smart Skip quand :
 
-- ✅ Resuming interrupted jobs
-- ✅ Iterative processing
-- ✅ Large datasets with failures
-- ✅ Incremental updates
+- ✅ Reprise de tâches interrompues
+- ✅ Traitement itératif
+- ✅ Grands jeux de données avec échecs
+- ✅ Mises à jour incrémentales
 
-### Parallel Processing for:
+### Traitement Parallèle pour :
 
-- ✅ Multi-core systems
-- ✅ Batch processing
-- ✅ Production environments
-- ✅ Maximizing throughput
+- ✅ Systèmes multi-cœurs
+- ✅ Traitement par lot
+- ✅ Environnements de production
+- ✅ Maximisation du débit
