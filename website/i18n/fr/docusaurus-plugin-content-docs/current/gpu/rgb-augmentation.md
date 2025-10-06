@@ -6,10 +6,6 @@ keywords: [gpu, rgb, orthophoto, color, performance]
 ---
 
 <!-- 
-🇫🇷 VERSION FRANÇAISE - TRADUCTION REQUISE
-Ce fichier provient de: gpu/rgb-augmentation.md
-Traduit automatiquement - nécessite une révision humaine.
-Conservez tous les blocs de code, commandes et noms techniques identiques.
 -->
 
 
