@@ -8,9 +8,20 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+from typing import Optional
 
 from .processor import LiDARProcessor
 from .downloader import IGNLiDARDownloader
+from .cli_utils import (
+    validate_input_path,
+    ensure_output_dir,
+    discover_laz_files,
+    process_with_progress,
+    log_processing_summary,
+    get_input_output_paths
+)
+from .cli_config import CLI_DEFAULTS, get_preprocessing_config
+from .verification import FeatureVerifier, EXPECTED_FEATURES
 
 # Configure logging
 logging.basicConfig(
@@ -1547,22 +1558,92 @@ def cmd_download(args):
 
 def cmd_verify(args):
     """Verify features in enriched LAZ files."""
-    from .verifier import verify_laz_files
+    logger.info("=" * 70)
+    logger.info("VERIFYING LAZ FILE FEATURES")
+    logger.info("=" * 70)
     
-    try:
-        verify_laz_files(
-            input_path=args.input,
-            input_dir=args.input_dir,
-            max_files=args.max_files,
-            verbose=not args.quiet,
-            show_samples=args.show_samples
-        )
-        return 0
-    except Exception as e:
-        logger.error(f"Verification failed: {e}")
-        import traceback
-        traceback.print_exc()
+    # Get input path
+    input_path, _ = get_input_output_paths(
+        args.input,
+        args.input_dir,
+        None
+    )
+    
+    if not input_path:
+        logger.error("Either --input or --input-dir must be specified")
         return 1
+    
+    # Validate input
+    path_type = "file" if args.input else "directory"
+    if not validate_input_path(input_path, path_type=path_type):
+        return 1
+    
+    # Discover files
+    files = discover_laz_files(
+        input_path,
+        max_files=args.max_files if hasattr(args, 'max_files') else None
+    )
+    
+    if not files:
+        logger.error("No LAZ files found")
+        return 1
+    
+    logger.info(f"Found {len(files)} LAZ file(s) to verify")
+    logger.info("")
+    
+    # Initialize verifier
+    verifier = FeatureVerifier(
+        expected_features=EXPECTED_FEATURES,
+        sample_size=CLI_DEFAULTS.MAX_SAMPLE_POINTS,
+        check_rgb=True,
+        check_infrared=True
+    )
+    
+    # Verify files
+    all_results = []
+    failed_files = []
+    
+    for laz_file in files:
+        try:
+            logger.info(f"Verifying: {laz_file.name}")
+            results = verifier.verify_file(laz_file)
+            all_results.append((laz_file, results))
+            
+            # Log summary for this file
+            present_count = sum(1 for s in results.values() if s.present)
+            artifact_count = sum(
+                1 for s in results.values()
+                if s.present and s.has_artifacts
+            )
+            
+            status = "✓" if artifact_count == 0 else "⚠"
+            logger.info(
+                f"  {status} {present_count}/{len(results)} features present, "
+                f"{artifact_count} with artifacts"
+            )
+            
+            # Show detailed stats if verbose or if artifacts detected
+            if args.show_samples if hasattr(args, 'show_samples') else False or artifact_count > 0:
+                for feature_name, stats in results.items():
+                    if stats.present:
+                        logger.info(f"    {stats}")
+            
+            logger.info("")
+            
+        except Exception as e:
+            logger.error(f"  ✗ Failed to verify {laz_file.name}: {e}")
+            failed_files.append(laz_file)
+            logger.info("")
+    
+    # Log final summary
+    log_processing_summary(
+        total_files=len(files),
+        success_count=len(files) - len(failed_files),
+        failed_files=failed_files,
+        operation="Verification"
+    )
+    
+    return 0 if len(failed_files) == 0 else 1
 
 
 def main():
