@@ -22,6 +22,13 @@ from .cli_utils import (
 )
 from .cli_config import CLI_DEFAULTS, get_preprocessing_config
 from .verification import FeatureVerifier, EXPECTED_FEATURES
+from .memory_utils import (
+    calculate_optimal_workers,
+    calculate_batch_size,
+    analyze_file_sizes,
+    sort_files_by_size,
+    log_memory_configuration
+)
 
 # Configure logging
 logging.basicConfig(
@@ -944,121 +951,40 @@ def cmd_enrich(args):
     
     logger.info(f"Found {len(laz_files)} LAZ files to enrich")
     logger.info(f"Output directory: {output_dir}")
-    logger.info(f"Workers: {args.num_workers}")
     logger.info(f"Mode: {mode.upper()}")
+    logger.info("")
     
-    # v1.7.0: Use adaptive memory manager for intelligent configuration
-    try:
-        from .memory_manager import AdaptiveMemoryManager
-        memory_manager = AdaptiveMemoryManager(
-            enable_gpu=getattr(args, 'use_gpu', False)
-        )
-        
-        # Get file sizes
-        laz_files_with_size = [(laz, laz.stat().st_size) for laz in laz_files]
-        file_sizes_mb = [size / (1024**2) for _, size in laz_files_with_size]
-        
-        # Use adaptive memory manager for worker optimization
-        optimal_workers = memory_manager.calculate_optimal_workers(
-            num_files=len(laz_files),
-            file_sizes_mb=file_sizes_mb,
-            mode=mode
-        )
-        
-        if optimal_workers < args.num_workers:
-            logger.warning(
-                f"⚠️  Adaptive memory manager recommends "
-                f"{optimal_workers} workers (requested: {args.num_workers})"
-            )
-            args.num_workers = optimal_workers
-        
-    except ImportError:
-        # Fallback to old method if new module not available
-        import psutil
-        mem = psutil.virtual_memory()
-        swap = psutil.swap_memory()
-        
-        available_gb = mem.available / (1024**3)
-        swap_percent = swap.percent
-        
-        logger.info(f"System Memory: {available_gb:.1f}GB available")
-        
-        # If swap is heavily used, reduce workers automatically
-        if swap_percent > 50:
-            logger.warning(
-                f"⚠️  High swap usage detected ({swap_percent:.0f}%)"
-            )
-            logger.warning(
-                "⚠️  System is under memory pressure - reducing workers to 1"
-            )
-            args.num_workers = 1
-        
-        # If very low available RAM, force single worker
-        # Full mode needs ~4-6GB per worker, core mode ~2-3GB
-        min_gb_per_worker = 5.0 if mode == 'full' else 2.5
-        max_safe_workers = int(available_gb / min_gb_per_worker)
-        
-        if max_safe_workers < args.num_workers:
-            logger.warning(
-                f"⚠️  Limited RAM ({available_gb:.1f}GB available)"
-            )
-            logger.warning(
-                f"⚠️  Reducing workers from {args.num_workers} "
-                f"to {max(1, max_safe_workers)}"
-            )
-            args.num_workers = max(1, max_safe_workers)
+    # Analyze file sizes
+    files_with_sizes, size_stats = analyze_file_sizes(laz_files)
     
-    # Analyze file sizes and optimize worker count
-    laz_files_with_size = [(laz, laz.stat().st_size) for laz in laz_files]
-    max_file_size = max(size for _, size in laz_files_with_size)
+    # Calculate optimal worker count using new memory utilities
+    optimal_workers, worker_info = calculate_optimal_workers(
+        num_files=len(laz_files),
+        file_sizes_mb=[size_stats['max_mb'], size_stats['avg_mb']],
+        mode=mode,
+        use_gpu=getattr(args, 'use_gpu', False),
+        requested_workers=args.num_workers
+    )
     
-    # Dynamic worker adjustment based on file sizes
-    # Rule: Estimate ~1.5-2GB RAM per worker for large files
-    if max_file_size > 500_000_000:  # 500MB files
-        suggested_workers = min(args.num_workers, 3)
-        if args.num_workers > suggested_workers:
-            logger.warning(
-                f"⚠️  Large files detected "
-                f"(max: {max_file_size/1e6:.0f}MB)"
-            )
-            logger.warning(
-                f"⚠️  Reducing workers from {args.num_workers} "
-                f"to {suggested_workers} to prevent OOM"
-            )
-            args.num_workers = suggested_workers
-    elif max_file_size > 300_000_000:  # 300MB files
-        suggested_workers = min(args.num_workers, 4)
-        if args.num_workers > suggested_workers:
-            logger.warning(
-                f"⚠️  Medium-large files detected "
-                f"(max: {max_file_size/1e6:.0f}MB)"
-            )
-            logger.warning(
-                f"⚠️  Reducing workers from {args.num_workers} "
-                f"to {suggested_workers} to prevent OOM"
-            )
-            args.num_workers = suggested_workers
-    
-    # CRITICAL: GPU + multiprocessing compatibility
-    # CUDA context cannot be properly initialized in forked child processes
-    # Force single worker mode when GPU is enabled
-    if args.use_gpu and args.num_workers > 1:
-        logger.warning("⚠️  GPU mode detected with multiple workers")
+    # Update worker count if different from requested
+    if optimal_workers != args.num_workers:
         logger.warning(
-            "⚠️  CUDA contexts cannot be initialized in forked processes"
+            f"⚠️  Adjusting workers from {args.num_workers} to {optimal_workers}"
         )
-        logger.warning(
-            "⚠️  Forcing --num-workers=1 for GPU compatibility"
-        )
-        logger.info(
-            "   ℹ️  GPU chunking is still highly parallel within each file"
-        )
-        args.num_workers = 1
+        logger.warning(f"⚠️  Reason: {worker_info['recommendation_reason']}")
+        args.num_workers = optimal_workers
     
-    # Sort files by size (process smaller files first)
-    # This helps prevent memory spikes from processing large files
-    laz_files_with_size.sort(key=lambda x: x[1])
-    laz_files_sorted = [laz for laz, _ in laz_files_with_size]
+    # Log memory configuration
+    log_memory_configuration(
+        num_files=len(laz_files),
+        num_workers=args.num_workers,
+        worker_info=worker_info,
+        mode=mode
+    )
+    logger.info("")
+    
+    # Sort files by size (process smaller files first to prevent memory spikes)
+    laz_files_sorted = sort_files_by_size(files_with_sizes, reverse=False)
     
     # Copy metadata files (JSON, stats, etc.) and preserve directory structure
     logger.info("Copying metadata files...")
@@ -1190,33 +1116,21 @@ def cmd_enrich(args):
              num_augmentations, add_infrared, infrared_cache_dir)
         )
     
+    # Calculate optimal batch size for parallel processing
+    batch_size = calculate_batch_size(
+        num_workers=args.num_workers,
+        max_file_size_mb=size_stats['max_mb'],
+        mode=mode
+    )
+    
+    if batch_size != args.num_workers:
+        logger.info(
+            f"Using batch size of {batch_size} "
+            f"(workers: {args.num_workers}, max file: {size_stats['max_mb']:.0f}MB)"
+        )
+    
     # Process files with better error handling and batching
     if args.num_workers > 1:
-        # Process in batches to limit concurrent memory usage
-        # For large files, limit concurrent tasks to prevent OOM
-        # Very conservative batching for full mode (memory intensive)
-        if mode == 'full':
-            # Full mode needs SIGNIFICANTLY more memory (extra features + KDTrees)
-            # Each worker can use 4-6GB RAM for large files
-            if max_file_size > 300_000_000:
-                # For very large files (>300MB), process 1 at a time
-                batch_size = 1
-                logger.warning(
-                    "⚠️  Using sequential batching for large files "
-                    "to prevent memory issues"
-                )
-            elif max_file_size > 200_000_000:
-                # For large files (>200MB), limit concurrency
-                batch_size = max(1, args.num_workers // 2)
-            else:
-                # Smaller files can use full worker count
-                batch_size = args.num_workers
-        else:
-            # Core mode is less memory intensive
-            if max_file_size < 200_000_000:
-                batch_size = args.num_workers * 2
-            else:
-                batch_size = args.num_workers
         
         try:
             enriched_count = 0
@@ -1563,18 +1477,17 @@ def cmd_verify(args):
     logger.info("=" * 70)
     
     # Get input path
-    input_path, _ = get_input_output_paths(
-        args.input,
-        args.input_dir,
-        None
-    )
-    
-    if not input_path:
+    if args.input:
+        input_path = Path(args.input)
+        path_type = "file"
+    elif args.input_dir:
+        input_path = Path(args.input_dir)
+        path_type = "directory"
+    else:
         logger.error("Either --input or --input-dir must be specified")
         return 1
     
     # Validate input
-    path_type = "file" if args.input else "directory"
     if not validate_input_path(input_path, path_type=path_type):
         return 1
     
@@ -1589,15 +1502,64 @@ def cmd_verify(args):
         return 1
     
     logger.info(f"Found {len(files)} LAZ file(s) to verify")
+    
+    # Determine verification mode
+    mode = getattr(args, 'mode', 'auto')
+    
+    if mode == 'auto':
+        # Auto-detect mode from first file
+        logger.info("Mode: AUTO-DETECT (checking first file)")
+        mode = 'core'  # Default assumption
+        
+        # Try to detect from first file
+        try:
+            from .verification import FULL_MODE_FEATURES
+            import laspy
+            
+            with laspy.open(str(files[0])) as f:
+                las = f.read()
+            
+            # Check if any full mode features are present
+            extra_dims = []
+            if hasattr(las.point_format, 'extra_dimension_names'):
+                extra_dims = las.point_format.extra_dimension_names
+            elif hasattr(las, 'point_format'):
+                try:
+                    extra_dims = [dim.name for dim in las.point_format.extra_dims]
+                except:
+                    pass
+            
+            # If we find any full mode feature, assume full mode
+            extra_dims_lower = [d.lower() for d in extra_dims]
+            if any(feat in extra_dims_lower for feat in FULL_MODE_FEATURES):
+                mode = 'full'
+                logger.info(f"  → Detected FULL mode (found building features)")
+            else:
+                logger.info(f"  → Detected CORE mode (only geometric features)")
+        
+        except Exception as e:
+            logger.warning(f"  ⚠ Auto-detection failed: {e}, assuming CORE mode")
+            mode = 'core'
+    else:
+        logger.info(f"Mode: {mode.upper()} (user-specified)")
+    
     logger.info("")
     
-    # Initialize verifier
+    # Initialize verifier with detected/specified mode
     verifier = FeatureVerifier(
-        expected_features=EXPECTED_FEATURES,
+        mode=mode,
         sample_size=CLI_DEFAULTS.MAX_SAMPLE_POINTS,
         check_rgb=True,
         check_infrared=True
     )
+    
+    # Log what we're checking for
+    from .verification import CORE_FEATURES, FULL_MODE_FEATURES
+    logger.info(f"Checking for {len(verifier.expected_features)} features:")
+    logger.info(f"  - {len(CORE_FEATURES)} core geometric features")
+    if mode == 'full':
+        logger.info(f"  - {len(FULL_MODE_FEATURES)} full mode features (building-specific)")
+    logger.info("")
     
     # Verify files
     all_results = []
@@ -1682,38 +1644,6 @@ def main():
                                default='constant',
                                help='Style encoding: constant (single ID) or multihot (multi-label with weights)')
     patch_parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Force reprocessing even if patches already exist'
-    )
-    
-    # Keep PROCESS as alias for backwards compatibility
-    process_parser = subparsers.add_parser('process', help='Alias for "patch" command (deprecated)')
-    process_parser.add_argument('--input', type=Path, help='Input LAZ file')
-    process_parser.add_argument('--input-dir', type=Path, help='Input directory of LAZ files')
-    process_parser.add_argument('--output', type=Path, required=True, help='Output directory')
-    process_parser.add_argument('--lod-level', type=str, choices=['LOD2', 'LOD3'],
-                               default='LOD2', help='LOD level (default: LOD2)')
-    process_parser.add_argument('--num-workers', type=int, default=1,
-                               help='Number of parallel workers (default: 1)')
-    process_parser.add_argument('--bbox', type=str,
-                               help='Bounding box filter: xmin,ymin,xmax,ymax (LAMB93 coordinates)')
-    process_parser.add_argument('--patch-size', type=float, default=150.0,
-                               help='Patch size in meters (default: 150.0)')
-    process_parser.add_argument('--patch-overlap', type=float, default=0.1,
-                               help='Patch overlap ratio (default: 0.1)')
-    process_parser.add_argument('--num-points', type=int, default=16384,
-                               choices=[4096, 8192, 16384],
-                               help='Target number of points per patch: 4k, 8k, or 16k (default: 16384)')
-    process_parser.add_argument('--k-neighbors', type=int, default=None,
-                               help='Number of neighbors for feature computation (default: auto)')
-    process_parser.add_argument('--include-architectural-style', action='store_true',
-                               help='Include architectural style (0-12) as a feature in patches')
-    process_parser.add_argument('--style-encoding', type=str, 
-                               choices=['constant', 'multihot'],
-                               default='constant',
-                               help='Style encoding: constant (single ID) or multihot (multi-label with weights)')
-    process_parser.add_argument(
         '--force',
         action='store_true',
         help='Force reprocessing even if patches already exist'
@@ -1867,6 +1797,8 @@ def main():
     verify_parser.add_argument('--input', type=Path, help='Input LAZ file to verify')
     verify_parser.add_argument('--input-dir', type=Path, help='Input directory of LAZ files to verify')
     verify_parser.add_argument('--max-files', type=int, help='Maximum number of files to verify')
+    verify_parser.add_argument('--mode', choices=['core', 'full', 'auto'], default='auto',
+                              help='Verification mode: core (7 geometric features), full (10 features including building-specific), auto (auto-detect from file)')
     verify_parser.add_argument('--quiet', action='store_true', 
                               help='Suppress detailed output, show only summary')
     verify_parser.add_argument('--show-samples', action='store_true',
@@ -1879,7 +1811,7 @@ def main():
         return 1
     
     # Validate inputs for patch, process and enrich commands
-    if args.command in ['patch', 'process', 'enrich']:
+    if args.command in ['patch', 'enrich']:
         if not args.input and not args.input_dir:
             parser.error(f"{args.command}: Either --input or --input-dir must be specified")
     
@@ -1894,10 +1826,6 @@ def main():
     
     # Execute command
     if args.command == 'patch':
-        return cmd_process(args)  # Uses same implementation
-    elif args.command == 'process':
-        # Show deprecation warning
-        logger.warning("⚠️  'process' command is deprecated, use 'patch' instead")
         return cmd_process(args)
     elif args.command == 'enrich':
         return cmd_enrich(args)
@@ -1909,11 +1837,6 @@ def main():
         return cmd_verify(args)
     
     return 0
-
-
-if __name__ == '__main__':
-    sys.exit(main())
-
 
 if __name__ == '__main__':
     main()

@@ -25,10 +25,33 @@ except ImportError:
     logger.warning("laspy not available - feature verification disabled")
 
 
-# Expected geometric features
-EXPECTED_FEATURES = [
-    'linearity', 'planarity', 'sphericity', 'anisotropy',
-    'curvature', 'omnivariance', 'eigensum', 'roughness'
+# CORE MODE FEATURES - Always computed (both core and full modes)
+# These are the fundamental geometric features based on eigenvalue decomposition
+CORE_FEATURES = [
+    'linearity',         # (λ0-λ1)/Σλ - 1D structures (edges, cables)
+    'planarity',         # (λ1-λ2)/Σλ - 2D structures (roofs, walls)
+    'sphericity',        # λ2/Σλ - 3D structures (vegetation, noise)
+    'anisotropy',        # (λ0-λ2)/λ0 - general directionality
+    'roughness',         # λ2/Σλ - surface roughness
+    'density',           # local point density
+    'verticality',       # 1 - |nz| - how vertical the surface is
+]
+
+# FULL MODE ADDITIONAL FEATURES - Building-specific features
+# Only computed in full mode (mode='full')
+FULL_MODE_FEATURES = [
+    'wall_score',        # Probability of being a wall (verticality + height)
+    'roof_score',        # Probability of being a roof (horizontality + height + curvature)
+    'num_points_2m',     # Number of points within 2m radius
+]
+
+# All expected geometric features (core + full mode)
+EXPECTED_FEATURES = CORE_FEATURES + FULL_MODE_FEATURES
+
+# Always present features (not in extra dims, but part of point cloud)
+STANDARD_FEATURES = [
+    'height_above_ground',  # Height relative to ground classification
+    # Note: normals and curvature are computed but may not be stored
 ]
 
 # Expected RGB features
@@ -91,20 +114,33 @@ class FeatureVerifier:
         expected_features: Optional[list[str]] = None,
         sample_size: int = 1000,
         check_rgb: bool = False,
-        check_infrared: bool = False
+        check_infrared: bool = False,
+        mode: str = 'core'
     ):
         """Initialize verifier.
         
         Args:
-            expected_features: List of expected feature names (default: geometric features)
+            expected_features: List of expected feature names (default: auto-detect based on mode)
             sample_size: Number of points to sample for analysis
             check_rgb: Also check for RGB features
             check_infrared: Also check for infrared features
+            mode: Processing mode ('core' or 'full')
+                  - core: Only check for CORE_FEATURES
+                  - full: Check for CORE_FEATURES + FULL_MODE_FEATURES
         """
-        self.expected_features = expected_features or EXPECTED_FEATURES.copy()
+        # Auto-detect expected features based on mode if not specified
+        if expected_features is None:
+            if mode == 'full':
+                self.expected_features = CORE_FEATURES + FULL_MODE_FEATURES
+            else:
+                self.expected_features = CORE_FEATURES.copy()
+        else:
+            self.expected_features = expected_features
+        
         self.sample_size = sample_size
         self.check_rgb = check_rgb
         self.check_infrared = check_infrared
+        self.mode = mode
         
         if not LASPY_AVAILABLE:
             raise RuntimeError("laspy is required for feature verification")
