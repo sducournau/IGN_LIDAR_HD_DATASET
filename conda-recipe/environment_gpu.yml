@@ -1,35 +1,40 @@
 name: ign_gpu
 channels:
+  - pytorch
   - rapidsai
   - conda-forge
   - nvidia
-  - defaults
 dependencies:
   - python=3.12
-  # Core dependencies
-  - numpy>=1.21.0
-  - scikit-learn>=1.0.0
-  - scipy>=1.7.0
-  - tqdm>=4.60.0
-  - click>=8.0.0
-  - pyyaml>=6.0
-  - psutil>=5.8.0
-  - requests>=2.25.0
-  - pillow>=9.0.0
-  - hydra-core>=1.3.0
-  - omegaconf>=2.3.0
-  - h5py>=3.0.0
+
+  # Core dependencies from conda-forge
+  - conda-forge::numpy>=1.21.0
+  - conda-forge::scikit-learn>=1.0.0
+  - conda-forge::scipy>=1.7.0
+  - conda-forge::tqdm>=4.60.0
+  - conda-forge::click>=8.0.0
+  - conda-forge::pyyaml>=6.0
+  - conda-forge::psutil>=5.8.0
+  - conda-forge::requests>=2.25.0
+  - conda-forge::pillow>=9.0.0
+  - conda-forge::hydra-core>=1.3.0
+  - conda-forge::omegaconf>=2.3.0
+  - conda-forge::h5py>=3.0.0
+
+  # Resolve conflicts by specifying channels explicitly
+  - conda-forge::jpeg # Use conda-forge jpeg instead of defaults
+  - conda-forge::llvm-openmp # Avoid intel-openmp conflict
 
   # GPU acceleration dependencies
-  - cuml=24.10
-  - cupy
-  - cuda-version=12.5
+  - rapidsai::cuml=24.10
+  - conda-forge::cupy
+  - nvidia::cuda-version=12.5
 
-  # PyTorch with CUDA support
-  - pytorch>=2.0.0
-  - pytorch-cuda=12.1
-  - torchvision
-  - torchaudio
+  # PyTorch with CUDA support (from pytorch channel)
+  - pytorch::pytorch>=2.0.0
+  - pytorch::pytorch-cuda=12.1
+  - pytorch::torchvision
+  - pytorch::torchaudio
 
   # pip packages
   - pip

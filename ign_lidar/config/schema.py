@@ -136,12 +136,14 @@ class OutputConfig:
     Attributes:
         format: Output format ('npz', 'hdf5', 'torch', 'all')
         save_enriched_laz: Save enriched LAZ files with features
+        only_enriched_laz: If True, only save enriched LAZ files (skip patch creation)
         save_stats: Save processing statistics
         save_metadata: Save patch metadata
         compression: Compression level (0-9, None for no compression)
     """
     format: Literal["npz", "hdf5", "torch", "all"] = "npz"
     save_enriched_laz: bool = False
+    only_enriched_laz: bool = False
     save_stats: bool = True
     save_metadata: bool = True
     compression: Optional[int] = None

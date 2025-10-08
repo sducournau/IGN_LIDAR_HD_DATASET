@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2025-10-08
+
+### Added
+
+- **✨ Enriched LAZ Only Mode**
+
+  - New `output.only_enriched_laz` parameter to skip patch creation
+  - Save enriched LAZ files with computed features only
+  - 3-5x faster processing when patches are not needed
+  - Seamless integration with auto-download and stitching features
+  - New `enriched_only` output preset configuration
+  - Comprehensive documentation in `ENRICHED_LAZ_ONLY_MODE.md`
+
+- **🛡️ Automatic Corruption Detection & Recovery**
+  - Detects corrupted LAZ files during processing (IoError, buffer errors, EOF)
+  - Automatically attempts to re-download corrupted tiles from IGN WFS
+  - Backs up corrupted files with `.laz.corrupted` extension
+  - Verifies re-downloaded file integrity before proceeding
+  - Up to 2 retry attempts with automatic fallback
+  - Transparent to users - works automatically during processing
+  - Applied to both v2.0 and legacy processing pipelines
+
 ## [2.0.0] - 2025-10-08
 
 ### Added

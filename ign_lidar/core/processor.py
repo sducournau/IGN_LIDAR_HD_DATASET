@@ -56,7 +56,9 @@ class LiDARProcessor:
                  preprocess_config: dict = None,
                  use_stitching: bool = False,
                  buffer_size: float = 10.0,
-                 stitching_config: dict = None):
+                 stitching_config: dict = None,
+                 save_enriched_laz: bool = False,
+                 only_enriched_laz: bool = False):
         """
         Initialize processor.
         
@@ -88,6 +90,8 @@ class LiDARProcessor:
             use_stitching: If True, enable tile stitching for boundary-aware
                           feature computation (Sprint 3)
             buffer_size: Buffer zone size for tile stitching (in meters)
+            save_enriched_laz: If True, save enriched LAZ files with computed features
+            only_enriched_laz: If True, only save enriched LAZ files (skip patch creation)
         """
         self.lod_level = lod_level
         self.augment = augment
@@ -107,6 +111,16 @@ class LiDARProcessor:
         self.use_stitching = use_stitching
         self.buffer_size = buffer_size
         self.preprocess_config = preprocess_config
+        self.save_enriched_laz = save_enriched_laz
+        self.only_enriched_laz = only_enriched_laz
+        
+        # Validate: only_enriched_laz requires save_enriched_laz
+        if only_enriched_laz and not save_enriched_laz:
+            logger.warning(
+                "only_enriched_laz=True requires save_enriched_laz=True. "
+                "Enabling save_enriched_laz automatically."
+            )
+            self.save_enriched_laz = True
         
         # Enhanced stitching configuration
         if stitching_config is None:
@@ -114,6 +128,7 @@ class LiDARProcessor:
                 'enabled': use_stitching,
                 'buffer_size': buffer_size,
                 'auto_detect_neighbors': True,
+                'auto_download_neighbors': False,  # Download missing adjacent tiles if needed
                 'cache_enabled': True
             }
         else:
@@ -122,6 +137,9 @@ class LiDARProcessor:
             self.stitching_config['enabled'] = use_stitching
             if 'buffer_size' not in self.stitching_config:
                 self.stitching_config['buffer_size'] = buffer_size
+            # Default auto_download_neighbors to False if not specified
+            if 'auto_download_neighbors' not in self.stitching_config:
+                self.stitching_config['auto_download_neighbors'] = False
         
         # Initialize advanced stitcher if needed
         self.stitcher = None
@@ -173,6 +191,90 @@ class LiDARProcessor:
             self.default_class = 29
             
         logger.info(f"Initialized LiDARProcessor with {lod_level}")
+    
+    def _redownload_tile(self, laz_file: Path) -> bool:
+        """
+        Attempt to re-download a corrupted tile from IGN WFS.
+        
+        Args:
+            laz_file: Path to the corrupted LAZ file
+            
+        Returns:
+            True if re-download succeeded, False otherwise
+        """
+        try:
+            from ..downloader import IGNLiDARDownloader
+            import shutil
+            
+            # Get filename
+            filename = laz_file.name
+            
+            logger.info(f"  🌐 Re-downloading {filename} from IGN WFS...")
+            
+            # Backup corrupted file
+            backup_path = laz_file.with_suffix('.laz.corrupted')
+            if laz_file.exists():
+                shutil.move(str(laz_file), str(backup_path))
+                logger.debug(f"  Backed up corrupted file to {backup_path.name}")
+            
+            # Initialize downloader with output directory
+            downloader = IGNLiDARDownloader(output_dir=laz_file.parent)
+            
+            # Download tile (force re-download, don't skip)
+            success, was_skipped = downloader.download_tile(
+                filename=filename,
+                force=True,
+                skip_existing=False
+            )
+            
+            if success and laz_file.exists():
+                # Verify the download
+                try:
+                    import laspy
+                    test_las = laspy.read(str(laz_file))
+                    if len(test_las.points) > 0:
+                        logger.info(
+                            f"  ✓ Re-downloaded tile verified "
+                            f"({len(test_las.points):,} points)"
+                        )
+                        # Remove backup if successful
+                        if backup_path.exists():
+                            backup_path.unlink()
+                        return True
+                    else:
+                        logger.error(f"  ✗ Re-downloaded tile has no points")
+                        # Restore backup
+                        if backup_path.exists():
+                            if laz_file.exists():
+                                laz_file.unlink()
+                            shutil.move(str(backup_path), str(laz_file))
+                        return False
+                except Exception as verify_error:
+                    logger.error(
+                        f"  ✗ Re-downloaded tile is also corrupted: {verify_error}"
+                    )
+                    # Restore backup
+                    if backup_path.exists():
+                        if laz_file.exists():
+                            laz_file.unlink()
+                        shutil.move(str(backup_path), str(laz_file))
+                    return False
+            else:
+                logger.error(f"  ✗ Download failed or file not created")
+                # Restore backup
+                if backup_path.exists():
+                    if not laz_file.exists():
+                        shutil.move(str(backup_path), str(laz_file))
+                return False
+                
+        except ImportError as ie:
+            logger.warning(
+                f"  ⚠️  IGNLidarDownloader not available for auto-recovery: {ie}"
+            )
+            return False
+        except Exception as e:
+            logger.error(f"  ✗ Re-download failed: {e}")
+            return False
     
     def process_tile(self, laz_file: Path, output_dir: Path,
                      tile_idx: int = 0, total_tiles: int = 0,
@@ -238,11 +340,41 @@ class LiDARProcessor:
             else:
                 logger.debug(f"  No metadata for {laz_file.name}, style=0")
         
-        # 1. Load LAZ file
-        try:
-            las = laspy.read(str(laz_file))
-        except Exception as e:
-            logger.error(f"  ✗ Failed to read {laz_file}: {e}")
+        # 1. Load LAZ file (with auto-recovery for corrupted files)
+        max_retries = 2
+        las = None
+        for attempt in range(max_retries):
+            try:
+                las = laspy.read(str(laz_file))
+                break  # Success
+            except Exception as e:
+                error_msg = str(e)
+                is_corruption_error = (
+                    'failed to fill whole buffer' in error_msg.lower() or
+                    'ioerror' in error_msg.lower() or
+                    'unexpected end of file' in error_msg.lower() or
+                    'invalid' in error_msg.lower()
+                )
+                
+                if is_corruption_error and attempt < max_retries - 1:
+                    logger.warning(f"  ⚠️  Corrupted LAZ file detected: {error_msg}")
+                    logger.info(
+                        f"  🔄 Attempting to re-download tile "
+                        f"(attempt {attempt + 2}/{max_retries})..."
+                    )
+                    
+                    if self._redownload_tile(laz_file):
+                        logger.info(f"  ✓ Tile re-downloaded successfully")
+                        continue  # Retry loading
+                    else:
+                        logger.error(f"  ✗ Failed to re-download tile")
+                        return 0
+                else:
+                    logger.error(f"  ✗ Failed to read {laz_file}: {e}")
+                    return 0
+        
+        if las is None:
+            logger.error(f"  ✗ Failed to load LAZ file after retries")
             return 0
         
         # Extract basic data
@@ -716,6 +848,7 @@ class LiDARProcessor:
         output_dir: Path,
         architecture: str = 'pointnet++',
         save_enriched: bool = False,
+        only_enriched: bool = False,
         output_format: str = 'npz',
         build_spatial_index: bool = False,
         tile_idx: int = 0,
@@ -736,6 +869,8 @@ class LiDARProcessor:
                          'transformer', 'sparse_conv', 'multi')
             save_enriched: If True, save intermediate enriched LAZ file
                           (default: False for faster processing)
+            only_enriched: If True, only save enriched LAZ and skip patch creation
+                          (default: False)
             output_format: Output format - 'npz', 'hdf5', 'pytorch', 'multi'
             build_spatial_index: If True, build octree/KNN spatial index
             tile_idx: Current tile index (for progress display)
@@ -748,7 +883,8 @@ class LiDARProcessor:
                 'num_patches': int,
                 'processing_time': float,
                 'points_processed': int,
-                'skipped': bool
+                'skipped': bool,
+                'enriched_only': bool (if only_enriched=True)
             }
         """
         from ..io.formatters.multi_arch_formatter import MultiArchitectureFormatter
@@ -779,17 +915,53 @@ class LiDARProcessor:
         
         # ===== STEP 1: Load RAW LiDAR =====
         logger.info(f"  📂 Loading RAW LiDAR...")
-        try:
-            las = laspy.read(str(laz_file))
-        except Exception as e:
-            logger.error(f"  ✗ Failed to read {laz_file}: {e}")
-            return {
-                'num_patches': 0,
-                'processing_time': 0.0,
-                'points_processed': 0,
-                'skipped': False,
-                'error': str(e)
-            }
+        
+        # Try to load LAZ file, with auto-recovery for corrupted files
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                las = laspy.read(str(laz_file))
+                break  # Success
+            except Exception as e:
+                error_msg = str(e)
+                is_corruption_error = (
+                    'failed to fill whole buffer' in error_msg.lower() or
+                    'ioerror' in error_msg.lower() or
+                    'unexpected end of file' in error_msg.lower() or
+                    'invalid' in error_msg.lower()
+                )
+                
+                if is_corruption_error and attempt < max_retries - 1:
+                    logger.warning(
+                        f"  ⚠️  Corrupted LAZ file detected: {error_msg}"
+                    )
+                    logger.info(
+                        f"  🔄 Attempting to re-download tile "
+                        f"(attempt {attempt + 2}/{max_retries})..."
+                    )
+                    
+                    # Try to re-download the tile
+                    if self._redownload_tile(laz_file):
+                        logger.info(f"  ✓ Tile re-downloaded successfully")
+                        continue  # Retry loading
+                    else:
+                        logger.error(f"  ✗ Failed to re-download tile")
+                        return {
+                            'num_patches': 0,
+                            'processing_time': 0.0,
+                            'points_processed': 0,
+                            'skipped': False,
+                            'error': f'Corrupted file, re-download failed: {error_msg}'
+                        }
+                else:
+                    logger.error(f"  ✗ Failed to read {laz_file}: {e}")
+                    return {
+                        'num_patches': 0,
+                        'processing_time': 0.0,
+                        'points_processed': 0,
+                        'skipped': False,
+                        'error': str(e)
+                    }
         
         # Extract basic data
         points = np.vstack([las.x, las.y, las.z]).T.astype(np.float32)
@@ -1044,6 +1216,22 @@ class LiDARProcessor:
                 logger.info(f"  ✓ Enriched LAZ saved: {enriched_path.name}")
             except Exception as e:
                 logger.warning(f"  ⚠️  Failed to save enriched LAZ: {e}")
+        
+        # Check if we should skip patch creation (only_enriched mode)
+        # When only_enriched is True, we only generate enriched LAZ files
+        if only_enriched:
+            tile_time = time.time() - tile_start
+            logger.info(
+                f"  ✅ Enrichment complete (patches skipped): "
+                f"{tile_time:.1f}s ({len(points)/tile_time:.0f} pts/s)"
+            )
+            return {
+                'num_patches': 0,
+                'processing_time': tile_time,
+                'points_processed': len(points),
+                'skipped': False,
+                'enriched_only': True
+            }
         
         # ===== STEP 7: Remap Labels =====
         labels = np.array([

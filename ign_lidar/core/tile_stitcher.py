@@ -129,6 +129,7 @@ class TileStitcher:
         self._neighbor_cache = {}
         self._spatial_index = None
         self._executor = None
+        self._wfs_cache = None  # Cache WFS metadata
         self._stats = {
             'tiles_processed': 0,
             'cache_hits': 0,
@@ -199,6 +200,17 @@ class TileStitcher:
             neighbor_tiles = self._detect_neighbor_tiles(tile_path)
             if neighbor_tiles:
                 logger.info(f"Auto-detected {len(neighbor_tiles)} neighbor tiles")
+            
+            # Auto-download missing neighbors if enabled
+            if self.config.get('auto_download_neighbors', False):
+                missing_neighbors = self._identify_missing_neighbors(tile_path, neighbor_tiles or [])
+                if missing_neighbors:
+                    logger.info(f"Attempting to download {len(missing_neighbors)} missing neighbor tiles...")
+                    downloaded = self._download_missing_neighbors(missing_neighbors, tile_path.parent)
+                    if downloaded:
+                        # Re-detect neighbors after download
+                        neighbor_tiles = self._detect_neighbor_tiles(tile_path)
+                        logger.info(f"Successfully downloaded {len(downloaded)} neighbors, total now: {len(neighbor_tiles) if neighbor_tiles else 0}")
         
         # Extract buffer zones from neighbors
         buffer_points_list = []
@@ -518,10 +530,111 @@ class TileStitcher:
         tile_path: Path
     ) -> Optional[List[Path]]:
         """
-        Auto-detect neighbor tiles based on filename pattern.
+        Auto-detect neighbor tiles using bounding box adjacency check.
         
-        Supports IGN LiDAR HD naming convention:
-        LIDAR_HD_<XXXX>_<YYYY>.laz where XXXX, YYYY are grid coordinates
+        This method:
+        1. Loads the core tile to get its bounding box
+        2. Scans directory for other LAZ files
+        3. Checks each file's bounding box for spatial adjacency
+        4. Returns tiles that touch or overlap the core tile
+        
+        Falls back to filename pattern matching if bbox check fails.
+        
+        Args:
+            tile_path: Path to core tile
+        
+        Returns:
+            List of paths to adjacent neighbor tiles
+        """
+        tile_dir = tile_path.parent
+        
+        # Try bounding box-based detection first
+        try:
+            neighbors = self._detect_neighbors_by_bbox(tile_path)
+            if neighbors:
+                logger.info(f"Detected {len(neighbors)} neighbors via bbox adjacency for {tile_path.name}")
+                return neighbors
+        except Exception as e:
+            logger.debug(f"Bbox-based detection failed: {e}, falling back to pattern matching")
+        
+        # Fallback: Pattern-based detection
+        return self._detect_neighbors_by_pattern(tile_path)
+    
+    def _detect_neighbors_by_bbox(
+        self,
+        tile_path: Path
+    ) -> Optional[List[Path]]:
+        """
+        Detect neighbor tiles by checking bounding box adjacency.
+        
+        Args:
+            tile_path: Path to core tile
+            
+        Returns:
+            List of adjacent tile paths or None
+        """
+        # Get core tile bounds
+        core_bounds = self.get_tile_bounds(tile_path)
+        xmin, ymin, xmax, ymax = core_bounds
+        
+        # Buffer for adjacency check (tiles that are within this distance are considered neighbors)
+        adjacency_threshold = 10.0  # meters
+        
+        # Scan directory for potential neighbors
+        tile_dir = tile_path.parent
+        neighbors = []
+        
+        # Get all LAZ files in directory
+        laz_files = list(tile_dir.glob("*.laz")) + list(tile_dir.glob("*.LAZ"))
+        
+        logger.debug(f"Scanning {len(laz_files)} LAZ files for neighbors...")
+        
+        for neighbor_path in laz_files:
+            # Skip the core tile itself
+            if neighbor_path == tile_path:
+                continue
+            
+            try:
+                # Get neighbor bounds
+                neighbor_bounds = self.get_tile_bounds(neighbor_path)
+                n_xmin, n_ymin, n_xmax, n_ymax = neighbor_bounds
+                
+                # Check if tiles are adjacent (share a boundary or overlap)
+                # Tiles are adjacent if:
+                # 1. They overlap in X or Y
+                # 2. Their boundaries are within adjacency_threshold
+                
+                x_overlap = not (n_xmax < xmin - adjacency_threshold or n_xmin > xmax + adjacency_threshold)
+                y_overlap = not (n_ymax < ymin - adjacency_threshold or n_ymin > ymax + adjacency_threshold)
+                
+                # Check if boundaries touch
+                shares_vertical_edge = (
+                    (abs(n_xmax - xmin) < adjacency_threshold or abs(n_xmin - xmax) < adjacency_threshold) and y_overlap
+                )
+                shares_horizontal_edge = (
+                    (abs(n_ymax - ymin) < adjacency_threshold or abs(n_ymin - ymax) < adjacency_threshold) and x_overlap
+                )
+                
+                if shares_vertical_edge or shares_horizontal_edge:
+                    neighbors.append(neighbor_path)
+                    logger.debug(f"  Adjacent: {neighbor_path.name}")
+                    
+            except Exception as e:
+                logger.debug(f"  Skipping {neighbor_path.name}: {e}")
+                continue
+        
+        return neighbors if neighbors else None
+    
+    def _detect_neighbors_by_pattern(
+        self,
+        tile_path: Path
+    ) -> Optional[List[Path]]:
+        """
+        Auto-detect neighbor tiles based on filename pattern (fallback method).
+        
+        Supports multiple IGN LiDAR HD naming conventions:
+        1. LIDAR_HD_<XXXX>_<YYYY>.laz where XXXX, YYYY are grid coordinates
+        2. LHD_FXX_<XXXX>_<YYYY>_PTS_<C/O>_LAMB93_IGN69.laz (newer format)
         
         Args:
             tile_path: Path to core tile
@@ -530,50 +643,364 @@ class TileStitcher:
             List of paths to potential neighbor tiles, or None if pattern
             doesn't match
         """
-        # Try to parse IGN LiDAR HD grid pattern
-        # Example: LIDAR_HD_0450_6250.laz -> x=450, y=6250
-        
         filename = tile_path.stem
         parts = filename.split('_')
         
-        if len(parts) < 4 or parts[0] != 'LIDAR' or parts[1] != 'HD':
-            logger.debug(f"Filename doesn't match IGN pattern: {filename}")
-            return None
+        pattern = None
+        dept_code = None
+        class_flag = None
         
-        try:
-            x_coord = int(parts[2])
-            y_coord = int(parts[3])
-        except ValueError:
-            logger.debug(f"Could not parse coordinates from: {filename}")
+        # Pattern 1: LIDAR_HD_<XXXX>_<YYYY>
+        if len(parts) >= 4 and parts[0] == 'LIDAR' and parts[1] == 'HD':
+            try:
+                x_coord = int(parts[2])
+                y_coord = int(parts[3])
+                pattern = 'LIDAR_HD'
+            except ValueError:
+                logger.debug(f"Could not parse coordinates from: {filename}")
+                return None
+        
+        # Pattern 2: LHD_FXX_<XXXX>_<YYYY>_PTS_<C/O>_LAMB93_IGN69
+        elif len(parts) >= 9 and parts[0] == 'LHD' and parts[1].startswith('F'):
+            try:
+                x_coord = int(parts[2])
+                y_coord = int(parts[3])
+                pattern = 'LHD_FULL'
+                dept_code = parts[1]  # e.g., 'FXX'
+                class_flag = parts[5]  # e.g., 'C' or 'O'
+            except (ValueError, IndexError):
+                logger.debug(f"Could not parse LHD coordinates from: {filename}")
+                return None
+        
+        else:
+            logger.debug(f"Filename doesn't match any known IGN pattern: {filename}")
             return None
         
         # IGN tiles are typically 1km x 1km
         # Generate 8 neighbor coordinates (N, S, E, W, NE, NW, SE, SW)
-        tile_size = 1000  # 1km in meters
-        
         neighbor_coords = [
-            (x_coord, y_coord + tile_size),      # North
-            (x_coord, y_coord - tile_size),      # South
-            (x_coord + tile_size, y_coord),      # East
-            (x_coord - tile_size, y_coord),      # West
-            (x_coord + tile_size, y_coord + tile_size),  # NE
-            (x_coord - tile_size, y_coord + tile_size),  # NW
-            (x_coord + tile_size, y_coord - tile_size),  # SE
-            (x_coord - tile_size, y_coord - tile_size),  # SW
+            (x_coord, y_coord + 1),          # North
+            (x_coord, y_coord - 1),          # South
+            (x_coord + 1, y_coord),          # East
+            (x_coord - 1, y_coord),          # West
+            (x_coord + 1, y_coord + 1),      # NE
+            (x_coord - 1, y_coord + 1),      # NW
+            (x_coord + 1, y_coord - 1),      # SE
+            (x_coord - 1, y_coord - 1),      # SW
         ]
         
-        # Build neighbor paths
+        # Build neighbor paths based on pattern
         neighbors = []
         tile_dir = tile_path.parent
         
         for nx, ny in neighbor_coords:
-            neighbor_name = f"LIDAR_HD_{nx:04d}_{ny:04d}.laz"
+            if pattern == 'LIDAR_HD':
+                neighbor_name = f"LIDAR_HD_{nx:04d}_{ny:04d}.laz"
+            elif pattern == 'LHD_FULL':
+                neighbor_name = f"LHD_{dept_code}_{nx:04d}_{ny:04d}_PTS_{class_flag}_LAMB93_IGN69.laz"
+            else:
+                continue
+            
             neighbor_path = tile_dir / neighbor_name
             
             if neighbor_path.exists():
                 neighbors.append(neighbor_path)
+                logger.debug(f"Found neighbor: {neighbor_name}")
+        
+        if neighbors:
+            logger.info(f"Auto-detected {len(neighbors)} neighbor tiles (pattern) for {tile_path.name}")
+        else:
+            logger.debug(f"No neighbor tiles found (pattern) for {tile_path.name}")
         
         return neighbors if neighbors else None
+    
+    def _identify_missing_neighbors(
+        self,
+        tile_path: Path,
+        found_neighbors: List[Path]
+    ) -> List[Dict[str, Any]]:
+        """
+        Identify which adjacent tiles are missing and could be downloaded.
+        
+        Args:
+            tile_path: Path to core tile
+            found_neighbors: List of neighbors that were found locally
+            
+        Returns:
+            List of dicts with missing neighbor information
+        """
+        # Get core tile bounds
+        core_bounds = self.get_tile_bounds(tile_path)
+        xmin, ymin, xmax, ymax = core_bounds
+        
+        # Calculate expected adjacent tile positions
+        tile_width = xmax - xmin
+        tile_height = ymax - ymin
+        
+        # Expected neighbor positions (center points)
+        expected_positions = {
+            'north': (xmin + tile_width/2, ymax + tile_height/2),
+            'south': (xmin + tile_width/2, ymin - tile_height/2),
+            'east': (xmax + tile_width/2, ymin + tile_height/2),
+            'west': (xmin - tile_width/2, ymin + tile_height/2),
+            'northeast': (xmax + tile_width/2, ymax + tile_height/2),
+            'northwest': (xmin - tile_width/2, ymax + tile_height/2),
+            'southeast': (xmax + tile_width/2, ymin - tile_height/2),
+            'southwest': (xmin - tile_width/2, ymin - tile_height/2),
+        }
+        
+        # Check which positions are not covered by found neighbors
+        found_bounds = [self.get_tile_bounds(n) for n in found_neighbors]
+        
+        missing = []
+        for direction, (center_x, center_y) in expected_positions.items():
+            # Check if this position is covered by any found neighbor
+            is_covered = False
+            for n_bounds in found_bounds:
+                n_xmin, n_ymin, n_xmax, n_ymax = n_bounds
+                if (n_xmin <= center_x <= n_xmax and n_ymin <= center_y <= n_ymax):
+                    is_covered = True
+                    break
+            
+            if not is_covered:
+                missing.append({
+                    'direction': direction,
+                    'center_x': center_x,
+                    'center_y': center_y,
+                    'bbox': (
+                        center_x - tile_width/2,
+                        center_y - tile_height/2,
+                        center_x + tile_width/2,
+                        center_y + tile_height/2
+                    )
+                })
+        
+        if missing:
+            logger.info(f"Identified {len(missing)} missing adjacent tiles: {[m['direction'] for m in missing]}")
+        
+        return missing
+    
+    def _download_missing_neighbors(
+        self,
+        missing_neighbors: List[Dict[str, Any]],
+        output_dir: Path
+    ) -> List[Path]:
+        """
+        Download missing neighbor tiles using IGN WFS service.
+        
+        Only downloads tiles that are:
+        1. Not present locally, OR
+        2. Present but corrupted/unreadable
+        
+        Args:
+            missing_neighbors: List of missing neighbor info dicts
+            output_dir: Directory to save downloaded tiles
+            
+        Returns:
+            List of successfully downloaded tile paths
+        """
+        try:
+            from ..downloader import IGNLiDARDownloader
+        except ImportError:
+            logger.warning("IGNLiDARDownloader not available - cannot auto-download neighbors")
+            return []
+        
+        downloaded = []
+        downloader = IGNLiDARDownloader(output_dir=output_dir, max_concurrent=2)
+        
+        # Fetch available tiles from WFS
+        try:
+            # Query WFS with a bounding box covering all missing neighbors
+            all_bboxes = [m['bbox'] for m in missing_neighbors]
+            combined_bbox = (
+                min(b[0] for b in all_bboxes),
+                min(b[1] for b in all_bboxes),
+                max(b[2] for b in all_bboxes),
+                max(b[3] for b in all_bboxes)
+            )
+            
+            # Convert Lambert93 to WGS84 for WFS query (approximate conversion)
+            # For more accurate conversion, use pyproj
+            wgs84_bbox = self._lambert93_to_wgs84_bbox(combined_bbox)
+            
+            logger.info(f"Querying WFS for tiles in bbox: {wgs84_bbox}")
+            wfs_data = downloader.fetch_available_tiles(bbox=wgs84_bbox)
+            
+            if not wfs_data or not wfs_data.get('features'):
+                logger.warning("No tiles found in WFS for the missing neighbor area")
+                return []
+            
+            # Match WFS tiles to missing positions
+            for missing in missing_neighbors:
+                center_x, center_y = missing['center_x'], missing['center_y']
+                
+                # Find closest WFS tile
+                best_tile = None
+                min_distance = float('inf')
+                
+                for feature in wfs_data['features']:
+                    props = feature.get('properties', {})
+                    geom = feature.get('geometry', {})
+                    
+                    # Get tile center from geometry
+                    if geom.get('type') == 'Polygon' and geom.get('coordinates'):
+                        coords = geom['coordinates'][0]
+                        # Calculate centroid (rough approximation)
+                        tile_center_lon = sum(c[0] for c in coords) / len(coords)
+                        tile_center_lat = sum(c[1] for c in coords) / len(coords)
+                        
+                        # Convert to Lambert93 (approximate)
+                        tile_center_x, tile_center_y = self._wgs84_to_lambert93(tile_center_lon, tile_center_lat)
+                        
+                        # Calculate distance
+                        dist = ((tile_center_x - center_x)**2 + (tile_center_y - center_y)**2)**0.5
+                        
+                        if dist < min_distance:
+                            min_distance = dist
+                            best_tile = props.get('name')
+                
+                # Download the best matching tile
+                if best_tile and min_distance < 2000:  # Within 2km tolerance
+                    tile_path = output_dir / best_tile
+                    
+                    # Check if tile already exists and is valid
+                    if tile_path.exists():
+                        if self._validate_tile(tile_path):
+                            logger.info(f"✓ {best_tile} already exists and is valid")
+                            downloaded.append(tile_path)
+                            continue
+                        else:
+                            logger.warning(f"⚠️  {best_tile} exists but is corrupted, re-downloading...")
+                            # Delete corrupted file
+                            tile_path.unlink()
+                    
+                    # Download tile
+                    logger.info(f"Downloading {missing['direction']} neighbor: {best_tile}")
+                    success, skipped = downloader.download_tile(
+                        filename=best_tile,
+                        skip_existing=False  # We already checked above
+                    )
+                    
+                    if success:
+                        # Validate after download
+                        if self._validate_tile(tile_path):
+                            downloaded.append(tile_path)
+                            logger.info(f"✓ Downloaded and validated {best_tile}")
+                        else:
+                            logger.error(f"✗ Downloaded {best_tile} but validation failed")
+                            tile_path.unlink()  # Clean up corrupted download
+                    else:
+                        logger.error(f"✗ Failed to download {best_tile}")
+                else:
+                    logger.warning(f"No matching tile found for {missing['direction']} neighbor (distance: {min_distance:.0f}m)")
+            
+        except Exception as e:
+            logger.error(f"Failed to download missing neighbors: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        return downloaded
+    
+    def _lambert93_to_wgs84_bbox(
+        self,
+        lambert_bbox: Tuple[float, float, float, float]
+    ) -> Tuple[float, float, float, float]:
+        """
+        Convert Lambert93 bbox to WGS84 (rough approximation).
+        
+        For production use, should use pyproj for accurate conversion.
+        
+        Args:
+            lambert_bbox: (xmin, ymin, xmax, ymax) in Lambert93
+            
+        Returns:
+            (xmin, ymin, xmax, ymax) in WGS84
+        """
+        # Very rough conversion - good enough for WFS queries
+        # Lambert93 origin is approximately at 3°E, 46.5°N
+        xmin, ymin, xmax, ymax = lambert_bbox
+        
+        # Approximate conversion (meters to degrees)
+        lon_min = 3.0 + (xmin - 700000) / 111320
+        lat_min = 46.5 + (ymin - 6600000) / 111320
+        lon_max = 3.0 + (xmax - 700000) / 111320
+        lat_max = 46.5 + (ymax - 6600000) / 111320
+        
+        return (lon_min, lat_min, lon_max, lat_max)
+    
+    def _wgs84_to_lambert93(
+        self,
+        lon: float,
+        lat: float
+    ) -> Tuple[float, float]:
+        """
+        Convert WGS84 coordinates to Lambert93 (rough approximation).
+        
+        Args:
+            lon: Longitude in WGS84
+            lat: Latitude in WGS84
+            
+        Returns:
+            (x, y) in Lambert93
+        """
+        # Rough inverse of the above conversion
+        x = 700000 + (lon - 3.0) * 111320
+        y = 6600000 + (lat - 46.5) * 111320
+        
+        return (x, y)
+    
+    def _validate_tile(self, tile_path: Path) -> bool:
+        """
+        Validate that a tile file is readable and not corrupted.
+        
+        Checks:
+        1. File exists
+        2. File size is reasonable (> 1MB)
+        3. File can be opened with laspy
+        4. File contains points
+        5. Points have valid coordinates
+        
+        Args:
+            tile_path: Path to tile file
+            
+        Returns:
+            True if tile is valid, False otherwise
+        """
+        try:
+            # Check existence
+            if not tile_path.exists():
+                return False
+            
+            # Check file size (LAZ files should be at least 1MB for IGN data)
+            file_size = tile_path.stat().st_size
+            if file_size < 1_000_000:  # Less than 1MB is suspicious
+                logger.warning(f"Tile {tile_path.name} is suspiciously small ({file_size} bytes)")
+                return False
+            
+            # Try to open with laspy
+            las = laspy.read(str(tile_path))
+            
+            # Check if it has points
+            if len(las.points) == 0:
+                logger.warning(f"Tile {tile_path.name} has no points")
+                return False
+            
+            # Check if coordinates are valid (not all zeros or NaN)
+            x_valid = np.isfinite(las.x).all() and not np.allclose(las.x, 0)
+            y_valid = np.isfinite(las.y).all() and not np.allclose(las.y, 0)
+            z_valid = np.isfinite(las.z).all()
+            
+            if not (x_valid and y_valid and z_valid):
+                logger.warning(f"Tile {tile_path.name} has invalid coordinates")
+                return False
+            
+            # All checks passed
+            logger.debug(f"Tile {tile_path.name} validated successfully ({len(las.points):,} points)")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Tile validation failed for {tile_path.name}: {e}")
+            return False
     
     def clear_cache(self):
         """Clear the tile cache to free memory."""

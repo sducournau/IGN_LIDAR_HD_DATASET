@@ -45,12 +45,23 @@ def print_config_summary(cfg: DictConfig) -> None:
     logger.info(f"LOD Level: {cfg.processor.lod_level}")
     logger.info(f"GPU: {cfg.processor.use_gpu}")
     logger.info(f"Workers: {cfg.processor.num_workers}")
-    logger.info(f"Patch size: {cfg.processor.patch_size}m")
-    logger.info(f"Points per patch: {cfg.processor.num_points}")
+    
+    if cfg.output.only_enriched_laz:
+        logger.info(f"Mode: Enriched LAZ only (no patches) ✨")
+    else:
+        logger.info(f"Patch size: {cfg.processor.patch_size}m")
+        logger.info(f"Points per patch: {cfg.processor.num_points}")
+    
     logger.info(f"Features mode: {cfg.features.mode}")
     logger.info(f"Preprocessing: {cfg.preprocess.enabled}")
     logger.info(f"Tile stitching: {cfg.stitching.enabled}")
-    logger.info(f"Output format: {cfg.output.format}")
+    
+    if cfg.stitching.enabled and hasattr(cfg.stitching, 'auto_download_neighbors'):
+        logger.info(f"Auto-download neighbors: {cfg.stitching.auto_download_neighbors}")
+    
+    if not cfg.output.only_enriched_laz:
+        logger.info(f"Output format: {cfg.output.format}")
+    logger.info(f"Save enriched LAZ: {cfg.output.save_enriched_laz}")
     logger.info("="*70)
 
 
@@ -166,6 +177,11 @@ def process_lidar(cfg: DictConfig) -> None:
     if cfg.preprocess.enabled:
         preprocess_config = OmegaConf.to_container(cfg.preprocess, resolve=True)
     
+    # Extract stitching config
+    stitching_config = None
+    if cfg.stitching.enabled:
+        stitching_config = OmegaConf.to_container(cfg.stitching, resolve=True)
+    
     # Initialize processor
     logger.info("Initializing LiDAR processor...")
     processor = LiDARProcessor(
@@ -184,6 +200,9 @@ def process_lidar(cfg: DictConfig) -> None:
         preprocess_config=preprocess_config,
         use_stitching=cfg.stitching.enabled,
         buffer_size=cfg.stitching.buffer_size,
+        stitching_config=stitching_config,
+        save_enriched_laz=cfg.output.save_enriched_laz,
+        only_enriched_laz=cfg.output.only_enriched_laz,
     )
     
     # Process
@@ -203,7 +222,11 @@ def process_lidar(cfg: DictConfig) -> None:
         # Summary
         logger.info("="*70)
         logger.info("✅ Processing complete!")
-        logger.info(f"  Total patches: {total_patches:,}")
+        if cfg.output.only_enriched_laz:
+            logger.info(f"  Mode: Enriched LAZ only (no patches)")
+            logger.info(f"  Enriched LAZ files: {output_dir / 'enriched'}")
+        else:
+            logger.info(f"  Total patches: {total_patches:,}")
         logger.info(f"  Processing time: {elapsed_time:.1f}s ({elapsed_time/60:.1f} min)")
         logger.info(f"  Output directory: {output_dir}")
         logger.info(f"  Configuration: {config_save_path}")

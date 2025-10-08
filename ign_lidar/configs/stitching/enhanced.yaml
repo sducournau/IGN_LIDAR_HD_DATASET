@@ -12,7 +12,8 @@ min_buffer: 5.0 # Minimum buffer size in low-density areas
 max_buffer: 25.0 # Maximum buffer size in high-density areas
 
 # Neighbor detection
-auto_detect_neighbors: true # Automatically detect adjacent tiles
+auto_detect_neighbors: true # Automatically detect adjacent tiles via bbox adjacency
+auto_download_neighbors: false # Download missing neighbors from IGN WFS (set true for automatic downloads)
 neighbor_search_radius: 50.0 # Search radius for neighbor detection (meters)
 max_neighbors: 8 # Maximum number of neighbors to process
 use_grid_pattern: true # Use IGN grid pattern for faster neighbor detection

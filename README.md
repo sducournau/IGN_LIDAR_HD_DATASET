@@ -2,14 +2,40 @@
 
 # IGN LiDAR HD Processing Library
 
-[![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/ign-lidar-hd)](https://pypi.org/project/ign-lidar-hd/)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
-[![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+[![PyPI version](https://badge.fu## ✨ What's New
 
-**Version 2.0.0** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+### Version 2.0.1 - Enriched LAZ Mode & Auto-Recovery ✨
+
+**🆕 New Features:**
+
+- ✨ **Enriched LAZ Only Mode**: Process tiles to generate enriched LAZ files without creating patches (3-5x faster)
+
+  - New `output.only_enriched_laz` parameter
+  - Seamless integration with auto-download and stitching
+  - Perfect for feature enrichment workflows
+
+- 🛡️ **Automatic Corruption Recovery**: Detect and auto-recover from corrupted LAZ files
+  - Automatic re-download from IGN WFS
+  - Up to 2 retry attempts with integrity verification
+  - Transparent to users - works automatically
+
+See [CHANGELOG.md](CHANGELOG.md) for full details.
+
+### Version 2.0.0 - Complete Architecture Overhaul 🚀
+
+**🎯 Major Changes:**
+
+- 🏗️ **Modular Architecture**: Complete reorganization into specialized modules
+
+  - `ign_lidar.core` - Core processing and tile stitching
+  - `ign_lidar.features` - Feature computation with boundary awarenessgn-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
+    [![PyPI - Downloads](https://img.shields.io/pypi/dm/ign-lidar-hd)](https://pypi.org/project/ign-lidar-hd/)
+    [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+    [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+    [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
+    [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+
+**Version 2.0.1** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/website/static/img/lod3.png?raw=true" alt="LoD3 Building Model Icon" width="600">
 

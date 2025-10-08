@@ -1,0 +1,50 @@
+# Tile Stitching with Auto-Download Configuration
+#
+# Enhanced tile stitching with automatic download of missing neighbors
+# This configuration enables seamless boundary processing by automatically
+# downloading adjacent tiles from IGN WFS service when needed.
+#
+# ⚠️  WARNING: Enabling auto_download_neighbors will:
+# - Download tiles from IGN WFS (requires internet connection)
+# - Each tile is ~100-300 MB (can download up to 8 neighbors)
+# - Downloads are validated and reused across tiles
+# - Only downloads missing or corrupted tiles
+#
+# Use cases:
+# - Processing isolated tiles without pre-downloading neighbors
+# - Automatic recovery from corrupted tile downloads
+# - Exploratory analysis where neighbor availability is unknown
+
+enabled: true
+
+# Buffer configuration
+buffer_size: 15.0 # Buffer zone width in meters (larger = better accuracy)
+
+# Neighbor detection and download
+auto_detect_neighbors: true # Auto-detect adjacent tiles via bounding box checks
+auto_download_neighbors: true # ⚡ Download missing neighbors automatically
+download_max_concurrent: 2 # Maximum concurrent downloads
+validate_tiles: true # Validate tiles before and after download
+
+# Performance optimization
+cache_enabled: true # Cache loaded neighbor tiles in memory
+parallel_loading: false # Sequential loading (safer with downloads)
+
+# Quality settings
+boundary_smoothing: true # Apply smoothing at tile boundaries
+edge_artifact_removal: true # Remove edge artifacts
+
+# Memory management
+memory_limit: 8192 # Memory limit in MB for stitching operations
+
+# Advanced features
+compute_boundary_features: true # Compute special features at boundaries
+cross_tile_neighborhoods: true # Enable cross-tile neighborhood queries
+
+# Logging and monitoring
+verbose_logging: true # Detailed logging for download progress
+save_stitching_stats: true # Save stitching statistics
+
+# Fallback behavior
+continue_on_download_failure: true # Continue processing if downloads fail
+skip_corrupted_tiles: true # Skip tiles that fail validation

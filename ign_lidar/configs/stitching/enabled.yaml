@@ -5,4 +5,5 @@
 enabled: true
 buffer_size: 10.0 # Buffer zone in meters
 auto_detect_neighbors: true # Auto-detect adjacent tiles
+auto_download_neighbors: false # Download missing adjacent tiles from IGN WFS (disabled by default)
 cache_enabled: true # Cache loaded tiles
