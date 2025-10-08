@@ -6,11 +6,15 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 1.7.6** | Python 3.8+ | MIT License
+**Version 2.0.1** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+:::tip Major Update: v2.0 Architecture Overhaul!
+Complete redesign with **modular architecture**, **Hydra CLI**, and **unified pipeline**! Existing users, see the [Migration Guide](/guides/migration-v1-to-v2) to upgrade from v1.x.
+:::
 
 ## 📺 Video Demo
 
@@ -23,28 +27,45 @@ title: IGN LiDAR HD Processing Library
 
 ---
 
-## 🎉 Latest Release: v1.7.6
+## 🎉 Latest Release: v2.0.1
 
-### 🚀 MASSIVE Performance Optimization - 100-200x Speedup!
+### 🚀 Complete Architecture Overhaul
 
-The latest release eliminates a critical bottleneck through **vectorized feature computation**:
+Version 2.0 represents a **major redesign** of the entire library with significant improvements:
 
-**Key Improvements:**
+**New in v2.0.1:**
 
-- ⚡ **Vectorized Operations**: Replaced per-point PCA loops with batched covariance computation using `einsum`
-- 💯 **100% GPU Utilization**: GPU now fully utilized (was stuck at 0-5% before)
-- 🎯 **All Modes Optimized**: CPU, GPU without cuML, and GPU with cuML all optimized
-- ⏱️ **Real-World Impact**: 17M points in ~30 seconds (was stuck at 0% for hours!)
-- 🔧 **GPU Stability Fix**: Fixed `CUSOLVER_STATUS_INVALID_VALUE` errors with matrix symmetry enforcement and regularization
+- 🎯 **Enriched LAZ Only Mode**: Generate enriched LAZ files without patches for visualization workflows
+- 🔧 **Automatic Corruption Recovery**: Detects and recovers from corrupted LAZ files automatically
+- � **Bug Fixes**: Improved stability and error handling
 
-:::tip No Configuration Needed!
+**Major Features in v2.0:**
 
-Your existing commands automatically benefit from the 100-200x speedup:
+- 🏗️ **Modular Architecture**: Clean separation into `core`, `features`, `preprocessing`, `io`, and `config` modules
+- ⚡ **Hydra CLI**: Modern configuration-based CLI with hierarchical configs and presets
+- 🔄 **Unified Pipeline**: Single-step RAW→Patches workflow (no more multi-step processing!)
+- 🌐 **Boundary-Aware Features**: Cross-tile processing eliminates edge artifacts
+- 🧩 **Tile Stitching**: Multi-tile dataset workflows with automatic neighbor detection
+- 🤖 **Multi-Architecture Support**: PointNet++, Octree, Transformer, and Sparse Convolutional networks
+
+:::tip Migrating from v1.x?
+
+The v2.0 architecture requires some changes to your workflows. See the [**Migration Guide**](/guides/migration-v1-to-v2) for:
+
+- Command migration (legacy CLI still works!)
+- Import path updates
+- New Hydra CLI usage
+- Configuration system guide
+
+:::
+
+:::info Legacy CLI Still Supported
+
+Don't worry! The old CLI (`ign-lidar-hd enrich`, etc.) still works for backward compatibility. Try the new Hydra CLI when you're ready:
 
 ```bash
-# Same command, dramatically faster!
-ign-lidar-hd enrich --input-dir data/ --output output/ \
-  --auto-params --preprocess --use-gpu
+# New Hydra CLI - powerful and flexible
+ign-lidar-hd process input_dir=data/ output_dir=output/ preset=balanced
 ```
 
 :::
