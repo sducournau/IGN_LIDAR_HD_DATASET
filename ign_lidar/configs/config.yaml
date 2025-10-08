@@ -7,7 +7,7 @@ defaults:
   - processor: default
   - features: full
   - preprocess: default
-  - stitching: disabled
+  - stitching: enhanced
   - output: default
   - _self_
 

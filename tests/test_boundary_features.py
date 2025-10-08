@@ -17,7 +17,7 @@ import numpy as np
 from pathlib import Path
 import laspy
 
-from ign_lidar.features_boundary import (
+from ign_lidar.features.features_boundary import (
     BoundaryAwareFeatureComputer,
     compute_boundary_aware_features
 )

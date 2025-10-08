@@ -23,7 +23,7 @@ import json
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from ign_lidar.processor import LiDARProcessor
+from ign_lidar.core.processor import LiDARProcessor
 
 
 class BenchmarkMetrics:
@@ -150,7 +150,7 @@ def benchmark_v20_unified(laz_file: Path, output_dir: Path) -> Dict[str, Any]:
         metrics.disk_reads += 1  # Read original LAZ
         
         # Run unified processing
-        result = processor.process_tile_unified(
+        result = processor.process_tile(
             laz_file=laz_file,
             output_dir=output_dir,
             architecture="pointnet++",

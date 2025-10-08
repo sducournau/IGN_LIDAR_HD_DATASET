@@ -107,6 +107,30 @@ except ImportError:
         extract_geometric_features
     )
 
+# Backward compatibility for moved modules - these imports should be available 
+# at the root level for legacy code
+try:
+    # Import core modules at root level for backward compatibility
+    from .core.processor import LiDARProcessor as processor_LiDARProcessor
+    from .core.tile_stitcher import TileStitcher
+    
+    # Make them available as if imported from root
+    import sys
+    import types
+    
+    # Create processor module for backward compatibility
+    processor_module = types.ModuleType('ign_lidar.processor')
+    processor_module.LiDARProcessor = processor_LiDARProcessor
+    sys.modules['ign_lidar.processor'] = processor_module
+    
+    # Create tile_stitcher module for backward compatibility  
+    tile_stitcher_module = types.ModuleType('ign_lidar.tile_stitcher')
+    tile_stitcher_module.TileStitcher = TileStitcher
+    sys.modules['ign_lidar.tile_stitcher'] = tile_stitcher_module
+    
+except ImportError:
+    pass
+
 __all__ = [
     # ========== Core v2.0 ==========
     # Processor
@@ -153,6 +177,7 @@ __all__ = [
     "ProcessingError",
     "GPUMemoryError",
     "MemoryPressureError",
+    "TileStitcher",  # Backward compatibility for tile stitching
     
     # Feature utilities
     "ARCHITECTURAL_STYLES",

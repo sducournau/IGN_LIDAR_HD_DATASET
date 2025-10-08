@@ -80,7 +80,7 @@ flowchart TD
 ### 📈 Project Stats
 
 - 🏗️ **14 core modules** - Comprehensive processing toolkit
-- 📝 **10 example scripts** - From basic usage to advanced workflows
+- 📝 **10 example scripts** - From basic usage to complex workflows
 - 🧪 **Comprehensive test suite** - Ensuring reliability and performance
 - 🌍 **50+ curated tiles** - Covering diverse French territories
 - ⚡ **GPU & CPU support** - Flexible computation backends
@@ -97,13 +97,13 @@ flowchart TD
 - 🏗️ **Modular Architecture**: Complete reorganization into specialized modules
 
   - `ign_lidar.core` - Core processing and tile stitching
-  - `ign_lidar.features` - Advanced feature computation with boundary awareness
+  - `ign_lidar.features` - Feature computation with boundary awareness
   - `ign_lidar.preprocessing` - Optimized preprocessing pipeline
   - `ign_lidar.io` - Multi-format I/O and QGIS integration
   - `ign_lidar.cli` - Modern Hydra-based CLI system
   - `ign_lidar.config` - Configuration schema and management
 
-- ⚡ **Unified Processing Pipeline**: Single-step RAW→Patches workflow
+- ⚡ **Processing Pipeline**: Single-step RAW→Patches workflow
 
   - Eliminates intermediate LAZ files (35-50% disk space savings)
   - 2-3x faster processing through in-memory operations
@@ -241,7 +241,7 @@ patches = processor.process_directory("data/", "output/", num_workers=4)
 - **Pipeline configuration** - YAML-based declarative workflows
 - **Integrated downloader** - IGN WFS tile discovery and batch downloading
 - **Format flexibility** - LAZ 1.4 (full features) or QGIS-compatible output
-- **Unified CLI** - Single `ign-lidar-hd` command with intuitive subcommands
+- **CLI** - Single `ign-lidar-hd` command with intuitive subcommands
 - **Idempotent operations** - Safe to restart, never reprocesses existing data
 
 ### 🌍 Geographic Intelligence
@@ -257,7 +257,7 @@ patches = processor.process_directory("data/", "output/", num_workers=4)
 
 ### Command Line Interface
 
-The library provides a unified `ign-lidar-hd` command with four main subcommands:
+The library provides a `ign-lidar-hd` command with four main subcommands:
 
 #### 1. Download Command
 
@@ -555,7 +555,7 @@ graph TB
     end
 
     subgraph "Enriched Data"
-        ELAZ[Enhanced LAZ<br/>+ 30 Features<br/>+ Building Labels]
+        ELAZ[Enriched LAZ<br/>+ 30 Features<br/>+ Building Labels]
     end
 
     subgraph "ML Dataset"

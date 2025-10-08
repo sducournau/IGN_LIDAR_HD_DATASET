@@ -1,0 +1,65 @@
+# Advanced Tile Stitching Configuration
+#
+# High-performance tile stitching for large-scale processing
+# Optimized for multi-tile datasets with complex boundaries
+
+enabled: true
+
+# Multi-scale buffer system
+buffer_size: 20.0 # Base buffer size for standard processing
+multi_scale_buffers: true # Use different buffer sizes for different features
+geometric_buffer: 10.0 # Buffer for geometric features (normals, curvature)
+contextual_buffer: 20.0 # Buffer for contextual features (density, height stats)
+semantic_buffer: 30.0 # Buffer for semantic features (vegetation, building)
+
+# Intelligent neighbor management
+auto_detect_neighbors: true
+neighbor_detection_method: "smart_grid" # "smart_grid", "spatial_index", "filename_pattern"
+grid_tile_size: 1000.0 # Expected tile size in meters (for grid detection)
+spatial_index_type: "rtree" # Spatial indexing method
+filename_pattern: "HD_LIDARHD_FXX_*_*_PTS_C_LAMB93_IGN69" # IGN naming pattern
+
+# Advanced caching system
+cache_enabled: true
+cache_strategy: "lru" # "lru", "lfu", "adaptive"
+memory_cache_size: 2048 # Memory cache in MB
+disk_cache_enabled: true # Enable disk-based cache for large tiles
+disk_cache_dir: null # Auto-detect temp directory if null
+cache_compression: true # Compress cached tiles
+
+# Parallel processing
+parallel_loading: true
+max_parallel_tiles: 4 # Maximum tiles to load in parallel
+worker_threads: 8 # Number of worker threads for parallel operations
+async_processing: true # Asynchronous tile processing
+load_balancing: true # Dynamic load balancing
+
+# Boundary processing algorithms
+boundary_detection_method: "adaptive" # "fixed", "adaptive", "density_based"
+boundary_smoothing_kernel: "gaussian" # "gaussian", "bilateral", "median"
+smoothing_sigma: 1.0 # Smoothing parameter
+edge_preservation: true # Preserve sharp edges while smoothing
+
+# Feature computation enhancements
+cross_tile_knn: true # K-NN searches across tile boundaries
+boundary_feature_enhancement: true # Enhanced features at boundaries
+temporal_consistency: false # Maintain consistency across time series (if applicable)
+multi_resolution_features: true # Compute features at multiple resolutions
+
+# Quality assurance
+overlap_validation: true # Validate tile overlaps
+gap_detection: true # Detect gaps between tiles
+continuity_checks: true # Check feature continuity at boundaries
+quality_metrics: true # Compute stitching quality metrics
+
+# Performance monitoring
+profiling_enabled: false # Detailed performance profiling
+memory_monitoring: true # Monitor memory usage
+progress_reporting: true # Report progress for long operations
+benchmark_mode: false # Special benchmarking mode
+
+# Output options
+save_stitching_metadata: true # Save metadata about stitching process
+output_tile_masks: false # Output masks showing tile origins
+preserve_original_coordinates: true # Keep original coordinate systems
+coordinate_precision: 0.01 # Coordinate precision in meters

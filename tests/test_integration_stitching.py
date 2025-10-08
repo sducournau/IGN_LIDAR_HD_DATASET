@@ -13,7 +13,7 @@ import numpy as np
 from pathlib import Path
 import laspy
 
-from ign_lidar.processor import LiDARProcessor
+from ign_lidar.core.processor import LiDARProcessor
 
 
 @pytest.fixture
@@ -134,7 +134,7 @@ def test_processor_initialization_without_stitching():
 
 
 @pytest.mark.slow
-def test_unified_processing_with_stitching(temp_tile_directory, tmp_path):
+def test_processing_with_stitching(temp_tile_directory, tmp_path):
     """
     Test complete unified processing with tile stitching enabled.
     
@@ -160,7 +160,7 @@ def test_unified_processing_with_stitching(temp_tile_directory, tmp_path):
     # Process core tile (E) - has all 4 neighbors
     core_tile = temp_tile_directory / "LIDAR_HD_1000_1000.laz"
     
-    result = processor.process_tile_unified(
+    result = processor.process_tile(
         laz_file=core_tile,
         output_dir=output_dir,
         architecture='pointnet++',
@@ -198,7 +198,7 @@ def test_unified_processing_with_stitching(temp_tile_directory, tmp_path):
 
 
 @pytest.mark.slow
-def test_unified_processing_without_stitching(temp_tile_directory, tmp_path):
+def test_processing_without_stitching(temp_tile_directory, tmp_path):
     """
     Test unified processing without tile stitching (standard mode).
     
@@ -219,7 +219,7 @@ def test_unified_processing_without_stitching(temp_tile_directory, tmp_path):
     # Process core tile
     core_tile = temp_tile_directory / "LIDAR_HD_1000_1000.laz"
     
-    result = processor.process_tile_unified(
+    result = processor.process_tile(
         laz_file=core_tile,
         output_dir=output_dir,
         architecture='pointnet++',
@@ -263,7 +263,7 @@ def test_stitching_vs_standard_comparison(temp_tile_directory, tmp_path):
     
     core_tile = temp_tile_directory / "LIDAR_HD_1000_1000.laz"
     
-    result_stitching = processor_stitching.process_tile_unified(
+    result_stitching = processor_stitching.process_tile(
         laz_file=core_tile,
         output_dir=output_stitching,
         architecture='pointnet++',
@@ -284,7 +284,7 @@ def test_stitching_vs_standard_comparison(temp_tile_directory, tmp_path):
         k_neighbors=20
     )
     
-    result_standard = processor_standard.process_tile_unified(
+    result_standard = processor_standard.process_tile(
         laz_file=core_tile,
         output_dir=output_standard,
         architecture='pointnet++',
@@ -348,7 +348,7 @@ def test_edge_tile_without_neighbors(temp_tile_directory, tmp_path):
     )
     
     # Should fall back to standard processing
-    result = processor.process_tile_unified(
+    result = processor.process_tile(
         laz_file=standalone_tile,
         output_dir=output_dir,
         architecture='pointnet++',

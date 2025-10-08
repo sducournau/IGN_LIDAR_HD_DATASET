@@ -1,5 +1,5 @@
 """
-Tests for unified processing pipeline.
+Tests for processing pipeline.
 """
 
 import pytest
@@ -11,11 +11,11 @@ import shutil
 from ign_lidar.core.processor import LiDARProcessor
 
 
-class TestUnifiedProcessing:
-    """Test unified processing pipeline."""
+class TestProcessing:
+    """Test processing pipeline."""
     
-    def test_process_tile_unified_basic(self, tmp_path, mock_laz_file):
-        """Test basic unified processing."""
+    def test_process_tile_basic(self, tmp_path, mock_laz_file):
+        """Test basic processing."""
         output_dir = tmp_path / "output"
         
         processor = LiDARProcessor(
@@ -25,7 +25,7 @@ class TestUnifiedProcessing:
             use_gpu=False
         )
         
-        result = processor.process_tile_unified(
+        result = processor.process_tile(
             laz_file=mock_laz_file,
             output_dir=output_dir,
             architecture='pointnet++',
@@ -39,8 +39,8 @@ class TestUnifiedProcessing:
         assert result['points_processed'] > 0
         assert not result['skipped']
     
-    def test_process_tile_unified_multi_arch(self, tmp_path, mock_laz_file):
-        """Test unified processing with multiple architectures."""
+    def test_process_tile_multi_arch(self, tmp_path, mock_laz_file):
+        """Test processing with multiple architectures."""
         output_dir = tmp_path / "output"
         
         processor = LiDARProcessor(
@@ -49,7 +49,7 @@ class TestUnifiedProcessing:
             num_points=4096
         )
         
-        result = processor.process_tile_unified(
+        result = processor.process_tile(
             laz_file=mock_laz_file,
             output_dir=output_dir,
             architecture='multi',  # All architectures
@@ -65,8 +65,8 @@ class TestUnifiedProcessing:
             arch_patches = list(output_dir.glob(f"*_{arch}_patch_*.npz"))
             assert len(arch_patches) > 0, f"No patches found for {arch}"
     
-    def test_process_tile_unified_pytorch_format(self, tmp_path, mock_laz_file):
-        """Test unified processing with PyTorch output format."""
+    def test_process_tile_pytorch_format(self, tmp_path, mock_laz_file):
+        """Test processing with PyTorch output format."""
         output_dir = tmp_path / "output"
         
         processor = LiDARProcessor(
@@ -75,7 +75,7 @@ class TestUnifiedProcessing:
             num_points=4096
         )
         
-        result = processor.process_tile_unified(
+        result = processor.process_tile(
             laz_file=mock_laz_file,
             output_dir=output_dir,
             architecture='pointnet++',
@@ -89,10 +89,10 @@ class TestUnifiedProcessing:
         pt_files = list(output_dir.glob("*.pt"))
         assert len(pt_files) > 0
     
-    def test_process_tile_unified_with_preprocessing(
+    def test_process_tile_with_preprocessing(
         self, tmp_path, mock_laz_file
     ):
-        """Test unified processing with preprocessing enabled."""
+        """Test processing with preprocessing enabled."""
         output_dir = tmp_path / "output"
         
         processor = LiDARProcessor(
@@ -106,7 +106,7 @@ class TestUnifiedProcessing:
             }
         )
         
-        result = processor.process_tile_unified(
+        result = processor.process_tile(
             laz_file=mock_laz_file,
             output_dir=output_dir,
             architecture='pointnet++',
@@ -117,10 +117,10 @@ class TestUnifiedProcessing:
         assert result['points_processed'] >= 0
         assert 'num_patches' in result
     
-    def test_process_tile_unified_save_enriched(
+    def test_process_tile_save_enriched(
         self, tmp_path, mock_laz_file
     ):
-        """Test unified processing with enriched LAZ output."""
+        """Test processing with enriched LAZ output."""
         output_dir = tmp_path / "output"
         
         processor = LiDARProcessor(
@@ -129,7 +129,7 @@ class TestUnifiedProcessing:
             num_points=4096
         )
         
-        result = processor.process_tile_unified(
+        result = processor.process_tile(
             laz_file=mock_laz_file,
             output_dir=output_dir,
             architecture='pointnet++',
@@ -145,10 +145,10 @@ class TestUnifiedProcessing:
             enriched_files = list(enriched_dir.glob("*_enriched.laz"))
             assert len(enriched_files) > 0
     
-    def test_process_tile_unified_skip_existing(
+    def test_process_tile_skip_existing(
         self, tmp_path, mock_laz_file
     ):
-        """Test that unified processing skips existing patches."""
+        """Test that processing skips existing patches."""
         output_dir = tmp_path / "output"
         output_dir.mkdir(parents=True)
         
@@ -162,7 +162,7 @@ class TestUnifiedProcessing:
             num_points=4096
         )
         
-        result = processor.process_tile_unified(
+        result = processor.process_tile(
             laz_file=mock_laz_file,
             output_dir=output_dir,
             architecture='pointnet++',
@@ -172,10 +172,10 @@ class TestUnifiedProcessing:
         assert result['skipped']
         assert result['num_patches'] == 0
     
-    def test_process_tile_unified_output_structure(
+    def test_process_tile_output_structure(
         self, tmp_path, mock_laz_file
     ):
-        """Test that unified processing creates correct output structure."""
+        """Test that processing creates correct output structure."""
         output_dir = tmp_path / "output"
         
         processor = LiDARProcessor(
@@ -184,7 +184,7 @@ class TestUnifiedProcessing:
             num_points=4096
         )
         
-        result = processor.process_tile_unified(
+        result = processor.process_tile(
             laz_file=mock_laz_file,
             output_dir=output_dir,
             architecture='pointnet++',

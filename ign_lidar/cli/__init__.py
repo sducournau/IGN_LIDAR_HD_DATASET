@@ -1,7 +1,7 @@
 """
 Modern CLI for IGN LiDAR HD v2.0.
 
-This module contains the unified command-line interface with integrated QGIS functionality.
+This module contains the command-line interface with modular commands.
 """
 
 from .main import main

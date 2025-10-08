@@ -55,7 +55,8 @@ class LiDARProcessor:
                  preprocess: bool = False,
                  preprocess_config: dict = None,
                  use_stitching: bool = False,
-                 buffer_size: float = 10.0):
+                 buffer_size: float = 10.0,
+                 stitching_config: dict = None):
         """
         Initialize processor.
         
@@ -107,11 +108,37 @@ class LiDARProcessor:
         self.buffer_size = buffer_size
         self.preprocess_config = preprocess_config
         
+        # Enhanced stitching configuration
+        if stitching_config is None:
+            self.stitching_config = {
+                'enabled': use_stitching,
+                'buffer_size': buffer_size,
+                'auto_detect_neighbors': True,
+                'cache_enabled': True
+            }
+        else:
+            self.stitching_config = stitching_config.copy()
+            # Override enable flag and buffer size
+            self.stitching_config['enabled'] = use_stitching
+            if 'buffer_size' not in self.stitching_config:
+                self.stitching_config['buffer_size'] = buffer_size
+        
+        # Initialize advanced stitcher if needed
+        self.stitcher = None
+        if use_stitching and self.stitching_config.get('use_stitcher', False):
+            try:
+                from .tile_stitcher import TileStitcher
+                self.stitcher = TileStitcher(config=self.stitching_config)
+                logger.info("Advanced tile stitcher initialized")
+            except ImportError as e:
+                logger.warning(f"Advanced stitcher unavailable: {e}")
+                self.stitcher = None
+        
         # Initialize RGB fetcher if needed
         self.rgb_fetcher = None
         if include_rgb:
             try:
-                from .rgb_augmentation import IGNOrthophotoFetcher
+                from ..preprocessing.rgb_augmentation import IGNOrthophotoFetcher
                 self.rgb_fetcher = IGNOrthophotoFetcher(cache_dir=rgb_cache_dir)
                 logger.info("RGB augmentation enabled (IGN orthophotos)")
             except ImportError as e:
@@ -124,7 +151,7 @@ class LiDARProcessor:
         # Validate GPU availability if requested
         if use_gpu:
             try:
-                from .features_gpu import GPU_AVAILABLE
+                from ..features.features_gpu import GPU_AVAILABLE
                 if not GPU_AVAILABLE:
                     logger.warning(
                         "GPU requested but CuPy not available. "
@@ -683,7 +710,7 @@ class LiDARProcessor:
         
         return total_patches
 
-    def process_tile_unified(
+    def process_tile(
         self,
         laz_file: Path,
         output_dir: Path,
@@ -696,7 +723,7 @@ class LiDARProcessor:
         skip_existing: bool = True
     ) -> Dict[str, Any]:
         """
-        Process a single LAZ tile with unified pipeline.
+        Process a single LAZ tile with processing pipeline.
         
         This method implements the v2.0 unified pipeline that processes
         RAW LiDAR → Features → Architecture-formatted patches in a single
@@ -724,7 +751,7 @@ class LiDARProcessor:
                 'skipped': bool
             }
         """
-        from .formatters import MultiArchitectureFormatter
+        from ..io.formatters.multi_arch_formatter import MultiArchitectureFormatter
         
         progress_prefix = f"[{tile_idx}/{total_tiles}]" if total_tiles > 0 else ""
         
@@ -856,7 +883,7 @@ class LiDARProcessor:
             logger.info("  🔗 Enabling tile stitching for boundary-aware features...")
             try:
                 from .tile_stitcher import TileStitcher
-                from .features_boundary import BoundaryAwareFeatureComputer
+                from ..features.features_boundary import BoundaryAwareFeatureComputer
                 
                 # Initialize stitcher
                 stitcher = TileStitcher(buffer_size=self.buffer_size)
@@ -923,7 +950,7 @@ class LiDARProcessor:
         if not use_boundary_aware:
             # Choose GPU or CPU based on configuration
             if self.use_gpu:
-                from .features_gpu import compute_all_features_with_gpu
+                from ..features.features_gpu import compute_all_features_with_gpu
                 normals, curvature, height, geo_features = (
                     compute_all_features_with_gpu(
                         points=points,

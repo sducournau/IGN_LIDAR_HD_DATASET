@@ -18,8 +18,29 @@ These techniques help reduce artifacts such as:
 from typing import Dict, Tuple, Any, Optional
 import numpy as np
 import logging
+import multiprocessing
 
 logger = logging.getLogger(__name__)
+
+
+def _get_safe_n_jobs() -> int:
+    """
+    Get safe n_jobs value for sklearn in multiprocessing context.
+    
+    sklearn's parallel loops can't be nested in multiprocessing workers,
+    so we return 1 when inside a worker process.
+    
+    Returns:
+        1 if in multiprocessing context, -1 otherwise
+    """
+    try:
+        # Check if we're in a multiprocessing worker
+        current_process = multiprocessing.current_process()
+        if hasattr(current_process, '_identity') and current_process._identity:
+            return 1  # We're in a worker process
+        return -1  # Main process, use all cores
+    except:
+        return 1  # Safe fallback
 
 
 def statistical_outlier_removal(
@@ -56,7 +77,7 @@ def statistical_outlier_removal(
         return points, np.ones(N, dtype=bool)
     
     # Build kNN tree
-    nbrs = NearestNeighbors(n_neighbors=k+1, algorithm='kd_tree', n_jobs=-1)
+    nbrs = NearestNeighbors(n_neighbors=k+1, algorithm='kd_tree', n_jobs=_get_safe_n_jobs())
     nbrs.fit(points)
     distances, _ = nbrs.kneighbors(points)
     
@@ -113,7 +134,7 @@ def radius_outlier_removal(
         return points, np.ones(N, dtype=bool)
     
     # Build ball tree for radius queries
-    nbrs = NearestNeighbors(radius=radius, algorithm='kd_tree', n_jobs=-1)
+    nbrs = NearestNeighbors(radius=radius, algorithm='kd_tree', n_jobs=_get_safe_n_jobs())
     nbrs.fit(points)
     
     # Count neighbors for each point (including self)

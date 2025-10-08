@@ -41,6 +41,7 @@ dependencies = [
     "omegaconf>=2.3.0",  # Configuration with validation
     "requests>=2.25.0",  # HTTP requests for data download
     "Pillow>=9.0.0",  # Image processing for RGB features
+    "h5py>=3.0.0",  # HDF5 for AI dataset creation and processing
 ]
 
 [project.optional-dependencies]
@@ -94,9 +95,8 @@ dev = [
 ]
 
 [project.scripts]
-ign-lidar-hd = "ign_lidar.cli.hydra_main:main"
-ign-lidar-hd-v2 = "ign_lidar.cli.hydra_main:main"
-ign-lidar-qgis = "ign_lidar.io.qgis_converter:main"
+ign-lidar-hd = "ign_lidar.cli.main:main"
+ign-lidar-hd-v2 = "ign_lidar.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/sducournau/IGN_LIDAR_HD_DATASET"

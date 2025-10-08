@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-End-to-end integration test for unified processing pipeline.
+End-to-end integration test for processing pipeline.
 
 This script tests the complete workflow:
 1. Generate sample LAZ files
-2. Run unified processing with different configurations
+2. Run processing with different configurations
 3. Validate outputs
 4. Benchmark performance
 """
@@ -19,7 +19,7 @@ import numpy as np
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from ign_lidar.processor import LiDARProcessor
+from ign_lidar.core.processor import LiDARProcessor
 
 
 def run_test(
@@ -52,8 +52,8 @@ def run_test(
     start_time = time.time()
     
     try:
-        # Run unified processing
-        result = processor.process_tile_unified(
+        # Run processing
+        result = processor.process_tile(
             laz_file=laz_file,
             output_dir=output_dir,
             architecture=architecture,

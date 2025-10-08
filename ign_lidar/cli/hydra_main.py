@@ -67,25 +67,7 @@ def print_config_summary(cfg: DictConfig) -> None:
     logger.info("="*70)
 
 
-def process_with_config() -> None:
-    """Process with configuration from configs directory."""
-    # Get the absolute path to configs directory
-    package_dir = Path(__file__).parent.parent.parent
-    config_dir = package_dir / "configs"
-    
-    if not config_dir.exists():
-        raise FileNotFoundError(f"Config directory not found at: {config_dir}")
-    
-    from hydra import initialize_config_dir, compose
-    from hydra.core.global_hydra import GlobalHydra
-    
-    # Clear any existing Hydra instance
-    GlobalHydra.instance().clear()
-    
-    # Initialize with absolute path
-    with initialize_config_dir(config_dir=str(config_dir.absolute()), version_base=None):
-        cfg = compose(config_name="config")
-        process_lidar(cfg)
+
 
 
 def process_lidar(cfg: DictConfig) -> None:
@@ -188,7 +170,6 @@ def process_lidar(cfg: DictConfig) -> None:
         raise
 
 
-@hydra.main(version_base=None, config_path="../../configs", config_name="config")
 def verify(cfg: DictConfig) -> None:
     """
     Verify dataset quality and features.
@@ -230,7 +211,6 @@ def verify(cfg: DictConfig) -> None:
     logger.info("="*70)
 
 
-@hydra.main(version_base=None, config_path="../../configs", config_name="config")
 def info(cfg: DictConfig) -> None:
     """
     Display configuration information and presets.
@@ -258,22 +238,10 @@ def info(cfg: DictConfig) -> None:
     logger.info(OmegaConf.to_yaml(cfg))
 
 
-@hydra.main(version_base=None, config_path="../../configs", config_name="config")
-def process(cfg: DictConfig) -> None:
-    """Hydra decorated main function for CLI usage."""
+@hydra.main(version_base=None, config_path="../configs", config_name="config")
+def main(cfg: DictConfig) -> None:
+    """Main entry point with Hydra configuration."""
     process_lidar(cfg)
-
-
-def main():
-    """Entry point for console scripts."""
-    import sys
-    # Check if we have command line arguments for Hydra
-    if len(sys.argv) > 1:
-        # Use Hydra's CLI interface
-        process()
-    else:
-        # Use direct config loading for entry point
-        process_with_config()
 
 
 if __name__ == "__main__":
