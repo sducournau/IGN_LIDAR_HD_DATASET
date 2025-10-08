@@ -1,24 +1,48 @@
-# Requirements GPU pour enrichissement LAZ ultra-rapide
+# GPU Requirements for IGN LiDAR HD - Ultra-fast LAZ Processing
 # Installation: pip install -r requirements_gpu.txt
+# 
+# IMPORTANT: For best results, use conda environment (see install_cuml.sh or environment_gpu.yml)
+# This provides 12-20x speedup vs CPU processing
 
-# ===== GPU Dependencies (Recommandées - 8-10x plus rapide) =====
+# ===== Core Dependencies (CPU) =====
+# These are required regardless of GPU support
+numpy>=1.21.0
+laspy>=2.3.0
+lazrs>=0.5.0
+scikit-learn>=1.0.0
+scipy>=1.7.0  # Required for spatial operations (KDTree)
+tqdm>=4.60.0
+click>=8.0.0
+PyYAML>=6.0
+psutil>=5.8.0
+requests>=2.25.0
+Pillow>=9.0.0
+hydra-core>=1.3.0
+omegaconf>=2.3.0
+h5py>=3.0.0
 
-# CuPy: NumPy-like API pour GPU NVIDIA
-# Choisir selon version CUDA:
-cupy-cuda11x>=12.0.0  # Pour CUDA 11.x (décommentez celle qui correspond à votre CUDA)
-# cupy-cuda12x>=12.0.0  # Pour CUDA 12.x
+# ===== GPU Dependencies (Recommended - 12-20x speedup) =====
 
-# Note: Installer la version correspondant à votre CUDA:
-# pip install cupy-cuda11x  # ou cupy-cuda12x
+# CuPy: NumPy-like API for NVIDIA GPU
+# Choose based on your CUDA version:
+# cupy-cuda11x>=12.0.0  # For CUDA 11.x (uncomment if you have CUDA 11.x)
+cupy-cuda12x>=12.0.0  # For CUDA 12.x (recommended for CUDA 12.x or 13.x)
 
-# RAPIDS cuML: scikit-learn pour GPU (optimal - optionnel)
-# Note: Recommandé via conda plutôt que pip pour meilleure compatibilité
-# conda install -c rapidsai -c conda-forge -c nvidia cuml=24.02
+# RAPIDS cuML: GPU-accelerated scikit-learn
+# Note: Best installed via conda for compatibility
+# conda install -c rapidsai -c conda-forge -c nvidia cuml=24.10
 #
-# OU via pip (peut nécessiter plus de configuration):
-# pip install cuml-cu11  # Pour CUDA 11.x
-# pip install cuml-cu12  # Pour CUDA 12.x
-cuml>=23.10.0  # Décommentez si vous avez configuré RAPIDS
+# Or via pip (may require more configuration):
+cuml-cu12>=23.10.0  # For CUDA 12.x (uncomment if using pip)
+
+# PyTorch with CUDA support (for dataset classes)
+# Note: Best installed via conda:
+# conda install -c pytorch -c nvidia pytorch pytorch-cuda=12.1 torchvision torchaudio
+#
+# Or via pip (will auto-detect CUDA):
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
 
 # ===== CPU Dependencies (Incluses dans requirements.txt) =====
 # Déjà présentes, aucune action nécessaire si venv configuré

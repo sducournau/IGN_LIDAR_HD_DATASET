@@ -181,7 +181,8 @@ python scripts/verify_gpu_setup.py
 **📚 Detailed Installation Guides:**
 
 - [Standard Installation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/installation/quick-start)
-- [GPU Setup Guide](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/gpu-acceleration)
+- [GPU Setup Guide](GPU_SETUP.md) - Local detailed guide for CuPy and RAPIDS cuML
+- [Online GPU Guide](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/gpu-acceleration)
 - [Troubleshooting](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/troubleshooting)
 
 ### Quick Example

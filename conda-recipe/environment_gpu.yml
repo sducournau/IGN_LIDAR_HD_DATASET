@@ -1,0 +1,38 @@
+name: ign_gpu
+channels:
+  - rapidsai
+  - conda-forge
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.12
+  # Core dependencies
+  - numpy>=1.21.0
+  - scikit-learn>=1.0.0
+  - scipy>=1.7.0
+  - tqdm>=4.60.0
+  - click>=8.0.0
+  - pyyaml>=6.0
+  - psutil>=5.8.0
+  - requests>=2.25.0
+  - pillow>=9.0.0
+  - hydra-core>=1.3.0
+  - omegaconf>=2.3.0
+  - h5py>=3.0.0
+
+  # GPU acceleration dependencies
+  - cuml=24.10
+  - cupy
+  - cuda-version=12.5
+
+  # PyTorch with CUDA support
+  - pytorch>=2.0.0
+  - pytorch-cuda=12.1
+  - torchvision
+  - torchaudio
+
+  # pip packages
+  - pip
+  - pip:
+      - laspy>=2.3.0
+      - lazrs>=0.5.0

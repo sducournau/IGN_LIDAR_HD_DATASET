@@ -33,6 +33,7 @@ dependencies = [
     "laspy>=2.3.0",
     "lazrs>=0.5.0",  # LAZ compression backend for laspy
     "scikit-learn>=1.0.0",
+    "scipy>=1.7.0",  # Spatial operations (KDTree) for tile stitching and boundary features
     "tqdm>=4.60.0",
     "click>=8.0.0",
     "PyYAML>=6.0",
@@ -70,6 +71,15 @@ gpu = [
 gpu-full = [
     # cupy must be installed separately: pip install cupy-cuda11x or cupy-cuda12x
     "cuml>=23.10.0",  # RAPIDS cuML for GPU-accelerated ML
+]
+
+# PyTorch support for dataset classes and deep learning
+# Note: Best installed via conda for CUDA support:
+# conda install -c pytorch -c nvidia pytorch pytorch-cuda torchvision torchaudio
+pytorch = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "torchaudio>=2.0.0",
 ]
 
 # All optional features (excludes GPU dependencies - install GPU packages separately)

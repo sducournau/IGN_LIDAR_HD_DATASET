@@ -36,6 +36,14 @@ requirements:
     - omegaconf >=2.3.0
     - requests >=2.25.0
     - pillow >=9.0.0
+    - h5py >=3.0.0
+  run_constrained:
+    # Optional GPU dependencies (install separately for GPU acceleration)
+    # Basic GPU: cupy (6-8x speedup)
+    - cupy >=12.0.0
+    # Full GPU: RAPIDS cuML (12-20x speedup)
+    # Install via: conda install -c rapidsai -c conda-forge -c nvidia cuml
+    - cuml >=23.10.0
 
 test:
   imports:

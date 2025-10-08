@@ -27,7 +27,7 @@ conda create -n ign-lidar-hd python=3.10 -y
 conda activate ign-lidar-hd
 
 # Install dependencies from conda-forge
-conda install -c conda-forge numpy scikit-learn tqdm click pyyaml psutil requests pillow hydra-core omegaconf
+conda install -c conda-forge numpy scikit-learn tqdm click pyyaml psutil requests pillow hydra-core omegaconf h5py
 
 # Install PyPI-only dependencies
 pip install laspy>=2.3.0 lazrs>=0.5.0
@@ -35,6 +35,40 @@ pip install laspy>=2.3.0 lazrs>=0.5.0
 # Install the package
 pip install -e .
 ```
+
+### Option 3: With GPU Acceleration (Recommended for Performance)
+
+For GPU acceleration with CuPy and RAPIDS cuML, use the automated installation script:
+
+```bash
+# Automated full GPU setup
+./install_cuml.sh
+```
+
+Or manually install GPU dependencies:
+
+```bash
+# Create environment with GPU support
+conda create -n ign-lidar-gpu python=3.12 -y
+conda activate ign-lidar-gpu
+
+# Install base dependencies
+conda install -c conda-forge numpy scikit-learn tqdm click pyyaml psutil requests pillow hydra-core omegaconf h5py
+
+# Install GPU dependencies
+conda install -c conda-forge cupy  # Basic GPU acceleration (6-8x speedup)
+
+# Install RAPIDS cuML for full GPU acceleration (12-20x speedup)
+conda install -c rapidsai -c conda-forge -c nvidia cuml=24.10 python=3.12 cuda-version=12.5
+
+# Install PyPI-only dependencies
+pip install laspy>=2.3.0 lazrs>=0.5.0
+
+# Install the package
+pip install -e .
+```
+
+For detailed GPU setup instructions, see [GPU_SETUP.md](../GPU_SETUP.md).
 
 ## Building Conda Package
 

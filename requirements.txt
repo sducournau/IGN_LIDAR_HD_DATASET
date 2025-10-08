@@ -3,6 +3,7 @@ numpy>=1.21.0
 laspy>=2.3.0
 lazrs>=0.5.0  # LAZ compression backend for laspy
 scikit-learn>=1.0.0
+scipy>=1.7.0  # Required for spatial operations (KDTree, etc.)
 tqdm>=4.60.0
 requests>=2.25.0
 click>=8.0.0
@@ -15,10 +16,20 @@ omegaconf>=2.3.0  # Configuration with validation
 # For AI dataset creation and processing
 h5py>=3.0.0
 
-# Optional: For GPU acceleration (comment if not needed)
+# Optional: For GPU acceleration (uncomment if you have NVIDIA GPU)
+# Choose ONE based on your CUDA version:
 # cupy-cuda11x>=12.0.0  # For CUDA 11.x
 # cupy-cuda12x>=12.0.0  # For CUDA 12.x
 
-# Optional: For PyTorch models (comment if not needed)
-# torch>=2.0.0
-# torchvision>=0.15.0
+# Optional: For full GPU acceleration with RAPIDS cuML (recommended via conda)
+# Note: Best installed via conda: conda install -c rapidsai -c conda-forge -c nvidia cuml
+# Or via pip (may require additional configuration):
+# cuml-cu11>=23.10.0  # For CUDA 11.x
+# cuml-cu12>=23.10.0  # For CUDA 12.x
+
+# Optional: For PyTorch models (uncomment if needed)
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# For GPU installation, see requirements_gpu.txt or run: pip install -r requirements_gpu.txt
