@@ -1,0 +1,43 @@
+# PointNet++ Training Experiment Configuration
+#
+# Optimized for PointNet++ neural network training
+#
+# Usage:
+#   python -m ign_lidar.cli.main experiment=pointnet_training \
+#       input_dir=data/raw output_dir=data/patches_pointnet
+
+# @package _global_
+defaults:
+  - override /processor: gpu
+  - override /features: pointnet
+  - override /preprocess: default
+  - override /stitching: enabled
+  - override /output: torch
+
+processor:
+  lod_level: LOD2
+  num_points: 16384 # Standard for PointNet++
+  augment: true
+  num_augmentations: 5 # Generate augmented versions
+  use_gpu: true
+
+features:
+  mode: full
+  k_neighbors: 10 # PointNet++ learns neighborhoods
+  include_extra: true
+  use_rgb: true
+  use_infrared: false
+  sampling_method: fps # Farthest Point Sampling (best for PointNet++)
+  normalize_xyz: true # Critical for PointNet++
+  normalize_features: true # Standardize all features
+
+preprocess:
+  enabled: true # Clean outliers before training
+
+stitching:
+  enabled: true # Seamless boundaries
+  buffer_size: 10.0
+
+output:
+  format: torch # PyTorch .pt format
+  save_stats: true

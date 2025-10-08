@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 1.7.7** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 2.0.0** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/website/static/img/lod3.png?raw=true" alt="LoD3 Building Model Icon" width="600">
 
@@ -90,44 +90,61 @@ flowchart TD
 
 ## ✨ What's New
 
-### Version 1.7.6 - Critical Fix & Verification 🔧
+### Version 2.0.0 - Complete Architecture Overhaul �
 
-**Highlights:**
+**🎯 Major Changes:**
 
-- 🐛 **Critical Fix**: Verticality computation in GPU chunked processing
-  - Fixed: Verticality was all zeros in large files (>5M points) with `--use-gpu`
-  - Impact: Wall detection now working correctly
-  - Result: ~20% smaller files (removed uncomputed features)
-- 🔍 **New Feature Verification System**
-  - Command: `ign-lidar-hd verify --input-dir <path>`
-  - Validates RGB, NIR, geometric features in enriched files
-  - Comprehensive anomaly detection and statistics
+- 🏗️ **Modular Architecture**: Complete reorganization into specialized modules
 
-### Version 1.7.5 - Performance Breakthrough 🚀
+  - `ign_lidar.core` - Core processing and tile stitching
+  - `ign_lidar.features` - Advanced feature computation with boundary awareness
+  - `ign_lidar.preprocessing` - Optimized preprocessing pipeline
+  - `ign_lidar.io` - Multi-format I/O and QGIS integration
+  - `ign_lidar.cli` - Modern Hydra-based CLI system
+  - `ign_lidar.config` - Configuration schema and management
 
-**Highlights:**
+- ⚡ **Unified Processing Pipeline**: Single-step RAW→Patches workflow
 
-- 🚀 **100-200x faster** feature computation through vectorized operations
-- 💯 **100% GPU utilization** - Fixed efficiency bottlenecks
-- 💾 **50-60% memory reduction** - Per-chunk architecture for all modes
-- ⏱️ **Real-world impact**: 18M points in ~64 seconds (GPU+cuML) vs 14+ minutes before
-- 🧠 **Intelligent auto-scaling** - Adaptive parameters based on hardware
+  - Eliminates intermediate LAZ files (35-50% disk space savings)
+  - 2-3x faster processing through in-memory operations
+  - Multi-architecture support (PointNet++, Octree, Transformer, Sparse Conv)
 
-**Performance Modes:**
+- � **Boundary-Aware Feature Computation**: Cross-tile processing
 
-- 🖥️ **CPU-only**: 60 min/tile (baseline) - 1.8GB RAM
-- ⚡ **Hybrid GPU** (CuPy): 7-10 min/tile (6-8x speedup) - 2.8GB VRAM
-- 🚀 **Full GPU** (RAPIDS cuML): 3-5 min/tile (12-20x speedup) - 3.4GB VRAM
+  - Features computed with neighbor tile context
+  - Improved quality at tile boundaries
+  - Buffer zone extraction for seamless stitching
 
-📖 [Full Release Notes](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/release-notes/) | [📋 Changelog](CHANGELOG.md)
+- ⚙️ **Modern Configuration with Hydra**:
+  - Hierarchical configuration management
+  - Preset configurations for common use cases
+  - Easy parameter sweeps and experiments
 
-### Recent Features
+**🛠️ Migration from v1.x:**
 
-- **v1.7.6**: Feature verification system, verticality fix
-- **v1.7.4**: GPU acceleration with RAPIDS cuML, WSL2 support
-- **v1.7.3**: Infrared (NIR) augmentation for NDVI calculation
-- **v1.7.1**: Auto-parameter analysis for optimal processing
-- **v1.7.0**: Artifact mitigation preprocessing (60-80% reduction)
+- Use `ign-lidar-hd-v2` for new Hydra CLI
+- Legacy `ign-lidar-hd` command maintained for compatibility
+- See [Migration Guide](MIGRATION.md) for detailed instructions
+
+**🎯 Performance Improvements:**
+
+- 35-50% reduction in processing time
+- 50% reduction in disk I/O operations
+- Improved memory efficiency with chunked processing
+- Support for multiple ML architectures in single workflow
+
+### Previous Releases
+
+#### Version 1.7.6 - Critical Fix & Verification 🔧
+
+- 🐛 Fixed verticality computation in GPU chunked processing
+- 🔍 Feature verification system with `verify` command
+
+#### Version 1.7.5 - Performance Breakthrough 🚀
+
+- 🚀 100-200x faster feature computation
+- 💯 100% GPU utilization improvements
+- 💾 50-60% memory reduction
 
 ---
 

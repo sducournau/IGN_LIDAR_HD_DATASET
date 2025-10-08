@@ -3,53 +3,174 @@ IGN LiDAR HD Dataset Processing Library
 
 A Python library for processing IGN LiDAR HD data into machine learning-ready datasets
 with building LOD (Level of Detail) classification support.
+
+Version 2.0.0 reorganizes the codebase into logical modules:
+- core: Main processing logic
+- features: Feature extraction
+- preprocessing: Data cleaning and augmentation
+- io: Input/output operations
+- config: Hydra-based configuration
+
+Backward compatibility is maintained for existing imports.
 """
 
-__version__ = "1.7.7"
+__version__ = "2.0.0"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 
-# Core classes
-from .processor import LiDARProcessor
-from .downloader import IGNLiDARDownloader
+# ============================================================================
+# NEW v2.0 IMPORTS (Recommended)
+# ============================================================================
 
-# Classification classes
-from .classes import LOD2_CLASSES, LOD3_CLASSES
+# Core processing modules
+from .core.processor import LiDARProcessor
 
-# Feature extraction functions
-from .features import compute_normals, compute_curvature, extract_geometric_features
-
-# QGIS compatibility
-from .qgis_converter import simplify_for_qgis
-
-# Tile management
-from .tile_list import (
-    WORKING_TILES,
-    get_tiles_by_environment,
-    get_tiles_by_priority,
-    get_tiles_by_region
+# Feature extraction
+from .features import (
+    compute_normals,
+    compute_curvature,
+    extract_geometric_features,
+    compute_all_features_optimized,
+    compute_all_features_with_gpu,
 )
 
+# Preprocessing
+from .preprocessing import (
+    statistical_outlier_removal,
+    radius_outlier_removal,
+    voxel_downsample,
+    preprocess_point_cloud,
+    add_rgb_to_patch,
+    augment_tile_with_rgb,
+    add_infrared_to_patch,
+    augment_tile_with_infrared,
+)
+
+# Configuration (Hydra) - Import on demand to avoid dependency issues
+try:
+    from .config.schema import (
+        IGNLiDARConfig,
+        ProcessorConfig,
+        FeaturesConfig,
+        PreprocessConfig,
+        StitchingConfig,
+        OutputConfig,
+    )
+except ImportError:
+    # Hydra dependencies not installed
+    IGNLiDARConfig = None
+    ProcessorConfig = None
+    FeaturesConfig = None
+    PreprocessConfig = None
+    StitchingConfig = None
+    OutputConfig = None
+
+# ============================================================================
+# BACKWARD COMPATIBILITY IMPORTS (Legacy - Still Supported)
+# ============================================================================
+
+# Root level modules (unchanged location)
+from .downloader import IGNLiDARDownloader
+from .classes import LOD2_CLASSES, LOD3_CLASSES
+
+# Reorganized modules - backward compatibility imports
+# Core utilities (moved to core/)
+from .core import AdaptiveMemoryManager, MemoryConfig, PerformanceMonitor
+from .core import ProcessingError, GPUMemoryError, MemoryPressureError
+
+# Feature utilities (moved to features/)
+from .features import ARCHITECTURAL_STYLES, STYLE_NAME_TO_ID
+
+# Dataset utilities (moved to datasets/)
+from .datasets import STRATEGIC_LOCATIONS, WORKING_TILES
+from .datasets import get_tiles_by_environment, get_tiles_by_priority, get_tiles_by_region
+
+# IO utilities (moved to io/)
+from .io import MetadataManager, simplify_for_qgis
+
+# Preprocessing utilities (moved to preprocessing/)
+from .preprocessing import augment_raw_points, extract_patches, analyze_tile
+
+# Legacy imports for backward compatibility
+# These point to the new locations
+try:
+    from .features.features import (
+        compute_normals,
+        compute_curvature,
+        extract_geometric_features
+    )
+except ImportError:
+    # Fallback to old location if new structure not complete
+    from .features import (
+        compute_normals,
+        compute_curvature,
+        extract_geometric_features
+    )
+
 __all__ = [
-    # Core functionality
+    # ========== Core v2.0 ==========
+    # Processor
     "LiDARProcessor",
-    "IGNLiDARDownloader",
-    
-    # Classification
-    "LOD2_CLASSES", 
-    "LOD3_CLASSES",
     
     # Features
     "compute_normals",
-    "compute_curvature", 
+    "compute_curvature",
     "extract_geometric_features",
+    "compute_all_features_optimized",
+    "compute_all_features_with_gpu",
     
-    # QGIS
-    "simplify_for_qgis",
+    # Preprocessing
+    "statistical_outlier_removal",
+    "radius_outlier_removal",
+    "voxel_downsample",
+    "preprocess_point_cloud",
+    "add_rgb_to_patch",
+    "augment_tile_with_rgb",
+    "add_infrared_to_patch",
+    "augment_tile_with_infrared",
     
-    # Tile management
+    # Configuration
+    "IGNLiDARConfig",
+    "ProcessorConfig",
+    "FeaturesConfig",
+    "PreprocessConfig",
+    "StitchingConfig",
+    "OutputConfig",
+    
+    # ========== Root Level (Core Package) ==========
+    # Downloader
+    "IGNLiDARDownloader",
+    
+    # Classification
+    "LOD2_CLASSES",
+    "LOD3_CLASSES",
+    
+    # ========== Reorganized Modules (Backward Compatibility) ==========
+    # Core utilities
+    "AdaptiveMemoryManager",
+    "MemoryConfig", 
+    "PerformanceMonitor",
+    "ProcessingError",
+    "GPUMemoryError",
+    "MemoryPressureError",
+    
+    # Feature utilities
+    "ARCHITECTURAL_STYLES",
+    "STYLE_NAME_TO_ID",
+    
+    # Dataset utilities
+    "STRATEGIC_LOCATIONS",
     "WORKING_TILES",
     "get_tiles_by_environment",
     "get_tiles_by_priority",
-    "get_tiles_by_region"
+    "get_tiles_by_region",
+    
+    # IO utilities
+    "MetadataManager",
+    "simplify_for_qgis",
+    
+    # Preprocessing utilities
+    "augment_raw_points",
+    "extract_patches",
+    "analyze_tile",
 ]

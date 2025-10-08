@@ -1,0 +1,4 @@
+- input_dir=data/sample_laz
+- output_dir=data/test_output/cli_test
+- processor.patch_size=50.0
+- processor.num_points=1000

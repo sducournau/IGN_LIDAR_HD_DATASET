@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ign-lidar-hd"
-version = "1.7.7"
+version = "2.0.0"
 description = "IGN LiDAR HD Dataset Processing Library for Building LOD Classification"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -37,6 +37,10 @@ dependencies = [
     "click>=8.0.0",
     "PyYAML>=6.0",
     "psutil>=5.8.0",  # Memory monitoring and system utilities
+    "hydra-core>=1.3.0",  # Hierarchical configuration management
+    "omegaconf>=2.3.0",  # Configuration with validation
+    "requests>=2.25.0",  # HTTP requests for data download
+    "Pillow>=9.0.0",  # Image processing for RGB features
 ]
 
 [project.optional-dependencies]
@@ -90,8 +94,9 @@ dev = [
 ]
 
 [project.scripts]
-ign-lidar-hd = "ign_lidar.cli:main"
-ign-lidar-qgis = "ign_lidar.qgis_converter:main"
+ign-lidar-hd = "ign_lidar.cli.hydra_main:main"
+ign-lidar-hd-v2 = "ign_lidar.cli.hydra_main:main"
+ign-lidar-qgis = "ign_lidar.io.qgis_converter:main"
 
 [project.urls]
 Homepage = "https://github.com/sducournau/IGN_LIDAR_HD_DATASET"

@@ -1,0 +1,21 @@
+# PointNet++ Optimized Features Configuration
+#
+# Optimized feature set for PointNet++ training
+
+mode: full
+k_neighbors: 10 # Reduced for speed (PointNet++ learns neighborhoods)
+
+# Feature flags - geometric + RGB
+include_extra: true
+use_rgb: true
+use_infrared: false
+compute_ndvi: false
+
+# PointNet++ specific optimizations
+sampling_method: fps # Farthest Point Sampling (better for PointNet++)
+normalize_xyz: true # Critical for PointNet++
+normalize_features: true # Standardize features
+
+# GPU settings
+gpu_batch_size: 1000000
+use_gpu_chunked: true

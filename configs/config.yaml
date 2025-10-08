@@ -1,0 +1,67 @@
+# IGN LiDAR HD v2.0 - Root Configuration
+#
+# This is the main configuration file that composes all sub-configurations.
+# Use Hydra to override values: python -m ign_lidar.cli.main processor.use_gpu=true
+
+defaults:
+  - processor: default
+  - features: full
+  - preprocess: default
+  - stitching: disabled
+  - output: default
+  - _self_
+
+# ============================================================================
+# I/O PATHS (Required - must be provided via command line or override)
+# ============================================================================
+input_dir: ??? # Path to directory containing LAZ files
+output_dir: ??? # Path to output directory for patches
+
+# ============================================================================
+# GLOBAL SETTINGS
+# ============================================================================
+num_workers: 4 # Number of parallel workers
+verbose: true # Verbose logging
+log_level: INFO # Logging level (DEBUG, INFO, WARNING, ERROR)
+
+# ============================================================================
+# BOUNDING BOX (Optional spatial filtering)
+# ============================================================================
+bbox:
+  xmin: null
+  ymin: null
+  xmax: null
+  ymax: null
+
+# ============================================================================
+# HYDRA CONFIGURATION
+# ============================================================================
+hydra:
+  run:
+    # Output directory for this run
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+  sweep:
+    # Output directory for multi-run sweeps
+    dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}
+
+  job:
+    # Job configuration
+    name: ign_lidar_hd
+    chdir: false # Don't change working directory
+
+  job_logging:
+    # Logging configuration for jobs
+    version: 1
+    formatters:
+      simple:
+        format: "[%(levelname)s] %(message)s"
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+    root:
+      level: INFO
+      handlers: [console]

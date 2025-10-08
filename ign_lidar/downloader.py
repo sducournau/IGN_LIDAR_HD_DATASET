@@ -15,8 +15,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
-from .metadata import MetadataManager
-from .strategic_locations import STRATEGIC_LOCATIONS
+from .io.metadata import MetadataManager
+from .datasets.strategic_locations import STRATEGIC_LOCATIONS
 
 logger = logging.getLogger(__name__)
 

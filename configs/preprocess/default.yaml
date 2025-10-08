@@ -1,0 +1,17 @@
+# Default Preprocessing Configuration
+#
+# Standard outlier removal (moderate)
+
+enabled: true
+
+# Statistical Outlier Removal
+sor_k: 12 # Number of neighbors
+sor_std: 2.0 # Standard deviation threshold
+
+# Radius Outlier Removal
+ror_radius: 1.0 # Search radius in meters
+ror_neighbors: 4 # Minimum neighbors
+
+# Voxel downsampling (disabled by default)
+voxel_enabled: false
+voxel_size: 0.1 # Voxel size in meters

@@ -1,0 +1,33 @@
+# Vegetation NDVI Experiment Configuration
+#
+# Optimized for vegetation segmentation with NDVI
+#
+# Usage:
+#   python -m ign_lidar.cli.main experiment=vegetation_ndvi \
+#       input_dir=data/raw output_dir=data/patches
+
+# @package _global_
+defaults:
+  - override /processor: gpu
+  - override /features: vegetation
+  - override /preprocess: default
+  - override /stitching: disabled
+  - override /output: default
+
+processor:
+  lod_level: LOD2
+  num_points: 16384
+  augment: true
+  num_augmentations: 5 # More augmentation for vegetation variety
+
+features:
+  mode: full
+  k_neighbors: 20
+  include_extra: true
+  use_rgb: true
+  use_infrared: true # Critical for NDVI
+  compute_ndvi: true # NDVI vegetation index
+  normalize_features: true # Important for multi-modal
+
+preprocess:
+  enabled: true

@@ -1,0 +1,66 @@
+{% set name = "ign-lidar-hd" %}
+{% set version = "2.0.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ..
+
+build:
+  noarch: python
+  number: 0
+  script: {{ PYTHON }} -m pip install . -vv
+  entry_points:
+    - ign-lidar = ign_lidar.cli.hydra_main:main
+    - ign-lidar-qgis = ign_lidar.io.qgis_converter:main
+
+requirements:
+  host:
+    - python >=3.8
+    - pip
+    - setuptools >=61.0
+    - wheel
+  run:
+    - python >=3.8
+    - numpy >=1.21.0
+    - laspy >=2.3.0
+    - lazrs >=0.5.0
+    - scikit-learn >=1.0.0
+    - tqdm >=4.60.0
+    - click >=8.0.0
+    - pyyaml >=6.0
+    - psutil >=5.8.0
+    - hydra-core >=1.3.0
+    - omegaconf >=2.3.0
+    - requests >=2.25.0
+    - pillow >=9.0.0
+
+test:
+  imports:
+    - ign_lidar
+    - ign_lidar.core
+    - ign_lidar.core.processor
+    - ign_lidar.preprocessing
+    - ign_lidar.cli.hydra_main
+    - ign_lidar.io.qgis_converter
+  commands:
+    - ign-lidar --help
+    - ign-lidar-qgis --help
+
+about:
+  home: https://github.com/sducournau/IGN_LIDAR_HD_DATASET
+  license: MIT
+  license_file: LICENSE
+  summary: IGN LiDAR HD Dataset Processing Library for Building LOD Classification
+  description: |
+    A comprehensive Python library for processing IGN's LiDAR HD dataset,
+    featuring automated feature extraction, building classification (LOD2/LOD3),
+    and seamless integration with machine learning workflows.
+  doc_url: https://github.com/sducournau/IGN_LIDAR_HD_DATASET
+  dev_url: https://github.com/sducournau/IGN_LIDAR_HD_DATASET
+
+extra:
+  recipe-maintainers:
+    - sducournau

@@ -1,0 +1,8 @@
+# Tile Stitching Enabled Configuration
+#
+# Enable seamless boundary processing
+
+enabled: true
+buffer_size: 10.0 # Buffer zone in meters
+auto_detect_neighbors: true # Auto-detect adjacent tiles
+cache_enabled: true # Cache loaded tiles

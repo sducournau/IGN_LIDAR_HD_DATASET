@@ -1,0 +1,34 @@
+# Buildings LOD3 Experiment Configuration
+#
+# Optimized for building LOD3 classification (detailed)
+#
+# Usage:
+#   python -m ign_lidar.cli.main experiment=buildings_lod3 \
+#       input_dir=data/raw output_dir=data/patches
+
+# @package _global_
+defaults:
+  - override /processor: gpu
+  - override /features: buildings
+  - override /preprocess: default
+  - override /stitching: enabled
+  - override /output: default
+
+processor:
+  lod_level: LOD3
+  num_points: 16384 # More points for detailed LOD3
+  augment: true # Augmentation helps with fine-grained classes
+  num_augmentations: 3
+
+features:
+  mode: full
+  k_neighbors: 20
+  include_extra: true
+  use_rgb: true # RGB helps for LOD3 details
+
+preprocess:
+  enabled: true
+
+stitching:
+  enabled: true # Important for building boundaries
+  buffer_size: 15.0

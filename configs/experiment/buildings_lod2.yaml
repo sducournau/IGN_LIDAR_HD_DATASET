@@ -1,0 +1,32 @@
+# Buildings LOD2 Experiment Configuration
+#
+# Optimized for building LOD2 classification
+#
+# Usage:
+#   python -m ign_lidar.cli.main experiment=buildings_lod2 \
+#       input_dir=data/raw output_dir=data/patches
+
+# @package _global_
+defaults:
+  - override /processor: default
+  - override /features: buildings
+  - override /preprocess: default
+  - override /stitching: disabled
+  - override /output: default
+
+processor:
+  lod_level: LOD2
+  num_points: 8192 # Moderate size for LOD2
+  augment: false
+
+features:
+  mode: minimal
+  k_neighbors: 15
+  include_extra: true # Height, verticality for buildings
+  use_rgb: false # RGB not critical for LOD2
+
+preprocess:
+  enabled: true # Clean outliers
+
+# Override global settings if needed
+# num_workers: 8

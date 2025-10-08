@@ -1,0 +1,24 @@
+# GPU Processor Configuration
+#
+# Optimized for GPU processing with CUDA acceleration
+
+# LOD level
+lod_level: LOD2
+
+# Hardware - GPU enabled
+use_gpu: true
+num_workers: 8 # More workers for GPU pipeline
+
+# Patch configuration
+patch_size: 150.0
+patch_overlap: 0.1
+num_points: 16384
+
+# Data augmentation
+augment: false
+num_augmentations: 3
+
+# Performance tuning - GPU optimized
+batch_size: auto
+prefetch_factor: 4 # Higher prefetch for GPU
+pin_memory: true # Pin memory for faster GPU transfer

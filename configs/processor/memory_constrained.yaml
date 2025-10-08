@@ -1,0 +1,20 @@
+# Memory Constrained Processor Configuration
+#
+# For systems with limited RAM (<16GB)
+
+lod_level: LOD2
+
+use_gpu: false
+num_workers: 2 # Fewer workers to reduce memory pressure
+
+# Moderate patch size
+patch_size: 100.0
+patch_overlap: 0.1
+num_points: 8192 # Moderate number of points
+
+augment: false
+num_augmentations: 1
+
+batch_size: 1 # Process one at a time
+prefetch_factor: 1
+pin_memory: false

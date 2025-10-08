@@ -1,0 +1,53 @@
+processor:
+  lod_level: LOD2
+  use_gpu: false
+  num_workers: 4
+  patch_size: 50.0
+  patch_overlap: 0.1
+  num_points: 1000
+  augment: false
+  num_augmentations: 3
+  batch_size: auto
+  prefetch_factor: 2
+  pin_memory: false
+features:
+  mode: full
+  k_neighbors: 20
+  include_extra: true
+  use_rgb: true
+  use_infrared: false
+  compute_ndvi: false
+  sampling_method: random
+  normalize_xyz: false
+  normalize_features: false
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+preprocess:
+  enabled: true
+  sor_k: 12
+  sor_std: 2.0
+  ror_radius: 1.0
+  ror_neighbors: 4
+  voxel_enabled: false
+  voxel_size: 0.1
+stitching:
+  enabled: false
+  buffer_size: 10.0
+  auto_detect_neighbors: false
+  cache_enabled: false
+output:
+  format: npz
+  save_enriched_laz: false
+  save_stats: true
+  save_metadata: true
+  compression: null
+input_dir: data/sample_laz
+output_dir: data/test_output/basic_test
+num_workers: 4
+verbose: true
+log_level: INFO
+bbox:
+  xmin: null
+  ymin: null
+  xmax: null
+  ymax: null

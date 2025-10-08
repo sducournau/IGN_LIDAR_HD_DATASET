@@ -1,0 +1,24 @@
+# Default Processor Configuration
+#
+# CPU-based processing with sensible defaults
+
+# LOD level for classification
+lod_level: LOD2 # LOD2 or LOD3
+
+# Hardware configuration
+use_gpu: false
+num_workers: 4
+
+# Patch configuration
+patch_size: 150.0 # Size in meters
+patch_overlap: 0.1 # 10% overlap
+num_points: 16384 # Points per patch (4096, 8192, 16384, 32768)
+
+# Data augmentation
+augment: false
+num_augmentations: 3
+
+# Performance tuning
+batch_size: auto # 'auto' or specific int
+prefetch_factor: 2
+pin_memory: false
