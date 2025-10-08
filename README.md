@@ -2,38 +2,12 @@
 
 # IGN LiDAR HD Processing Library
 
-[![PyPI version](https://badge.fu## ✨ What's New
-
-### Version 2.0.1 - Enriched LAZ Mode & Auto-Recovery ✨
-
-**🆕 New Features:**
-
-- ✨ **Enriched LAZ Only Mode**: Process tiles to generate enriched LAZ files without creating patches (3-5x faster)
-
-  - New `output.only_enriched_laz` parameter
-  - Seamless integration with auto-download and stitching
-  - Perfect for feature enrichment workflows
-
-- 🛡️ **Automatic Corruption Recovery**: Detect and auto-recover from corrupted LAZ files
-  - Automatic re-download from IGN WFS
-  - Up to 2 retry attempts with integrity verification
-  - Transparent to users - works automatically
-
-See [CHANGELOG.md](CHANGELOG.md) for full details.
-
-### Version 2.0.0 - Complete Architecture Overhaul 🚀
-
-**🎯 Major Changes:**
-
-- 🏗️ **Modular Architecture**: Complete reorganization into specialized modules
-
-  - `ign_lidar.core` - Core processing and tile stitching
-  - `ign_lidar.features` - Feature computation with boundary awarenessgn-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
-    [![PyPI - Downloads](https://img.shields.io/pypi/dm/ign-lidar-hd)](https://pypi.org/project/ign-lidar-hd/)
-    [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-    [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-    [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
-    [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+[![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/ign-lidar-hd)](https://pypi.org/project/ign-lidar-hd/)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
+[![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 **Version 2.0.1** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
@@ -44,8 +18,6 @@ See [CHANGELOG.md](CHANGELOG.md) for full details.
 [Quick Start](#-quick-start) • [Features](#-key-features) • [Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) • [Examples](#-examples) • [API Reference](#-api-reference)
 
 </div>
-
----
 
 ## 📋 Table of Contents
 
@@ -114,63 +86,16 @@ flowchart TD
 
 ---
 
-## ✨ What's New
+## ✨ What's New (v2.0.1)
 
-### Version 2.0.0 - Complete Architecture Overhaul �
+- **Enriched LAZ Only Mode:** Process tiles to generate enriched LAZ files without creating patches (3-5x faster). New `output.only_enriched_laz` parameter.
+- **Automatic Corruption Recovery:** Detect and auto-recover from corrupted LAZ files with up to 2 retry attempts and integrity verification.
+- **Modular Architecture:** Specialized modules for core, features, preprocessing, I/O, CLI, and config.
+- **Single-step RAW→Patches workflow:** Faster, more efficient, and less disk usage.
+- **Boundary-Aware Feature Computation:** Improved quality at tile boundaries with buffer zone extraction.
+- **Modern Hydra-based configuration:** Hierarchical, flexible, and experiment-friendly.
 
-**🎯 Major Changes:**
-
-- 🏗️ **Modular Architecture**: Complete reorganization into specialized modules
-
-  - `ign_lidar.core` - Core processing and tile stitching
-  - `ign_lidar.features` - Feature computation with boundary awareness
-  - `ign_lidar.preprocessing` - Optimized preprocessing pipeline
-  - `ign_lidar.io` - Multi-format I/O and QGIS integration
-  - `ign_lidar.cli` - Modern Hydra-based CLI system
-  - `ign_lidar.config` - Configuration schema and management
-
-- ⚡ **Processing Pipeline**: Single-step RAW→Patches workflow
-
-  - Eliminates intermediate LAZ files (35-50% disk space savings)
-  - 2-3x faster processing through in-memory operations
-  - Multi-architecture support (PointNet++, Octree, Transformer, Sparse Conv)
-
-- � **Boundary-Aware Feature Computation**: Cross-tile processing
-
-  - Features computed with neighbor tile context
-  - Improved quality at tile boundaries
-  - Buffer zone extraction for seamless stitching
-
-- ⚙️ **Modern Configuration with Hydra**:
-  - Hierarchical configuration management
-  - Preset configurations for common use cases
-  - Easy parameter sweeps and experiments
-
-**🛠️ Migration from v1.x:**
-
-- Use `ign-lidar-hd-v2` for new Hydra CLI
-- Legacy `ign-lidar-hd` command maintained for compatibility
-- See [Migration Guide](MIGRATION.md) for detailed instructions
-
-**🎯 Performance Improvements:**
-
-- 35-50% reduction in processing time
-- 50% reduction in disk I/O operations
-- Improved memory efficiency with chunked processing
-- Support for multiple ML architectures in single workflow
-
-### Previous Releases
-
-#### Version 1.7.6 - Critical Fix & Verification 🔧
-
-- 🐛 Fixed verticality computation in GPU chunked processing
-- 🔍 Feature verification system with `verify` command
-
-#### Version 1.7.5 - Performance Breakthrough 🚀
-
-- 🚀 100-200x faster feature computation
-- 💯 100% GPU utilization improvements
-- 💾 50-60% memory reduction
+See [CHANGELOG.md](CHANGELOG.md) for full details and previous releases.
 
 ---
 
