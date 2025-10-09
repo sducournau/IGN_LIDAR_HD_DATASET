@@ -13,8 +13,6 @@ keywords: [gpu, api, cuda, acceleration, pytorch, tensor]
 <!-- - Les liens et chemins de fichiers -->
 <!-- - La structure Markdown -->
 
-
-
 # GPU API Reference
 
 Complete API documentation for GPU-accelerated LiDAR processing components.

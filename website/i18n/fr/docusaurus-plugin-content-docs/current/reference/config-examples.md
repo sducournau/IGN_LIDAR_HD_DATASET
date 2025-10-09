@@ -1,6 +1,6 @@
 ---
 sidebar_position: 1
-title: "Configuration" Examples
+title: Exemples de Configuration
 description: Reusable YAML configuration examples for common workflows
 ---
 

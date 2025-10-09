@@ -1119,14 +1119,20 @@ class LiDARProcessor:
                 normals = features['normals']
                 curvature = features['curvature']
                 
-                # Build geo_features array
+                # Build geo_features dictionary (not array!)
+                # Only include features that are present (validation may drop some)
                 if self.include_extra_features:
-                    geo_features = np.column_stack([
-                        features['planarity'],
-                        features['linearity'],
-                        features['sphericity'],
-                        features['verticality']
-                    ])
+                    geo_features = {}
+                    for feat_name in ['planarity', 'linearity', 'sphericity', 'verticality']:
+                        if feat_name in features:
+                            geo_features[feat_name] = features[feat_name]
+                    
+                    # If all features were dropped, set to None
+                    if not geo_features:
+                        geo_features = None
+                        logger.warning(
+                            "  ⚠️  All geometric features dropped due to artifacts"
+                        )
                 else:
                     geo_features = None
                 

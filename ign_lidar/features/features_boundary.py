@@ -189,6 +189,11 @@ class BoundaryAwareFeatureComputer:
                 logger.debug("Computing verticality...")
                 results['verticality'] = self._compute_verticality(normals)
         
+        # Validate features for artifacts (only if we have boundary points)
+        if num_boundary > 0:
+            logger.debug("Validating features for artifacts...")
+            results = self._validate_features(results, boundary_mask)
+        
         logger.info(
             f"Feature computation complete: "
             f"{len(results)-2} feature types computed"
@@ -368,6 +373,141 @@ class BoundaryAwareFeatureComputer:
         """
         verticality = 1.0 - np.abs(normals[:, 2])
         return verticality
+    
+    def _validate_features(
+        self,
+        features: Dict[str, np.ndarray],
+        boundary_mask: np.ndarray
+    ) -> Dict[str, np.ndarray]:
+        """
+        Validate features for artifacts and anomalies.
+        
+        Common artifacts at tile boundaries:
+        - Dash/line patterns (high linearity with low variation)
+        - Discontinuous planes (planar features with sharp transitions)
+        - Invalid values (NaN, Inf, out of range)
+        
+        Strategy:
+        1. Check for invalid values (NaN, Inf)
+        2. Detect artifact patterns in boundary regions
+        3. Drop problematic features if artifacts detected
+        
+        Args:
+            features: Dictionary of computed features
+            boundary_mask: Boolean mask indicating boundary points
+        
+        Returns:
+            Validated features (problematic ones removed)
+        """
+        validated = features.copy()
+        num_boundary = np.sum(boundary_mask)
+        
+        if num_boundary == 0:
+            return validated  # No boundary points, no validation needed
+        
+        # Features to validate
+        feature_names = ['planarity', 'linearity', 'sphericity', 'verticality']
+        features_to_drop = []
+        
+        for fname in feature_names:
+            if fname not in validated:
+                continue
+            
+            feature_values = validated[fname]
+            boundary_values = feature_values[boundary_mask]
+            
+            # 1. Check for invalid values
+            has_nan = np.any(np.isnan(boundary_values))
+            has_inf = np.any(np.isinf(boundary_values))
+            
+            if has_nan or has_inf:
+                logger.warning(
+                    f"  ⚠️  Feature '{fname}' has invalid values "
+                    f"(NaN={has_nan}, Inf={has_inf}) - dropping"
+                )
+                features_to_drop.append(fname)
+                continue
+            
+            # 2. Check for artifact patterns
+            # Artifacts typically show:
+            # - Very high std (discontinuous/dash patterns)
+            # - Very low std (constant values - scan lines)
+            # - Values concentrated at extremes (0 or 1)
+            
+            std_val = np.std(boundary_values)
+            mean_val = np.mean(boundary_values)
+            
+            # Check for dash/line artifacts (high linearity + low variance)
+            if fname == 'linearity':
+                # High mean linearity (>0.8) with low variance (<0.1) = scan artifact
+                if mean_val > 0.8 and std_val < 0.1:
+                    logger.warning(
+                        f"  ⚠️  Feature '{fname}' shows line artifact pattern "
+                        f"(mean={mean_val:.3f}, std={std_val:.3f}) - dropping"
+                    )
+                    features_to_drop.append(fname)
+                    continue
+            
+            # Check for planar discontinuities
+            if fname == 'planarity':
+                # Very low variance (<0.05) indicates artificial constant values
+                if std_val < 0.05:
+                    logger.warning(
+                        f"  ⚠️  Feature '{fname}' shows constant pattern "
+                        f"(std={std_val:.3f}) - dropping"
+                    )
+                    features_to_drop.append(fname)
+                    continue
+                
+                # Very high variance (>0.4) indicates discontinuities
+                if std_val > 0.4:
+                    logger.warning(
+                        f"  ⚠️  Feature '{fname}' shows discontinuity pattern "
+                        f"(std={std_val:.3f}) - dropping"
+                    )
+                    features_to_drop.append(fname)
+                    continue
+            
+            # Check for verticality artifacts
+            if fname == 'verticality':
+                # Abnormal concentration at extremes (bimodal with no middle values)
+                high_extreme = np.sum(boundary_values > 0.9) / len(boundary_values)
+                low_extreme = np.sum(boundary_values < 0.1) / len(boundary_values)
+                
+                if (high_extreme + low_extreme) > 0.95:
+                    logger.warning(
+                        f"  ⚠️  Feature '{fname}' shows bimodal extreme pattern "
+                        f"(extreme_ratio={(high_extreme+low_extreme):.2f}) - dropping"
+                    )
+                    features_to_drop.append(fname)
+                    continue
+            
+            # 3. Check value range validity
+            if not np.all((boundary_values >= 0) & (boundary_values <= 1)):
+                out_of_range = np.sum(
+                    (boundary_values < 0) | (boundary_values > 1)
+                )
+                logger.warning(
+                    f"  ⚠️  Feature '{fname}' has {out_of_range} values "
+                    f"out of range [0,1] - dropping"
+                )
+                features_to_drop.append(fname)
+                continue
+        
+        # Drop problematic features
+        if features_to_drop:
+            logger.info(
+                f"  🔍 Feature validation: dropping {len(features_to_drop)} "
+                f"problematic features: {features_to_drop}"
+            )
+            for fname in features_to_drop:
+                del validated[fname]
+        else:
+            logger.info(
+                f"  ✓ Feature validation: all {len(feature_names)} features passed"
+            )
+        
+        return validated
     
     def get_feature_names(self) -> list:
         """

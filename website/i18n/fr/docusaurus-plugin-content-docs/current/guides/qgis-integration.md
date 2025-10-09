@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
-title: QGIS Integration
-description: "Guide" for using enriched LAZ files in QGIS for visualization and analysis
+title: Intégration QGIS
+description: Guide d'utilisation des fichiers LAZ enrichis dans QGIS pour la visualisation et l'analyse
 keywords: [qgis, visualization, laz, point cloud, gis]
 ---
 
@@ -12,8 +12,6 @@ keywords: [qgis, visualization, laz, point cloud, gis]
 <!-- - Les blocs de code (traduire uniquement les commentaires) -->
 <!-- - Les liens et chemins de fichiers -->
 <!-- - La structure Markdown -->
-
-
 
 # QGIS Integration Guide
 

@@ -1,6 +1,6 @@
 ---
 sidebar_position: 6
-title: "Configuration" System
+title: Système de Configuration
 ---
 
 <!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->

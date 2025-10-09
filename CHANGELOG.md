@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2025-10-09
+
+### Added
+
+- **🔍 Feature Validation & Artifact Detection**
+
+  - Automatic detection of geometric feature artifacts at tile boundaries
+  - Validation for linearity scan line patterns (mean>0.8, std<0.1)
+  - Validation for planarity discontinuities (std<0.05 or std>0.4)
+  - Validation for verticality bimodal extremes (>95% at extremes)
+  - Detection of NaN, Inf, and out-of-range values
+  - Graceful degradation: drops problematic features, continues with valid ones
+  - Comprehensive test suite for validation logic
+  - Documentation: `FEATURE_VALIDATION.md` and `FEATURE_VALIDATION_SUMMARY.md`
+
+- **🌍 French Documentation Translation (Phase 1)**
+
+  - Complete French i18n structure synchronized (73 files)
+  - Fixed 12 YAML frontmatter issues with translation-ready content
+  - Translation workflow and tools ready
+  - Documentation: `TRANSLATION_WORKFLOW.md`, `TRANSLATION_QUICKSTART.md`
+  - Translation status tracking and reporting tools
+
+- **🎓 Hybrid Model Training Support**
+
+  - Optimized LOD3 hybrid model training configuration
+  - Training patch generation script: `generate_training_patches_lod3_hybrid.sh`
+  - Comprehensive hybrid model explanation: `HYBRID_MODEL_EXPLANATION_FR.md`
+  - Dataset optimization analysis: `HYBRID_DATASET_ANALYSIS_FR.md`
+  - Quick start guide: `QUICK_START_LOD3_HYBRID.md`
+  - Support for PointNet++, Transformer, Octree-CNN, and Sparse Conv architectures
+
+- **📚 Enhanced Documentation**
+  - Training commands reference: `TRAINING_COMMANDS.md`
+  - Phase 1 and Phase 2 translation plans
+  - START_HERE.md quick navigation guide
+  - Multiple workflow documentation files
+
+### Changed
+
+- **Breaking**: `geo_features` in boundary-aware processing now returns dictionary instead of numpy array
+- Feature validation integrated into `BoundaryAwareFeatureComputer.compute_features()`
+- Enhanced logging for feature validation and artifact detection
+
+### Fixed
+
+- Fixed geo_features format inconsistency in boundary-aware vs standard processing
+- Fixed dictionary update error when boundary-aware features contain artifacts
+- Improved robustness of tile boundary processing
+
+### Improved
+
+- Better handling of edge cases in boundary-aware feature computation
+- More informative warning messages for detected artifacts
+- Enhanced test coverage for feature validation scenarios
+
 ## [2.0.1] - 2025-10-08
 
 ### Added

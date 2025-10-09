@@ -4,16 +4,16 @@ IGN LiDAR HD Dataset Processing Library
 A Python library for processing IGN LiDAR HD data into machine learning-ready datasets
 with building LOD (Level of Detail) classification support.
 
-Version 2.0.1 adds enriched LAZ only mode and corruption recovery:
-- Enriched LAZ only mode for 3-5x faster processing
-- Automatic corruption detection and recovery
-- Auto-download missing neighbor tiles
-- Enhanced boundary-aware feature computation
+Version 2.1.0 adds feature validation and French documentation:
+- Automatic feature artifact detection at tile boundaries
+- Feature validation for boundary-aware processing
+- Complete French documentation translation
+- Enhanced hybrid model support for LOD3 classification
 
 Backward compatibility is maintained for existing imports.
 """
 
-__version__ = "2.0.1"
+__version__ = "2.1.0"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 

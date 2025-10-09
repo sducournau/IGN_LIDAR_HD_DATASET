@@ -1,37 +1,27 @@
 ---
 sidebar_position: 2
-title: "Démarrage Rapide" Guide
-description: Get up and running with IGN LiDAR HD in 5 minutes
-keywords: [quickstart, workflow, tutorial, examples]
+title: Guide de Démarrage Rapide
+description: Démarrez avec IGN LiDAR HD en 5 minutes
+keywords: [demarrage-rapide, flux-de-travail, tutoriel, exemples]
 ---
 
-<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
-<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
-<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
-<!-- - Le frontmatter (métadonnées en haut) -->
-<!-- - Les blocs de code (traduire uniquement les commentaires) -->
-<!-- - Les liens et chemins de fichiers -->
-<!-- - La structure Markdown -->
+# Guide de Démarrage Rapide
 
+Démarrez avec la bibliothèque de traitement IGN LiDAR HD en 5 minutes ! Ce guide vous accompagne dans votre premier flux de travail complet, du téléchargement à l'analyse.
 
-
-# Quick Start Guide
-
-Get up and running with IGN LiDAR HD Processing Library in 5 minutes! This guide walks you through your first complete workflow from download to analysis.
-
-:::info Prerequisites
-Make sure you have IGN LiDAR HD installed. If not, see the [Installation Guide](../installation/quick-start) first.
+:::info Prérequis
+Assurez-vous d'avoir installé IGN LiDAR HD. Sinon, consultez d'abord le [Guide d'Installation](../installation/quick-start).
 :::
 
 ---
 
-## 🚀 Your First Workflow
+## 🚀 Votre Premier Flux de Travail
 
-Let's process LiDAR data in 3 simple steps: Download → Enrich → Create Patches
+Traitons les données LiDAR en 3 étapes simples : Télécharger → Enrichir → Créer des Patchs
 
-### Step 1: Download LiDAR Tiles
+### Étape 1 : Télécharger les Dalles LiDAR
 
-Download tiles from IGN servers using geographic coordinates:
+Téléchargez les dalles depuis les serveurs IGN en utilisant des coordonnées géographiques :
 
 ```bash
 ign-lidar-hd download \
@@ -40,26 +30,26 @@ ign-lidar-hd download \
   --max-tiles 5
 ```
 
-**What this does:**
+**Ce que cela fait :**
 
-- Queries IGN WFS service for available tiles
-- Downloads up to 5 tiles in the specified bounding box (Paris area)
-- Saves LAZ files to `data/raw/`
-- Skips already downloaded tiles
+- Interroge le service WFS de l'IGN pour les dalles disponibles
+- Télécharge jusqu'à 5 dalles dans la boîte englobante spécifiée (région parisienne)
+- Enregistre les fichiers LAZ dans `data/raw/`
+- Ignore les dalles déjà téléchargées
 
-:::info Bounding Box Format
-`--bbox lon_min,lat_min,lon_max,lat_max` (WGS84 coordinates)
+:::info Format de la Boîte Englobante
+`--bbox lon_min,lat_min,lon_max,lat_max` (coordonnées WGS84)
 
-Example areas:
+Exemples de zones :
 
-- Paris: `2.3,48.8,2.4,48.9`
-- Marseille: `5.3,43.2,5.4,43.3`
-- Lyon: `4.8,45.7,4.9,45.8`
-  :::
+- Paris : `2.3,48.8,2.4,48.9`
+- Marseille : `5.3,43.2,5.4,43.3`
+- Lyon : `4.8,45.7,4.9,45.8`
+:::
 
-### Step 2: Enrich with Features
+### Étape 2 : Enrichir avec des Caractéristiques
 
-Add geometric features and optional RGB colors:
+Ajoutez des caractéristiques géométriques et des couleurs RGB optionnelles :
 
 ```bash
 ign-lidar-hd enrich \
@@ -69,47 +59,46 @@ ign-lidar-hd enrich \
   --use-gpu
 ```
 
-**What this does:**
+**Ce que cela fait :**
 
-- Computes geometric features (normals, curvature, planarity)
-- Adds all additional features in 'full' mode
-- Uses GPU acceleration if available (falls back to CPU)
-- **No augmentation by default** (use --augment to enable)
-- Skips already enriched tiles
+- Calcule les caractéristiques géométriques (normales, courbure, planarité)
+- Ajoute toutes les caractéristiques supplémentaires en mode 'full'
+- Utilise l'accélération GPU si disponible (repli sur CPU)
+- **Pas d'augmentation par défaut** (utilisez --augment pour activer)
+- Ignore les dalles déjà enrichies
 
-:::info Data Augmentation (Disabled by Default)
-By default, the enrich command creates **only the original tile**. To enable augmentation, add `--augment` which creates **4 versions** of each tile:
+:::info Augmentation de Données (Désactivée par Défaut)
+Par défaut, la commande enrich crée **uniquement la dalle originale**. Pour activer l'augmentation, ajoutez `--augment` qui crée **4 versions** de chaque dalle :
 
 - `tile_name.laz` (original)
-- `tile_name_aug1.laz` (augmented version 1)
-- `tile_name_aug2.laz` (augmented version 2)
-- `tile_name_aug3.laz` (augmented version 3)
+- `tile_name_aug1.laz` (version augmentée 1)
+- `tile_name_aug2.laz` (version augmentée 2)
+- `tile_name_aug3.laz` (version augmentée 3)
 
-Each augmented version applies random rotation, jitter, scaling, and dropout before feature computation.
+Chaque version augmentée applique une rotation aléatoire, du bruit, une mise à l'échelle et un dropout avant le calcul des caractéristiques.
 
-To enable: add `--augment`  
-To change count: add `--num-augmentations N`
+Pour activer : ajoutez `--augment`  
+Pour changer le nombre : ajoutez `--num-augmentations N`
 :::
 
-**Features Added:**
+**Caractéristiques Ajoutées :**
 
-- Surface normals (3D vectors)
-- Curvature (principal curvature)
-- Planarity, verticality, horizontality
-- Local point density
-- Building classification labels
+- Normales de surface (vecteurs 3D)
+- Courbure (courbure principale)
+- Planarité, verticalité, horizontalité
+- Densité de points locale
+- Étiquettes de classification des bâtiments
 
-:::tip Add RGB Colors
-Add `--add-rgb --rgb-cache-dir cache/` to enrich with colors from IGN orthophotos!
+:::tip Ajouter des Couleurs RGB
+Ajoutez `--add-rgb --rgb-cache-dir cache/` pour enrichir avec les couleurs des orthophotos IGN !
 :::
+### Étape 3 : Créer des Patchs d'Entraînement
 
-### Step 3: Create Training Patches
-
-Generate machine learning-ready patches:
+Générez des patchs prêts pour l'apprentissage automatique :
 
 ```bash
-# Note: Augmentation happens during ENRICH phase (disabled by default)
-# Use --augment flag in enrich step to create augmented versions
+# Note : L'augmentation se fait pendant la phase ENRICH (désactivée par défaut)
+# Utilisez le flag --augment à l'étape enrich pour créer des versions augmentées
 ign-lidar-hd patch \
   --input-dir data/enriched \
   --output data/patches \
@@ -117,14 +106,14 @@ ign-lidar-hd patch \
   --num-points 16384
 ```
 
-**What this does:**
+**Ce que cela fait :**
 
-- Creates 150m × 150m patches from enriched tiles
-- Samples 16,384 points per patch
-- Processes both original and augmented tiles (created during enrich)
-- Saves as compressed NPZ files
+- Crée des patchs de 150m × 150m à partir des dalles enrichies
+- Échantillonne 16 384 points par patch
+- Traite à la fois les dalles originales et augmentées (créées lors de l'enrichissement)
+- Enregistre sous forme de fichiers NPZ compressés
 
-**Output Structure:**
+**Structure de Sortie :**
 
 ```text
 data/patches/
@@ -134,29 +123,30 @@ data/patches/
 └── ...
 ```
 
-Each NPZ file contains:
+Chaque fichier NPZ contient :
 
-- `points`: [N, 3] XYZ coordinates
-- `normals`: [N, 3] surface normals
-- `features`: [N, 27] geometric features
-- `labels`: [N] building class labels
+- `points` : Coordonnées XYZ [N, 3]
+- `normals` : Normales de surface [N, 3]
+- `features` : Caractéristiques géométriques [N, 27]
+- `labels` : Étiquettes de classe de bâtiment [N]
 
 ---
 
-## 🎯 Complete Workflow with YAML
+## 🎯 Flux de Travail Complet avec YAML
 
-For production workflows, use YAML configuration files for reproducibility:
+Pour les flux de travail en production, utilisez des fichiers de configuration YAML pour la reproductibilité :
 
-### Create Configuration
+### Créer une Configuration
 
 ```bash
 ign-lidar-hd pipeline my_workflow.yaml --create-example full
 ```
 
-This creates a YAML configuration file. For detailed configuration examples, see [Configuration Examples](../reference/config-examples).
+Cela crée un fichier de configuration YAML. Pour des exemples de configuration détaillés, consultez [Exemples de Configuration](../reference/config-examples).
 
-### Quick Example
+### Exemple Rapide
 
+```yaml
 input_dir: "data/enriched"
 output: "data/patches"
 lod_level: "LOD2"
@@ -164,33 +154,32 @@ patch_size: 150.0
 num_points: 16384
 augment: true
 num_augmentations: 3
+```
 
-````
-
-### Run Pipeline
+### Exécuter le Pipeline
 
 ```bash
 ign-lidar-hd pipeline my_workflow.yaml
-````
+```
 
-**Benefits:**
+**Avantages :**
 
-- ✅ Reproducible workflows
-- ✅ Version control friendly
-- ✅ Easy team collaboration
-- ✅ Run only specific stages
-- ✅ Clear configuration documentation
+- ✅ Flux de travail reproductibles
+- ✅ Compatible avec le contrôle de version
+- ✅ Collaboration d'équipe facile
+- ✅ Exécution de phases spécifiques uniquement
+- ✅ Documentation de configuration claire
 
 ---
 
-## 🐍 Python API
+## 🐍 API Python
 
-For programmatic control, use the Python API:
+Pour un contrôle programmatique, utilisez l'API Python :
 
 ```python
 from ign_lidar import LiDARProcessor
 
-# Initialize processor
+# Initialiser le processeur
 processor = LiDARProcessor(
     lod_level="LOD2",
     augment=True,
@@ -198,45 +187,45 @@ processor = LiDARProcessor(
     use_gpu=True
 )
 
-# Process a single tile
+# Traiter une seule dalle
 patches = processor.process_tile(
     input_file="data/raw/tile.laz",
     output_dir="data/patches"
 )
 
-print(f"Generated {len(patches)} training patches")
+print(f"Généré {len(patches)} patchs d'entraînement")
 
-# Or process entire directory
+# Ou traiter un répertoire entier
 num_patches = processor.process_directory(
     input_dir="data/raw",
     output_dir="data/patches",
     num_workers=4
 )
 
-print(f"Total patches generated: {num_patches}")
+print(f"Total de patchs générés : {num_patches}")
 ```
 
 ---
 
-## 🎓 Understanding LOD Levels
+## 🎓 Comprendre les Niveaux LOD
 
-Choose the right Level of Detail for your task:
+Choisissez le bon niveau de détail pour votre tâche :
 
 ### LOD2 (15 Classes)
 
-Simplified building models - good for general classification:
+Modèles de bâtiments simplifiés - bon pour la classification générale :
 
-**Classes:**
+**Classes :**
 
-- Ground, vegetation, road, railway
-- Building parts: wall, roof, balcony, window, door
-- Urban furniture, power lines, etc.
+- Sol, végétation, route, voie ferrée
+- Parties de bâtiment : mur, toit, balcon, fenêtre, porte
+- Mobilier urbain, lignes électriques, etc.
 
-**Use Cases:**
+**Cas d'Usage :**
 
-- Building detection and segmentation
-- Urban planning
-- 3D city modeling (basic)
+- Détection et segmentation de bâtiments
+- Urbanisme
+- Modélisation 3D de ville (basique)
 
 ```python
 processor = LiDARProcessor(lod_level="LOD2")
@@ -244,57 +233,56 @@ processor = LiDARProcessor(lod_level="LOD2")
 
 ### LOD3 (30+ Classes)
 
-Detailed building models - for architectural analysis:
+Modèles de bâtiments détaillés - pour l'analyse architecturale :
 
-**Additional Classes:**
+**Classes Supplémentaires :**
 
-- Detailed roof types (flat, gabled, hipped, etc.)
-- Architectural elements (columns, cornices, ornaments)
-- Building materials
-- Precise architectural styles
+- Types de toits détaillés (plat, à pignon, à quatre pans, etc.)
+- Éléments architecturaux (colonnes, corniches, ornements)
+- Matériaux de construction
+- Styles architecturaux précis
 
-**Use Cases:**
+**Cas d'Usage :**
 
-- Architectural heritage documentation
-- Detailed 3D reconstruction
-- Building condition assessment
+- Documentation du patrimoine architectural
+- Reconstruction 3D détaillée
+- Évaluation de l'état des bâtiments
 
 ```python
 processor = LiDARProcessor(lod_level="LOD3")
 ```
-
 ---
 
-## ⚡ Performance Tips
+## ⚡ Conseils de Performance
 
-### 1. Use GPU Acceleration
+### 1. Utiliser l'Accélération GPU
 
 ```bash
-# 5-10x faster feature computation
+# Calcul de caractéristiques 5-10x plus rapide
 ign-lidar-hd enrich --use-gpu --input-dir tiles/ --output enriched/
 ```
 
-### 2. Parallel Processing
+### 2. Traitement Parallèle
 
 ```bash
-# Use multiple CPU cores
+# Utiliser plusieurs cœurs CPU
 ign-lidar-hd enrich --num-workers 8 --input-dir tiles/ --output enriched/
 ```
 
-### 3. Smart Resumability
+### 3. Reprise Intelligente
 
-All commands automatically skip existing files:
+Toutes les commandes ignorent automatiquement les fichiers existants :
 
 ```bash
-# Safe to interrupt and resume
+# Sûr d'interrompre et de reprendre
 ign-lidar-hd enrich --input-dir tiles/ --output enriched/
-# Press Ctrl+C anytime
-# Run again - continues where it left off
+# Appuyez sur Ctrl+C à tout moment
+# Réexécutez - continue là où il s'est arrêté
 ```
 
-### 4. RGB Caching
+### 4. Mise en Cache RGB
 
-When using RGB augmentation, cache orthophotos for reuse:
+Lors de l'utilisation de l'augmentation RGB, mettez en cache les orthophotos pour réutilisation :
 
 ```bash
 ign-lidar-hd enrich \
@@ -306,113 +294,113 @@ ign-lidar-hd enrich \
 
 ---
 
-## 🔍 Verify Your Data
+## 🔍 Vérifier Vos Données
 
-### Check Enriched Files
+### Vérifier les Fichiers Enrichis
 
 ```python
 import laspy
 
-# Load enriched LAZ file
+# Charger le fichier LAZ enrichi
 las = laspy.read("data/enriched/tile.laz")
 
-# Check dimensions
-print("Available dimensions:", las.point_format.dimension_names)
+# Vérifier les dimensions
+print("Dimensions disponibles :", las.point_format.dimension_names)
 
-# Should include:
-# - X, Y, Z (coordinates)
+# Devrait inclure :
+# - X, Y, Z (coordonnées)
 # - normal_x, normal_y, normal_z
-# - curvature
-# - planarity, verticality
+# - curvature (courbure)
+# - planarity, verticality (planarité, verticalité)
 # - intensity, return_number
-# - RGB (if using --add-rgb)
+# - RGB (si vous utilisez --add-rgb)
 ```
 
-### Check NPZ Patches
+### Vérifier les Patchs NPZ
 
 ```python
 import numpy as np
 
-# Load patch
+# Charger un patch
 data = np.load("data/patches/tile_patch_0.npz")
 
-# Check contents
-print("Keys:", list(data.keys()))
-print("Points shape:", data['points'].shape)
-print("Labels shape:", data['labels'].shape)
+# Vérifier le contenu
+print("Clés :", list(data.keys()))
+print("Forme des points :", data['points'].shape)
+print("Forme des étiquettes :", data['labels'].shape)
 
-# Verify point count
-assert data['points'].shape[0] == 16384  # Default num_points
+# Vérifier le nombre de points
+assert data['points'].shape[0] == 16384  # num_points par défaut
 ```
 
 ---
 
-## 🐛 Troubleshooting
+## 🐛 Dépannage
 
-### GPU Not Detected
+### GPU Non Détecté
 
 ```bash
-# Check CUDA availability
-python -c "import cupy as cp; print('CUDA available:', cp.is_available())"
+# Vérifier la disponibilité de CUDA
+python -c "import cupy as cp; print('CUDA disponible :', cp.is_available())"
 ```
 
-If CUDA is not available:
+Si CUDA n'est pas disponible :
 
-- Ensure NVIDIA GPU drivers are installed
-- Install correct CuPy version for your CUDA toolkit
-- Library automatically falls back to CPU
+- Assurez-vous que les pilotes GPU NVIDIA sont installés
+- Installez la bonne version de CuPy pour votre boîte à outils CUDA
+- La bibliothèque bascule automatiquement sur le CPU
 
-### Out of Memory
+### Mémoire Insuffisante
 
-For large tiles (>10M points):
+Pour les dalles volumineuses (>10M points) :
 
 ```python
-# Reduce patch size or point count
+# Réduire la taille des patchs ou le nombre de points
 processor = LiDARProcessor(
-    patch_size=100.0,      # Smaller patches (default: 150.0)
-    num_points=8192,       # Fewer points (default: 16384)
+    patch_size=100.0,      # Patchs plus petits (par défaut : 150.0)
+    num_points=8192,       # Moins de points (par défaut : 16384)
 )
 ```
 
-### Slow Processing
+### Traitement Lent
 
-1. Enable GPU acceleration: `--use-gpu`
-2. Increase workers: `--num-workers 8`
-3. Use 'core' mode instead of 'full': `--mode core`
-
----
-
-## 📚 Next Steps
-
-### Learn More
-
-- 📖 [Features Guide](features/overview.md) - Deep dive into all features
-- ⚡ [GPU Guide](gpu/overview.md) - GPU acceleration details
-- 🔧 [Configuration Guide](features/pipeline-configuration.md) - Advanced workflows
-- 🎨 [RGB Augmentation](features/rgb-augmentation.md) - Color enrichment
-
-### Examples
-
-- [Basic Usage](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples/basic_usage.py)
-- [Pipeline Configuration](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples/pipeline_example.py)
-- [GPU Processing](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples/processor_gpu_usage.py)
-- [RGB Augmentation](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples/enrich_with_rgb.py)
-
-### Get Help
-
-- 🐛 [GitHub Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues) - Report bugs
-- 💬 [Discussions](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/discussions) - Ask questions
-- 📧 Email: simon.ducournau@gmail.com
+1. Activer l'accélération GPU : `--use-gpu`
+2. Augmenter les workers : `--num-workers 8`
+3. Utiliser le mode 'core' au lieu de 'full' : `--mode core`
 
 ---
 
-**Ready to process your first dataset?** 🚀
+## 📚 Prochaines Étapes
+
+### En Savoir Plus
+
+- 📖 [Guide des Caractéristiques](features/overview.md) - Plongée dans toutes les fonctionnalités
+- ⚡ [Guide GPU](gpu/overview.md) - Détails sur l'accélération GPU
+- 🔧 [Guide de Configuration](features/pipeline-configuration.md) - Flux de travail avancés
+- 🎨 [Augmentation RGB](features/rgb-augmentation.md) - Enrichissement couleur
+
+### Exemples
+
+- [Utilisation de Base](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples/basic_usage.py)
+- [Configuration de Pipeline](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples/pipeline_example.py)
+- [Traitement GPU](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples/processor_gpu_usage.py)
+- [Augmentation RGB](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples/enrich_with_rgb.py)
+
+### Obtenir de l'Aide
+
+- 🐛 [GitHub Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues) - Signaler des bugs
+- 💬 [Discussions](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/discussions) - Poser des questions
+- 📧 Email : simon.ducournau@gmail.com
+
+---
+
+**Prêt à traiter votre premier jeu de données ?** 🚀
 
 ```bash
-# Download and process in one go
+# Télécharger et traiter en une seule fois
 ign-lidar-hd download --bbox 2.3,48.8,2.4,48.9 --output raw/ --max-tiles 5
 ign-lidar-hd enrich --input-dir raw/ --output enriched/ --use-gpu
 ign-lidar-hd patch --input-dir enriched/ --output patches/ --augment
 ```
 
-Happy processing! 🎉
+Bon traitement ! 🎉

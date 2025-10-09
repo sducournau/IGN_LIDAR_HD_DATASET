@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
-title: Memory Optimization
-description: "Guide" to managing memory usage during LiDAR processing
+title: Optimisation Mémoire
+description: Guide de gestion de l'utilisation mémoire durant le traitement LiDAR
 keywords: [memory, optimization, performance, troubleshooting]
 ---
 
@@ -12,8 +12,6 @@ keywords: [memory, optimization, performance, troubleshooting]
 <!-- - Les blocs de code (traduire uniquement les commentaires) -->
 <!-- - Les liens et chemins de fichiers -->
 <!-- - La structure Markdown -->
-
-
 
 # Memory Optimization Guide
 

@@ -1,130 +1,120 @@
 ---
 sidebar_position: 8
-title: "Dépannage" Guide
-description: Solutions to common LiDAR processing issues
-keywords: [troubleshooting, errors, problems, solutions, help]
+title: Guide de Dépannage
+description: Solutions aux problèmes courants de traitement LiDAR
+keywords: [depannage, erreurs, problemes, solutions, aide]
 ---
 
-<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
-<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
-<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
-<!-- - Le frontmatter (métadonnées en haut) -->
-<!-- - Les blocs de code (traduire uniquement les commentaires) -->
-<!-- - Les liens et chemins de fichiers -->
-<!-- - La structure Markdown -->
+# Guide de Dépannage
 
+Solutions aux problèmes courants rencontrés lors du traitement de données LiDAR avec IGN LiDAR HD.
 
+## Problèmes d'Installation
 
-# Troubleshooting Guide
+### Échec d'Installation des Dépendances
 
-Solutions to common issues encountered when processing LiDAR data with IGN LiDAR HD.
-
-## Installation Issues
-
-### Dependency Installation Failure
-
-**Problem**: Python package installation fails
+**Problème** : L'installation du package Python échoue
 
 ```bash
 ERROR: Failed building wheel for some-package
 ```
 
-**Solutions**:
+**Solutions** :
 
-1. Update pip
+1. Mettre à jour pip
 
    ```bash
    pip install --upgrade pip setuptools wheel
    ```
 
-2. Install with conda
+2. Installer avec conda
 
    ```bash
    conda install -c conda-forge ign-lidar-hd
    ```
 
-3. Manual dependency installation
+3. Installation manuelle des dépendances
    ```bash
    pip install numpy scipy laspy pdal
    pip install ign-lidar-hd
    ```
 
-### CUDA/GPU Issues
+### Problèmes CUDA/GPU
 
-**Problem**: CUDA not detected
+**Problème** : CUDA non détecté
 
 ```bash
 CUDA not available, falling back to CPU processing
 ```
 
-**Diagnosis**:
+**Diagnostic** :
 
 ```bash
-# Check CUDA
+# Vérifier CUDA
 nvidia-smi
 python -c "import torch; print(torch.cuda.is_available())"
 ```
 
-**Solutions**:
+**Solutions** :
 
-1. Install NVIDIA drivers
-2. Install CUDA Toolkit
-3. Install PyTorch with CUDA support
+1. Installer les pilotes NVIDIA
+2. Installer CUDA Toolkit
+3. Installer PyTorch avec support CUDA
 
-## Processing Issues
+## Problèmes de Traitement
 
-### Memory Errors
+### Erreurs de Mémoire
 
-**Problem**: Insufficient memory
+**Problème** : Mémoire insuffisante
 
 ```bash
 MemoryError: Unable to allocate array
 ```
 
-**Solutions**:
+**Solutions** :
 
-1. Reduce chunk size
+1. Réduire la taille des morceaux
 
    ```python
    processor = Processor(chunk_size=100000)
    ```
 
-2. Process in small batches
+2. Traiter en petits lots
 
    ```python
    for batch in split_large_file(input_file, max_points=500000):
        process_batch(batch)
    ```
 
-3. Use pagination
+3. Utiliser la pagination
    ```python
    processor = Processor(use_pagination=True, page_size=50000)
    ```
 
-### GPU Out of Memory
+### Mémoire GPU Insuffisante
 
-**Problem**: Insufficient VRAM
+**Problème** : VRAM insuffisante
 
 ```bash
 CUDA out of memory. Tried to allocate 2.00 GiB
 ```
 
-**Solutions**:
+**Solutions** :
 
-1. Limit GPU memory
+1. Limiter la mémoire GPU
 
    ```python
    processor = Processor(gpu_memory_limit=0.5)
    ```
 
-2. Clear GPU cache
+2. Vider le cache GPU
 
    ```python
    import torch
    torch.cuda.empty_cache()
    ```
 
-3. Hybrid CPU/GPU processing
+3. Traitement hybride CPU/GPU
    ```python
    processor = Processor(
        use_gpu=True,
@@ -132,45 +122,45 @@ CUDA out of memory. Tried to allocate 2.00 GiB
    )
    ```
 
-### File Errors
+### Erreurs de Fichier
 
-**Problem**: Corrupted LAS file
+**Problème** : Fichier LAS corrompu
 
 ```bash
 LASError: Invalid LAS file header
 ```
 
-**Diagnosis**:
+**Diagnostic** :
 
 ```bash
-# Verify with PDAL
+# Vérifier avec PDAL
 pdal info input.las
 
-# Validate with laspy
+# Valider avec laspy
 python -c "import laspy; f=laspy.read('input.las'); print('OK')"
 ```
 
-**Solutions**:
+**Solutions** :
 
-1. Repair with PDAL
+1. Réparer avec PDAL
 
    ```bash
    pdal translate input.las output_fixed.las --writers.las.forward=all
    ```
 
-2. Validate and clean
+2. Valider et nettoyer
    ```python
    from ign_lidar.utils import validate_and_clean
    clean_file = validate_and_clean("input.las")
    ```
 
-## Performance Issues
+## Problèmes de Performance
 
-### Slow Processing
+### Traitement Lent
 
-**Problem**: Very poor performance
+**Problème** : Très mauvaises performances
 
-**Diagnosis**:
+**Diagnostic** :
 
 ```python
 from ign_lidar import Profiler
@@ -180,39 +170,39 @@ with Profiler() as prof:
 prof.print_bottlenecks()
 ```
 
-**Solutions**:
+**Solutions** :
 
-1. Optimize parameters
+1. Optimiser les paramètres
 
    ```python
    processor = Processor(
-       n_jobs=-1,  # All cores
+       n_jobs=-1,  # Tous les cœurs
        chunk_size=1000000,
        use_gpu=True
    )
    ```
 
-2. Check disk speed
+2. Vérifier la vitesse du disque
 
    ```bash
-   # Test disk speed
+   # Tester la vitesse du disque
    dd if=/dev/zero of=test_file bs=1M count=1000
    ```
 
-3. Monitor resources
+3. Surveiller les ressources
    ```bash
-   htop  # CPU and RAM
-   iotop  # Disk I/O
+   htop  # CPU et RAM
+   iotop  # E/S disque
    nvidia-smi  # GPU
    ```
 
-### I/O Bottlenecks
+### Goulots d'Étranglement E/S
 
-**Problem**: Slow read/write
+**Problème** : Lecture/écriture lente
 
-**Solutions**:
+**Solutions** :
 
-1. Optimize buffers
+1. Optimiser les tampons
 
    ```python
    processor = Processor(
@@ -222,33 +212,33 @@ prof.print_bottlenecks()
    )
    ```
 
-2. Use fast storage
+2. Utiliser un stockage rapide
 
-   - Prefer NVMe SSDs
-   - Avoid network drives for processing
+   - Préférer les SSD NVMe
+   - Éviter les lecteurs réseau pour le traitement
 
-3. Adaptive compression
+3. Compression adaptative
    ```python
-   # Balance compression/speed
+   # Équilibrer compression/vitesse
    processor = Processor(
        output_format='laz',
        compression_level=1
    )
    ```
 
-## Configuration Issues
+## Problèmes de Configuration
 
-### Invalid Configuration
+### Configuration Invalide
 
-**Problem**: Parameter errors
+**Problème** : Erreurs de paramètres
 
 ```bash
 ConfigurationError: Invalid feature configuration
 ```
 
-**Solutions**:
+**Solutions** :
 
-1. Validate configuration
+1. Valider la configuration
 
    ```python
    from ign_lidar import Config
@@ -257,85 +247,85 @@ ConfigurationError: Invalid feature configuration
    config.validate()
    ```
 
-2. Use default configuration
+2. Utiliser la configuration par défaut
 
    ```python
    config = Config.get_default()
    config.features = ['buildings', 'vegetation']
    ```
 
-3. Generate configuration templates
+3. Générer des modèles de configuration
    ```bash
-   # Generate template
+   # Générer un modèle
    ign-lidar-hd config --template > config.yaml
    ```
 
-### Path Issues
+### Problèmes de Chemin
 
-**Problem**: Files not found
+**Problème** : Fichiers introuvables
 
 ```bash
 FileNotFoundError: No such file or directory
 ```
 
-**Solutions**:
+**Solutions** :
 
-1. Verify paths
+1. Vérifier les chemins
 
    ```python
    import os
-   assert os.path.exists("input.las"), "File not found"
+   assert os.path.exists("input.las"), "Fichier introuvable"
    ```
 
-2. Use absolute paths
+2. Utiliser des chemins absolus
 
    ```python
    input_path = os.path.abspath("input.las")
    ```
 
-3. Check permissions
+3. Vérifier les permissions
    ```bash
    ls -la input.las
    chmod 644 input.las
    ```
 
-## Specific Issues
+## Problèmes Spécifiques
 
-### RGB Augmentation
+### Augmentation RGB
 
-**Problem**: Color augmentation failure
+**Problème** : Échec de l'augmentation couleur
 
 ```bash
 OrthophotoError: Cannot read orthophoto file
 ```
 
-**Solutions**:
+**Solutions** :
 
-1. Verify format
+1. Vérifier le format
 
    ```bash
    gdalinfo orthophoto.tif
    ```
 
-2. Convert format
+2. Convertir le format
 
    ```bash
    gdal_translate -of GTiff input.jp2 output.tif
    ```
 
-3. Check georeferencing
+3. Vérifier le géoréférencement
    ```python
    from ign_lidar.utils import check_crs_match
    match = check_crs_match("input.las", "orthophoto.tif")
    ```
 
-### Building Detection
+### Détection de Bâtiments
 
-**Problem**: Poor building detection
+**Problème** : Mauvaise détection des bâtiments
 
-**Solutions**:
+**Solutions** :
 
-1. Adjust parameters
+1. Ajuster les paramètres
 
    ```python
    config = Config(
@@ -347,7 +337,7 @@ OrthophotoError: Cannot read orthophoto file
    )
    ```
 
-2. Adaptive preprocessing
+2. Prétraitement adaptatif
    ```python
    processor = Processor(
        ground_classification=True,
@@ -355,9 +345,9 @@ OrthophotoError: Cannot read orthophoto file
    )
    ```
 
-## Logging and Debugging
+## Journalisation et Débogage
 
-### Enable Detailed Logging
+### Activer la Journalisation Détaillée
 
 ```python
 import logging
@@ -366,7 +356,7 @@ logging.basicConfig(level=logging.DEBUG)
 processor = Processor(verbose=True)
 ```
 
-### Save Logs
+### Enregistrer les Journaux
 
 ```python
 import logging
@@ -378,89 +368,89 @@ logging.basicConfig(
 )
 ```
 
-### Debug Mode
+### Mode Débogage
 
 ```bash
-# Debug execution
+# Exécution en mode débogage
 IGN_LIDAR_DEBUG=1 python script.py
 
-# Detailed profiling
+# Profilage détaillé
 IGN_LIDAR_PROFILE=1 python script.py
 ```
 
-## Support and Help
+## Support et Aide
 
 ### Documentation
 
-- [Performance Guide](./performance)
-- [GPU Guide](./gpu-acceleration)
-- [API Reference](../api/features)
+- [Guide de Performance](./performance)
+- [Guide GPU](./gpu-acceleration)
+- [Référence API](../api/features)
 
-### Diagnostic Tools
+### Outils de Diagnostic
 
 ```bash
-# System information
+# Informations système
 ign-lidar-hd system-info
 
-# Configuration test
+# Test de configuration
 ign-lidar-hd config-test
 
-# Data validation
+# Validation des données
 ign-lidar-hd validate input.las
 ```
 
-### Bug Reporting
+### Signalement de Bugs
 
-1. Collect information
+1. Collecter les informations
 
    ```bash
    ign-lidar-hd system-info > system_info.txt
    ```
 
-2. Minimal example
+2. Exemple minimal
 
    ```python
-   # Minimal code reproducing the issue
+   # Code minimal reproduisant le problème
    from ign_lidar import Processor
    processor = Processor()
-   # Error here...
+   # Erreur ici...
    ```
 
-3. Test files
-   - Provide small test LAS file if possible
-   - Include configuration used
+3. Fichiers de test
+   - Fournir un petit fichier LAS de test si possible
+   - Inclure la configuration utilisée
 
-### Useful Resources
+### Ressources Utiles
 
-- **GitHub Repository**: Issues and discussions
-- **Documentation**: Detailed guides and API
-- **Examples**: Sample scripts
-- **Community**: Discussion forums
+- **Dépôt GitHub** : Issues et discussions
+- **Documentation** : Guides détaillés et API
+- **Exemples** : Scripts d'exemple
+- **Communauté** : Forums de discussion
 
-## Quick Solutions
+## Solutions Rapides
 
-### General Checklist
+### Liste de Vérification Générale
 
-1. ✅ Python 3.8+ installed
-2. ✅ Dependencies correctly installed
-3. ✅ Valid input files
-4. ✅ Read/write permissions
-5. ✅ Sufficient disk space
-6. ✅ Available RAM for chunks
-7. ✅ Updated GPU drivers (if used)
+1. ✅ Python 3.8+ installé
+2. ✅ Dépendances correctement installées
+3. ✅ Fichiers d'entrée valides
+4. ✅ Permissions de lecture/écriture
+5. ✅ Espace disque suffisant
+6. ✅ RAM disponible pour les morceaux
+7. ✅ Pilotes GPU à jour (si utilisé)
 
-### Useful Commands
+### Commandes Utiles
 
 ```bash
-# Quick diagnostics
+# Diagnostics rapides
 ign-lidar-hd doctor
 
-# Clear cache
+# Vider le cache
 ign-lidar-hd cache --clear
 
-# Reset configuration
+# Réinitialiser la configuration
 ign-lidar-hd config --reset
 
-# Performance test
+# Test de performance
 ign-lidar-hd benchmark --quick
 ```

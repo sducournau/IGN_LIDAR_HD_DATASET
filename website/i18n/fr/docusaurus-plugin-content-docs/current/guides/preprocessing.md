@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
-title: Preprocessing Guide
-description: "Nuage de Points" preprocessing for artifact mitigation
+title: Guide de Prétraitement
+description: Prétraitement de nuage de points pour l'atténuation d'artefacts
 keywords: [preprocessing, artifacts, SOR, ROR, voxel, outlier removal]
 ---
 
@@ -12,8 +12,6 @@ keywords: [preprocessing, artifacts, SOR, ROR, voxel, outlier removal]
 <!-- - Les blocs de code (traduire uniquement les commentaires) -->
 <!-- - Les liens et chemins de fichiers -->
 <!-- - La structure Markdown -->
-
-
 
 # Preprocessing for Artifact Mitigation
 

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 6
-title: "GPU" Acceleration
-description: Leverage GPU computing for faster LiDAR processing
+title: Accélération GPU
+description: Exploiter le calcul GPU pour un traitement LiDAR plus rapide
 keywords:
   [gpu, cuda, acceleration, performance, optimization, cuml, rapids, cupy]
 ---
@@ -13,8 +13,6 @@ keywords:
 <!-- - Les blocs de code (traduire uniquement les commentaires) -->
 <!-- - Les liens et chemins de fichiers -->
 <!-- - La structure Markdown -->
-
-
 
 # GPU Acceleration
 
