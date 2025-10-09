@@ -1,15 +1,25 @@
 ---
 sidebar_position: 7
-title: Guide de prétraitement
-description: Prétraitement des nuages de points pour atténuer les artefacts
+title: Preprocessing Guide
+description: "Nuage de Points" preprocessing for artifact mitigation
 keywords: [preprocessing, artifacts, SOR, ROR, voxel, outlier removal]
 ---
+
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
 
 # Preprocessing for Artifact Mitigation
 
 Learn how to use point cloud preprocessing to reduce LiDAR scan line artifacts and improve geometric feature quality.
 
-## Vue d'ensemble
+## Overview
 
 LiDAR point clouds often contain various artifacts that negatively impact geometric feature computation:
 
@@ -22,7 +32,7 @@ The preprocessing module addresses these issues through three complementary tech
 
 1. **Statistical Outlier Removal (SOR)** - Remove outliers based on neighbor distance statistics
 2. **Radius Outlier Removal (ROR)** - Remove isolated points without sufficient neighbors
-3. **Voxel Downsampling** - Homogenize point density (optionnel)
+3. **Voxel Downsampling** - Homogenize point density (optional)
 
 ## Quick Start
 
@@ -76,7 +86,7 @@ Removes points whose mean distance to k-nearest neighbors is outside the statist
 2. Calculate global mean and standard deviation of these distances
 3. Remove points exceeding: `threshold = mean + std_multiplier × std`
 
-**Paramètres:**
+**Parameters:**
 
 - `--sor-k` - Number of neighbors (default: 12)
   - Higher values: more robust but slower
@@ -85,7 +95,7 @@ Removes points whose mean distance to k-nearest neighbors is outside the statist
   - Higher values: more lenient (keep more points)
   - Lower values: stricter filtering (remove more points)
 
-**Exemple:**
+**Example:**
 
 ```bash
 # Conservative (keep more points)
@@ -104,7 +114,7 @@ Removes points that don't have enough neighbors within a specified radius.
 1. For each point, count neighbors within search radius
 2. Remove points with fewer than min_neighbors
 
-**Paramètres:**
+**Parameters:**
 
 - `--ror-radius` - Search radius in meters (default: 1.0)
   - Urban: 0.5-1.0m (denser point clouds)
@@ -113,7 +123,7 @@ Removes points that don't have enough neighbors within a specified radius.
   - Higher values: stricter isolation detection
   - Lower values: more lenient
 
-**Exemple:**
+**Example:**
 
 ```bash
 # Urban areas (dense clouds)
@@ -133,13 +143,13 @@ Divides space into voxels (3D grid cells) and reduces points to one representati
 2. For each voxel with points, compute centroid
 3. Replace all points in voxel with single centroid point
 
-**Paramètres:**
+**Parameters:**
 
-- `--voxel-size` - Voxel size in meters (optionnel, e.g., 0.5)
+- `--voxel-size` - Voxel size in meters (optional, e.g., 0.5)
   - Smaller values: preserve more detail (0.2-0.5m)
   - Larger values: aggressive downsampling (0.5-1.0m)
 
-**Exemple:**
+**Example:**
 
 ```bash
 # Moderate downsampling
@@ -256,13 +266,13 @@ ign-lidar-hd enrich \
 
 ## Python API
 
-### Using LiDARTraitementor
+### Using LiDARProcessor
 
 ```python
-from ign_lidar import LiDARTraitementor
+from ign_lidar import LiDARProcessor
 
 # Enable preprocessing with defaults
-processor = LiDARTraitementor(
+processor = LiDARProcessor(
     lod_level='LOD2',
     include_extra_features=True,
     preprocess=True
@@ -285,14 +295,14 @@ preprocess_config = {
     }
 }
 
-processor = LiDARTraitementor(
+processor = LiDARProcessor(
     lod_level='LOD2',
     include_extra_features=True,
     preprocess=True,
     preprocess_config=preprocess_config
 )
 
-# Traitement tiles
+# Process tiles
 processor.process_tile('tile.laz', 'output/')
 ```
 
@@ -334,7 +344,7 @@ print(f"Time: {stats['processing_time_ms']:.0f}ms")
 
 ## Performance Impact
 
-### Traitementing Time
+### Processing Time
 
 | Configuration     | Overhead      | Typical Tile Time |
 | ----------------- | ------------- | ----------------- |
@@ -373,13 +383,13 @@ Based on comprehensive artifact analysis:
 - Point clouds have visible noise or outliers
 - Building edges appear jagged or noisy
 - Training ML models (cleaner features = better results)
-- Traitementing large batches (voxel helps with memory)
+- Processing large batches (voxel helps with memory)
 
 ❌ **Skip preprocessing when:**
 
 - Point clouds are already clean (manual inspection)
 - You need absolute maximum detail preservation
-- Traitementing time is critical constraint
+- Processing time is critical constraint
 - Working with very small/sparse clouds (less than 100k points)
 
 ### Parameter Tuning Tips
@@ -390,7 +400,7 @@ Based on comprehensive artifact analysis:
 4. **Monitor processing time** - Balance quality vs. speed for your use case
 5. **Test on representative tiles** - Don't tune on outliers
 
-### Dépannage
+### Troubleshooting
 
 **Problem: Too many points removed (>20% reduction)**
 
@@ -411,7 +421,7 @@ Solution:
 - Increase `--ror-neighbors` to 5-6
 - Add `--voxel-size 0.5`
 
-**Problem: Traitementing too slow**
+**Problem: Processing too slow**
 
 Solution:
 
@@ -426,28 +436,28 @@ Solution:
 
 - Add `--voxel-size 0.5` or smaller
 - Reduce `--num-workers`
-- Traitement tiles individually (`--input` instead of `--input-dir`)
+- Process tiles individually (`--input` instead of `--input-dir`)
 - Increase system swap space
 
-## Exemples
+## Examples
 
-### Exemple 1: Utilisation de base
+### Example 1: Basic Usage
 
 ```bash
-# Traitement a single tile with preprocessing
+# Process a single tile with preprocessing
 ign-lidar-hd enrich \
-  --input tuiles_brutes/tile_001.laz \
+  --input raw_tiles/tile_001.laz \
   --output enriched/ \
   --mode full \
   --preprocess
 ```
 
-### Exemple 2: Batch Traitementing
+### Example 2: Batch Processing
 
 ```bash
-# Traitement all tiles with conservative preprocessing
+# Process all tiles with conservative preprocessing
 ign-lidar-hd enrich \
-  --input-dir tuiles_brutes/ \
+  --input-dir raw_tiles/ \
   --output enriched/ \
   --mode full \
   --preprocess \
@@ -456,12 +466,12 @@ ign-lidar-hd enrich \
   --num-workers 4
 ```
 
-### Exemple 3: Memory-Constrained System
+### Example 3: Memory-Constrained System
 
 ```bash
 # Use voxel downsampling to reduce memory usage
 ign-lidar-hd enrich \
-  --input-dir tuiles_brutes/ \
+  --input-dir raw_tiles/ \
   --output enriched/ \
   --mode full \
   --preprocess \
@@ -469,12 +479,12 @@ ign-lidar-hd enrich \
   --num-workers 2
 ```
 
-### Exemple 4: High-Quality Traitementing
+### Example 4: High-Quality Processing
 
 ```bash
 # Conservative preprocessing + RGB for best quality
 ign-lidar-hd enrich \
-  --input-dir tuiles_brutes/ \
+  --input-dir raw_tiles/ \
   --output enriched/ \
   --mode full \
   --preprocess \
@@ -493,7 +503,7 @@ ign-lidar-hd enrich \
 - [Implementation Guide](../../../PHASE1_SPRINT1_COMPLETE) - Technical implementation details
 - [Integration Details](../../../PHASE1_SPRINT2_COMPLETE) - CLI and processor integration
 - [CLI Commands](cli-commands.md) - Complete CLI reference
-- [Python API](../api/processor) - Traitementor API documentation
+- [Python API](../api/processor) - Processor API documentation
 
 ## References
 

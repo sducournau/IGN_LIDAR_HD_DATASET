@@ -1,15 +1,25 @@
 ---
 sidebar_position: 4
-title: Configuration Pipeline
-description: Exécutez des workflows complets avec des fichiers de configuration YAML
+title: Pipeline Configuration
+description: Execute complete workflows using YAML configuration files
 keywords: [pipeline, yaml, configuration, workflow, automation]
 ---
+
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
 
 # Pipeline Configuration
 
 Execute complete LiDAR processing workflows using declarative YAML configuration files. The pipeline command allows you to automate the entire process from download to patch creation.
 
-## Vue d'ensemble
+## Overview
 
 The `pipeline` command provides a powerful way to manage complex workflows:
 
@@ -23,14 +33,14 @@ The `pipeline` command provides a powerful way to manage complex workflows:
 ```mermaid
 graph LR
     A[YAML Config] --> B{Pipeline Command}
-    B --> C[Téléchargement Stage]
-    B --> D[Enrichissement Stage]
+    B --> C[Download Stage]
+    B --> D[Enrich Stage]
     B --> E[Patch Stage]
     C --> F[Raw LAZ Tiles]
     F --> D
-    D --> G[Enrichissemented LAZ<br/>+ Caractéristiques géométriques<br/>+ RGB Data]
+    D --> G[Enriched LAZ<br/>+ Geometric Features<br/>+ RGB Data]
     G --> E
-    E --> H[Patches d'entraînement<br/>NPZ Format]
+    E --> H[Training Patches<br/>NPZ Format]
 
     style A fill:#e1f5ff
     style B fill:#fff3cd
@@ -42,31 +52,31 @@ graph LR
 ```mermaid
 flowchart TD
     Start([Start]) --> Config[Load YAML Configuration]
-    Config --> HasTéléchargement{Téléchargement<br/>Configured?}
+    Config --> HasDownload{Download<br/>Configured?}
 
-    HasTéléchargement -->|Yes| Téléchargement[Téléchargement LiDAR Tiles<br/>from IGN Géoportail]
-    HasTéléchargement -->|No| HasEnrichissement{Enrichissement<br/>Configured?}
-    Téléchargement --> HasEnrichissement
+    HasDownload -->|Yes| Download[Download LiDAR Tiles<br/>from IGN Géoportail]
+    HasDownload -->|No| HasEnrich{Enrich<br/>Configured?}
+    Download --> HasEnrich
 
-    HasEnrichissement -->|Yes| Enrichissement[Enrichissement LAZ Files<br/>• Caractéristiques géométriques<br/>• RGB Augmentation]
-    HasEnrichissement -->|No| HasPatch{Patch<br/>Configured?}
-    Enrichissement --> HasPatch
+    HasEnrich -->|Yes| Enrich[Enrich LAZ Files<br/>• Geometric Features<br/>• RGB Augmentation]
+    HasEnrich -->|No| HasPatch{Patch<br/>Configured?}
+    Enrich --> HasPatch
 
-    HasPatch -->|Yes| Patch[Create Patches d'entraînement<br/>• Extraction patches<br/>• Data Augmentation<br/>• Save NPZ Format]
+    HasPatch -->|Yes| Patch[Create Training Patches<br/>• Extract Patches<br/>• Data Augmentation<br/>• Save NPZ Format]
     HasPatch -->|No| End([Complete])
     Patch --> End
 
     style Start fill:#e3f2fd
     style Config fill:#fff3cd
-    style Téléchargement fill:#bbdefb
-    style Enrichissement fill:#c8e6c9
+    style Download fill:#bbdefb
+    style Enrich fill:#c8e6c9
     style Patch fill:#f8bbd0
     style End fill:#e3f2fd
 ```
 
 ## Quick Start
 
-### 1. Create Exemple Configuration
+### 1. Create Example Configuration
 
 ```bash
 # Create a full pipeline configuration
@@ -112,30 +122,30 @@ Settings that apply to all stages:
 
 ```yaml
 global:
-  num_workers: 4 # Nombre de workers parallèles
-  output_dir: "data/" # Base output directory (optionnel)
+  num_workers: 4 # Number of parallel workers
+  output_dir: "data/" # Base output directory (optional)
 ```
 
-### Téléchargement Stage
+### Download Stage
 
-Téléchargement LiDAR tiles from IGN:
+Download LiDAR tiles from IGN:
 
 ```yaml
 download:
   bbox: "2.3, 48.8, 2.4, 48.9" # WGS84: lon_min,lat_min,lon_max,lat_max
-  output: "data/raw" # Sortie directory
+  output: "data/raw" # Output directory
   max_tiles: 10 # Optional: limit tiles
   num_workers: 3 # Optional: parallel downloads
 ```
 
-### Enrichissement Stage
+### Enrich Stage
 
-Enrichissement LAZ files with caractéristiques géométriques and RGB:
+Enrich LAZ files with geometric features and RGB:
 
 ```yaml
 enrich:
-  input_dir: "data/raw" # Entrée LAZ files
-  output: "data/enriched" # Sortie directory
+  input_dir: "data/raw" # Input LAZ files
+  output: "data/enriched" # Output directory
   mode: "full" # 'core' or 'full'
   k_neighbors: 10 # Neighbors for features
   use_gpu: true # GPU acceleration
@@ -152,8 +162,8 @@ Create training patches:
 
 ```yaml
 patch:
-  input_dir: "data/enriched" # Entrée LAZ files
-  output: "data/patches" # Sortie directory
+  input_dir: "data/enriched" # Input LAZ files
+  output: "data/patches" # Output directory
   lod_level: "LOD2" # 'LOD2' or 'LOD3'
   patch_size: 150.0 # Patch size in meters
   patch_overlap: 0.1 # Overlap ratio (0.0-1.0)
@@ -166,11 +176,11 @@ patch:
   force: false # Force reprocessing
 ```
 
-## Exemple Workflows
+## Example Workflows
 
 ### Full Pipeline
 
-Téléchargement, enrich, and create patches in one workflow:
+Download, enrich, and create patches in one workflow:
 
 ```yaml
 # pipeline_full.yaml
@@ -205,9 +215,9 @@ Run with:
 ign-lidar-hd pipeline pipeline_full.yaml
 ```
 
-### Enrichissement Only
+### Enrich Only
 
-Traitement existing tiles with caractéristiques géométriques and RGB:
+Process existing tiles with geometric features and RGB:
 
 ```yaml
 # pipeline_enrich.yaml
@@ -280,9 +290,9 @@ patch:
   augment: false
 ```
 
-### Regional Traitementing
+### Regional Processing
 
-Traitement different regions with specific settings:
+Process different regions with specific settings:
 
 ```yaml
 # paris_urban.yaml
@@ -430,7 +440,7 @@ global:
   num_workers: 8
 ```
 
-## Dépannage
+## Troubleshooting
 
 ### Configuration Not Found
 
@@ -459,7 +469,7 @@ python -c "import yaml; yaml.safe_load(open('config.yaml'))"
 ### Stage Failed
 
 ```
-Error: Enrichissement stage failed
+Error: Enrich stage failed
 ```
 
 Solution: Run stage separately to debug
@@ -470,7 +480,7 @@ ign-lidar-hd enrich --input-dir data/raw --output data/test
 
 ## See Also
 
-- [Enrichissement Command](../reference/cli-enrich)
+- [Enrich Command](../reference/cli-enrich)
 - [Patch Command](../reference/cli-patch)
-- [Téléchargement Command](../reference/cli-download)
-- [Exemple Configurations](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/config_examples)
+- [Download Command](../reference/cli-download)
+- [Example Configurations](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/config_examples)

@@ -1,10 +1,20 @@
 ---
 sidebar_position: 1
-title: Exemples de Configuration
-description: Exemples de configuration YAML réutilisables pour des workflows courants
+title: "Configuration" Examples
+description: Reusable YAML configuration examples for common workflows
 ---
 
-# Configuration Exemples
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
+
+# Configuration Examples
 
 This page contains reusable YAML configuration snippets that can be referenced from multiple guides to avoid duplication.
 
@@ -83,7 +93,7 @@ patch:
 
 ## Stage-Specific Templates
 
-### Téléchargement Only
+### Download Only
 
 ```yaml title="config/download-only.yaml"
 download:
@@ -92,7 +102,7 @@ download:
   max_tiles: 10
 ```
 
-### Enrichissement Only
+### Enrich Only
 
 ```yaml title="config/enrich-only.yaml"
 enrich:

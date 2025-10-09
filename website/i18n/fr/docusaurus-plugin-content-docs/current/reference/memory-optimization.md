@@ -1,9 +1,19 @@
 ---
 sidebar_position: 1
-title: Optimisation mémoire
-description: Guide de gestion de l'utilisation mémoire lors du traitement LiDAR
-keywords: [mémoire, optimisation, performance, dépannage]
+title: Memory Optimization
+description: "Guide" to managing memory usage during LiDAR processing
+keywords: [memory, optimization, performance, troubleshooting]
 ---
+
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
 
 # Memory Optimization Guide
 
@@ -13,7 +23,7 @@ Learn how to optimize memory usage and avoid out-of-memory errors when processin
 
 LiDAR processing is memory-intensive, especially for building component analysis. Here's what you need to know about memory usage patterns.
 
-### Memory Usage by Traitementing Mode
+### Memory Usage by Processing Mode
 
 #### Core Mode Features
 
@@ -54,8 +64,8 @@ Before processing starts, the system:
 ```bash
 # System automatically adjusts based on available memory
 ign-lidar-hd enrich \
-  --input-dir /chemin/vers/tiles/ \
-  --output /chemin/vers/enriched/ \
+  --input-dir /path/to/tiles/ \
+  --output /path/to/enriched/ \
   --mode full \
   --num-workers 4  # May be reduced automatically
 ```
@@ -65,16 +75,16 @@ ign-lidar-hd enrich \
 ```
 Available RAM: 16.2 GB
 High swap usage detected (65%) - reducing workers from 4 to 1
-Traitementing with 1 worker for safety
+Processing with 1 worker for safety
 ```
 
 ### 2. Sequential Batching
 
 For large files, the system automatically switches to sequential processing:
 
-- **Small files** (under 200MB): Traitement multiple files in parallel
+- **Small files** (under 200MB): Process multiple files in parallel
 - **Medium files** (200-300MB): Reduce batch size
-- **Large files** (over 300MB): Traitement one file at a time
+- **Large files** (over 300MB): Process one file at a time
 
 ### 3. Aggressive Chunking
 
@@ -128,7 +138,7 @@ ign-lidar-hd enrich \
 | 32GB       | 4-8 workers   | 8-12 workers |
 | 64GB+      | 8-16 workers  | 16+ workers  |
 
-### Force Conservative Traitementing
+### Force Conservative Processing
 
 For maximum safety on constrained systems:
 
@@ -164,7 +174,7 @@ Watch for these indicators of memory pressure:
 
 - **High swap usage** (over 50%)
 - **System becoming unresponsive**
-- **Traitement killed messages** in logs
+- **Process killed messages** in logs
 - **Decreasing available memory** over time
 
 ### Log Messages
@@ -178,14 +188,14 @@ The system provides helpful log messages:
 ✅ Memory check passed: 12.3GB available, 1.2GB needed
 ```
 
-## Dépannage Memory Issues
+## Troubleshooting Memory Issues
 
 ### Out of Memory Crashes
 
 **Symptoms:**
 
-- Traitement terminated abruptly
-- "Traitement pool was terminated" errors
+- Process terminated abruptly
+- "Process pool was terminated" errors
 - System freezes or becomes unresponsive
 
 **Solutions:**
@@ -200,10 +210,10 @@ ign-lidar-hd enrich \
   --num-workers 1
 ```
 
-2. **Traitement files individually:**
+2. **Process files individually:**
 
 ```bash
-# Traitement each file separately
+# Process each file separately
 for file in tiles/*.laz; do
     ign-lidar-hd enrich \
       --input-dir "$file" \
@@ -227,7 +237,7 @@ ign-lidar-hd enrich \
 
 **Symptoms:**
 
-- Traitementing very slow
+- Processing very slow
 - High swap usage
 - System warnings about low memory
 
@@ -244,7 +254,7 @@ sudo mkswap /swapfile
 sudo swapon /swapfile
 ```
 
-3. **Traitement smaller batches:**
+3. **Process smaller batches:**
 
 ```bash
 # Split large datasets into smaller chunks
@@ -257,14 +267,14 @@ find tiles/ -name "*.laz" | head -10 | xargs -I {} ign-lidar-hd enrich --input {
 
 - Memory usage keeps increasing
 - Eventually runs out of memory
-- Traitementing gets slower over time
+- Processing gets slower over time
 
 **Solutions:**
 
 1. **Restart processing periodically:**
 
 ```bash
-# Traitement in smaller batches
+# Process in smaller batches
 ign-lidar-hd enrich --input-dir batch1/ --output enriched/
 ign-lidar-hd enrich --input-dir batch2/ --output enriched/
 ```
@@ -341,20 +351,20 @@ ign-lidar-hd enrich \
 
 ### 4. Plan Disk Space
 
-Enrichissemented files are similar in size to input files:
+Enriched files are similar in size to input files:
 
-- **Entrée**: 300MB LAZ file
-- **Sortie**: ~310MB enriched LAZ file
+- **Input**: 300MB LAZ file
+- **Output**: ~310MB enriched LAZ file
 - **Temporary**: Up to 2x during processing
 
 Ensure sufficient disk space: `input_size × 3` for safety.
 
-### 5. Batch Traitementing Strategy
+### 5. Batch Processing Strategy
 
 For very large datasets:
 
 ```bash
-# Traitement by geographic region
+# Process by geographic region
 ign-lidar-hd enrich --input-dir paris_tiles/ --output enriched/
 ign-lidar-hd enrich --input-dir lyon_tiles/ --output enriched/
 
@@ -380,9 +390,9 @@ ign-lidar-hd enrich --input-dir tiles/ --output enriched/
 
 ```python
 # For programmatic usage
-from ign_lidar import LiDARTraitementor
+from ign_lidar import LiDARProcessor
 
-processor = LiDARTraitementor(
+processor = LiDARProcessor(
     max_memory_gb=8,        # Limit memory usage
     chunk_size=500_000,     # Smaller chunks
     n_jobs=2                # Fewer workers
@@ -391,6 +401,6 @@ processor = LiDARTraitementor(
 
 ## See Also
 
-- [Utilisation de base Guide](../guides/basic-usage) - Essential processing workflows
+- [Basic Usage Guide](../guides/basic-usage) - Essential processing workflows
 - [CLI Commands](../guides/cli-commands) - Command-line options
 - [Smart Skip Features](../features/smart-skip) - Resuming interrupted work

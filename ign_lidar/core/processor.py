@@ -52,6 +52,8 @@ class LiDARProcessor:
                  include_rgb: bool = False,
                  rgb_cache_dir: Path = None,
                  use_gpu: bool = False,
+                 use_gpu_chunked: bool = True,
+                 gpu_batch_size: int = 1_000_000,
                  preprocess: bool = False,
                  preprocess_config: dict = None,
                  use_stitching: bool = False,
@@ -83,6 +85,9 @@ class LiDARProcessor:
             rgb_cache_dir: Directory to cache orthophoto tiles
             use_gpu: If True, use GPU acceleration for feature computation
                     (requires CuPy and RAPIDS cuML)
+            use_gpu_chunked: If True, use chunked GPU processing for large tiles
+                            (>5M points, requires CuPy and RAPIDS cuML)
+            gpu_batch_size: Batch size for GPU processing (default: 1M points)
             preprocess: If True, apply preprocessing to reduce artifacts
                        (SOR, ROR, optional voxel downsampling)
             preprocess_config: Custom preprocessing configuration dict
@@ -107,6 +112,8 @@ class LiDARProcessor:
         self.include_rgb = include_rgb
         self.rgb_cache_dir = rgb_cache_dir
         self.use_gpu = use_gpu
+        self.use_gpu_chunked = use_gpu_chunked
+        self.gpu_batch_size = gpu_batch_size
         self.preprocess = preprocess
         self.use_stitching = use_stitching
         self.buffer_size = buffer_size
@@ -794,8 +801,16 @@ class LiDARProcessor:
                     unit="tile"
                 ))
             
-            total_patches = sum(results)
-            tiles_skipped = sum(1 for r in results if r == 0)
+            # Handle both dict and int return types for backwards compatibility
+            num_patches_list = []
+            for r in results:
+                if isinstance(r, dict):
+                    num_patches_list.append(r.get('num_patches', 0))
+                else:
+                    num_patches_list.append(r)
+            
+            total_patches = sum(num_patches_list)
+            tiles_skipped = sum(1 for n in num_patches_list if n == 0)
             tiles_processed = total_tiles - tiles_skipped
         else:
             logger.info("🔄 Processing sequentially")
@@ -803,11 +818,17 @@ class LiDARProcessor:
             
             total_patches = 0
             for idx, laz_file in enumerate(laz_files, 1):
-                num_patches = self.process_tile(
+                result = self.process_tile(
                     laz_file, output_dir,
                     tile_idx=idx, total_tiles=total_tiles,
                     skip_existing=skip_existing
                 )
+                # Handle both dict and int return types for backwards compatibility
+                if isinstance(result, dict):
+                    num_patches = result.get('num_patches', 0)
+                else:
+                    num_patches = result
+                    
                 total_patches += num_patches
                 
                 if num_patches == 0:
@@ -847,8 +868,8 @@ class LiDARProcessor:
         laz_file: Path,
         output_dir: Path,
         architecture: str = 'pointnet++',
-        save_enriched: bool = False,
-        only_enriched: bool = False,
+        save_enriched: Optional[bool] = None,
+        only_enriched: Optional[bool] = None,
         output_format: str = 'npz',
         build_spatial_index: bool = False,
         tile_idx: int = 0,
@@ -868,10 +889,10 @@ class LiDARProcessor:
             architecture: Target DL architecture ('pointnet++', 'octree', 
                          'transformer', 'sparse_conv', 'multi')
             save_enriched: If True, save intermediate enriched LAZ file
-                          (default: False for faster processing)
+                          (default: None, uses self.save_enriched_laz)
             only_enriched: If True, only save enriched LAZ and skip patch creation
-                          (default: False)
-            output_format: Output format - 'npz', 'hdf5', 'pytorch', 'multi'
+                          (default: None, uses self.only_enriched_laz)
+            output_format: Output format - 'npz', 'hdf5', 'pytorch', 'laz', 'multi'
             build_spatial_index: If True, build octree/KNN spatial index
             tile_idx: Current tile index (for progress display)
             total_tiles: Total number of tiles (for progress display)
@@ -888,6 +909,12 @@ class LiDARProcessor:
             }
         """
         from ..io.formatters.multi_arch_formatter import MultiArchitectureFormatter
+        
+        # Use instance variables if not explicitly provided
+        if save_enriched is None:
+            save_enriched = self.save_enriched_laz
+        if only_enriched is None:
+            only_enriched = self.only_enriched_laz
         
         progress_prefix = f"[{tile_idx}/{total_tiles}]" if total_tiles > 0 else ""
         
@@ -1122,17 +1149,78 @@ class LiDARProcessor:
         if not use_boundary_aware:
             # Choose GPU or CPU based on configuration
             if self.use_gpu:
-                from ..features.features_gpu import compute_all_features_with_gpu
-                normals, curvature, height, geo_features = (
-                    compute_all_features_with_gpu(
-                        points=points,
-                        classification=classification,
-                        k=self.k_neighbors,
-                        auto_k=(self.k_neighbors is None),
-                        use_gpu=True
-                    )
+                # Check if we should use chunked GPU processing for large tiles
+                num_points = len(points)
+                use_chunked = (
+                    self.use_gpu_chunked and 
+                    num_points > 5_000_000  # Use chunked for >5M points
                 )
+                
+                if use_chunked:
+                    # Use chunked GPU processing for large tiles
+                    try:
+                        from ..features.features_gpu_chunked import (
+                            GPUChunkedFeatureComputer,
+                            GPU_AVAILABLE,
+                            CUML_AVAILABLE
+                        )
+                        
+                        if GPU_AVAILABLE and CUML_AVAILABLE:
+                            logger.info(
+                                f"🚀 Using GPU chunked processing "
+                                f"({num_points:,} points, "
+                                f"batch_size={self.gpu_batch_size:,})"
+                            )
+                            
+                            # Initialize chunked computer
+                            computer = GPUChunkedFeatureComputer(
+                                chunk_size=self.gpu_batch_size,
+                                use_gpu=True,
+                                show_progress=False
+                            )
+                            
+                            # Compute all features with chunked processing
+                            k = self.k_neighbors if self.k_neighbors else 20
+                            normals, curvature, height, geo_features = (
+                                computer.compute_all_features_chunked(
+                                    points=points,
+                                    classification=classification,
+                                    k=k
+                                )
+                            )
+                            
+                            # Add verticality if not present
+                            if 'verticality' not in geo_features:
+                                verticality = np.abs(normals[:, 2])
+                                geo_features['verticality'] = verticality
+                        else:
+                            # Fall back to standard GPU if chunked not available
+                            logger.warning(
+                                "GPU chunked requested but not available. "
+                                "Using standard GPU."
+                            )
+                            use_chunked = False
+                    except Exception as e:
+                        logger.warning(
+                            f"GPU chunked processing failed: {e}. "
+                            "Falling back to standard GPU."
+                        )
+                        use_chunked = False
+                
+                if not use_chunked:
+                    # Use standard GPU processing
+                    from ..features.features import compute_all_features_with_gpu
+                    normals, curvature, height, geo_features = (
+                        compute_all_features_with_gpu(
+                            points=points,
+                            classification=classification,
+                            k=self.k_neighbors,
+                            auto_k=(self.k_neighbors is None),
+                            use_gpu=True
+                        )
+                    )
             else:
+                # CPU processing
                 normals, curvature, height, geo_features = (
                     compute_all_features_optimized(
                         points=points,
@@ -1183,17 +1271,51 @@ class LiDARProcessor:
             enriched_path = output_dir / "enriched" / f"{laz_file.stem}_enriched.laz"
             enriched_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # Create new LAS with features
-            new_las = laspy.LasData(las.header)
-            new_las.x = las.x
-            new_las.y = las.y
-            new_las.z = las.z
-            new_las.intensity = las.intensity
-            new_las.return_number = las.return_number
-            new_las.classification = las.classification
+            # Create new LAS with features (using FILTERED points only)
+            # After preprocessing, points/intensity/etc are filtered arrays
+            # so we need to create a new LasData from scratch with the correct size
+            # Determine appropriate point format based on whether RGB is needed
+            original_format_id = las.header.point_format.id
+            
+            # If we have RGB, use a format that supports it
+            if rgb is not None:
+                # Map to RGB-compatible formats
+                # Format 2,3,5 (LAS 1.2-1.3) or 7,8,10 (LAS 1.4) support RGB
+                if original_format_id in [0, 1]:
+                    target_format = 2  # Basic + RGB
+                elif original_format_id in [6]:
+                    target_format = 7  # LAS 1.4 + RGB
+                elif original_format_id in [2, 3, 5, 7, 8, 10]:
+                    target_format = original_format_id  # Already supports RGB
+                else:
+                    target_format = 7  # Default to LAS 1.4 with RGB
+            else:
+                target_format = original_format_id
+            
+            # Create a fresh header with the appropriate point format
+            new_header = laspy.LasHeader(version=las.header.version, point_format=target_format)
+            new_header.offsets = las.header.offsets
+            new_header.scales = las.header.scales
+            
+            # Create new LAS with the correct size
+            new_las = laspy.LasData(new_header)
+            new_las.x = points[:, 0]
+            new_las.y = points[:, 1]
+            new_las.z = points[:, 2]
+            new_las.intensity = (intensity * 65535.0).astype(np.uint16)
+            new_las.return_number = return_number.astype(np.uint8)
+            new_las.classification = classification
+            
+            # Add RGB FIRST if computed (before extra dimensions)
+            if rgb is not None:
+                # Now the point format should support RGB
+                new_las.red = (rgb[:, 0] * 65535.0).astype(np.uint16)
+                new_las.green = (rgb[:, 1] * 65535.0).astype(np.uint16)
+                new_las.blue = (rgb[:, 2] * 65535.0).astype(np.uint16)
             
             # Add extra dimensions for features
             try:
+                # Core geometric features (always computed)
                 new_las.add_extra_dim(laspy.ExtraBytesParams(
                     name="normal_x", type=np.float32
                 ))
@@ -1206,14 +1328,68 @@ class LiDARProcessor:
                 new_las.add_extra_dim(laspy.ExtraBytesParams(
                     name="curvature", type=np.float32
                 ))
+                new_las.add_extra_dim(laspy.ExtraBytesParams(
+                    name="height", type=np.float32
+                ))
                 
                 new_las.normal_x = normals[:, 0]
                 new_las.normal_y = normals[:, 1]
                 new_las.normal_z = normals[:, 2]
                 new_las.curvature = curvature
+                new_las.height = height
+                
+                # Add geometric features if computed
+                if geo_features is not None:
+                    if isinstance(geo_features, dict):
+                        # Dictionary format (from GPU/boundary-aware processing)
+                        for feature_name, feature_values in geo_features.items():
+                            new_las.add_extra_dim(laspy.ExtraBytesParams(
+                                name=feature_name, type=np.float32
+                            ))
+                            setattr(new_las, feature_name, feature_values)
+                    else:
+                        # Array format (from CPU processing)
+                        feature_names = ['planarity', 'linearity', 'sphericity', 'verticality']
+                        for i, feature_name in enumerate(feature_names[:geo_features.shape[1]]):
+                            new_las.add_extra_dim(laspy.ExtraBytesParams(
+                                name=feature_name, type=np.float32
+                            ))
+                            setattr(new_las, feature_name, geo_features[:, i])
+                
+                # Add NIR if available
+                if nir is not None:
+                    new_las.add_extra_dim(laspy.ExtraBytesParams(
+                        name="nir", type=np.float32
+                    ))
+                    new_las.nir = nir
+                
+                # Add NDVI if computed
+                if ndvi is not None:
+                    new_las.add_extra_dim(laspy.ExtraBytesParams(
+                        name="ndvi", type=np.float32
+                    ))
+                    new_las.ndvi = ndvi
                 
                 new_las.write(enriched_path)
-                logger.info(f"  ✓ Enriched LAZ saved: {enriched_path.name}")
+                
+                # Log what was saved
+                features_saved = ['normals', 'curvature', 'height']
+                if geo_features is not None:
+                    if isinstance(geo_features, dict):
+                        features_saved.extend(geo_features.keys())
+                    else:
+                        features_saved.extend(['planarity', 'linearity', 'sphericity', 'verticality'])
+                if rgb is not None:
+                    features_saved.append('RGB')
+                if nir is not None:
+                    features_saved.append('NIR')
+                if ndvi is not None:
+                    features_saved.append('NDVI')
+                
+                logger.info(
+                    f"  ✓ Enriched LAZ saved: {enriched_path.name} "
+                    f"({len(features_saved)} feature groups: {', '.join(features_saved)})"
+                )
             except Exception as e:
                 logger.warning(f"  ⚠️  Failed to save enriched LAZ: {e}")
         
@@ -1336,6 +1512,52 @@ class LiDARProcessor:
                     with h5py.File(save_path, 'w') as f:
                         for k, v in arch_data.items():
                             f.create_dataset(k, data=v, compression='gzip')
+                
+                elif output_format == 'laz':
+                    filename = f"{laz_file.stem}_{arch}_patch_{patch_idx:04d}.laz"
+                    save_path = output_dir / filename
+                    
+                    # Create LAZ file from patch data
+                    # Get points from arch_data (handle different formats)
+                    if 'points' in arch_data:
+                        patch_points = arch_data['points']
+                    elif 'xyz' in arch_data:
+                        patch_points = arch_data['xyz']
+                    else:
+                        logger.warning(f"No points found in arch_data for {filename}")
+                        continue
+                    
+                    # Create minimal LAS header (LAS 1.2, point format 0)
+                    from laspy import LasHeader, LasData
+                    header = LasHeader(point_format=0, version="1.2")
+                    header.offsets = np.min(patch_points, axis=0)
+                    header.scales = np.array([0.01, 0.01, 0.01])
+                    
+                    patch_las = LasData(header)
+                    patch_las.x = patch_points[:, 0]
+                    patch_las.y = patch_points[:, 1]
+                    patch_las.z = patch_points[:, 2]
+                    
+                    # Add features as extra dimensions if available
+                    if 'features' in arch_data and arch_data['features'] is not None:
+                        features_data = arch_data['features']
+                        if features_data.shape[1] > 0:
+                            # Add first few features as extra dimensions (limit to avoid bloat)
+                            max_features = min(10, features_data.shape[1])
+                            for i in range(max_features):
+                                try:
+                                    patch_las.add_extra_dim(laspy.ExtraBytesParams(
+                                        name=f"feature_{i}", type=np.float32
+                                    ))
+                                    setattr(patch_las, f"feature_{i}", features_data[:, i].astype(np.float32))
+                                except Exception as e:
+                                    logger.debug(f"Could not add feature {i}: {e}")
+                    
+                    # Add labels if available
+                    if 'labels' in arch_data:
+                        patch_las.classification = arch_data['labels'].astype(np.uint8)
+                    
+                    patch_las.write(save_path)
                 
                 num_saved += 1
         

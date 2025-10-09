@@ -248,9 +248,13 @@ flowchart LR
     style LOD3_Process fill:#fff3e0
 ```
 
-## 🎯 Enhanced Enrich Pipeline (v1.7.1)
+## 🎯 Enhanced Enrich Pipeline
 
 Detailed view of the complete enrich workflow with auto-params and preprocessing.
+
+:::info Feature Availability
+Auto-params and advanced preprocessing features have been available since v1.7.1 and continue to work in v2.0+.
+:::
 
 ```mermaid
 flowchart TD

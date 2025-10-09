@@ -136,6 +136,8 @@ def process_lidar(cfg: DictConfig) -> None:
         k_neighbors=cfg.features.k_neighbors,
         include_rgb=cfg.features.use_rgb,
         use_gpu=cfg.processor.use_gpu,
+        use_gpu_chunked=cfg.features.use_gpu_chunked,
+        gpu_batch_size=cfg.features.gpu_batch_size,
         preprocess=cfg.preprocess.enabled,
         preprocess_config=preprocess_config,
         use_stitching=cfg.stitching.enabled,

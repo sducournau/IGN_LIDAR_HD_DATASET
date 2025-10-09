@@ -1,9 +1,17 @@
 ---
 sidebar_position: 3
-title: "Augmentation RGB GPU"
-description: "Augmentation RGB 24x plus rapide avec accélération GPU"
+title: Augmentation RGB avec GPU
+description: Augmentation RGB 24x plus rapide avec accélération GPU
 keywords: [gpu, rgb, orthophoto, color, performance]
 ---
+
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
 
 # GPU-Accelerated RGB Augmentation
 
@@ -14,7 +22,7 @@ keywords: [gpu, rgb, orthophoto, color, performance]
 
 ---
 
-## 📊 Vue d'ensemble
+## 📊 Overview
 
 GPU-accelerated RGB augmentation provides dramatic speedups for adding colors from IGN orthophotos to LiDAR point clouds. By moving color interpolation to the GPU and implementing smart caching, we achieve ~24x performance improvement over CPU-based methods.
 
@@ -42,19 +50,19 @@ pip install cupy-cuda11x  # For CUDA 11.x
 pip install cupy-cuda12x  # For CUDA 12.x
 ```
 
-### Utilisation de base
+### Basic Usage
 
 ```python
-from ign_lidar.processor import LiDARTraitementor
+from ign_lidar.processor import LiDARProcessor
 
 # Enable GPU for both features and RGB
-processor = LiDARTraitementor(
+processor = LiDARProcessor(
     include_rgb=True,
     rgb_cache_dir='rgb_cache/',
     use_gpu=True  # Enable GPU acceleration
 )
 
-# Traitement a tile
+# Process a tile
 processor.process_tile('input.laz', 'output.laz')
 ```
 
@@ -243,7 +251,7 @@ GPU RGB automatically falls back to CPU if:
 
 ```python
 # Will use CPU if GPU unavailable
-processor = LiDARTraitementor(
+processor = LiDARProcessor(
     include_rgb=True,
     use_gpu=True  # Gracefully falls back to CPU
 )
@@ -260,7 +268,7 @@ processor = LiDARTraitementor(
 python scripts/benchmarks/benchmark_rgb_gpu.py
 ```
 
-**Expected Sortie:**
+**Expected Output:**
 
 ```
 ================================================================================
@@ -309,7 +317,7 @@ Status: ✓ PASS
 
 ---
 
-## 🐛 Dépannage
+## 🐛 Troubleshooting
 
 ### GPU Not Available
 
@@ -350,7 +358,7 @@ fetcher.gpu_cache_max_size = 5  # Smaller cache
 fetcher.clear_gpu_cache()
 
 # Or disable GPU RGB (keep feature GPU)
-processor = LiDARTraitementor(
+processor = LiDARProcessor(
     include_rgb=True,
     use_gpu=True  # GPU for features only
 )
@@ -378,48 +386,48 @@ print(f"GPU cache: {fetcher.gpu_cache is not None}")
 
 ---
 
-## 📚 Exemples
+## 📚 Examples
 
-### Exemple 1: Basic RGB GPU Usage
+### Example 1: Basic RGB GPU Usage
 
 ```python
-from ign_lidar.processor import LiDARTraitementor
+from ign_lidar.processor import LiDARProcessor
 
 # Create processor with GPU RGB
-processor = LiDARTraitementor(
+processor = LiDARProcessor(
     mode='full',
     include_rgb=True,
     rgb_cache_dir='cache/',
     use_gpu=True
 )
 
-# Traitement single tile
+# Process single tile
 stats = processor.process_tile('tile.laz', 'output.laz')
-print(f"Traitemented {stats['num_points']:,} points")
+print(f"Processed {stats['num_points']:,} points")
 ```
 
-### Exemple 2: Batch Traitementing with GPU
+### Example 2: Batch Processing with GPU
 
 ```python
-from ign_lidar.processor import LiDARTraitementor
+from ign_lidar.processor import LiDARProcessor
 from pathlib import Path
 
-processor = LiDARTraitementor(
+processor = LiDARProcessor(
     include_rgb=True,
     rgb_cache_dir='cache/',
     use_gpu=True
 )
 
-# Traitement directory
-input_dir = Path('tuiles_brutes/')
-output_dir = Path('tuiles_enrichies/')
+# Process directory
+input_dir = Path('raw_tiles/')
+output_dir = Path('enriched_tiles/')
 
 for laz_file in input_dir.glob('*.laz'):
-    print(f"Traitementing {laz_file.name}...")
+    print(f"Processing {laz_file.name}...")
     processor.process_tile(laz_file, output_dir / laz_file.name)
 ```
 
-### Exemple 3: Low-Level RGB Interpolation
+### Example 3: Low-Level RGB Interpolation
 
 ```python
 import numpy as np
@@ -502,7 +510,7 @@ Where:
 
 ## See Also
 
-- **[GPU Vue d'ensemble](overview.md)** - Setup GPU acceleration
+- **[GPU Overview](overview.md)** - Setup GPU acceleration
 - **[GPU Features](features.md)** - Feature computation details
 - **[RGB Augmentation (CPU)](../features/rgb-augmentation)** - CPU version
 - **[Architecture](../architecture)** - System architecture

@@ -1,17 +1,27 @@
 ---
 sidebar_position: 3
-title: Intégration QGIS
-description: Guide pour utiliser les fichiers LAZ enrichis dans QGIS pour la visualisation et l'analyse
-keywords: [qgis, visualisation, laz, nuage de points, sig]
+title: QGIS Integration
+description: "Guide" for using enriched LAZ files in QGIS for visualization and analysis
+keywords: [qgis, visualization, laz, point cloud, gis]
 ---
+
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
 
 # QGIS Integration Guide
 
-Learn how to visualize and analyze enriched LiDAR files in QGIS with caractéristiques géométriques for building component analysis.
+Learn how to visualize and analyze enriched LiDAR files in QGIS with geometric features for building component analysis.
 
-## Vue d'ensemble
+## Overview
 
-Enrichissemented LAZ files from this library are fully compatible with QGIS and include 30+ caractéristiques géométriques perfect for:
+Enriched LAZ files from this library are fully compatible with QGIS and include 30+ geometric features perfect for:
 
 - Building component visualization
 - Surface analysis (walls, roofs, ground)
@@ -29,18 +39,18 @@ Enrichissemented LAZ files from this library are fully compatible with QGIS and 
 
 ```bash
 # Check if QGIS can read point clouds
-# Open QGIS and look for: Layer > Add Layer > Add Nuage de points Layer
+# Open QGIS and look for: Layer > Add Layer > Add Point Cloud Layer
 ```
 
-## Étape 1: Enrichissement LAZ Files
+## Step 1: Enrich LAZ Files
 
-First, create enriched LAZ files with caractéristiques géométriques:
+First, create enriched LAZ files with geometric features:
 
 ```bash
-# Enrichissement tiles with all features
+# Enrich tiles with all features
 ign-lidar-hd enrich \
-  --input-dir /chemin/vers/tuiles_brutes/ \
-  --output /chemin/vers/tuiles_enrichies/ \
+  --input-dir /path/to/raw_tiles/ \
+  --output /path/to/enriched_tiles/ \
   --mode full \
   --num-workers 4
 ```
@@ -52,12 +62,12 @@ This adds 30+ attributes to each point including:
 - **Building analysis**: verticality, wall_score, roof_score
 - **Height metrics**: height_above_ground, vertical_std
 
-## Étape 2: Load in QGIS
+## Step 2: Load in QGIS
 
-### Import Nuage de points
+### Import Point Cloud
 
 1. **Open QGIS**
-2. **Menu**: Layer → Add Layer → Add Nuage de points Layer
+2. **Menu**: Layer → Add Layer → Add Point Cloud Layer
 3. **Browse**: Select your enriched LAZ file
 4. **Click Add**: Point cloud appears in the map
 
@@ -65,7 +75,7 @@ This adds 30+ attributes to each point including:
 
 The point cloud will initially display with default elevation coloring. You'll see your LiDAR data as colored points.
 
-## Étape 3: Visualize Features
+## Step 3: Visualize Features
 
 ### Access Symbology
 
@@ -76,7 +86,7 @@ The point cloud will initially display with default elevation coloring. You'll s
 
 ### Available Features
 
-#### Core Caractéristiques géométriques
+#### Core Geometric Features
 
 | Feature      | Description            | Range  | Use Case                             |
 | ------------ | ---------------------- | ------ | ------------------------------------ |
@@ -103,7 +113,7 @@ The point cloud will initially display with default elevation coloring. You'll s
 | `normal_y` | Y component of surface normal | -1 to 1 | Surface orientation |
 | `normal_z` | Z component of surface normal | -1 to 1 | Surface orientation |
 
-## Étape 4: Recommended Visualizations
+## Step 4: Recommended Visualizations
 
 ### Building Wall Detection
 
@@ -114,7 +124,7 @@ The point cloud will initially display with default elevation coloring. You'll s
 - **Attribute**: `wall_score`
 - **Color Ramp**: RdYlGn (Red-Yellow-Green)
 - **Min**: 0.0, **Max**: 1.0
-- **Filter**: `wall_score > 0.7` (optionnel)
+- **Filter**: `wall_score > 0.7` (optional)
 
 **Interpretation**:
 
@@ -198,11 +208,11 @@ Use QGIS expressions for complex filtering:
 3. **Enter expression** using attribute names
 4. **Test** and **Apply**
 
-## Visualization Exemples
+## Visualization Examples
 
-### Exemple 1: Building Component Classification
+### Example 1: Building Component Classification
 
-**Étapes**:
+**Steps**:
 
 1. Load enriched LAZ file
 2. Create **3 separate layers** (duplicate the layer)
@@ -212,23 +222,23 @@ Use QGIS expressions for complex filtering:
 
 **Result**: Color-coded building components
 
-### Exemple 2: Surface Quality Analysis
+### Example 2: Surface Quality Analysis
 
-**Étapes**:
+**Steps**:
 
 1. Visualize by `roughness` attribute
 2. Use discrete classes: Smooth (0-0.1), Medium (0.1-0.3), Rough (0.3+)
 3. Apply to identify material types
 
-### Exemple 3: Architectural Detail Detection
+### Example 3: Architectural Detail Detection
 
-**Étapes**:
+**Steps**:
 
 1. Filter: `linearity > 0.6 AND height_above_ground > 2`
 2. Color by `height_above_ground`
 3. Result: Building edges and architectural details colored by height
 
-## Dépannage
+## Troubleshooting
 
 ### Issue: LAZ File Won't Open
 
@@ -278,7 +288,7 @@ print('Extra dimensions:', las.point_format.extra_dimension_names)
 1. **Limit point display**: Set maximum points in layer properties
 2. **Use Level of Detail**: Enable in rendering settings
 3. **Clip to area**: Use spatial filter for region of interest
-4. **Simplify**: Traitement smaller tiles or downsample
+4. **Simplify**: Process smaller tiles or downsample
 
 ## Data Export
 
@@ -300,7 +310,7 @@ print('Extra dimensions:', las.point_format.extra_dimension_names)
 ### Large Dataset Handling
 
 ```bash
-# Traitement smaller tiles for better QGIS performance
+# Process smaller tiles for better QGIS performance
 ign-lidar-hd process \
   --input large_tile.laz \
   --output patches/ \
@@ -332,7 +342,7 @@ ign-lidar-hd process \
 
 ## See Also
 
-- [Utilisation de base Guide](basic-usage.md) - Creating enriched LAZ files
-- [CLI Commands](cli-commands.md) - Enrichissementment command reference
-- [QGIS Dépannage](qgis-troubleshooting.md) - Common issues and solutions
+- [Basic Usage Guide](basic-usage.md) - Creating enriched LAZ files
+- [CLI Commands](cli-commands.md) - Enrichment command reference
+- [QGIS Troubleshooting](qgis-troubleshooting.md) - Common issues and solutions
 - [Memory Optimization](../reference/memory-optimization) - Performance tuning

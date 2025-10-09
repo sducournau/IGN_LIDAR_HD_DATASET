@@ -75,6 +75,20 @@ def load_hydra_config(overrides: Optional[list] = None) -> DictConfig:
     # Initialize Hydra with config directory
     with initialize_config_dir(config_dir=config_dir, version_base=None):
         cfg = compose(config_name="config", overrides=overrides or [])
+        
+        # Handle output shorthand immediately after loading
+        # This ensures cfg.output is always a dict, never a string
+        if hasattr(cfg, 'output') and isinstance(cfg.output, str):
+            output_mode = cfg.output
+            cfg.output = OmegaConf.create({
+                "format": "npz",
+                "save_enriched_laz": output_mode in ['both', 'enriched_only'],
+                "only_enriched_laz": output_mode == 'enriched_only',
+                "save_stats": True,
+                "save_metadata": output_mode != 'enriched_only',
+                "compression": None
+            })
+        
         return cfg
 
 
@@ -145,6 +159,23 @@ def create_default_config():
 
 def process_lidar(cfg: DictConfig) -> None:
     """Process LiDAR tiles to create training patches."""
+    # CRITICAL: Handle 'output' shorthand parameter FIRST
+    # This must happen before any code tries to access cfg.output properties
+    # Maps: output=enriched_only -> output.only_enriched_laz=True
+    #       output=both -> output.save_enriched_laz=True
+    #       output=patches -> (default, no enriched LAZ)
+    if hasattr(cfg, 'output') and isinstance(cfg.output, str):
+        output_mode = cfg.output
+        # Replace string with proper OutputConfig
+        cfg.output = OmegaConf.create({
+            "format": "npz",
+            "save_enriched_laz": output_mode in ['both', 'enriched_only'],
+            "only_enriched_laz": output_mode == 'enriched_only',
+            "save_stats": True,
+            "save_metadata": output_mode != 'enriched_only',  # No metadata for enriched_only mode
+            "compression": None
+        })
+    
     # Setup logging
     setup_logging(cfg)
     
@@ -270,6 +301,10 @@ def process_command(overrides):
                 current = config_dict
                 for k in keys[:-1]:
                     if k not in current:
+                        current[k] = {}
+                    elif not isinstance(current[k], dict):
+                        # If the key exists but is not a dict (e.g., a string value),
+                        # we need to convert it to a dict to support nested keys
                         current[k] = {}
                     current = current[k]
                 current[keys[-1]] = value

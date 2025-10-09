@@ -131,9 +131,32 @@ if [[ $confirm != [yY] && $confirm != [yY][eE][sS] ]]; then
     exit 0
 fi
 
+# Ask about skip existing
+echo ""
+echo -e "${YELLOW}Note: If this version already exists on PyPI, the upload will fail.${NC}"
+echo "Options:"
+echo "1) Skip existing files (recommended - won't fail if version exists)"
+echo "2) Attempt upload (will fail if version already exists)"
+read -p "Enter your choice (1 or 2, default: 1): " skip_choice
+
+SKIP_EXISTING=""
+case $skip_choice in
+    2)
+        echo -e "${YELLOW}Will attempt to upload all files (may fail if version exists)${NC}"
+        ;;
+    1|"")
+        SKIP_EXISTING="--skip-existing"
+        echo -e "${YELLOW}Will skip files that already exist on $REPO${NC}"
+        ;;
+    *)
+        echo -e "${RED}Invalid choice. Using default (skip existing).${NC}"
+        SKIP_EXISTING="--skip-existing"
+        ;;
+esac
+
 # Upload to PyPI
 echo -e "${YELLOW}Uploading to $REPO...${NC}"
-twine upload $REPO_URL dist/*
+twine upload $REPO_URL $SKIP_EXISTING dist/*
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Upload successful!${NC}"

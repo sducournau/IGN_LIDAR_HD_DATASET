@@ -1,15 +1,25 @@
 ---
-sidebar_position: 9
-title: Traitement Régional
-description: Guide pour l'adaptation régionale des paramètres de traitement LiDAR
-keywords: [régional, adaptation, paramètres, géographie, spécialisation]
+sidebar_position: 6
+title: Regional Processing
+description: Region-specific configurations for French territories
+keywords: [regions, france, configuration, IGN, territories]
 ---
 
-# Regional Traitementing
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
+
+# Regional Processing
 
 Optimized configurations for different French regions to account for geographic and climatic variations.
 
-## Vue d'ensemble
+## Overview
 
 Different regions in France require specific processing parameters to account for:
 
@@ -250,15 +260,15 @@ reunion_config = Config(
 )
 ```
 
-## Usage Exemples
+## Usage Examples
 
-### Single Region Traitementing
+### Single Region Processing
 
 ```python
-from ign_lidar import Traitementor, regional_configs
+from ign_lidar import Processor, regional_configs
 
 # Use predefined regional configuration
-processor = Traitementor(
+processor = Processor(
     config=regional_configs.get_config("ile-de-france")
 )
 
@@ -269,10 +279,10 @@ result = processor.process_tile("paris_75001.las")
 
 ```python
 import os
-from ign_lidar import Traitementor, regional_configs
+from ign_lidar import Processor, regional_configs
 
 def process_by_region(input_dir, output_dir):
-    """Traitement files with region-specific configurations."""
+    """Process files with region-specific configurations."""
 
     region_mapping = {
         '75': 'ile-de-france',    # Paris
@@ -293,14 +303,14 @@ def process_by_region(input_dir, output_dir):
             region = region_mapping.get(dept_code, 'ile-de-france')
             config = regional_configs.get_config(region)
 
-            # Traitement with appropriate configuration
-            processor = Traitementor(config=config)
+            # Process with appropriate configuration
+            processor = Processor(config=config)
 
             input_path = os.path.join(input_dir, filename)
             output_path = os.path.join(output_dir, f"processed_{filename}")
 
             processor.process_file(input_path, output_path)
-            print(f"Traitemented {filename} with {region} configuration")
+            print(f"Processed {filename} with {region} configuration")
 ```
 
 ### Custom Regional Adaptation

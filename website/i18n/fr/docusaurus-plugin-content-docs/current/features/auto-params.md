@@ -1,15 +1,25 @@
 ---
-sidebar_position: 9
-title: Paramètres Automatiques (Français)
-description: Détection automatique et optimisation des paramètres pour les flux de traitement LiDAR
-keywords: [automatisation, paramètres, optimisation, flux, français]
+sidebar_position: 8
+title: Auto-Parameters
+description: Automatic parameter detection and optimization for LiDAR processing workflows
+keywords: [automation, parameters, optimization, workflow, auto-params]
 ---
 
-# Auto-Paramètres
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
+
+# Auto-Parameters
 
 Automatic parameter detection and optimization system for streamlined LiDAR processing workflows.
 
-## Vue d'ensemble
+## Overview
 
 The auto-parameters system intelligently analyzes LiDAR data characteristics and automatically selects optimal processing parameters, reducing manual configuration and improving results consistency.
 
@@ -425,7 +435,7 @@ user_interaction = ui_system.guide_parameter_selection(
         'Parameter explanation guide',
         'Video tutorials (English)',
         'Best practices documentation',
-        'Dépannage FAQ'
+        'Troubleshooting FAQ'
     ]
 }
 ```
@@ -472,7 +482,7 @@ except ParameterOptimizationError as e:
             'estimated_success_rate': 0.90
         },
         {
-            'solution': 'Alternative Traitementing Method',
+            'solution': 'Alternative Processing Method',
             'description': 'Use simplified building detection workflow for low-density data',
             'difficulty': 'Beginner',
             'estimated_success_rate': 0.65
@@ -579,7 +589,7 @@ english_best_practices = {
 }
 ```
 
-### DépannageGuide
+### TroubleshootingGuide
 
 ```python
 # Common issues and solutions in English
@@ -616,7 +626,7 @@ troubleshooting_guide_english = {
         ]
     },
     'inconsistent_results': {
-        'problem': 'Paramètres vary significantly between similar datasets',
+        'problem': 'Parameters vary significantly between similar datasets',
         'stability_improvements': [
             'Use ensemble averaging across multiple runs',
             'Implement parameter bounds and constraints',
@@ -631,4 +641,4 @@ troubleshooting_guide_english = {
 - [Parameter Configuration](../configuration/parameters)
 - [Machine Learning Guide](../guides/machine-learning)
 - [Quality Assessment](../reference/quality-control)
-- [Dépannage](../troubleshooting/common-issues)
+- [Troubleshooting](../troubleshooting/common-issues)

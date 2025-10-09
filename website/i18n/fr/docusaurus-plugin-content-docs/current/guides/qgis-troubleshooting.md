@@ -2,7 +2,17 @@
 sidebar_position: 4
 ---
 
-# QGIS Dépannage
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
+
+# QGIS Troubleshooting
 
 Common issues and solutions when working with QGIS and the IGN LiDAR HD library.
 
@@ -25,10 +35,10 @@ qgis --version
 pip install laspy numpy
 ```
 
-### Chargement des données Issues
+### Data Loading Issues
 
 **Issue**: LAS files not displaying in QGIS
-**Solution**: Use the Nuage de points plugin or convert to compatible format:
+**Solution**: Use the Point Cloud plugin or convert to compatible format:
 
 ```python
 # Convert LAS to compatible format
@@ -42,7 +52,7 @@ converter.las_to_shapefile("input.las", "output.shp")
 
 ```python
 config = Config(
-    chunk_size=1000000,  # Traitement 1M points at a time
+    chunk_size=1000000,  # Process 1M points at a time
     memory_limit=8.0     # Limit to 8GB RAM
 )
 ```

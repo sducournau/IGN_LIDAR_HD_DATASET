@@ -1,11 +1,19 @@
 ---
 sidebar_position: 1
-title: "Vue d'ensemble de l'Accélération GPU"
-description: "Configuration et utilisation de l'accélération GPU pour un traitement LiDAR plus rapide"
+title: Vue d'ensemble de l'Accélération GPU
+description: Configuration et utilisation de l'accélération GPU pour un traitement LiDAR plus rapide
 keywords: [gpu, cuda, cupy, performance, acceleration]
 ---
 
-# GPU Acceleration Vue d'ensemble
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+# GPU Acceleration Overview
 
 **Available in:** v1.3.0+  
 **Performance Boost:** 5-10x faster than CPU  
@@ -15,7 +23,7 @@ keywords: [gpu, cuda, cupy, performance, acceleration]
 🚧 **Major GPU Enhancement in Progress** - We're implementing comprehensive GPU acceleration across the entire pipeline. See our detailed roadmap in the "Future Development" section below for upcoming features.
 :::
 
-## Vue d'ensemble
+## Overview
 
 GPU acceleration can provide **4-10x speedup** for feature computation compared to CPU processing, making it essential for large-scale LiDAR datasets and production pipelines.
 
@@ -43,7 +51,7 @@ GPU acceleration is most beneficial for point clouds with >100K points. For smal
 
 - **CUDA Toolkit:** 11.0 or higher (11.8 or 12.x recommended)
 - **Python:** 3.8 or higher
-- **Python packages:** CuPy (required), RAPIDS cuML (optionnel, better performance)
+- **Python packages:** CuPy (required), RAPIDS cuML (optional, better performance)
 
 ### Tested GPU Models
 
@@ -57,7 +65,7 @@ GPU acceleration is most beneficial for point clouds with >100K points. For smal
 
 ## Installation
 
-### Étape 1: Check CUDA Availability
+### Step 1: Check CUDA Availability
 
 First, verify you have an NVIDIA GPU and CUDA installed:
 
@@ -70,9 +78,9 @@ nvidia-smi
 
 If `nvidia-smi` is not found, you need to install NVIDIA drivers and CUDA Toolkit first.
 
-### Étape 2: Install CUDA Toolkit
+### Step 2: Install CUDA Toolkit
 
-Visit [NVIDIA CUDA Téléchargements](https://developer.nvidia.com/cuda-downloads) and follow instructions for your OS.
+Visit [NVIDIA CUDA Downloads](https://developer.nvidia.com/cuda-downloads) and follow instructions for your OS.
 
 **Recommended versions:**
 
@@ -89,7 +97,7 @@ GPU acceleration works on WSL2! Requirements:
 See [NVIDIA WSL guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) for details.
 :::
 
-### Étape 3: Install Python GPU Dependencies
+### Step 3: Install Python GPU Dependencies
 
 :::warning CuPy Installation
 CuPy must be installed separately as it requires a specific version matching your CUDA Toolkit. Installing via `pip install ign-lidar-hd[gpu]` will **not work** as it would attempt to build CuPy from source.
@@ -123,7 +131,7 @@ pip install cuml-cu12     # For CUDA 12.x
 - **CuPy + RAPIDS**: Best performance, up to 10x speedup
 - **Conda for RAPIDS**: More reliable for RAPIDS cuML dependencies
 
-### Étape 4: Verify Installation
+### Step 4: Verify Installation
 
 ```python
 from ign_lidar.features_gpu import GPU_AVAILABLE, CUML_AVAILABLE
@@ -167,21 +175,21 @@ The `--use-gpu` flag will automatically fall back to CPU if GPU is not available
 
 ### Python API
 
-#### Using LiDARTraitementor
+#### Using LiDARProcessor
 
 ```python
 from pathlib import Path
-from ign_lidar.processor import LiDARTraitementor
+from ign_lidar.processor import LiDARProcessor
 
 # Create processor with GPU acceleration
-processor = LiDARTraitementor(
+processor = LiDARProcessor(
     lod_level='LOD2',
     patch_size=150.0,
     num_points=16384,
     use_gpu=True  # ⚡ Enable GPU
 )
 
-# Traitement tiles - automatic GPU acceleration
+# Process tiles - automatic GPU acceleration
 num_patches = processor.process_tile(
     laz_file=Path("data/tiles/tile.laz"),
     output_dir=Path("data/patches")
@@ -242,7 +250,7 @@ import os
 # Set before importing ign_lidar
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
-from ign_lidar.processor import LiDARTraitementor
+from ign_lidar.processor import LiDARProcessor
 ```
 
 ## When to Use GPU
@@ -253,7 +261,7 @@ from ign_lidar.processor import LiDARTraitementor
 - Batch processing of many tiles
 - Production pipelines requiring speed
 - Real-time or interactive applications
-- Traitementing 10+ tiles
+- Processing 10+ tiles
 
 ### ❌ Use CPU for:
 
@@ -267,25 +275,25 @@ from ign_lidar.processor import LiDARTraitementor
 
 ```mermaid
 flowchart TD
-    Start([Need to Traitement LiDAR]) --> Size{Nuage de points Size}
+    Start([Need to Process LiDAR]) --> Size{Point Cloud Size}
 
     Size -->|< 10K points| UseCPU[Use CPU]
-    Size -->|10K - 100K points| Consider{Batch Traitementing?}
+    Size -->|10K - 100K points| Consider{Batch Processing?}
     Size -->|> 100K points| UseGPU[Use GPU]
 
     Consider -->|Yes, many tiles| UseGPU
     Consider -->|No, 1-2 tiles| Either[Either CPU or GPU]
 
     UseGPU --> Check{GPU Available?}
-    Check -->|Yes| GPUTraitement[⚡ GPU Traitementing]
+    Check -->|Yes| GPUProcess[⚡ GPU Processing]
     Check -->|No| Fallback[Automatic CPU Fallback]
 
-    UseCPU --> CPUTraitement[CPU Traitementing]
-    Either --> CPUTraitement
-    Fallback --> CPUTraitement
+    UseCPU --> CPUProcess[CPU Processing]
+    Either --> CPUProcess
+    Fallback --> CPUProcess
 
-    style GPUTraitement fill:#e8f5e8
-    style CPUTraitement fill:#e3f2fd
+    style GPUProcess fill:#e8f5e8
+    style CPUProcess fill:#e3f2fd
     style Fallback fill:#fff3e0
 ```
 
@@ -314,7 +322,7 @@ Based on testing with various GPUs:
 
 ```mermaid
 xychart-beta
-    title "Traitementing Speed Comparison (Tiles per Hour)"
+    title "Processing Speed Comparison (Tiles per Hour)"
     x-axis [Small Tiles, Medium Tiles, Large Tiles, Very Large Tiles]
     y-axis "Tiles per Hour" 0 --> 60
     bar "CPU (8 cores)" [12, 8, 4, 2]
@@ -341,7 +349,7 @@ python scripts/benchmarks/benchmark_gpu.py --multi-size
 
 ### Optimizing GPU Performance
 
-1. **Batch processing**: Traitement multiple tiles in sequence to amortize GPU initialization overhead
+1. **Batch processing**: Process multiple tiles in sequence to amortize GPU initialization overhead
 2. **Appropriate k-neighbors**: Larger k = more computation benefit from GPU
 3. **Monitor memory**: Use `nvidia-smi` to check GPU memory usage
 4. **Use workers=1 with GPU**: GPU parallelizes internally, multiple workers may compete for GPU resources
@@ -352,12 +360,12 @@ The library handles GPU errors gracefully:
 
 ```python
 # Automatic CPU fallback
-processor = LiDARTraitementor(use_gpu=True)
+processor = LiDARProcessor(use_gpu=True)
 
 # If GPU fails or unavailable:
 # - Warning logged
 # - Automatically uses CPU
-# - Traitementing continues successfully
+# - Processing continues successfully
 ```
 
 ### Monitoring GPU Usage
@@ -375,7 +383,7 @@ watch -n 1 nvidia-smi
 nvidia-smi -l 1
 ```
 
-## Dépannage
+## Troubleshooting
 
 ### "GPU requested but CuPy not available"
 
@@ -398,7 +406,7 @@ pip install cupy-cuda12x  # for CUDA 12.x
 
 **Solutions:**
 
-1. Traitement tiles in smaller batches
+1. Process tiles in smaller batches
 2. Reduce batch size in GPU computer
 3. Use CPU for very large tiles
 
@@ -438,7 +446,7 @@ import warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='cupy')
 ```
 
-### Dépannage Decision Tree
+### Troubleshooting Decision Tree
 
 ```mermaid
 flowchart TD
@@ -496,15 +504,15 @@ See [NVIDIA WSL guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html)
 
 ### Q: What about Google Colab / Kaggle?
 
-**A:** Yes, works great in cloud notebooks with GPU runtime. Exemple:
+**A:** Yes, works great in cloud notebooks with GPU runtime. Example:
 
 ```python
 # Install in Colab
 !pip install ign-lidar-hd[gpu]
 
 # Use GPU (automatically detected)
-from ign_lidar.processor import LiDARTraitementor
-processor = LiDARTraitementor(use_gpu=True)
+from ign_lidar.processor import LiDARProcessor
+processor = LiDARProcessor(use_gpu=True)
 ```
 
 ### Q: Does this work with TensorFlow/PyTorch?
@@ -529,7 +537,7 @@ We're continuously expanding GPU acceleration capabilities:
 
 ### Phase 3: Advanced GPU Pipeline (In Progress)
 
-- **Universal GPU Traitementing**: Full pipeline GPU acceleration
+- **Universal GPU Processing**: Full pipeline GPU acceleration
 - **Multi-GPU Support**: Distributed processing across multiple GPUs
 - **Advanced Algorithms**: GPU-based spatial indexing and neighborhood search
 - **Memory Optimization**: Advanced memory pooling and streaming
@@ -541,8 +549,8 @@ We're continuously expanding GPU acceleration capabilities:
 
 - 🔄 **GPU Memory Pooling**: Reduce allocation overhead
 - 📊 **GPU Performance Dashboard**: Real-time monitoring
-- 🌐 **Multi-GPU Traitementing**: Parallel tile processing
-- ⚡ **Streaming Traitementing**: Handle datasets larger than GPU memory
+- 🌐 **Multi-GPU Processing**: Parallel tile processing
+- ⚡ **Streaming Processing**: Handle datasets larger than GPU memory
 - 🎯 **Auto-GPU Selection**: Intelligent GPU/CPU task distribution
 
 :::info Stay Updated

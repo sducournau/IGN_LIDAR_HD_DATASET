@@ -1,13 +1,23 @@
 ---
 sidebar_position: 1
-title: Installation Rapide
-description: Installer IGN LiDAR HD en quelques minutes
-keywords: [installation, pip, setup, démarrage rapide]
+title: "Installation" Guide
+description: Complete installation guide for IGN LiDAR HD Processing Library
+keywords: [installation, pip, setup, gpu, cuda]
 ---
+
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
 
 # Installation Guide
 
-Complete installation guide for IGN LiDAR HD Traitementing Library. Get up and running in minutes with our step-by-step instructions.
+Complete installation guide for IGN LiDAR HD Processing Library. Get up and running in minutes with our step-by-step instructions.
 
 ## 📋 Requirements
 
@@ -140,7 +150,7 @@ import ign_lidar
 print(f"IGN LiDAR HD version: {ign_lidar.__version__}")
 
 # Test main classes
-from ign_lidar import LiDARTraitementor, IGNLiDARTéléchargementer
+from ign_lidar import LiDARProcessor, IGNLiDARDownloader
 print("✓ Installation successful!")
 ```
 
@@ -159,7 +169,7 @@ else:
     print("⚠️  GPU not detected - using CPU")
 ```
 
-## 🔧 Dépannage
+## 🔧 Troubleshooting
 
 ### Command Not Found
 
@@ -188,12 +198,12 @@ python -c "import cupy; print('CUDA works!')"
 nvcc --version
 ```
 
-## 🚀 Prochaines étapes
+## 🚀 Next Steps
 
 Now that you're installed:
 
 1. 📖 Follow the [Quick Start Guide](../guides/quick-start)
-2. 🖥️ Try [Utilisation de base Exemples](../guides/basic-usage)
+2. 🖥️ Try [Basic Usage Examples](../guides/basic-usage)
 3. ⚡ Configure [GPU acceleration](../gpu/overview) (if available)
 4. 📋 Explore [Pipeline Configuration](../features/pipeline-configuration)
 
@@ -201,4 +211,4 @@ Now that you're installed:
 
 - 📚 Read the [Complete Documentation](/)
 - 🐛 Report issues on [GitHub Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)
-- 💬 Browse [Exemples](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples)
+- 💬 Browse [Examples](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/tree/main/examples)

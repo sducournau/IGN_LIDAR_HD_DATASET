@@ -1,11 +1,21 @@
 ---
 sidebar_position: 8
-title: Guide de dépannage
-description: Solutions aux problèmes courants de traitement LiDAR
-keywords: [dépannage, erreurs, problèmes, solutions, aide]
+title: "Dépannage" Guide
+description: Solutions to common LiDAR processing issues
+keywords: [troubleshooting, errors, problems, solutions, help]
 ---
 
-# Dépannage Guide
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
+
+# Troubleshooting Guide
 
 Solutions to common issues encountered when processing LiDAR data with IGN LiDAR HD.
 
@@ -61,7 +71,7 @@ python -c "import torch; print(torch.cuda.is_available())"
 2. Install CUDA Toolkit
 3. Install PyTorch with CUDA support
 
-## Traitementing Issues
+## Processing Issues
 
 ### Memory Errors
 
@@ -76,10 +86,10 @@ MemoryError: Unable to allocate array
 1. Reduce chunk size
 
    ```python
-   processor = Traitementor(chunk_size=100000)
+   processor = Processor(chunk_size=100000)
    ```
 
-2. Traitement in small batches
+2. Process in small batches
 
    ```python
    for batch in split_large_file(input_file, max_points=500000):
@@ -88,7 +98,7 @@ MemoryError: Unable to allocate array
 
 3. Use pagination
    ```python
-   processor = Traitementor(use_pagination=True, page_size=50000)
+   processor = Processor(use_pagination=True, page_size=50000)
    ```
 
 ### GPU Out of Memory
@@ -104,7 +114,7 @@ CUDA out of memory. Tried to allocate 2.00 GiB
 1. Limit GPU memory
 
    ```python
-   processor = Traitementor(gpu_memory_limit=0.5)
+   processor = Processor(gpu_memory_limit=0.5)
    ```
 
 2. Clear GPU cache
@@ -116,7 +126,7 @@ CUDA out of memory. Tried to allocate 2.00 GiB
 
 3. Hybrid CPU/GPU processing
    ```python
-   processor = Traitementor(
+   processor = Processor(
        use_gpu=True,
        fallback_to_cpu=True
    )
@@ -156,7 +166,7 @@ python -c "import laspy; f=laspy.read('input.las'); print('OK')"
 
 ## Performance Issues
 
-### Slow Traitementing
+### Slow Processing
 
 **Problem**: Very poor performance
 
@@ -175,7 +185,7 @@ prof.print_bottlenecks()
 1. Optimize parameters
 
    ```python
-   processor = Traitementor(
+   processor = Processor(
        n_jobs=-1,  # All cores
        chunk_size=1000000,
        use_gpu=True
@@ -205,7 +215,7 @@ prof.print_bottlenecks()
 1. Optimize buffers
 
    ```python
-   processor = Traitementor(
+   processor = Processor(
        read_buffer_size='128MB',
        write_buffer_size='128MB',
        io_threads=4
@@ -215,12 +225,12 @@ prof.print_bottlenecks()
 2. Use fast storage
 
    - Prefer NVMe SSDs
-   - Avoid network drives pour traiter
+   - Avoid network drives for processing
 
 3. Adaptive compression
    ```python
    # Balance compression/speed
-   processor = Traitementor(
+   processor = Processor(
        output_format='laz',
        compression_level=1
    )
@@ -339,7 +349,7 @@ OrthophotoError: Cannot read orthophoto file
 
 2. Adaptive preprocessing
    ```python
-   processor = Traitementor(
+   processor = Processor(
        ground_classification=True,
        noise_removal=True
    )
@@ -353,7 +363,7 @@ OrthophotoError: Cannot read orthophoto file
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
-processor = Traitementor(verbose=True)
+processor = Processor(verbose=True)
 ```
 
 ### Save Logs
@@ -411,8 +421,8 @@ ign-lidar-hd validate input.las
 
    ```python
    # Minimal code reproducing the issue
-   from ign_lidar import Traitementor
-   processor = Traitementor()
+   from ign_lidar import Processor
+   processor = Processor()
    # Error here...
    ```
 
@@ -424,7 +434,7 @@ ign-lidar-hd validate input.las
 
 - **GitHub Repository**: Issues and discussions
 - **Documentation**: Detailed guides and API
-- **Exemples**: Sample scripts
+- **Examples**: Sample scripts
 - **Community**: Discussion forums
 
 ## Quick Solutions

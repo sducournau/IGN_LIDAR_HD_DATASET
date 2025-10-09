@@ -1,9 +1,19 @@
 ---
 sidebar_position: 2
-title: API d'Augmentation RGB
-description: API pour intégrer les données couleur des orthophotos avec les nuages de points LiDAR
-keywords: [api, rgb, couleur, orthophoto, augmentation]
+title: RGB Augmentation API
+description: API for integrating orthophoto color data with LiDAR point clouds
+keywords: [api, rgb, color, orthophoto, augmentation]
 ---
+
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
 
 # RGB Augmentation API Reference
 
@@ -11,14 +21,14 @@ The RGB Augmentation API provides tools for integrating IGN orthophoto data with
 
 ## Core Classes
 
-### RGBTraitementor
+### RGBProcessor
 
 Main class for RGB augmentation operations.
 
 ```python
-from ign_lidar import RGBTraitementor
+from ign_lidar import RGBProcessor
 
-processor = RGBTraitementor(
+processor = RGBProcessor(
     interpolation_method='bilinear',
     quality_threshold=0.8,
     enable_caching=True
@@ -31,7 +41,7 @@ processor = RGBTraitementor(
 
 Adds RGB values to point cloud from orthophoto.
 
-**Paramètres:**
+**Parameters:**
 
 - `points` (numpy.ndarray): Point coordinates (N×3)
 - `orthophoto_path` (str): Path to orthophoto file
@@ -42,9 +52,9 @@ Adds RGB values to point cloud from orthophoto.
 
 ### `batch_augmentation(tile_list, ortho_dir)`
 
-Traitement multiple tiles with RGB augmentation.
+Process multiple tiles with RGB augmentation.
 
-**Paramètres:**
+**Parameters:**
 
 - `tile_list` (list): List of tile paths
 - `ortho_dir` (str): Directory containing orthophotos
@@ -64,7 +74,7 @@ Traitement multiple tiles with RGB augmentation.
 ### Quality Control
 
 ```python
-processor = RGBTraitementor(
+processor = RGBProcessor(
     quality_threshold=0.9,  # Color accuracy threshold
     validate_coordinates=True,  # Check point-photo alignment
     handle_missing_data=True   # Fill gaps gracefully
@@ -89,7 +99,7 @@ except InsufficientOverlapError:
 ### GPU Acceleration
 
 ```python
-processor = RGBTraitementor(
+processor = RGBProcessor(
     use_gpu=True,
     gpu_batch_size=50000,
     enable_gpu_caching=True
@@ -99,7 +109,7 @@ processor = RGBTraitementor(
 ### Memory Management
 
 ```python
-# Traitement large datasets efficiently
+# Process large datasets efficiently
 def process_large_dataset(points, orthophoto):
     chunk_size = 100000
     rgb_results = []
@@ -112,16 +122,16 @@ def process_large_dataset(points, orthophoto):
     return np.concatenate(rgb_results)
 ```
 
-## Exemples
+## Examples
 
 ### Basic RGB Augmentation
 
 ```python
 import numpy as np
-from ign_lidar import RGBTraitementor
+from ign_lidar import RGBProcessor
 
 # Initialize processor
-processor = RGBTraitementor()
+processor = RGBProcessor()
 
 # Load point cloud
 points = np.load('building_points.npy')
@@ -136,22 +146,22 @@ rgb_colors = processor.augment_point_cloud(
 enhanced_points = np.column_stack([points, rgb_colors])
 ```
 
-### Batch Traitementing with Quality Control
+### Batch Processing with Quality Control
 
 ```python
-processor = RGBTraitementor(
+processor = RGBProcessor(
     quality_threshold=0.85,
     validate_coordinates=True
 )
 
 results = processor.batch_augmentation(
     tile_list=['tile1.las', 'tile2.las'],
-    ortho_dir='/chemin/vers/orthophotos/'
+    ortho_dir='/path/to/orthophotos/'
 )
 ```
 
 ## Related Documentation
 
 - [Features API](./features)
-- [Traitementor API](./processor)
+- [Processor API](./processor)
 - [GPU Acceleration Guide](../guides/gpu-acceleration)

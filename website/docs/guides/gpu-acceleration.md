@@ -32,7 +32,7 @@ The hybrid mode uses an intelligent **per-chunk KDTree strategy** that avoids gl
 
 ### Real-World Results (17M points, NVIDIA RTX 4080 16GB)
 
-**v1.7.5 Performance (Optimized)**:
+**Current Performance (Optimized)**:
 
 | Mode                    | Processing Time   | Speedup | Requirements             |
 | ----------------------- | ----------------- | ------- | ------------------------ |
@@ -40,8 +40,8 @@ The hybrid mode uses an intelligent **per-chunk KDTree strategy** that avoids gl
 | Hybrid (CuPy + sklearn) | 7-10 min → 2 min  | 25-30x  | CuPy + CUDA 12.0+        |
 | Full GPU (RAPIDS cuML)  | 3-5 min → 1-2 min | 30-60x  | RAPIDS cuML + CUDA 12.0+ |
 
-:::tip v1.7.5 Optimization
-The v1.7.5 release includes major performance optimizations that benefit **all modes** (CPU, Hybrid, Full GPU). Per-chunk KDTree strategy and smaller chunk sizes provide 5-10x speedup automatically!
+:::tip Automatic Performance Optimizations
+IGN LiDAR HD includes major performance optimizations that benefit **all modes** (CPU, Hybrid, Full GPU). Per-chunk KDTree strategy and smaller chunk sizes provide 5-10x speedup automatically! These optimizations have been available since v1.7.5 and continue in v2.0+.
 :::
 
 ### Operation Breakdown

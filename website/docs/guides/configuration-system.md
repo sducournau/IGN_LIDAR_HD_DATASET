@@ -878,9 +878,9 @@ ign-lidar-hd process \
 
 ## 🔗 External Resources
 
-- **Hydra Documentation**: <https://hydra.cc/>
-- **OmegaConf**: <https://omegaconf.readthedocs.io/>
-- **Configuration Patterns**: <https://hydra.cc/docs/patterns/overview/>
+- **Hydra Documentation**: [https://hydra.cc/](https://hydra.cc/)
+- **OmegaConf**: [https://omegaconf.readthedocs.io/](https://omegaconf.readthedocs.io/)
+- **Configuration Patterns**: [https://hydra.cc/docs/patterns/overview/](https://hydra.cc/docs/patterns/overview/)
 
 ---
 

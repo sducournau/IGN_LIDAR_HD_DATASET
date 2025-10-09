@@ -1,16 +1,26 @@
 ---
-sidebar_position: 4
-title: Accélération GPU
-description: Utiliser l'accélération GPU pour un traitement LiDAR plus rapide
+sidebar_position: 6
+title: "GPU" Acceleration
+description: Leverage GPU computing for faster LiDAR processing
 keywords:
-  [gpu, cuda, accélération, performance, optimisation, cuml, rapids, cupy]
+  [gpu, cuda, acceleration, performance, optimization, cuml, rapids, cupy]
 ---
+
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
+
+
 
 # GPU Acceleration
 
 GPU acceleration significantly speeds up LiDAR processing workflows, providing **6-20x speedup** for large-scale datasets and complex feature extraction tasks.
 
-## Vue d'ensemble
+## Overview
 
 The IGN LiDAR HD processor supports GPU acceleration with three performance modes:
 
@@ -25,23 +35,23 @@ The hybrid mode uses an intelligent **per-chunk KDTree strategy** that avoids gl
 - **Geometric Feature Extraction**: Surface normals, curvature, planarity, verticality
 - **KNN Search**: GPU-accelerated k-nearest neighbors (with RAPIDS cuML)
 - **PCA Computation**: GPU-based principal component analysis (with RAPIDS cuML)
-- **Nuage de points Filtering**: Parallel preprocessing and noise reduction
+- **Point Cloud Filtering**: Parallel preprocessing and noise reduction
 - **RGB/NIR Augmentation**: GPU-optimized orthophoto integration
 
 ## 🚀 Performance Benchmarks
 
 ### Real-World Results (17M points, NVIDIA RTX 4080 16GB)
 
-**v1.7.5 Performance (Optimized)**:
+**Current Performance (Optimized)**:
 
-| Mode                    | Traitementing Time   | Speedup | Requirements             |
+| Mode                    | Processing Time   | Speedup | Requirements             |
 | ----------------------- | ----------------- | ------- | ------------------------ |
 | CPU-Only                | 60 min → 12 min   | 5x      | None (optimized!)        |
 | Hybrid (CuPy + sklearn) | 7-10 min → 2 min  | 25-30x  | CuPy + CUDA 12.0+        |
 | Full GPU (RAPIDS cuML)  | 3-5 min → 1-2 min | 30-60x  | RAPIDS cuML + CUDA 12.0+ |
 
-:::tip v1.7.5 Optimization
-The v1.7.5 release includes major performance optimizations that benefit **all modes** (CPU, Hybrid, Full GPU). Per-chunk KDTree strategy and smaller chunk sizes provide 5-10x speedup automatically!
+:::tip Automatic Performance Optimizations
+IGN LiDAR HD includes major performance optimizations that benefit **all modes** (CPU, Hybrid, Full GPU). Per-chunk KDTree strategy and smaller chunk sizes provide 5-10x speedup automatically! These optimizations have been available since v1.7.5 and continue in v2.0+.
 :::
 
 ### Operation Breakdown
@@ -51,7 +61,7 @@ The v1.7.5 release includes major performance optimizations that benefit **all m
 | Feature Extraction | 45 min   | 8 min      | 3 min    | 15x          |
 | KNN Search         | 30 min   | 15 min     | 2 min    | 15x          |
 | PCA Computation    | 10 min   | 8 min      | 1 min    | 10x          |
-| Batch Traitementing   | 120 min  | 20 min     | 8 min    | 15x          |
+| Batch Processing   | 120 min  | 20 min     | 8 min    | 15x          |
 
 ## 🔧 Setup Requirements
 
@@ -60,7 +70,7 @@ The v1.7.5 release includes major performance optimizations that benefit **all m
 - **GPU**: NVIDIA GPU with CUDA Compute Capability 6.0+ (Pascal or newer)
 - **Memory**: Minimum 4GB VRAM (8GB+ recommended, 16GB for large tiles)
 - **Driver**: CUDA 12.0+ compatible NVIDIA driver
-- **System**: 32GB+ RAM recommended pour traiter large tiles
+- **System**: 32GB+ RAM recommended for processing large tiles
 
 ### Recommended Hardware
 
@@ -122,7 +132,7 @@ python scripts/verify_gpu_setup.py
 For WSL2/Linux systems, use our automated installation script:
 
 ```bash
-# Téléchargement and run the installation script
+# Download and run the installation script
 wget https://raw.githubusercontent.com/sducournau/IGN_LIDAR_HD_DATASET/main/install_cuml.sh
 chmod +x install_cuml.sh
 ./install_cuml.sh
@@ -167,7 +177,7 @@ ign-lidar-hd enrich \
   --rgb-cache-dir cache/rgb \
   --infrared-cache-dir cache/infrared
 
-# Traitement specific tiles
+# Process specific tiles
 ign-lidar-hd enrich \
   --input tile1.laz tile2.laz \
   --output enriched/ \
@@ -178,23 +188,23 @@ ign-lidar-hd enrich \
 ### Python API
 
 ```python
-from ign_lidar import LiDARTraitementor
+from ign_lidar import LiDARProcessor
 
 # Initialize with GPU support
-processor = LiDARTraitementor(
+processor = LiDARProcessor(
     lod_level="LOD2",
     use_gpu=True,
     num_workers=4
 )
 
-# Traitement a single tile
+# Process a single tile
 patches = processor.process_tile(
     "data/tile.laz",
     "output/",
     enable_rgb=True
 )
 
-# Traitement directory with GPU
+# Process directory with GPU
 patches = processor.process_directory(
     "data/",
     "output/",
@@ -227,7 +237,7 @@ patch:
 
 Then run: `ign-lidar-hd pipeline config.yaml`
 
-## 🐛 Dépannage
+## 🐛 Troubleshooting
 
 ### Common Issues
 
@@ -294,7 +304,7 @@ conda install -c rapidsai -c conda-forge -c nvidia cuml=24.10 -y
 
 **Solutions**:
 
-1. **Traitement smaller tiles**: Split large files into smaller chunks
+1. **Process smaller tiles**: Split large files into smaller chunks
 2. **Reduce chunk size**: The processor automatically chunks large point clouds
 3. **Close other GPU applications**: Free up VRAM
 4. **Use a GPU with more memory**: 16GB+ recommended for large tiles
@@ -363,9 +373,9 @@ ign-lidar-hd enrich --input-dir data/ --output enriched/  # No --use-gpu flag
 - **CUDA**: 13.0
 - **Test Tile**: 17M points (typical IGN LiDAR HD tile)
 
-### Traitementing Time Comparison
+### Processing Time Comparison
 
-| Configuration           | Traitementing Time | Speedup | Notes                         |
+| Configuration           | Processing Time | Speedup | Notes                         |
 | ----------------------- | --------------- | ------- | ----------------------------- |
 | CPU-Only (sklearn)      | 60 min          | 1x      | Baseline                      |
 | Hybrid (CuPy + sklearn) | 7-10 min        | 6-8x    | Per-chunk KDTree optimization |
@@ -389,7 +399,7 @@ ign-lidar-hd enrich --input-dir data/ --output enriched/  # No --use-gpu flag
 | Hybrid (CuPy + sklearn) | 6 GB       | 16 GB      | 22 GB |
 | Full GPU (RAPIDS cuML)  | 8 GB       | 12 GB      | 20 GB |
 
-### Batch Traitementing (100 tiles)
+### Batch Processing (100 tiles)
 
 - **CPU-Only**: ~100 hours
 - **Hybrid Mode**: ~14 hours (7x speedup)
@@ -403,7 +413,7 @@ All three modes produce **identical results** (verified with feature correlation
 
 - [Quick Start Guide](./quick-start)
 - [Performance Optimization](./performance)
-- [Dépannage](./troubleshooting)
+- [Troubleshooting](./troubleshooting)
 - [Pipeline Configuration](../api/pipeline-config)
 - [Installation Guide](../installation/quick-start)
 
@@ -438,12 +448,12 @@ watch -n 1 nvidia-smi
 nvidia-smi dmon -s pucvmet -d 1
 ```
 
-### 4. Batch Traitementing Tips
+### 4. Batch Processing Tips
 
 - **Use --force cautiously**: Only reprocess when needed
 - **Enable smart caching**: Use `--rgb-cache-dir` and `--infrared-cache-dir`
 - **Parallelize I/O**: Use `--num-workers` for concurrent file operations
-- **Traitement strategically**: Start with urban tiles (higher point density) to test settings
+- **Process strategically**: Start with urban tiles (higher point density) to test settings
 
 ### 5. Hardware Recommendations
 
@@ -480,7 +490,7 @@ The system automatically manages GPU memory:
 Currently, the library uses a single GPU (device 0). For multi-GPU processing:
 
 ```bash
-# Traitement different directories on different GPUs
+# Process different directories on different GPUs
 CUDA_VISIBLE_DEVICES=0 ign-lidar-hd enrich --input dir1/ --output out1/ --use-gpu &
 CUDA_VISIBLE_DEVICES=1 ign-lidar-hd enrich --input dir2/ --output out2/ --use-gpu &
 ```

@@ -1,9 +1,17 @@
 ---
 sidebar_position: 4
 title: API de Configuration
-description: Configuration system for LiDAR processing pipelines
+description: Système de configuration pour les pipelines de traitement LiDAR
 keywords: [configuration, settings, parameters, pipeline, api]
 ---
+
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
 
 # Configuration API
 
@@ -41,10 +49,10 @@ config_dict = {
 config = Config.from_dict(config_dict)
 ```
 
-### Traitementing Configuration
+### Processing Configuration
 
 ```python
-class TraitementingConfig:
+class ProcessingConfig:
     """Configuration for data processing parameters."""
 
     def __init__(self,
@@ -309,11 +317,11 @@ class ConfigValidator:
 
 ## Configuration Templates
 
-### Urban Traitementing Template
+### Urban Processing Template
 
 ```yaml
 # urban_template.yaml
-name: "Urban Traitementing Template"
+name: "Urban Processing Template"
 description: "Optimized for dense urban environments"
 
 processing:
@@ -339,11 +347,11 @@ features:
     tunnels: true
 ```
 
-### Rural Traitementing Template
+### Rural Processing Template
 
 ```yaml
 # rural_template.yaml
-name: "Rural Traitementing Template"
+name: "Rural Processing Template"
 description: "Optimized for rural and natural areas"
 
 processing:
@@ -478,7 +486,7 @@ def config():
 
 @config.command()
 @click.option('--template', help='Template name')
-@click.option('--output', help='Sortie file path')
+@click.option('--output', help='Output file path')
 def generate(template, output):
     """Generate configuration template."""
 
@@ -565,7 +573,7 @@ def load_secure_config(config_path):
 
 ## Related Documentation
 
-- [Traitementing Guide](../guides/getting-started)
+- [Processing Guide](../guides/getting-started)
 - [Performance Guide](../guides/performance)
 - [API Reference](./features)
 - [CLI Reference](./cli)

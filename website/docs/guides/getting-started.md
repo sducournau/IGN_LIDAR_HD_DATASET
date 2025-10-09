@@ -101,7 +101,7 @@ Check your system configuration:
 ign-lidar-hd system-info
 
 # Expected output:
-# IGN LiDAR HD v1.7.1
+# IGN LiDAR HD v2.0.2
 # Python: 3.11.5
 # Platform: Linux-6.2.0-39-generic
 # CPU Cores: 16

@@ -1,26 +1,36 @@
 ---
 sidebar_position: 1
-title: Détection intelligente de saut
-description: Ignorer automatiquement les téléchargements, fichiers enrichis et patches existants
-keywords: [saut, idempotent, reprendre, workflow]
+title: Smart Skip Detection
+description: Automatically skip existing downloads, enriched files, and patches
+keywords: [skip, idempotent, resume, workflow]
 ---
 
-Détection intelligente de saut prevents redundant operations by automatically detecting and skipping existing files during downloads, enrichment, and processing workflows.
+<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
+<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
+<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
+<!-- - Le frontmatter (métadonnées en haut) -->
+<!-- - Les blocs de code (traduire uniquement les commentaires) -->
+<!-- - Les liens et chemins de fichiers -->
+<!-- - La structure Markdown -->
 
-## Vue d'ensemble
+
+
+Smart Skip Detection prevents redundant operations by automatically detecting and skipping existing files during downloads, enrichment, and processing workflows.
+
+## Overview
 
 This feature adds intelligent skip detection to all workflows:
 
-- **Téléchargement Skip** - Avoid re-downloading existing tiles
-- **Enrichissementment Skip** - Skip files that are already enriched
-- **Traitementing Skip** - Skip tiles with existing patches
+- **Download Skip** - Avoid re-downloading existing tiles
+- **Enrichment Skip** - Skip files that are already enriched
+- **Processing Skip** - Skip tiles with existing patches
 
 ## Key Benefits
 
 ### ⚡ Time Savings
 
-- **Téléchargements**: Skip re-downloading tiles (~60 min saved on 50 tiles)
-- **Traitementing**: Skip reprocessing tiles (~90 min saved on 50 tiles)
+- **Downloads**: Skip re-downloading tiles (~60 min saved on 50 tiles)
+- **Processing**: Skip reprocessing tiles (~90 min saved on 50 tiles)
 - **Total**: ~150 minutes saved on typical workflow
 
 ### 💾 Resource Savings
@@ -35,22 +45,22 @@ This feature adds intelligent skip detection to all workflows:
 - **Incremental Builds**: Add new data to existing datasets
 - **Idempotent Operations**: Safe to run commands multiple times
 
-## Smart Téléchargement Skip
+## Smart Download Skip
 
 Automatically skips existing tiles during download:
 
 ```bash
-# Téléchargements only missing tiles
+# Downloads only missing tiles
 ign-lidar-hd download \
   --bbox 2.0,48.8,2.5,49.0 \
   --output tiles/
 
-# Sortie shows what's skipped vs downloaded
+# Output shows what's skipped vs downloaded
 ⏭️  tile_001.laz already exists (245 MB), skipping
-Téléchargementing tile_002.laz...
-✅ Téléchargemented tile_002.laz (238 MB)
+Downloading tile_002.laz...
+✅ Downloaded tile_002.laz (238 MB)
 
-📊 Téléchargement Summary:
+📊 Download Summary:
   Total tiles requested: 10
   ✅ Successfully downloaded: 7
   ⏭️  Skipped (already present): 2
@@ -69,23 +79,23 @@ ign-lidar-hd download \
   --force
 ```
 
-## Smart Enrichissementment Skip
+## Smart Enrichment Skip
 
 Automatically skips LAZ files that are already enriched:
 
 ```bash
-# Enrichissementes only files without building features
+# Enriches only files without building features
 ign-lidar-hd enrich \
-  --input-dir /chemin/vers/tuiles_brutes/ \
-  --output /chemin/vers/tuiles_enrichies/ \
+  --input-dir /path/to/raw_tiles/ \
+  --output /path/to/enriched_tiles/ \
   --mode full
 
 # Shows progress and skip statistics
-[1/20] Traitementing: tile_001.laz
-  ✅ Enrichissemented: 1.2M points in 15.3s
+[1/20] Processing: tile_001.laz
+  ✅ Enriched: 1.2M points in 15.3s
 [2/20] ⏭️  tile_002.laz: Already enriched, skipping
-[3/20] Traitementing: tile_003.laz
-  ✅ Enrichissemented: 980K points in 12.1s
+[3/20] Processing: tile_003.laz
+  ✅ Enriched: 980K points in 12.1s
 ```
 
 ### Force Re-enrichment
@@ -95,33 +105,33 @@ Use `--force` flag to re-enrich files:
 ```bash
 # Force re-enrichment of all files
 ign-lidar-hd enrich \
-  --input-dir /chemin/vers/tuiles_brutes/ \
-  --output /chemin/vers/tuiles_enrichies/ \
+  --input-dir /path/to/raw_tiles/ \
+  --output /path/to/enriched_tiles/ \
   --mode full \
   --force
 ```
 
-## Smart Traitementing Skip
+## Smart Processing Skip
 
 Automatically skips tiles with existing patches:
 
 ```bash
-# Traitementes only tiles without patches
+# Processes only tiles without patches
 ign-lidar-hd process \
-  --input tuiles_enrichies/ \
+  --input enriched_tiles/ \
   --output patches/ \
   --lod-level LOD2
 
 # Shows detailed skip/process statistics
-[1/20] Traitementing: tile_001.laz
+[1/20] Processing: tile_001.laz
   ✅ Completed: 48 patches in 23.5s
 [2/20] ⏭️  tile_002.laz: 52 patches exist, skipping
-[3/20] Traitementing: tile_003.laz
+[3/20] Processing: tile_003.laz
   ✅ Completed: 45 patches in 21.2s
 
-📊 Traitementing Summary:
+📊 Processing Summary:
   Total tiles: 20
-  ✅ Traitemented: 15
+  ✅ Processed: 15
   ⏭️  Skipped: 5
   📦 Total patches created: 712
 ```
@@ -133,7 +143,7 @@ Use `--force` flag to reprocess all tiles:
 ```bash
 # Force reprocess all tiles
 ign-lidar-hd process \
-  --input tuiles_enrichies/ \
+  --input enriched_tiles/ \
   --output patches/ \
   --lod-level LOD2 \
   --force
@@ -158,7 +168,7 @@ ign-lidar-hd process --input tiles/ --output patches/          # Skips 45 tiles
 ### 2. Incremental Dataset Building
 
 ```bash
-# Week 1: Téléchargement Paris
+# Week 1: Download Paris
 ign-lidar-hd download --bbox 2.0,48.8,2.5,49.0 --output france_tiles/
 ign-lidar-hd process --input france_tiles/ --output france_patches/
 
@@ -169,13 +179,13 @@ ign-lidar-hd process --input france_tiles/ --output france_patches/
 # Skips Paris tiles, processes only Lyon tiles
 ```
 
-### 3. Batch Traitementing with Mixed Status
+### 3. Batch Processing with Mixed Status
 
 ```bash
-# Traitement a directory with mixed completion status
+# Process a directory with mixed completion status
 ign-lidar-hd process --input mixed_tiles/ --output patches/
 
-# Sortie shows what's done vs what needs processing
+# Output shows what's done vs what needs processing
 ⏭️  Tiles with existing patches: 15
 ✅ New tiles processed: 8
 ❌ Failed tiles: 2
@@ -183,13 +193,13 @@ ign-lidar-hd process --input mixed_tiles/ --output patches/
 
 ## Python API
 
-### Téléchargement with Skip Control
+### Download with Skip Control
 
 ```python
-from ign_lidar import IGNLiDARTéléchargementer
+from ign_lidar import IGNLiDARDownloader
 from pathlib import Path
 
-downloader = IGNLiDARTéléchargementer(Path("tiles/"))
+downloader = IGNLiDARDownloader(Path("tiles/"))
 
 # Skip existing by default
 results = downloader.batch_download(tile_list)
@@ -202,28 +212,28 @@ success, was_skipped = downloader.download_tile(filename)
 if was_skipped:
     print(f"Skipped {filename} (already exists)")
 elif success:
-    print(f"Téléchargemented {filename}")
+    print(f"Downloaded {filename}")
 else:
     print(f"Failed to download {filename}")
 ```
 
-### Traitementing with Skip Control
+### Processing with Skip Control
 
 ```python
-from ign_lidar import LiDARTraitementor
+from ign_lidar import LiDARProcessor
 from pathlib import Path
 
-processor = LiDARTraitementor(lod_level='LOD2')
+processor = LiDARProcessor(lod_level='LOD2')
 
 # Skip existing patches by default
 patches = processor.process_directory(
-    Path("tuiles_enrichies/"),
+    Path("enriched_tiles/"),
     Path("patches/")
 )
 
 # Force reprocessing
 patches = processor.process_directory(
-    Path("tuiles_enrichies/"),
+    Path("enriched_tiles/"),
     Path("patches/"),
     skip_existing=False
 )
@@ -235,7 +245,7 @@ patches = processor.process_directory(
 
 - **File existence check**: ~0.001-0.01s per file
 - **Patch directory check**: ~0.01-0.05s per tile
-- **Enrichissementment check**: ~0.02-0.1s per file
+- **Enrichment check**: ~0.02-0.1s per file
 
 ### Time Comparison
 
@@ -243,13 +253,13 @@ patches = processor.process_directory(
 100 tiles, 50% already processed:
 
 Without Skip Detection:
-  Téléchargement: 100 tiles × 45s = 75 min
-  Traitement: 100 tiles × 35s = 58 min
+  Download: 100 tiles × 45s = 75 min
+  Process: 100 tiles × 35s = 58 min
   Total: 133 minutes
 
 With Skip Detection:
-  Téléchargement: 50 skipped (0.5 min) + 50 new (37.5 min) = 38 min
-  Traitement: 50 skipped (0.4 min) + 50 new (29 min) = 29.4 min
+  Download: 50 skipped (0.5 min) + 50 new (37.5 min) = 38 min
+  Process: 50 skipped (0.4 min) + 50 new (29 min) = 29.4 min
   Total: 67.4 minutes
 
 Time saved: 65.6 minutes (49% reduction)
@@ -265,11 +275,11 @@ Smart skip detection is **enabled by default** for all operations. You can contr
 # Default: Skip existing
 ign-lidar-hd command [args]
 
-# Force override: Traitement everything
+# Force override: Process everything
 ign-lidar-hd command [args] --force
 ```
 
-### Python Paramètres
+### Python Parameters
 
 ```python
 # Default: skip_existing=True
@@ -281,25 +291,25 @@ processor.process_tile(file, output_dir, skip_existing=False)
 
 ## Skip Detection Logic
 
-### Téléchargement Skip
+### Download Skip
 
 - Checks if LAZ file exists in output directory
 - Compares file size (skips if > 1MB, indicating complete download)
 - Logs skip reason and file size
 
-### Enrichissementment Skip
+### Enrichment Skip
 
 - Checks if output file already exists
 - Validates that file contains building features
 - Skips if features are already present
 
-### Traitementing Skip
+### Processing Skip
 
 - Checks if patch directory exists for the tile
 - Counts existing .npz patches
 - Skips if patches already exist (non-zero count)
 
-## Dépannage
+## Troubleshooting
 
 ### Files Not Being Skipped
 
@@ -335,6 +345,6 @@ ign-lidar-hd process --input tiles/ --output patches/
 
 ## See Also
 
-- [Utilisation de base Guide](../guides/basic-usage)
+- [Basic Usage Guide](../guides/basic-usage)
 - [CLI Commands Reference](../guides/cli-commands)
 - [Memory Optimization](../reference/memory-optimization)

@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.0.1** | Python 3.8+ | MIT License
+**Version 2.0.2** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -27,17 +27,22 @@ Complete redesign with **modular architecture**, **Hydra CLI**, and **unified pi
 
 ---
 
-## 🎉 Latest Release: v2.0.1
+## 🎉 Latest Release: v2.0.2
 
 ### 🚀 Complete Architecture Overhaul
 
 Version 2.0 represents a **major redesign** of the entire library with significant improvements:
 
-**New in v2.0.1:**
+**New in v2.0.2:**
+
+- 🔧 **Enhanced Stability**: Improved error handling and memory management
+- 🐛 **Bug Fixes**: Resolved edge cases in boundary-aware processing and tile stitching
+- ⚡ **Performance**: Optimized processing pipeline and reduced memory footprint
+
+**Highlights from v2.0.1:**
 
 - 🎯 **Enriched LAZ Only Mode**: Generate enriched LAZ files without patches for visualization workflows
 - 🔧 **Automatic Corruption Recovery**: Detects and recovers from corrupted LAZ files automatically
-- � **Bug Fixes**: Improved stability and error handling
 
 **Major Features in v2.0:**
 

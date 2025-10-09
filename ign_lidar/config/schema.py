@@ -134,14 +134,14 @@ class OutputConfig:
     Configuration for output formats and saving.
     
     Attributes:
-        format: Output format ('npz', 'hdf5', 'torch', 'all')
+        format: Output format ('npz', 'hdf5', 'torch', 'laz', 'all')
         save_enriched_laz: Save enriched LAZ files with features
         only_enriched_laz: If True, only save enriched LAZ files (skip patch creation)
         save_stats: Save processing statistics
         save_metadata: Save patch metadata
         compression: Compression level (0-9, None for no compression)
     """
-    format: Literal["npz", "hdf5", "torch", "all"] = "npz"
+    format: Literal["npz", "hdf5", "torch", "laz", "all"] = "npz"
     save_enriched_laz: bool = False
     only_enriched_laz: bool = False
     save_stats: bool = True

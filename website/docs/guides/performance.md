@@ -9,26 +9,26 @@ keywords: [performance, optimization, gpu, memory, speed]
 
 Optimize IGN LiDAR HD processing for maximum performance across different hardware configurations and dataset sizes.
 
-:::tip v1.7.5 Performance Boost
-**NEW in v1.7.5**: Automatic 5-10x speedup through optimized chunking! No configuration changes needed - your existing commands will run faster automatically.
+:::tip Automatic Performance Optimizations
+IGN LiDAR HD includes automatic 5-10x speedup through optimized chunking! No configuration changes needed - your commands run faster automatically. These optimizations have been available since v1.7.5 and continue in v2.0+.
 :::
 
 ## Overview
 
 This guide covers performance optimization strategies for:
 
-- **Automatic Optimizations** (v1.7.5+) - Per-chunk KDTree strategy
+- **Automatic Optimizations** - Per-chunk KDTree strategy
 - Large-scale dataset processing
 - Memory-constrained environments
 - GPU acceleration
 - Multi-core processing
 - Network and I/O optimization
 
-## v1.7.5 Optimizations (Automatic)
+## Automatic Optimizations
 
 ### Per-Chunk KDTree Strategy
 
-The v1.7.5 release includes major performance optimizations that are **always enabled**:
+IGN LiDAR HD includes major performance optimizations that are **always enabled**:
 
 **What Changed:**
 

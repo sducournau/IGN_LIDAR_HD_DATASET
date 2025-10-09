@@ -90,6 +90,7 @@ website/docs/
 **Goal:** Update core documentation and establish v2.0.1 presence
 
 #### Day 1-2: Version & Release Notes
+
 - [ ] **intro.md** - Update version badge from 1.7.6 to 2.0.1
 - [ ] **intro.md** - Rewrite "Latest Release" section for v2.0.1
 - [ ] **intro.md** - Add migration alert banner at top
@@ -105,6 +106,7 @@ website/docs/
   - [ ] Document automatic corruption recovery
 
 #### Day 3-4: Architecture Documentation
+
 - [ ] **architecture.md** - Complete rewrite for v2.0
   - [ ] Update system architecture diagram
   - [ ] Document `core/` module (processor, tile_stitcher, memory_manager, performance_monitor)
@@ -117,6 +119,7 @@ website/docs/
   - [ ] Document data flow through modules
 
 #### Day 5: Migration Guide
+
 - [ ] **guides/migration-v1-to-v2.md** - Create comprehensive guide
   - [ ] CLI command migration table
   - [ ] Import path changes
@@ -133,6 +136,7 @@ website/docs/
 **Goal:** Document new CLI system and Hydra configuration
 
 #### Day 1-3: Hydra CLI Documentation
+
 - [ ] **guides/hydra-cli.md** - Create comprehensive Hydra CLI guide
   - [ ] Introduction to Hydra concepts
   - [ ] Basic command structure: `ign-lidar-hd [COMMAND] [HYDRA_OVERRIDES]`
@@ -147,6 +151,7 @@ website/docs/
   - [ ] Advanced patterns (experiment tracking, etc.)
 
 #### Day 3-5: CLI API Updates
+
 - [ ] **api/cli.md** - Major update for dual CLI system
   - [ ] Add "CLI Evolution" section
   - [ ] Document legacy CLI (v1.x compatible)
@@ -165,7 +170,9 @@ website/docs/
   - [ ] Add programmatic API examples
 
 #### Day 4-5: Configuration System
+
 - [ ] **guides/configuration-system.md** - Create configuration guide
+
   - [ ] Hydra basics and benefits
   - [ ] Configuration file structure
   - [ ] Default configuration hierarchy
@@ -207,6 +214,7 @@ website/docs/
 **Goal:** Document all new v2.0 features
 
 #### Day 1: Boundary-Aware Features
+
 - [ ] **features/boundary-aware.md** - Create new guide
   - [ ] Explain the boundary problem in tile processing
   - [ ] How boundary-aware computation works
@@ -220,6 +228,7 @@ website/docs/
   - [ ] Before/after comparison
 
 #### Day 2: Tile Stitching
+
 - [ ] **features/tile-stitching.md** - Create new guide
   - [ ] Introduction to tile stitching
   - [ ] When to use stitching vs single tiles
@@ -232,6 +241,7 @@ website/docs/
   - [ ] Best practices
 
 #### Day 3: Multi-Architecture Support
+
 - [ ] **features/multi-architecture.md** - Create new guide
   - [ ] Supported architectures overview
     - [ ] PointNet++
@@ -246,6 +256,7 @@ website/docs/
   - [ ] When to use which architecture
 
 #### Day 4: Enriched LAZ Only Mode (NEW in v2.0.1)
+
 - [ ] **features/enriched-laz-only.md** - Create new guide
   - [ ] What is enriched LAZ only mode
   - [ ] When to use it (3-5x faster)
@@ -258,6 +269,7 @@ website/docs/
   - [ ] Performance comparison
 
 #### Day 5: Unified Pipeline
+
 - [ ] **guides/unified-pipeline.md** - Create new guide
   - [ ] Old vs new pipeline comparison
   - [ ] Single-step RAW→Patches workflow
@@ -275,6 +287,7 @@ website/docs/
 **Goal:** Update all API documentation with correct v2.0 patterns
 
 #### Day 1-2: Core Module API
+
 - [ ] **api/core-module.md** - Create new API reference
   - [ ] `LiDARProcessor` class
     - [ ] Constructor parameters
@@ -297,7 +310,9 @@ website/docs/
     - [ ] API reference
 
 #### Day 2-3: Update Existing API Docs
+
 - [ ] **api/processor.md** - Major update
+
   - [ ] Update import paths: `from ign_lidar.core import LiDARProcessor`
   - [ ] Document new parameters
   - [ ] Update all code examples
@@ -305,6 +320,7 @@ website/docs/
   - [ ] Add v2.0 specific features
 
 - [ ] **api/features.md** - Update feature list
+
   - [ ] Add boundary-aware features
   - [ ] Document feature computation modes
   - [ ] Update import paths: `from ign_lidar.features import ...`
@@ -319,7 +335,9 @@ website/docs/
   - [ ] Update code examples
 
 #### Day 4: New Module APIs
+
 - [ ] **api/preprocessing-module.md** - Create new reference
+
   - [ ] `preprocessing.py` functions
   - [ ] `rgb_augmentation.py` API
   - [ ] `infrared_augmentation.py` API
@@ -327,6 +345,7 @@ website/docs/
   - [ ] Code examples for each
 
 - [ ] **api/config-module.md** - Create new reference
+
   - [ ] `schema.py` - Configuration dataclasses
   - [ ] `defaults.py` - Default values
   - [ ] Validation and type checking
@@ -339,6 +358,7 @@ website/docs/
   - [ ] Code examples
 
 #### Day 5: Dataset & Workflow APIs
+
 - [ ] **api/datasets.md** - Update for multi-arch
   - [ ] `MultiArchDataset` class
   - [ ] Architecture-specific loaders
@@ -352,7 +372,9 @@ website/docs/
 **Goal:** Update all user-facing guides with v2.0 workflows
 
 #### Day 1-2: Quick Start & Basic Usage
+
 - [ ] **guides/quick-start.md** - Complete update
+
   - [ ] Add "Choose Your CLI" section at top
   - [ ] Update installation to mention v2.0.1
   - [ ] Show both CLI options side-by-side
@@ -369,7 +391,9 @@ website/docs/
   - [ ] Update workflow diagrams
 
 #### Day 2-3: Advanced Guides
+
 - [ ] **guides/complete-workflow.md** - Update entire workflow
+
   - [ ] Update for unified pipeline
   - [ ] Show both CLI approaches
   - [ ] Update Python API examples
@@ -378,6 +402,7 @@ website/docs/
   - [ ] Update performance expectations
 
 - [ ] **guides/gpu-acceleration.md** - Add v2.0 content
+
   - [ ] Document chunked GPU processing
   - [ ] Update memory management section
   - [ ] Add v2.0 performance benchmarks
@@ -390,6 +415,7 @@ website/docs/
   - [ ] Update code examples
 
 #### Day 4: Workflow Updates
+
 - [ ] **workflows.md** - Complete rewrite
   - [ ] Remove old multi-step pipeline section
   - [ ] Document unified pipeline as primary
@@ -400,6 +426,7 @@ website/docs/
   - [ ] Add enriched LAZ only workflow
 
 #### Day 5: Tutorial Updates
+
 - [ ] **tutorials/custom-features.md** - Update for v2.0
   - [ ] Update import paths
   - [ ] Show how to extend v2.0 modules
@@ -413,6 +440,7 @@ website/docs/
 **Goal:** Final polish, testing, and deployment
 
 #### Day 1-2: Reference Documentation
+
 - [ ] **reference/cli-download.md** - Minor updates
 - [ ] **reference/cli-enrich.md** - Update for v2.0
 - [ ] **reference/cli-patch.md** - Update for v2.0
@@ -422,6 +450,7 @@ website/docs/
 - [ ] **reference/memory-optimization.md** - Add v2.0 improvements
 
 #### Day 3: Code Examples & Cross-References
+
 - [ ] Update all code examples in `examples/`
 - [ ] Test all Python code snippets
 - [ ] Test all CLI commands
@@ -431,6 +460,7 @@ website/docs/
 - [ ] Add "New in v2.0.1" badges for enriched LAZ only
 
 #### Day 4: Diagrams & Visuals
+
 - [ ] Update architecture diagrams (mermaid)
 - [ ] Update workflow diagrams
 - [ ] Add boundary-aware processing diagram
@@ -440,6 +470,7 @@ website/docs/
 - [ ] Ensure all diagrams render correctly
 
 #### Day 5: Final Testing & Deployment
+
 - [ ] Run full doc build locally
 - [ ] Test all links (internal and external)
 - [ ] Spell check all documents
@@ -458,55 +489,56 @@ website/docs/
 
 ### Files Requiring MAJOR Updates (40-60 min each)
 
-| File | Priority | Estimated Time | Status |
-|------|----------|---------------|--------|
-| `intro.md` | CRITICAL | 60 min | ❌ Not Started |
-| `architecture.md` | CRITICAL | 90 min | ❌ Not Started |
-| `api/cli.md` | CRITICAL | 90 min | ❌ Not Started |
-| `api/configuration.md` | CRITICAL | 75 min | ❌ Not Started |
-| `workflows.md` | HIGH | 60 min | ❌ Not Started |
-| `guides/quick-start.md` | HIGH | 45 min | ❌ Not Started |
-| `guides/basic-usage.md` | HIGH | 60 min | ❌ Not Started |
-| `api/processor.md` | MEDIUM | 45 min | ❌ Not Started |
+| File                    | Priority | Estimated Time | Status         |
+| ----------------------- | -------- | -------------- | -------------- |
+| `intro.md`              | CRITICAL | 60 min         | ❌ Not Started |
+| `architecture.md`       | CRITICAL | 90 min         | ❌ Not Started |
+| `api/cli.md`            | CRITICAL | 90 min         | ❌ Not Started |
+| `api/configuration.md`  | CRITICAL | 75 min         | ❌ Not Started |
+| `workflows.md`          | HIGH     | 60 min         | ❌ Not Started |
+| `guides/quick-start.md` | HIGH     | 45 min         | ❌ Not Started |
+| `guides/basic-usage.md` | HIGH     | 60 min         | ❌ Not Started |
+| `api/processor.md`      | MEDIUM   | 45 min         | ❌ Not Started |
 
 ### Files to CREATE (30-90 min each)
 
-| File | Priority | Estimated Time | Status |
-|------|----------|---------------|--------|
-| `release-notes/v2.0.0.md` | CRITICAL | 90 min | ❌ Not Started |
-| `release-notes/v2.0.1.md` | CRITICAL | 45 min | ❌ Not Started |
-| `guides/migration-v1-to-v2.md` | CRITICAL | 90 min | ❌ Not Started |
-| `guides/hydra-cli.md` | CRITICAL | 90 min | ❌ Not Started |
-| `guides/configuration-system.md` | CRITICAL | 75 min | ❌ Not Started |
-| `features/boundary-aware.md` | HIGH | 60 min | ❌ Not Started |
-| `features/tile-stitching.md` | HIGH | 60 min | ❌ Not Started |
-| `features/multi-architecture.md` | HIGH | 60 min | ❌ Not Started |
-| `features/enriched-laz-only.md` | HIGH | 45 min | ❌ Not Started |
-| `guides/unified-pipeline.md` | HIGH | 60 min | ❌ Not Started |
-| `api/core-module.md` | HIGH | 75 min | ❌ Not Started |
-| `api/preprocessing-module.md` | MEDIUM | 45 min | ❌ Not Started |
-| `api/config-module.md` | MEDIUM | 45 min | ❌ Not Started |
-| `api/io-module.md` | MEDIUM | 45 min | ❌ Not Started |
+| File                             | Priority | Estimated Time | Status         |
+| -------------------------------- | -------- | -------------- | -------------- |
+| `release-notes/v2.0.0.md`        | CRITICAL | 90 min         | ❌ Not Started |
+| `release-notes/v2.0.1.md`        | CRITICAL | 45 min         | ❌ Not Started |
+| `guides/migration-v1-to-v2.md`   | CRITICAL | 90 min         | ❌ Not Started |
+| `guides/hydra-cli.md`            | CRITICAL | 90 min         | ❌ Not Started |
+| `guides/configuration-system.md` | CRITICAL | 75 min         | ❌ Not Started |
+| `features/boundary-aware.md`     | HIGH     | 60 min         | ❌ Not Started |
+| `features/tile-stitching.md`     | HIGH     | 60 min         | ❌ Not Started |
+| `features/multi-architecture.md` | HIGH     | 60 min         | ❌ Not Started |
+| `features/enriched-laz-only.md`  | HIGH     | 45 min         | ❌ Not Started |
+| `guides/unified-pipeline.md`     | HIGH     | 60 min         | ❌ Not Started |
+| `api/core-module.md`             | HIGH     | 75 min         | ❌ Not Started |
+| `api/preprocessing-module.md`    | MEDIUM   | 45 min         | ❌ Not Started |
+| `api/config-module.md`           | MEDIUM   | 45 min         | ❌ Not Started |
+| `api/io-module.md`               | MEDIUM   | 45 min         | ❌ Not Started |
 
 ### Files Requiring MINOR Updates (15-30 min each)
 
-| File | Priority | Estimated Time | Status |
-|------|----------|---------------|--------|
-| `api/features.md` | MEDIUM | 30 min | ❌ Not Started |
-| `api/gpu-api.md` | MEDIUM | 30 min | ❌ Not Started |
-| `guides/gpu-acceleration.md` | MEDIUM | 30 min | ❌ Not Started |
-| `guides/preprocessing.md` | MEDIUM | 20 min | ❌ Not Started |
-| `guides/complete-workflow.md` | MEDIUM | 45 min | ❌ Not Started |
-| `installation/quick-start.md` | LOW | 15 min | ❌ Not Started |
-| `reference/cli-*.md` (5 files) | LOW | 15 min each | ❌ Not Started |
-| `reference/config-examples.md` | MEDIUM | 30 min | ❌ Not Started |
-| `tutorials/custom-features.md` | MEDIUM | 30 min | ❌ Not Started |
+| File                           | Priority | Estimated Time | Status         |
+| ------------------------------ | -------- | -------------- | -------------- |
+| `api/features.md`              | MEDIUM   | 30 min         | ❌ Not Started |
+| `api/gpu-api.md`               | MEDIUM   | 30 min         | ❌ Not Started |
+| `guides/gpu-acceleration.md`   | MEDIUM   | 30 min         | ❌ Not Started |
+| `guides/preprocessing.md`      | MEDIUM   | 20 min         | ❌ Not Started |
+| `guides/complete-workflow.md`  | MEDIUM   | 45 min         | ❌ Not Started |
+| `installation/quick-start.md`  | LOW      | 15 min         | ❌ Not Started |
+| `reference/cli-*.md` (5 files) | LOW      | 15 min each    | ❌ Not Started |
+| `reference/config-examples.md` | MEDIUM   | 30 min         | ❌ Not Started |
+| `tutorials/custom-features.md` | MEDIUM   | 30 min         | ❌ Not Started |
 
 ---
 
 ## 🔧 Quick Reference Commands
 
 ### Find All Version References
+
 ```bash
 # Find v1.7.x references
 grep -r "1\.7\.[0-9]" website/docs/ --include="*.md"
@@ -518,6 +550,7 @@ grep -r "version.*1\.7" website/docs/ --include="*.md" -i
 ```
 
 ### Find Old Import Patterns
+
 ```bash
 # Find old imports
 grep -r "from ign_lidar import" website/docs/ --include="*.md"
@@ -529,6 +562,7 @@ grep -r "ign-lidar-hd patch" website/docs/ --include="*.md"
 ```
 
 ### Find Missing Hydra References
+
 ```bash
 # Check for Hydra mentions
 grep -r "hydra" website/docs/ --include="*.md" -i
@@ -537,6 +571,7 @@ grep -r "features=" website/docs/ --include="*.md"
 ```
 
 ### Validate Documentation Build
+
 ```bash
 cd website
 npm install
@@ -551,24 +586,28 @@ npm run serve
 Documentation update is complete when:
 
 ### Version & Branding
+
 - [ ] All version numbers show 2.0.1
 - [ ] No references to v1.7.x except in:
   - [ ] Release notes (historical)
   - [ ] Migration guide (comparison)
 
 ### CLI Documentation
+
 - [ ] Both CLI systems documented (legacy + Hydra)
 - [ ] Clear guidance on which CLI to use
 - [ ] All CLI commands have working examples
 - [ ] Hydra configuration system fully documented
 
 ### Architecture
+
 - [ ] All new modules documented
 - [ ] Module interaction diagrams complete
 - [ ] Data flow clearly illustrated
 - [ ] Import paths correct throughout
 
 ### Features
+
 - [ ] All v2.0.0 features documented
 - [ ] All v2.0.1 features documented
 - [ ] Boundary-aware processing explained
@@ -577,24 +616,28 @@ Documentation update is complete when:
 - [ ] Enriched LAZ only mode documented
 
 ### Migration
+
 - [ ] Comprehensive v1→v2 migration guide
 - [ ] Breaking changes clearly listed
 - [ ] Before/after examples for common tasks
 - [ ] Troubleshooting section complete
 
 ### Code Quality
+
 - [ ] All code examples tested and working
 - [ ] All import paths correct
 - [ ] All CLI commands verified
 - [ ] All links working (no 404s)
 
 ### User Experience
+
 - [ ] Clear learning path for new users
 - [ ] Smooth upgrade path for existing users
 - [ ] Comprehensive search coverage
 - [ ] Mobile-friendly rendering
 
 ### Testing
+
 - [ ] Full documentation build succeeds
 - [ ] No broken links
 - [ ] All diagrams render
@@ -607,19 +650,20 @@ Documentation update is complete when:
 
 ### Total Effort Estimation
 
-| Phase | Files | Est. Hours | Priority |
-|-------|-------|-----------|----------|
-| Week 1: Foundation | 6 files | 12-15 hrs | CRITICAL |
-| Week 2: CLI & Config | 5 files | 15-18 hrs | CRITICAL |
-| Week 3: Features | 5 files | 12-15 hrs | HIGH |
-| Week 4: API Updates | 10 files | 15-20 hrs | HIGH |
-| Week 5: Guides | 8 files | 12-15 hrs | MEDIUM |
-| Week 6: Polish | 15+ files | 10-12 hrs | MEDIUM |
-| **TOTAL** | **49+ files** | **76-95 hrs** | |
+| Phase                | Files         | Est. Hours    | Priority |
+| -------------------- | ------------- | ------------- | -------- |
+| Week 1: Foundation   | 6 files       | 12-15 hrs     | CRITICAL |
+| Week 2: CLI & Config | 5 files       | 15-18 hrs     | CRITICAL |
+| Week 3: Features     | 5 files       | 12-15 hrs     | HIGH     |
+| Week 4: API Updates  | 10 files      | 15-20 hrs     | HIGH     |
+| Week 5: Guides       | 8 files       | 12-15 hrs     | MEDIUM   |
+| Week 6: Polish       | 15+ files     | 10-12 hrs     | MEDIUM   |
+| **TOTAL**            | **49+ files** | **76-95 hrs** |          |
 
 ### Parallel Work Opportunities
 
 Multiple team members can work simultaneously on:
+
 - Week 1: One person on intro/releases, another on architecture
 - Week 2: One person on Hydra CLI, another on config docs
 - Week 3: Each new feature guide can be written independently
@@ -628,6 +672,7 @@ Multiple team members can work simultaneously on:
 ### Critical Path
 
 The following must be completed sequentially:
+
 1. **Intro.md** → Establishes v2.0.1 as current version
 2. **Release notes** → Documents what changed
 3. **Migration guide** → Shows how to upgrade
@@ -640,21 +685,25 @@ The following must be completed sequentially:
 ## 🎯 Rollout Strategy
 
 ### Phase 1: Foundation (Week 1)
+
 - Deploy intro.md, release notes, architecture.md
 - Announce v2.0.1 documentation available
 - Highlight migration guide
 
 ### Phase 2: CLI Docs (Week 2)
+
 - Deploy Hydra CLI and configuration docs
 - Update API reference
 - Announce complete CLI documentation
 
 ### Phase 3: Feature Docs (Week 3)
+
 - Deploy all new feature guides
 - Update examples
 - Announce feature documentation complete
 
 ### Phase 4: Full Release (Week 4-6)
+
 - Complete all API updates
 - Polish all guides
 - Full QA testing
@@ -662,6 +711,7 @@ The following must be completed sequentially:
 - Official announcement
 
 ### Incremental Deployment Benefits
+
 - Users get access to critical updates sooner
 - Feedback can be incorporated progressively
 - Reduces risk of major deployment issues
@@ -674,6 +724,7 @@ The following must be completed sequentially:
 ### Before Each Deployment
 
 #### Content Quality
+
 - [ ] All code examples tested
 - [ ] All commands verified
 - [ ] All import paths correct
@@ -683,6 +734,7 @@ The following must be completed sequentially:
 - [ ] Technical accuracy verified
 
 #### Build Quality
+
 - [ ] `npm run build` succeeds
 - [ ] No warnings in build output
 - [ ] Search index updated
@@ -690,6 +742,7 @@ The following must be completed sequentially:
 - [ ] All pages accessible
 
 #### User Experience
+
 - [ ] Navigation logical
 - [ ] Search results relevant
 - [ ] Mobile responsive
@@ -698,6 +751,7 @@ The following must be completed sequentially:
 - [ ] Diagrams render correctly
 
 ### Final Pre-Production Checklist
+
 - [ ] All files updated per checklist
 - [ ] All success criteria met
 - [ ] Stakeholder review complete
@@ -711,12 +765,14 @@ The following must be completed sequentially:
 ## 📞 Communication Plan
 
 ### Internal Communications
+
 - Weekly progress updates
 - Blockers documented and escalated
 - Review meetings for major sections
 - Final sign-off before deployment
 
 ### User Communications
+
 - Announcement of v2.0.1 codebase release
 - Announcement of documentation updates (incremental)
 - Migration guide highlighted in announcement
@@ -724,6 +780,7 @@ The following must be completed sequentially:
 - Feedback channels open
 
 ### Feedback Collection
+
 - GitHub discussions for documentation feedback
 - Issue tracker for documentation bugs
 - User survey after full release
@@ -735,15 +792,16 @@ The following must be completed sequentially:
 
 ### Potential Risks
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Breaking existing workflows | HIGH | Maintain legacy CLI docs |
-| User confusion | MEDIUM | Clear migration guide + dual CLI docs |
-| Incomplete information | MEDIUM | Phased rollout allows feedback |
-| Code examples fail | HIGH | Automated testing of examples |
-| Timeline slippage | MEDIUM | Prioritize critical sections |
+| Risk                        | Impact | Mitigation                            |
+| --------------------------- | ------ | ------------------------------------- |
+| Breaking existing workflows | HIGH   | Maintain legacy CLI docs              |
+| User confusion              | MEDIUM | Clear migration guide + dual CLI docs |
+| Incomplete information      | MEDIUM | Phased rollout allows feedback        |
+| Code examples fail          | HIGH   | Automated testing of examples         |
+| Timeline slippage           | MEDIUM | Prioritize critical sections          |
 
 ### Contingency Plans
+
 - If timeline slips: Release critical docs first (Week 1-2)
 - If resources unavailable: Focus on high-priority files only
 - If major issues found: Pause deployment, fix, re-test
@@ -754,12 +812,14 @@ The following must be completed sequentially:
 ## 📚 Reference Documents
 
 ### Existing Audit Documents
+
 - ✅ `DOCS_AUDIT_SUMMARY.md` - Executive summary of gaps
 - ✅ `DOCUSAURUS_AUDIT_REPORT.md` - Comprehensive 400+ line audit
 - ✅ `DOCS_UPDATE_CHECKLIST.md` - Actionable 250+ item checklist
 - ✅ `DOCS_UPDATE_EXAMPLE.md` - Example update for intro.md
 
 ### Code Reference
+
 - ✅ `README.md` - Current and accurate for v2.0.1
 - ✅ `CHANGELOG.md` - Complete v2.0.0 and v2.0.1 changes
 - ✅ `pyproject.toml` - Version 2.0.1
@@ -768,6 +828,7 @@ The following must be completed sequentially:
 - ✅ `ENRICHED_LAZ_ONLY_MODE.md` - Feature documentation
 
 ### External References
+
 - Hydra documentation: https://hydra.cc/
 - Docusaurus documentation: https://docusaurus.io/
 
@@ -776,13 +837,15 @@ The following must be completed sequentially:
 ## 🎉 Success Metrics
 
 ### Quantitative Metrics
+
 - [ ] 100% of files updated per checklist
 - [ ] 0 broken links
 - [ ] 0 failed code examples
 - [ ] <5 sec page load time
-- [ ] >95% search coverage
+- [ ] > 95% search coverage
 
 ### Qualitative Metrics
+
 - [ ] Users can complete workflows from docs alone
 - [ ] Migration guide successfully used by v1.x users
 - [ ] Positive feedback on clarity and organization
@@ -794,12 +857,14 @@ The following must be completed sequentially:
 ## 📝 Notes & Decisions
 
 ### Key Decisions Made
+
 1. **Dual CLI Approach**: Maintain legacy CLI docs alongside Hydra CLI
 2. **Phased Rollout**: Deploy critical updates first
 3. **Migration Priority**: Create comprehensive v1→v2 guide early
 4. **Backward Compatibility**: Emphasize that legacy CLI still works
 
 ### Open Questions
+
 - [ ] Should we deprecate legacy CLI in documentation?
   - **Decision**: No, maintain for v2.x lifecycle
 - [ ] How to handle v1.7.x documentation?
@@ -817,6 +882,7 @@ The following must be completed sequentially:
 ---
 
 **Next Steps:**
+
 1. Review and approve this plan
 2. Assign resources (writers, reviewers)
 3. Set up project tracking (GitHub issues/project board)

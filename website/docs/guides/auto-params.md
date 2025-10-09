@@ -5,22 +5,26 @@ description: Automatic parameter optimization for optimal LiDAR processing quali
 keywords: [auto-params, optimization, parameters, quality, automation]
 ---
 
-# Auto-Parameters Guide (v1.7.1+)
+# Auto-Parameters Guide
 
 **🎯 Automatic Parameter Optimization**  
 **🔧 Zero Manual Tuning**  
 **📊 Optimal Quality Guaranteed**  
 **⚡ Intelligent Analysis**
 
+:::tip Available Since v1.7.1
+Auto-Parameters were introduced in v1.7.1 and continue to work in v2.0+. This guide applies to all current versions.
+:::
+
 ---
 
 ## 🚀 Overview
 
-Auto-Parameters (Auto-Params) is an intelligent system that automatically analyzes your LiDAR tiles and selects optimal processing parameters. Introduced in **v1.7.1**, this feature eliminates the need for manual parameter tuning and ensures consistent, high-quality results across diverse datasets.
+Auto-Parameters (Auto-Params) is an intelligent system that automatically analyzes your LiDAR tiles and selects optimal processing parameters. This feature eliminates the need for manual parameter tuning and ensures consistent, high-quality results across diverse datasets.
 
 ### Why Auto-Params?
 
-**Before v1.7.1 (Manual Tuning):**
+**Before (Manual Tuning):**
 
 ```bash
 # Manual parameter selection - required expertise
@@ -36,7 +40,7 @@ ign-lidar-hd enrich input.laz output.laz \
 # ❌ Inconsistent quality
 ```
 
-**With v1.7.1 (Auto-Params):**
+**With Auto-Params:**
 
 ```bash
 # Automatic optimization - works for everyone
@@ -307,8 +311,8 @@ processor = LiDARProcessor(
 #### 1. Auto-Params Not Available
 
 ```bash
-# Error: Auto-params requires version 1.7.1+
-pip install --upgrade ign-lidar-hd>=1.7.1
+# Ensure you have a recent version with auto-params support
+pip install --upgrade ign-lidar-hd
 ```
 
 #### 2. Analysis Taking Too Long
@@ -343,7 +347,7 @@ processor = LiDARProcessor(
 
 ## 🔮 Future Enhancements
 
-**Planned for v1.7.2+:**
+**Under consideration:**
 
 - Machine learning-based parameter prediction
 - Historical optimization learning
@@ -357,4 +361,4 @@ processor = LiDARProcessor(
 - **[CLI Commands Guide](/guides/cli-commands)**: Complete CLI reference
 - **[Preprocessing Guide](/guides/preprocessing)**: Data cleaning options
 - **[Performance Tuning](/guides/performance)**: Advanced optimization
-- **[Release Notes v1.7.1](/release-notes/v1.7.1)**: Full feature details
+- **[Release Notes](/release-notes/v1.7.1)**: Feature history
