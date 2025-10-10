@@ -1365,294 +1365,294 @@ class LiDARProcessor:
                         f"  ⚠️  Tile stitching failed, falling back to standard: {e}"
                     )
                     use_boundary_aware = False
-        
-        # Standard feature computation (no stitching)
-        if not use_boundary_aware:
-            # Choose GPU or CPU based on configuration
-            if self.use_gpu:
-                # Check if we should use chunked GPU processing for large tiles
-                num_points = len(points)
-                use_chunked = (
-                    self.use_gpu_chunked and 
-                    num_points > 5_000_000  # Use chunked for >5M points
-                )
-                
-                if use_chunked:
-                    # Use chunked GPU processing for large tiles
-                    try:
-                        from ..features.features_gpu_chunked import (
-                            GPUChunkedFeatureComputer,
-                            GPU_AVAILABLE,
-                            CUML_AVAILABLE
-                        )
-                        
-                        if GPU_AVAILABLE and CUML_AVAILABLE:
-                            logger.info(
-                                f"🚀 Using GPU chunked processing "
-                                f"({num_points:,} points, "
-                                f"batch_size={self.gpu_batch_size:,})"
+            
+            # Standard feature computation (no stitching)
+            if not use_boundary_aware:
+                # Choose GPU or CPU based on configuration
+                if self.use_gpu:
+                    # Check if we should use chunked GPU processing for large tiles
+                    num_points = len(points)
+                    use_chunked = (
+                        self.use_gpu_chunked and 
+                        num_points > 5_000_000  # Use chunked for >5M points
+                    )
+                    
+                    if use_chunked:
+                        # Use chunked GPU processing for large tiles
+                        try:
+                            from ..features.features_gpu_chunked import (
+                                GPUChunkedFeatureComputer,
+                                GPU_AVAILABLE,
+                                CUML_AVAILABLE
                             )
                             
-                            # Initialize chunked computer
-                            computer = GPUChunkedFeatureComputer(
-                                chunk_size=self.gpu_batch_size,
-                                use_gpu=True,
-                                show_progress=False
-                            )
-                            
-                            # Compute all features with chunked processing
-                            k = self.k_neighbors if self.k_neighbors else 20
-                            normals, curvature, height, geo_features = (
-                                computer.compute_all_features_chunked(
-                                    points=points,
-                                    classification=classification,
-                                    k=k
+                            if GPU_AVAILABLE and CUML_AVAILABLE:
+                                logger.info(
+                                    f"🚀 Using GPU chunked processing "
+                                    f"({num_points:,} points, "
+                                    f"batch_size={self.gpu_batch_size:,})"
                                 )
-                            )
-                            
-                            # Add verticality if not present
-                            if 'verticality' not in geo_features:
-                                verticality = np.abs(normals[:, 2])
-                                geo_features['verticality'] = verticality
-                        else:
-                            # Fall back to standard GPU if chunked not available
+                                
+                                # Initialize chunked computer
+                                computer = GPUChunkedFeatureComputer(
+                                    chunk_size=self.gpu_batch_size,
+                                    use_gpu=True,
+                                    show_progress=False
+                                )
+                                
+                                # Compute all features with chunked processing
+                                k = self.k_neighbors if self.k_neighbors else 20
+                                normals, curvature, height, geo_features = (
+                                    computer.compute_all_features_chunked(
+                                        points=points,
+                                        classification=classification,
+                                        k=k
+                                    )
+                                )
+                                
+                                # Add verticality if not present
+                                if 'verticality' not in geo_features:
+                                    verticality = np.abs(normals[:, 2])
+                                    geo_features['verticality'] = verticality
+                            else:
+                                # Fall back to standard GPU if chunked not available
+                                logger.warning(
+                                    "GPU chunked requested but not available. "
+                                    "Using standard GPU."
+                                )
+                                use_chunked = False
+                        except Exception as e:
                             logger.warning(
-                                "GPU chunked requested but not available. "
-                                "Using standard GPU."
+                                f"GPU chunked processing failed: {e}. "
+                                "Falling back to standard GPU."
                             )
                             use_chunked = False
-                    except Exception as e:
-                        logger.warning(
-                            f"GPU chunked processing failed: {e}. "
-                            "Falling back to standard GPU."
+                    
+                    if not use_chunked:
+                        # Use standard GPU processing
+                        from ..features.features import compute_all_features_with_gpu
+                        normals, curvature, height, geo_features = (
+                            compute_all_features_with_gpu(
+                                points=points,
+                                classification=classification,
+                                k=self.k_neighbors,
+                                auto_k=(self.k_neighbors is None),
+                                use_gpu=True
+                            )
                         )
-                        use_chunked = False
-                
-                if not use_chunked:
-                    # Use standard GPU processing
-                    from ..features.features import compute_all_features_with_gpu
+                else:
+                    # CPU processing
                     normals, curvature, height, geo_features = (
-                        compute_all_features_with_gpu(
+                        compute_all_features_optimized(
                             points=points,
                             classification=classification,
                             k=self.k_neighbors,
                             auto_k=(self.k_neighbors is None),
-                            use_gpu=True
+                            include_extra=self.include_extra_features,
+                            patch_center=np.mean(points, axis=0) if self.include_extra_features else None
                         )
                     )
+            
+            feature_time = time.time() - feature_start
+            if version_idx == 0:
+                logger.info(f"  ⏱️  Features: {feature_time:.1f}s")
             else:
-                # CPU processing
-                normals, curvature, height, geo_features = (
-                    compute_all_features_optimized(
-                        points=points,
-                        classification=classification,
-                        k=self.k_neighbors,
-                        auto_k=(self.k_neighbors is None),
-                        include_extra=self.include_extra_features,
-                        patch_center=np.mean(points, axis=0) if self.include_extra_features else None
-                    )
-                )
-        
-        feature_time = time.time() - feature_start
-        if version_idx == 0:
-            logger.info(f"  ⏱️  Features: {feature_time:.1f}s")
-        else:
-            logger.info(f"  ⏱️  Features for {version_label}: {feature_time:.1f}s")
-        
-        # Note: RGB, NIR, and NDVI were already fetched before the augmentation loop
-        # and are preserved in the version-specific variables above
-        
-        # ===== STEP 5: Save Enriched LAZ (optional, only for original version) =====
-        if save_enriched and version_idx == 0:
-            logger.info("  💾 Saving enriched LAZ...")
-            enriched_path = output_dir / "enriched" / f"{laz_file.stem}_enriched.laz"
-            enriched_path.parent.mkdir(parents=True, exist_ok=True)
+                logger.info(f"  ⏱️  Features for {version_label}: {feature_time:.1f}s")
             
-            # Create new LAS with features (using FILTERED points only)
-            # After preprocessing, points/intensity/etc are filtered arrays
-            # so we need to create a new LasData from scratch with the correct size
-            # Determine appropriate point format based on whether RGB is needed
-            original_format_id = las.header.point_format.id
+            # Note: RGB, NIR, and NDVI were already fetched before the augmentation loop
+            # and are preserved in the version-specific variables above
             
-            # If we have RGB, use a format that supports it
-            if rgb is not None:
-                # Map to RGB-compatible formats
-                # Format 2,3,5 (LAS 1.2-1.3) or 7,8,10 (LAS 1.4) support RGB
-                if original_format_id in [0, 1]:
-                    target_format = 2  # Basic + RGB
-                elif original_format_id in [6]:
-                    target_format = 7  # LAS 1.4 + RGB
-                elif original_format_id in [2, 3, 5, 7, 8, 10]:
-                    target_format = original_format_id  # Already supports RGB
-                else:
-                    target_format = 7  # Default to LAS 1.4 with RGB
-            else:
-                target_format = original_format_id
-            
-            # Create a fresh header with the appropriate point format
-            new_header = laspy.LasHeader(version=las.header.version, point_format=target_format)
-            new_header.offsets = las.header.offsets
-            new_header.scales = las.header.scales
-            
-            # Create new LAS with the correct size
-            new_las = laspy.LasData(new_header)
-            new_las.x = points[:, 0]
-            new_las.y = points[:, 1]
-            new_las.z = points[:, 2]
-            new_las.intensity = (intensity * 65535.0).astype(np.uint16)
-            new_las.return_number = return_number.astype(np.uint8)
-            new_las.classification = classification
-            
-            # Add RGB FIRST if computed (before extra dimensions)
-            if rgb is not None:
-                # Now the point format should support RGB
-                new_las.red = (rgb[:, 0] * 65535.0).astype(np.uint16)
-                new_las.green = (rgb[:, 1] * 65535.0).astype(np.uint16)
-                new_las.blue = (rgb[:, 2] * 65535.0).astype(np.uint16)
-            
-            # Add extra dimensions for features
-            try:
-                # Core geometric features (always computed)
-                new_las.add_extra_dim(laspy.ExtraBytesParams(
-                    name="normal_x", type=np.float32
-                ))
-                new_las.add_extra_dim(laspy.ExtraBytesParams(
-                    name="normal_y", type=np.float32
-                ))
-                new_las.add_extra_dim(laspy.ExtraBytesParams(
-                    name="normal_z", type=np.float32
-                ))
-                new_las.add_extra_dim(laspy.ExtraBytesParams(
-                    name="curvature", type=np.float32
-                ))
-                new_las.add_extra_dim(laspy.ExtraBytesParams(
-                    name="height", type=np.float32
-                ))
+            # ===== STEP 5: Save Enriched LAZ (optional, only for original version) =====
+            if save_enriched and version_idx == 0:
+                logger.info("  💾 Saving enriched LAZ...")
+                enriched_path = output_dir / "enriched" / f"{laz_file.stem}_enriched.laz"
+                enriched_path.parent.mkdir(parents=True, exist_ok=True)
                 
-                new_las.normal_x = normals[:, 0]
-                new_las.normal_y = normals[:, 1]
-                new_las.normal_z = normals[:, 2]
-                new_las.curvature = curvature
-                new_las.height = height
+                # Create new LAS with features (using FILTERED points only)
+                # After preprocessing, points/intensity/etc are filtered arrays
+                # so we need to create a new LasData from scratch with the correct size
+                # Determine appropriate point format based on whether RGB is needed
+                original_format_id = las.header.point_format.id
                 
-                # Add geometric features if computed
-                if geo_features is not None:
-                    if isinstance(geo_features, dict):
-                        # Dictionary format (from GPU/boundary-aware processing)
-                        for feature_name, feature_values in geo_features.items():
-                            new_las.add_extra_dim(laspy.ExtraBytesParams(
-                                name=feature_name, type=np.float32
-                            ))
-                            setattr(new_las, feature_name, feature_values)
-                    else:
-                        # Array format (from CPU processing)
-                        feature_names = ['planarity', 'linearity', 'sphericity', 'verticality']
-                        for i, feature_name in enumerate(feature_names[:geo_features.shape[1]]):
-                            new_las.add_extra_dim(laspy.ExtraBytesParams(
-                                name=feature_name, type=np.float32
-                            ))
-                            setattr(new_las, feature_name, geo_features[:, i])
-                
-                # Add NIR if available
-                if nir is not None:
-                    new_las.add_extra_dim(laspy.ExtraBytesParams(
-                        name="nir", type=np.float32
-                    ))
-                    new_las.nir = nir
-                
-                # Add NDVI if computed
-                if ndvi is not None:
-                    new_las.add_extra_dim(laspy.ExtraBytesParams(
-                        name="ndvi", type=np.float32
-                    ))
-                    new_las.ndvi = ndvi
-                
-                new_las.write(enriched_path)
-                
-                # Log what was saved
-                features_saved = ['normals', 'curvature', 'height']
-                if geo_features is not None:
-                    if isinstance(geo_features, dict):
-                        features_saved.extend(geo_features.keys())
-                    else:
-                        features_saved.extend(['planarity', 'linearity', 'sphericity', 'verticality'])
+                # If we have RGB, use a format that supports it
                 if rgb is not None:
-                    features_saved.append('RGB')
-                if nir is not None:
-                    features_saved.append('NIR')
-                if ndvi is not None:
-                    features_saved.append('NDVI')
+                    # Map to RGB-compatible formats
+                    # Format 2,3,5 (LAS 1.2-1.3) or 7,8,10 (LAS 1.4) support RGB
+                    if original_format_id in [0, 1]:
+                        target_format = 2  # Basic + RGB
+                    elif original_format_id in [6]:
+                        target_format = 7  # LAS 1.4 + RGB
+                    elif original_format_id in [2, 3, 5, 7, 8, 10]:
+                        target_format = original_format_id  # Already supports RGB
+                    else:
+                        target_format = 7  # Default to LAS 1.4 with RGB
+                else:
+                    target_format = original_format_id
                 
+                # Create a fresh header with the appropriate point format
+                new_header = laspy.LasHeader(version=las.header.version, point_format=target_format)
+                new_header.offsets = las.header.offsets
+                new_header.scales = las.header.scales
+                
+                # Create new LAS with the correct size
+                new_las = laspy.LasData(new_header)
+                new_las.x = points[:, 0]
+                new_las.y = points[:, 1]
+                new_las.z = points[:, 2]
+                new_las.intensity = (intensity * 65535.0).astype(np.uint16)
+                new_las.return_number = return_number.astype(np.uint8)
+                new_las.classification = classification
+                
+                # Add RGB FIRST if computed (before extra dimensions)
+                if rgb is not None:
+                    # Now the point format should support RGB
+                    new_las.red = (rgb[:, 0] * 65535.0).astype(np.uint16)
+                    new_las.green = (rgb[:, 1] * 65535.0).astype(np.uint16)
+                    new_las.blue = (rgb[:, 2] * 65535.0).astype(np.uint16)
+                
+                # Add extra dimensions for features
+                try:
+                    # Core geometric features (always computed)
+                    new_las.add_extra_dim(laspy.ExtraBytesParams(
+                        name="normal_x", type=np.float32
+                    ))
+                    new_las.add_extra_dim(laspy.ExtraBytesParams(
+                        name="normal_y", type=np.float32
+                    ))
+                    new_las.add_extra_dim(laspy.ExtraBytesParams(
+                        name="normal_z", type=np.float32
+                    ))
+                    new_las.add_extra_dim(laspy.ExtraBytesParams(
+                        name="curvature", type=np.float32
+                    ))
+                    new_las.add_extra_dim(laspy.ExtraBytesParams(
+                        name="height", type=np.float32
+                    ))
+                    
+                    new_las.normal_x = normals[:, 0]
+                    new_las.normal_y = normals[:, 1]
+                    new_las.normal_z = normals[:, 2]
+                    new_las.curvature = curvature
+                    new_las.height = height
+                    
+                    # Add geometric features if computed
+                    if geo_features is not None:
+                        if isinstance(geo_features, dict):
+                            # Dictionary format (from GPU/boundary-aware processing)
+                            for feature_name, feature_values in geo_features.items():
+                                new_las.add_extra_dim(laspy.ExtraBytesParams(
+                                    name=feature_name, type=np.float32
+                                ))
+                                setattr(new_las, feature_name, feature_values)
+                        else:
+                            # Array format (from CPU processing)
+                            feature_names = ['planarity', 'linearity', 'sphericity', 'verticality']
+                            for i, feature_name in enumerate(feature_names[:geo_features.shape[1]]):
+                                new_las.add_extra_dim(laspy.ExtraBytesParams(
+                                    name=feature_name, type=np.float32
+                                ))
+                                setattr(new_las, feature_name, geo_features[:, i])
+                    
+                    # Add NIR if available
+                    if nir is not None:
+                        new_las.add_extra_dim(laspy.ExtraBytesParams(
+                            name="nir", type=np.float32
+                        ))
+                        new_las.nir = nir
+                    
+                    # Add NDVI if computed
+                    if ndvi is not None:
+                        new_las.add_extra_dim(laspy.ExtraBytesParams(
+                            name="ndvi", type=np.float32
+                        ))
+                        new_las.ndvi = ndvi
+                    
+                    new_las.write(enriched_path)
+                    
+                    # Log what was saved
+                    features_saved = ['normals', 'curvature', 'height']
+                    if geo_features is not None:
+                        if isinstance(geo_features, dict):
+                            features_saved.extend(geo_features.keys())
+                        else:
+                            features_saved.extend(['planarity', 'linearity', 'sphericity', 'verticality'])
+                    if rgb is not None:
+                        features_saved.append('RGB')
+                    if nir is not None:
+                        features_saved.append('NIR')
+                    if ndvi is not None:
+                        features_saved.append('NDVI')
+                    
+                    logger.info(
+                        f"  ✓ Enriched LAZ saved: {enriched_path.name} "
+                        f"({len(features_saved)} feature groups: {', '.join(features_saved)})"
+                    )
+                except Exception as e:
+                    logger.warning(f"  ⚠️  Failed to save enriched LAZ: {e}")
+            
+            # ===== STEP 6: Remap Labels =====
+            labels = np.array([
+                self.class_mapping.get(c, self.default_class)
+                for c in classification
+            ], dtype=np.uint8)
+            
+            # ===== STEP 7: Extract Patches =====
+            # Log extraction start for ALL versions (not just original)
+            if version_idx == 0:
                 logger.info(
-                    f"  ✓ Enriched LAZ saved: {enriched_path.name} "
-                    f"({len(features_saved)} feature groups: {', '.join(features_saved)})"
+                    f"  📦 Extracting patches "
+                    f"(size={self.patch_size}m, points={self.num_points})..."
                 )
-            except Exception as e:
-                logger.warning(f"  ⚠️  Failed to save enriched LAZ: {e}")
-        
-        # ===== STEP 6: Remap Labels =====
-        labels = np.array([
-            self.class_mapping.get(c, self.default_class)
-            for c in classification
-        ], dtype=np.uint8)
-        
-        # ===== STEP 7: Extract Patches =====
-        # Log extraction start for ALL versions (not just original)
-        if version_idx == 0:
-            logger.info(
-                f"  📦 Extracting patches "
-                f"(size={self.patch_size}m, points={self.num_points})..."
+            else:
+                logger.info(
+                    f"  📦 Extracting patches from {version_label} "
+                    f"({len(points):,} points)..."
+                )
+            
+            # Build feature dictionary
+            all_features = {
+                'normals': normals,
+                'curvature': curvature,
+                'intensity': intensity,
+                'return_number': return_number,
+                'height': height
+            }
+            
+            # Add geometric features if available
+            if geo_features is not None:
+                all_features.update(geo_features)
+            
+            # Add optional features
+            if rgb is not None:
+                all_features['rgb'] = rgb
+            if nir is not None:
+                all_features['nir'] = nir
+            if ndvi is not None:
+                all_features['ndvi'] = ndvi
+            
+            # Extract patches
+            patches = extract_patches(
+                points, all_features, labels,
+                patch_size=self.patch_size,
+                overlap=self.patch_overlap,
+                min_points=10000,
+                target_num_points=self.num_points
             )
-        else:
-            logger.info(
-                f"  📦 Extracting patches from {version_label} "
-                f"({len(points):,} points)..."
-            )
-        
-        # Build feature dictionary
-        all_features = {
-            'normals': normals,
-            'curvature': curvature,
-            'intensity': intensity,
-            'return_number': return_number,
-            'height': height
-        }
-        
-        # Add geometric features if available
-        if geo_features is not None:
-            all_features.update(geo_features)
-        
-        # Add optional features
-        if rgb is not None:
-            all_features['rgb'] = rgb
-        if nir is not None:
-            all_features['nir'] = nir
-        if ndvi is not None:
-            all_features['ndvi'] = ndvi
-        
-        # Extract patches
-        patches = extract_patches(
-            points, all_features, labels,
-            patch_size=self.patch_size,
-            overlap=self.patch_overlap,
-            min_points=10000,
-            target_num_points=self.num_points
-        )
-        
-        # Tag patches with version label AND spatial index
-        # The spatial index is determined from the patch order (consistent across augmentations)
-        for patch_idx, patch in enumerate(patches):
-            patch['_version'] = version_label
-            patch['_spatial_idx'] = patch_idx  # Track spatial location
-        
-        # Collect patches from this version
-        all_patches_collected.extend(patches)
-        
-        # Always log extraction result for debugging
-        if version_idx == 0:
-            logger.info(f"  ✓ Extracted {len(patches)} patches from original")
-        else:
-            logger.info(f"  ✓ Extracted {len(patches)} patches from {version_label}")
+            
+            # Tag patches with version label AND spatial index
+            # The spatial index is determined from the patch order (consistent across augmentations)
+            for patch_idx, patch in enumerate(patches):
+                patch['_version'] = version_label
+                patch['_spatial_idx'] = patch_idx  # Track spatial location
+            
+            # Collect patches from this version
+            all_patches_collected.extend(patches)
+            
+            # Always log extraction result for debugging
+            if version_idx == 0:
+                logger.info(f"  ✓ Extracted {len(patches)} patches from original")
+            else:
+                logger.info(f"  ✓ Extracted {len(patches)} patches from {version_label}")
         
         # END OF AUGMENTATION LOOP
         

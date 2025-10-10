@@ -678,7 +678,42 @@ For comprehensive documentation, see the **[Documentation Hub](docs/README.md)**
 
 ---
 
-## 🛠️ Development
+## � Utilities & Scripts
+
+### NPZ to LAZ Converter
+
+Convert NPZ patch files back to LAZ format for visualization in CloudCompare, QGIS, etc:
+
+```bash
+# Single file
+python scripts/convert_npz_to_laz.py patch_0001.npz output.laz
+
+# Entire directory
+python scripts/convert_npz_to_laz.py patches/ output_laz/
+```
+
+**Features:**
+
+- ✅ Automatic metadata-only file detection
+- ✅ Batch processing with progress summary
+- ✅ Preserves RGB, intensity, and classification
+- ✅ Full error handling and validation
+
+**Documentation:**
+
+- **[CONVERT_NPZ_TO_LAZ.md](scripts/CONVERT_NPZ_TO_LAZ.md)** - Complete usage guide
+- **[NPZ_FILE_TYPES.md](NPZ_FILE_TYPES.md)** - Understanding NPZ file formats
+
+### Other Utilities
+
+- **`benchmark_performance.py`** - Compare v1.7.7 vs v2.0 workflows
+- **`test_integration_e2e.py`** - End-to-end processing validation
+- **`migrate_to_v2.py`** - Upgrade from v1.x to v2.x
+- **`cleanup_old_files.py`** - Remove deprecated files
+
+---
+
+## �🛠️ Development
 
 ### Setup Development Environment
 

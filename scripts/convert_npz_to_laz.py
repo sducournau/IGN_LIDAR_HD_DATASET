@@ -36,13 +36,35 @@ def convert_npz_to_laz(npz_path: Path, output_path: Optional[Path] = None) -> Pa
     
     # Load NPZ data
     try:
-        data = np.load(npz_path)
+        data = np.load(npz_path, allow_pickle=True)
     except Exception as e:
         print(f"Error loading NPZ file: {e}")
         raise
     
     # Print available keys for debugging
     print(f"Available keys in NPZ: {list(data.keys())}")
+    
+    # Check if this is a metadata-only file
+    if list(data.keys()) == ['metadata'] or (len(data.keys()) == 1 and 'metadata' in data):
+        print("\n⚠️  This appears to be a metadata-only NPZ file.")
+        print("    These files only contain patch metadata without actual point cloud data.")
+        
+        # Display the metadata content
+        try:
+            metadata = data['metadata'].item() if data['metadata'].ndim == 0 else data['metadata']
+            print("\nMetadata contents:")
+            for key, value in metadata.items():
+                print(f"  {key}: {value}")
+        except Exception as e:
+            print(f"  (Could not parse metadata: {e})")
+        
+        raise ValueError(
+            "\nCannot convert metadata-only NPZ files to LAZ format.\n"
+            "These files were likely created with save_metadata=True but without actual point data.\n"
+            "To generate full NPZ files with point clouds, ensure your processing pipeline includes:\n"
+            "  - output.save_metadata=True\n"
+            "  - Actual point cloud processing (not just metadata extraction)"
+        )
     
     # Determine which coordinate field to use
     if 'points' in data:
@@ -165,17 +187,40 @@ def convert_directory(input_dir: Path, output_dir: Optional[Path] = None) -> lis
     print(f"Found {len(npz_files)} NPZ files to convert")
     
     converted = []
+    metadata_only = []
+    failed = []
+    
     for npz_file in npz_files:
         try:
             output_path = output_dir / npz_file.with_suffix('.laz').name
             convert_npz_to_laz(npz_file, output_path)
             converted.append(output_path)
             print()
+        except ValueError as e:
+            # Check if it's a metadata-only file
+            if "metadata-only" in str(e):
+                metadata_only.append(npz_file)
+                print(f"⚠️  Skipping metadata-only file: {npz_file.name}")
+            else:
+                failed.append(npz_file)
+                print(f"❌ Error converting {npz_file.name}: {e}")
+            print()
         except Exception as e:
-            print(f"Error converting {npz_file.name}: {e}")
+            failed.append(npz_file)
+            print(f"❌ Error converting {npz_file.name}: {e}")
             print()
     
-    print(f"Successfully converted {len(converted)}/{len(npz_files)} files")
+    # Summary
+    print("\n" + "="*60)
+    print("CONVERSION SUMMARY")
+    print("="*60)
+    print(f"✅ Successfully converted: {len(converted)}/{len(npz_files)} files")
+    if metadata_only:
+        print(f"⚠️  Metadata-only files skipped: {len(metadata_only)}")
+        print(f"   (These files only contain metadata without point cloud data)")
+    if failed:
+        print(f"❌ Failed conversions: {len(failed)}")
+    print("="*60)
     return converted
 
 
