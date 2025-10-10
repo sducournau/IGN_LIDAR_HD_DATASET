@@ -1830,13 +1830,42 @@ class LiDARProcessor:
                         elif fmt == 'hdf5':
                             save_path = output_dir / f"{base_filename}.h5"
                             with h5py.File(save_path, 'w') as f:
+                                # Extract metadata (don't modify arch_data - use get instead of pop)
+                                metadata = arch_data.get('metadata', None)
+                                
+                                # Save all numpy arrays as datasets
                                 for key, value in arch_data.items():
-                                    f.create_dataset(key, data=value, compression='gzip', compression_opts=9)
+                                    # Skip metadata and non-array fields
+                                    if key == 'metadata':
+                                        continue
+                                    if isinstance(value, np.ndarray):
+                                        f.create_dataset(key, data=value, compression='gzip', compression_opts=9)
+                                    else:
+                                        logger.warning(f"  ⚠️  Skipping non-array field '{key}' for HDF5 (type: {type(value).__name__})")
+                                
+                                # Save metadata as HDF5 attributes (flattened)
+                                if metadata is not None:
+                                    for meta_key, meta_value in metadata.items():
+                                        try:
+                                            # Convert lists to arrays for HDF5 compatibility
+                                            if isinstance(meta_value, list):
+                                                meta_value = np.array(meta_value)
+                                            f.attrs[meta_key] = meta_value
+                                        except (TypeError, ValueError) as e:
+                                            logger.debug(f"  Could not save metadata key '{meta_key}': {e}")
                             num_saved += 1
                         elif fmt in ['pytorch', 'torch']:
                             save_path = output_dir / f"{base_filename}.pt"
-                            # Convert numpy arrays to torch tensors
-                            torch_data = {k: torch.from_numpy(v) for k, v in arch_data.items()}
+                            # Convert numpy arrays to torch tensors (skip metadata and non-arrays)
+                            torch_data = {}
+                            for k, v in arch_data.items():
+                                if k == 'metadata':
+                                    # Keep metadata as-is for PyTorch (it supports dicts)
+                                    torch_data[k] = v
+                                elif isinstance(v, np.ndarray):
+                                    torch_data[k] = torch.from_numpy(v)
+                                else:
+                                    logger.warning(f"  ⚠️  Skipping non-array field '{k}' for PyTorch (type: {type(v).__name__})")
                             torch.save(torch_data, save_path)
                             num_saved += 1
                         elif fmt == 'laz':
