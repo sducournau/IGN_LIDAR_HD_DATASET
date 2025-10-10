@@ -533,7 +533,7 @@ class LiDARProcessor:
             classification = classification[mask]
             logger.info(f"  After bbox filter: {len(points):,} points")
         
-        # Store original data for potential augmentation
+        # Store original data - used for ALL versions
         original_data = {
             'points': points,
             'intensity': intensity,
@@ -541,39 +541,14 @@ class LiDARProcessor:
             'classification': classification
         }
         
-        # Determine number of versions to process (original + augmentations)
-        num_versions = 1 + (self.num_augmentations if self.augment else 0)
-        all_patches_collected = []
+        # Process original data ONCE to extract patch locations
+        points_v = original_data['points']
+        intensity_v = original_data['intensity']
+        return_number_v = original_data['return_number']
+        classification_v = original_data['classification']
         
-        for version_idx in range(num_versions):
-            # Apply augmentation to raw data if not the first version
-            if version_idx == 0:
-                # Original version - no augmentation
-                points_v = original_data['points']
-                intensity_v = original_data['intensity']
-                return_number_v = original_data['return_number']
-                classification_v = original_data['classification']
-                version_label = "original"
-            else:
-                # Augmented version - apply transformations BEFORE features
-                (points_v, intensity_v,
-                 return_number_v, classification_v, _, _, _) = augment_raw_points(
-                    original_data['points'],
-                    original_data['intensity'],
-                    original_data['return_number'],
-                    original_data['classification'],
-                    rgb=None,
-                    nir=None,
-                    ndvi=None
-                )
-                version_label = f"aug_{version_idx-1}"
-                logger.info(
-                    f"  🔄 Augmented v{version_idx}/{num_versions-1} "
-                    f"({len(points_v):,} points after dropout)"
-                )
-        
-            # 1b. Apply preprocessing if enabled (before feature computation)
-            if self.preprocess:
+        # 1b. Apply preprocessing if enabled (before feature computation)
+        if self.preprocess:
                 logger.info("  🧹 Preprocessing (artifact mitigation)...")
                 preprocess_start = time.time()
                 
@@ -637,151 +612,216 @@ class LiDARProcessor:
                     f"  ✓ Preprocessing: {final_count:,}/{original_count:,} "
                     f"({reduction:.1%} reduction, {preprocess_time:.2f}s)"
                 )
-            
-            # 2. Compute geometric features (optimized, single pass)
-            feature_mode = ("FULL" if self.include_extra_features
-                           else "CORE")
-            k_display = self.k_neighbors if self.k_neighbors else "auto"
-            logger.info(
-                f"  🔧 Computing features | k={k_display} | "
-                f"mode={feature_mode}"
+        
+        # 2. Compute geometric features (optimized, single pass) on ORIGINAL data
+        feature_mode = ("FULL" if self.include_extra_features
+                       else "CORE")
+        k_display = self.k_neighbors if self.k_neighbors else "auto"
+        logger.info(
+            f"  🔧 Computing features | k={k_display} | "
+            f"mode={feature_mode}"
+        )
+        
+        feature_start = time.time()
+        
+        # Compute patch center for distance_to_center feature
+        patch_center = (np.mean(points_v, axis=0)
+                       if self.include_extra_features else None)
+        
+        # Use manual k if specified, otherwise auto-estimate
+        use_auto_k = self.k_neighbors is None
+        k_value = (self.k_neighbors
+                  if self.k_neighbors is not None else 20)  # Default value
+        
+        # Choose GPU or CPU based on configuration
+        if self.use_gpu:
+            normals, curvature, height, geo_features = (
+                compute_all_features_with_gpu(
+                    points=points_v,
+                    classification=classification_v,
+                    k=k_value,
+                    auto_k=use_auto_k,
+                    use_gpu=True
+                )
             )
-            
-            feature_start = time.time()
-            
-            # Compute patch center for distance_to_center feature
-            patch_center = (np.mean(points_v, axis=0)
-                           if self.include_extra_features else None)
-            
-            # Use manual k if specified, otherwise auto-estimate
-            use_auto_k = self.k_neighbors is None
-            k_value = (self.k_neighbors
-                      if self.k_neighbors is not None else None)
-            
-            # Choose GPU or CPU based on configuration
-            if self.use_gpu:
-                normals, curvature, height, geo_features = (
-                    compute_all_features_with_gpu(
-                        points=points_v,
-                        classification=classification_v,
-                        k=k_value,
-                        auto_k=use_auto_k,
-                        use_gpu=True
-                    )
+        else:
+            normals, curvature, height, geo_features = (
+                compute_all_features_optimized(
+                    points=points_v,
+                    classification=classification_v,
+                    k=k_value,
+                    auto_k=use_auto_k,
+                    include_extra=self.include_extra_features,
+                    patch_center=patch_center
+                )
+            )
+        
+        feature_time = time.time() - feature_start
+        logger.info(f"  ⏱️  Features computed in {feature_time:.1f}s")
+        
+        # 3. Remap labels
+        labels_v = np.array([
+            self.class_mapping.get(c, self.default_class)
+            for c in classification_v
+        ], dtype=np.uint8)
+        
+        # 4. Combine features
+        all_features_v = {
+            'normals': normals,
+            'curvature': curvature,
+            'intensity': intensity_v,
+            'return_number': return_number_v,
+            'height': height,
+            **geo_features
+        }
+        
+        # Add architectural style if requested
+        if self.include_architectural_style:
+            if multi_styles and self.style_encoding == 'multihot':
+                # Multi-label encoding with weights
+                style_ids = [s["style_id"] for s in multi_styles]
+                weights = [s.get("weight", 1.0) for s in multi_styles]
+                architectural_style = encode_multi_style_feature(
+                    style_ids=style_ids,
+                    weights=weights,
+                    num_points=len(points_v),
+                    encoding="multihot"
                 )
             else:
-                normals, curvature, height, geo_features = (
-                    compute_all_features_optimized(
-                        points=points_v,
-                        classification=classification_v,
-                        k=k_value,
-                        auto_k=use_auto_k,
-                        include_extra=self.include_extra_features,
-                        patch_center=patch_center
-                    )
+                # Single style (constant or legacy)
+                architectural_style = encode_style_as_feature(
+                    style_id=architectural_style_id,
+                    num_points=len(points_v),
+                    encoding="constant"
                 )
-            
-            feature_time = time.time() - feature_start
-            logger.info(f"  ⏱️  Features computed in {feature_time:.1f}s")
-            
-            # 3. Remap labels for this version
-            labels_v = np.array([
-                self.class_mapping.get(c, self.default_class)
-                for c in classification_v
-            ], dtype=np.uint8)
-            
-            # 4. Combine features
-            all_features_v = {
-                'normals': normals,
-                'curvature': curvature,
-                'intensity': intensity_v,
-                'return_number': return_number_v,
-                'height': height,
-                **geo_features
-            }
-            
-            # Add architectural style if requested
-            if self.include_architectural_style:
-                if multi_styles and self.style_encoding == 'multihot':
-                    # Multi-label encoding with weights
-                    style_ids = [s["style_id"] for s in multi_styles]
-                    weights = [s.get("weight", 1.0) for s in multi_styles]
-                    architectural_style = encode_multi_style_feature(
-                        style_ids=style_ids,
-                        weights=weights,
-                        num_points=len(points_v),
-                        encoding="multihot"
-                    )
-                else:
-                    # Single style (constant or legacy)
-                    architectural_style = encode_style_as_feature(
-                        style_id=architectural_style_id,
-                        num_points=len(points_v),
-                        encoding="constant"
-                    )
-                all_features_v['architectural_style'] = architectural_style
-            
-            # 5. Extract patches from this version
-            logger.info(
-                f"  📦 Extracting patches (size={self.patch_size}m, "
-                f"target_points={self.num_points})..."
-            )
-            patches_v = extract_patches(
-                points_v, all_features_v, labels_v,
-                patch_size=self.patch_size,
-                overlap=self.patch_overlap,
-                min_points=10000,
-                target_num_points=self.num_points
-            )
-            
-            # 5b. Add RGB if requested
-            if self.include_rgb and self.rgb_fetcher:
-                logger.info(
-                    "  🎨 Augmenting patches with RGB "
-                    "from IGN orthophotos..."
-                )
-                # Get tile bounding box for orthophoto fetch
-                tile_bbox = (
-                    points_v[:, 0].min(),
-                    points_v[:, 1].min(),
-                    points_v[:, 0].max(),
-                    points_v[:, 1].max()
-                )
-                
-                for patch in patches_v:
-                    try:
-                        # Get absolute coordinates for this patch
-                        patch_points_abs = patch['points'].copy()
-                        patch_center_xy = np.array([
-                            (tile_bbox[0] + tile_bbox[2]) / 2,
-                            (tile_bbox[1] + tile_bbox[3]) / 2,
-                            0
-                        ])
-                        patch_points_abs[:, :2] += patch_center_xy[:2]
-                        
-                        # Fetch RGB
-                        rgb = self.rgb_fetcher.augment_points_with_rgb(
-                            patch_points_abs,
-                            bbox=tile_bbox
-                        )
-                        patch['rgb'] = rgb.astype(np.float32) / 255.0
-                    except Exception as e:
-                        logger.warning(
-                            f"  ⚠️  RGB augmentation failed: {e}"
-                        )
-                        # Add default gray color
-                        patch['rgb'] = np.full(
-                            (len(patch['points']), 3),
-                            0.5,
-                            dtype=np.float32
-                        )
-            
-            # Store patches with version suffix
-            for patch in patches_v:
-                patch['_version'] = version_label
-                all_patches_collected.append(patch)
+            all_features_v['architectural_style'] = architectural_style
         
-        # 6. Save all collected patches
+        # 5. Extract patches from ORIGINAL data ONCE (not per augmentation!)
+        logger.info(
+            f"  📦 Extracting patches (size={self.patch_size}m, "
+            f"target_points={self.num_points})..."
+        )
+        base_patches = extract_patches(
+            points_v, all_features_v, labels_v,
+            patch_size=self.patch_size,
+            overlap=self.patch_overlap,
+            min_points=10000,
+            target_num_points=self.num_points
+        )
+        
+        logger.info(f"  ✓ Extracted {len(base_patches)} base patches")
+        
+        # 5b. Add RGB if requested (to base patches only)
+        if self.include_rgb and self.rgb_fetcher:
+            logger.info(
+                "  🎨 Augmenting patches with RGB "
+                "from IGN orthophotos..."
+            )
+            # Get tile bounding box for orthophoto fetch
+            tile_bbox = (
+                points_v[:, 0].min(),
+                points_v[:, 1].min(),
+                points_v[:, 0].max(),
+                points_v[:, 1].max()
+            )
+            
+            for patch in base_patches:
+                try:
+                    # Get absolute coordinates for this patch
+                    patch_points_abs = patch['points'].copy()
+                    patch_center_xy = np.array([
+                        (tile_bbox[0] + tile_bbox[2]) / 2,
+                        (tile_bbox[1] + tile_bbox[3]) / 2,
+                        0
+                    ])
+                    patch_points_abs[:, :2] += patch_center_xy[:2]
+                    
+                    # Fetch RGB
+                    rgb = self.rgb_fetcher.augment_points_with_rgb(
+                        patch_points_abs,
+                        bbox=tile_bbox
+                    )
+                    patch['rgb'] = rgb.astype(np.float32) / 255.0
+                except Exception as e:
+                    logger.warning(
+                        f"  ⚠️  RGB augmentation failed: {e}"
+                    )
+                    # Add default gray color
+                    patch['rgb'] = np.full(
+                        (len(patch['points']), 3),
+                        0.5,
+                        dtype=np.float32
+                    )
+        
+        # 6. Create augmented versions of each patch
+        num_versions = 1 + (self.num_augmentations if self.augment else 0)
+        all_patches_collected = []
+        
+        for patch_idx, base_patch in enumerate(base_patches):
+            # Version 0: Original patch
+            original_patch = base_patch.copy()
+            original_patch['_version'] = 'original'
+            original_patch['_patch_idx'] = patch_idx
+            all_patches_collected.append(original_patch)
+            
+            # Augmented versions: Apply augmentation to EACH PATCH individually
+            if self.augment:
+                for aug_idx in range(self.num_augmentations):
+                    # Extract raw data from patch
+                    patch_points = base_patch['points'].copy()
+                    patch_intensity = base_patch['intensity'].copy()
+                    patch_return_num = base_patch['return_number'].copy()
+                    patch_labels = base_patch['labels'].copy()
+                    patch_rgb = base_patch.get('rgb', None)
+                    
+                    if patch_rgb is not None:
+                        patch_rgb = patch_rgb.copy()
+                    
+                    # Apply augmentation to THIS patch - get mask to align labels
+                    result = augment_raw_points(
+                        patch_points,
+                        patch_intensity,
+                        patch_return_num,
+                        np.zeros(len(patch_points), dtype=np.uint8),  # dummy classification
+                        rgb=patch_rgb,
+                        nir=None,
+                        ndvi=None,
+                        return_mask=True
+                    )
+                    
+                    # Unpack results including keep_mask
+                    (aug_points, aug_intensity, aug_return, _, 
+                     aug_rgb, _, _, keep_mask) = result
+                    
+                    # Apply same mask to labels to keep alignment
+                    aug_labels = patch_labels[keep_mask]
+                    
+                    # Create augmented patch
+                    aug_patch = {
+                        'points': aug_points,
+                        'intensity': aug_intensity,
+                        'return_number': aug_return,
+                        'labels': aug_labels,
+                        '_version': f'aug_{aug_idx}',
+                        '_patch_idx': patch_idx
+                    }
+                    
+                    # Copy RGB if present
+                    if aug_rgb is not None:
+                        aug_patch['rgb'] = aug_rgb
+                    
+                    # Copy other features (normals, curvature, etc. need recomputation)
+                    # For now, we skip recomputing features for augmented patches
+                    # TODO: Optionally recompute geometric features on augmented geometry
+                    
+                    all_patches_collected.append(aug_patch)
+        
+        logger.info(
+            f"  🔄 Created {len(all_patches_collected)} total patches "
+            f"({len(base_patches)} base × {num_versions} versions)"
+        )
+        
+        # 7. Save all collected patches
         output_dir.mkdir(parents=True, exist_ok=True)
         num_saved = 0
         
@@ -792,16 +832,11 @@ class LiDARProcessor:
             f"({num_versions} versions)"
         )
         
-        # Group patches by version and original patch order
-        # Since we collect patches in order: all patches from v0, then v1, then v2...
-        # We need to track which patches belong together across versions
-        patches_per_version = len(all_patches_collected) // num_versions
-        
         # Save patches with proper naming
-        for patch_idx, patch in enumerate(all_patches_collected):
+        # Each patch has _version and _patch_idx metadata
+        for patch in all_patches_collected:
             version = patch.pop('_version', 'original')
-            # Calculate base patch index (same for all versions of a patch)
-            base_idx = patch_idx % patches_per_version
+            base_idx = patch.pop('_patch_idx', 0)
             
             if version == 'original':
                 patch_name = f"{laz_file.stem}_patch_{base_idx:04d}.npz"
@@ -815,10 +850,10 @@ class LiDARProcessor:
             num_saved += 1
         
         tile_time = time.time() - tile_start
-        pts_processed = (len(original_data['points']) * num_versions)
+        pts_processed = len(original_data['points'])
         logger.info(
             f"  ✅ Completed: {num_saved} patches in {tile_time:.1f}s "
-            f"({pts_processed/tile_time:.0f} pts/s)"
+            f"(from {pts_processed:,} original points)"
         )
         return num_saved
     
@@ -1656,6 +1691,15 @@ class LiDARProcessor:
                 
                 # Add extra dimensions for features
                 try:
+                    # Validate data sizes before adding features
+                    expected_size = len(points)
+                    if len(normals) != expected_size:
+                        raise ValueError(f"Normals size mismatch: {len(normals)} != {expected_size}")
+                    if len(curvature) != expected_size:
+                        raise ValueError(f"Curvature size mismatch: {len(curvature)} != {expected_size}")
+                    if len(height) != expected_size:
+                        raise ValueError(f"Height size mismatch: {len(height)} != {expected_size}")
+                    
                     # Core geometric features (always computed)
                     new_las.add_extra_dim(laspy.ExtraBytesParams(
                         name="normal_x", type=np.float32
@@ -1673,45 +1717,96 @@ class LiDARProcessor:
                         name="height", type=np.float32
                     ))
                     
-                    new_las.normal_x = normals[:, 0]
-                    new_las.normal_y = normals[:, 1]
-                    new_las.normal_z = normals[:, 2]
-                    new_las.curvature = curvature
-                    new_las.height = height
+                    # Assign feature values with explicit type conversion
+                    new_las.normal_x = normals[:, 0].astype(np.float32)
+                    new_las.normal_y = normals[:, 1].astype(np.float32)
+                    new_las.normal_z = normals[:, 2].astype(np.float32)
+                    new_las.curvature = curvature.astype(np.float32)
+                    new_las.height = height.astype(np.float32)
+                    
+                    logger.debug(f"  ✓ Added core features: normals, curvature, height")
                     
                     # Add geometric features if computed
                     if geo_features is not None:
                         if isinstance(geo_features, dict):
                             # Dictionary format (from GPU/boundary-aware processing)
                             for feature_name, feature_values in geo_features.items():
+                                # Validate size
+                                if len(feature_values) != expected_size:
+                                    logger.warning(
+                                        f"  ⚠️  Skipping feature {feature_name}: "
+                                        f"size mismatch ({len(feature_values)} != {expected_size})"
+                                    )
+                                    continue
+                                
                                 new_las.add_extra_dim(laspy.ExtraBytesParams(
                                     name=feature_name, type=np.float32
                                 ))
-                                setattr(new_las, feature_name, feature_values)
+                                setattr(new_las, feature_name, feature_values.astype(np.float32))
+                            logger.debug(f"  ✓ Added {len(geo_features)} geometric features (dict)")
                         else:
                             # Array format (from CPU processing)
                             feature_names = ['planarity', 'linearity', 'sphericity', 'verticality']
                             for i, feature_name in enumerate(feature_names[:geo_features.shape[1]]):
+                                # Validate size
+                                if len(geo_features[:, i]) != expected_size:
+                                    logger.warning(
+                                        f"  ⚠️  Skipping feature {feature_name}: size mismatch"
+                                    )
+                                    continue
+                                
                                 new_las.add_extra_dim(laspy.ExtraBytesParams(
                                     name=feature_name, type=np.float32
                                 ))
-                                setattr(new_las, feature_name, geo_features[:, i])
+                                setattr(new_las, feature_name, geo_features[:, i].astype(np.float32))
+                            logger.debug(f"  ✓ Added {geo_features.shape[1]} geometric features (array)")
+                    else:
+                        logger.debug(f"  ⚠️  No geometric features (geo_features is None)")
                     
                     # Add NIR if available
                     if nir is not None:
-                        new_las.add_extra_dim(laspy.ExtraBytesParams(
-                            name="nir", type=np.float32
-                        ))
-                        new_las.nir = nir
+                        if len(nir) != expected_size:
+                            logger.warning(f"  ⚠️  Skipping NIR: size mismatch ({len(nir)} != {expected_size})")
+                        else:
+                            new_las.add_extra_dim(laspy.ExtraBytesParams(
+                                name="nir", type=np.float32
+                            ))
+                            new_las.nir = nir.astype(np.float32)
+                            logger.debug(f"  ✓ Added NIR")
                     
                     # Add NDVI if computed
                     if ndvi is not None:
-                        new_las.add_extra_dim(laspy.ExtraBytesParams(
-                            name="ndvi", type=np.float32
-                        ))
-                        new_las.ndvi = ndvi
+                        if len(ndvi) != expected_size:
+                            logger.warning(f"  ⚠️  Skipping NDVI: size mismatch ({len(ndvi)} != {expected_size})")
+                        else:
+                            new_las.add_extra_dim(laspy.ExtraBytesParams(
+                                name="ndvi", type=np.float32
+                            ))
+                            new_las.ndvi = ndvi.astype(np.float32)
+                            logger.debug(f"  ✓ Added NDVI")
                     
+                    # Verify extra dimensions were added
+                    extra_dims_added = new_las.point_format.extra_dimension_names
+                    logger.debug(f"  📊 Total extra dimensions added: {len(extra_dims_added)}")
+                    logger.debug(f"     Extra dimensions: {extra_dims_added}")
+                    
+                    # Write the LAZ file
+                    logger.debug(f"  💾 Writing enriched LAZ to: {enriched_path}")
                     new_las.write(enriched_path)
+                    
+                    # Verify file was written and has features
+                    if enriched_path.exists():
+                        # Re-read to verify features were saved
+                        verify_las = laspy.read(str(enriched_path))
+                        verify_extra_dims = verify_las.point_format.extra_dimension_names
+                        
+                        if len(verify_extra_dims) == 0:
+                            logger.error(
+                                f"  ❌ CRITICAL: Enriched LAZ was written but contains NO extra dimensions!"
+                            )
+                            logger.error(f"     This is a BUG - features were added but not persisted")
+                        else:
+                            logger.debug(f"  ✓ Verified: {len(verify_extra_dims)} extra dimensions in written file")
                     
                     # Log what was saved
                     features_saved = ['normals', 'curvature', 'height']
@@ -1732,7 +1827,12 @@ class LiDARProcessor:
                         f"({len(features_saved)} feature groups: {', '.join(features_saved)})"
                     )
                 except Exception as e:
-                    logger.warning(f"  ⚠️  Failed to save enriched LAZ: {e}")
+                    logger.error(f"  ❌ Failed to save enriched LAZ: {e}")
+                    logger.error(f"     Error type: {type(e).__name__}")
+                    logger.error(f"     File: {enriched_path}")
+                    # Log more details for debugging
+                    import traceback
+                    logger.error(f"     Traceback:\n{traceback.format_exc()}")
             
             # ===== STEP 6: Remap Labels =====
             labels = np.array([

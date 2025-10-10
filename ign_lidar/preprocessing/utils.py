@@ -3,7 +3,7 @@ Utility functions for patch extraction and data augmentation
 """
 
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 import numpy as np
 
 
@@ -14,8 +14,12 @@ def augment_raw_points(
     classification: np.ndarray,
     rgb: np.ndarray = None,
     nir: np.ndarray = None,
-    ndvi: np.ndarray = None
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ndvi: np.ndarray = None,
+    return_mask: bool = False
+) -> Union[
+    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+]:
     """
     Apply data augmentation to raw point cloud data BEFORE feature computation.
     
@@ -37,10 +41,12 @@ def augment_raw_points(
         rgb: [N, 3] RGB values (optional)
         nir: [N] near-infrared values (optional)
         ndvi: [N] NDVI values (optional)
+        return_mask: If True, return keep_mask as 8th element
         
     Returns:
         Tuple of (augmented_points, intensity, return_number, classification, rgb, nir, ndvi)
         All arrays are filtered by the same dropout mask
+        If return_mask=True, returns (points, intensity, return_number, classification, rgb, nir, ndvi, keep_mask)
     """
     N = len(points)
     points_aug = points.copy()
@@ -78,7 +84,10 @@ def augment_raw_points(
     nir_aug = nir[keep_mask] if nir is not None else None
     ndvi_aug = ndvi[keep_mask] if ndvi is not None else None
     
-    return points_aug, intensity_aug, return_number_aug, classification_aug, rgb_aug, nir_aug, ndvi_aug
+    if return_mask:
+        return points_aug, intensity_aug, return_number_aug, classification_aug, rgb_aug, nir_aug, ndvi_aug, keep_mask
+    else:
+        return points_aug, intensity_aug, return_number_aug, classification_aug, rgb_aug, nir_aug, ndvi_aug
 
 
 def extract_patches(
