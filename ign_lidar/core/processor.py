@@ -1456,6 +1456,8 @@ class LiDARProcessor:
         feature_time = time.time() - feature_start
         if version_idx == 0:
             logger.info(f"  ⏱️  Features: {feature_time:.1f}s")
+        else:
+            logger.info(f"  ⏱️  Features for {version_label}: {feature_time:.1f}s")
         
         # Note: RGB, NIR, and NDVI were already fetched before the augmentation loop
         # and are preserved in the version-specific variables above
@@ -1595,10 +1597,16 @@ class LiDARProcessor:
         ], dtype=np.uint8)
         
         # ===== STEP 7: Extract Patches =====
+        # Log extraction start for ALL versions (not just original)
         if version_idx == 0:
             logger.info(
                 f"  📦 Extracting patches "
                 f"(size={self.patch_size}m, points={self.num_points})..."
+            )
+        else:
+            logger.info(
+                f"  📦 Extracting patches from {version_label} "
+                f"({len(points):,} points)..."
             )
         
         # Build feature dictionary
@@ -1640,6 +1648,7 @@ class LiDARProcessor:
         # Collect patches from this version
         all_patches_collected.extend(patches)
         
+        # Always log extraction result for debugging
         if version_idx == 0:
             logger.info(f"  ✓ Extracted {len(patches)} patches from original")
         else:
@@ -1675,29 +1684,16 @@ class LiDARProcessor:
             else [architecture]
         )
         
-        # Initialize formatter - use HybridFormatter for hybrid architecture
-        if architecture == 'hybrid':
-            from ..io.formatters.hybrid_formatter import HybridFormatter
-            formatter = HybridFormatter(
-                num_points=self.num_points,
-                normalize=True,
-                standardize_features=True,
-                use_rgb=(rgb is not None),
-                use_infrared=(nir is not None),
-                use_geometric=True,
-                use_radiometric=False,
-                use_contextual=False
-            )
-        else:
-            formatter = MultiArchitectureFormatter(
-                target_archs=target_archs,
-                num_points=self.num_points,
-                use_rgb=(rgb is not None),
-                use_infrared=(nir is not None),
-                use_geometric=True,
-                use_radiometric=False,
-                use_contextual=False
-            )
+        # Initialize formatter - use MultiArchitectureFormatter for all architectures including hybrid
+        formatter = MultiArchitectureFormatter(
+            target_archs=target_archs,
+            num_points=self.num_points,
+            use_rgb=(rgb is not None),
+            use_infrared=(nir is not None),
+            use_geometric=True,
+            use_radiometric=False,
+            use_contextual=False
+        )
         
         # ===== STEP 9: Save Formatted Patches =====
         output_dir.mkdir(parents=True, exist_ok=True)

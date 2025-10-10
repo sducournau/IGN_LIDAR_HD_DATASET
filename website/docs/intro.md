@@ -1,12 +1,26 @@
 ---
 slug: /
-sidebar_position: 1
-title: IGN LiDAR HD Processing Library
+sidebar_positio---
+
+## 🎉 Latest Release: v2.1.2
+
+### 🔧 Maintenance Release
+
+Version 2.1.2 is a maintenance release with documentation updates:
+
+**New in v2.1.2:**
+
+- 📝 **Documentation**: Updated version across README, CHANGELOG, and Docusaurus
+- 🔄 **Package Metadata**: Synchronized version information
+
+**Previous Release v2.1.1:**
+
+Version 2.1.1 was a maintenance release with important bug fixes:tle: IGN LiDAR HD Processing Library
 ---
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.1.1** | Python 3.8+ | MIT License
+**Version 2.1.2** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
