@@ -13,10 +13,12 @@ Supported architectures:
 """
 
 from .multi_arch_formatter import MultiArchitectureFormatter
+from .hybrid_formatter import HybridFormatter
 from .base_formatter import BaseFormatter
 
 __all__ = [
     'MultiArchitectureFormatter',
+    'HybridFormatter',
     'BaseFormatter',
 ]
 

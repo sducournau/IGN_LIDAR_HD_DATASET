@@ -7,6 +7,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2025-10-10
+
+### Added
+
+- **Multi-Format Output Support**: Save patches in multiple formats simultaneously
+  - New format string parsing: `hdf5,laz` saves both HDF5 and LAZ patch files
+  - Supports any combination: `npz`, `hdf5`, `pytorch`/`torch`, `laz`
+  - Added multi-format configuration preset: `ign_lidar/configs/output/multi.yaml`
+- **LAZ Patch Export**: New LAZ output format for patch files
+  - Patches can now be saved as LAZ point clouds for visualization
+  - Compatible with CloudCompare, QGIS, PDAL, and other LiDAR tools
+  - Includes coordinates, classification, RGB, intensity, and features as extra dimensions
+  - New method `_save_patch_as_laz()` in processor
+- **HDF5 Format Support**: Fixed and enhanced HDF5 output
+  - Proper HDF5 file generation with gzip compression
+  - Supports all patch data: points, features, labels, RGB, NIR, normals
+- **PyTorch Format Support**: Native PyTorch tensor output
+  - Direct `.pt` file generation with torch tensors
+  - Automatic NumPy to PyTorch tensor conversion
+  - Requires PyTorch installation (optional dependency)
+- **Hybrid Architecture Formatter**: Comprehensive single-file format
+  - New `HybridFormatter` class for ensemble/hybrid models
+  - Saves all architecture formats in one file for maximum flexibility
+  - Includes KNN graph, voxel representation, and all feature types
+  - Supports switching between architectures without regenerating patches
+- **HDF5 to LAZ Conversion Tool**: New script `scripts/convert_hdf5_to_laz.py`
+  - Convert HDF5 patches back to LAZ format for visualization
+  - Batch conversion support for directories
+  - Inspection mode to view HDF5 file structure
+  - Comprehensive documentation in `scripts/CONVERT_HDF5_TO_LAZ.md`
+- **Format Validation**: Automatic validation of output format specifications
+  - Clear error messages for unsupported formats
+  - PyTorch availability checking
+  - Multi-format syntax validation
+
+### Fixed
+
+- **HDF5 Output Bug**: Critical fix for HDF5 format not saving any files
+  - Previous versions silently failed to generate HDF5 files
+  - Now properly saves HDF5 patches with compression
+- **Output Format Implementation Gaps**: Completed missing format implementations
+  - HDF5 saving was documented but not implemented
+  - PyTorch format was documented but not implemented
+  - LAZ patch format is now available
+
+### Changed
+
+- **Output Format Configuration**: Enhanced format specification
+  - Old: Single format only (`format: hdf5`)
+  - New: Multi-format support (`format: hdf5,laz`)
+  - Updated documentation to reflect actual supported formats
+- **Format Validation**: Stricter validation at initialization
+  - Unsupported formats now raise ValueError immediately
+  - Missing dependencies (e.g., PyTorch) detected early
+- **Patch Saving Logic**: Refactored for multi-format support
+  - Cleaner separation of format-specific logic
+  - Base filename generation for consistency across formats
+  - Incremental saving per format reduces memory pressure
+
+### Documentation
+
+- **Multi-Format Implementation Guide**: New `MULTI_FORMAT_OUTPUT_IMPLEMENTATION.md`
+  - Complete technical documentation of multi-format feature
+  - Performance considerations and recommendations
+  - Usage examples for all format combinations
+- **Quick Start Guide**: New `MULTI_FORMAT_QUICK_START.md`
+  - Fast reference for multi-format output
+  - Common configuration examples
+  - Troubleshooting tips
+- **Format Analysis**: New `OUTPUT_FORMAT_ANALYSIS.md`
+  - Detailed analysis of all supported formats
+  - Implementation status for each format
+  - Recommendations for different use cases
+- **Bug Fix Summary**: New `OUTPUT_FORMAT_COMPLETE_FIX.md`
+  - Complete documentation of HDF5 bug fix
+  - Code changes and their locations
+  - Migration guide for existing users
+
+### Updated
+
+- **Configuration Presets**: Updated `ign_lidar/configs/experiment/config_lod3_training.yaml`
+  - Changed default format from `hdf5` to `hdf5,laz`
+  - Enables both training (HDF5) and visualization (LAZ) outputs
+- **README**: Updated version badge and feature descriptions
+- **Docstrings**: Updated processor documentation to reflect actual formats
+
 ## [2.1.2] - 2025-10-10
 
 ### Changed

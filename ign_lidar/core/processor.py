@@ -13,6 +13,13 @@ import time
 import numpy as np
 import laspy
 from tqdm import tqdm
+import h5py
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 from ..features.features import (
     compute_all_features_optimized,
@@ -106,7 +113,9 @@ class LiDARProcessor:
             only_enriched_laz: If True, only save enriched LAZ files (skip patch creation)
             architecture: Target DL architecture ('pointnet++', 'octree', 'transformer', 
                          'sparse_conv', 'hybrid', 'multi')
-            output_format: Output format - 'npz', 'hdf5', 'pytorch', 'laz', 'multi'
+            output_format: Output format - 'npz', 'hdf5', 'pytorch'/'torch', 'laz'
+                          Supports multi-format: 'hdf5,laz' to save in both formats
+                          (Note: PyTorch format requires torch to be installed)
         """
         self.lod_level = lod_level
         self.augment = augment
@@ -134,6 +143,25 @@ class LiDARProcessor:
         self.only_enriched_laz = only_enriched_laz
         self.architecture = architecture
         self.output_format = output_format
+        
+        # Validate output format (supports comma-separated multi-format)
+        SUPPORTED_FORMATS = ['npz', 'hdf5', 'pytorch', 'torch', 'laz']
+        formats_list = [fmt.strip() for fmt in output_format.split(',')]
+        
+        for fmt in formats_list:
+            if fmt not in SUPPORTED_FORMATS:
+                raise ValueError(
+                    f"Unsupported output format: '{fmt}'. "
+                    f"Supported formats: {', '.join(SUPPORTED_FORMATS)}\n"
+                    f"For multiple formats, use comma-separated list: 'hdf5,laz'"
+                )
+        
+        # Check PyTorch availability if torch format requested
+        if any(fmt in ['pytorch', 'torch'] for fmt in formats_list) and not TORCH_AVAILABLE:
+            raise ImportError(
+                f"PyTorch format requested but torch is not installed. "
+                f"Install with: pip install torch"
+            )
         
         # Validate: only_enriched_laz requires save_enriched_laz
         if only_enriched_laz and not save_enriched_laz:
@@ -236,6 +264,56 @@ class LiDARProcessor:
             self.default_class = 29
             
         logger.info(f"Initialized LiDARProcessor with {lod_level}")
+    
+    def _save_patch_as_laz(self, save_path: Path, arch_data: Dict[str, np.ndarray], 
+                           original_patch: Dict[str, np.ndarray]) -> None:
+        """
+        Save a patch as a LAZ point cloud file.
+        
+        Args:
+            save_path: Output LAZ file path
+            arch_data: Formatted patch data (architecture-specific)
+            original_patch: Original patch data with metadata
+        """
+        # Extract coordinates from arch_data
+        # Most architectures have 'points' or 'coords' key
+        if 'points' in arch_data:
+            coords = arch_data['points'][:, :3]  # XYZ
+        elif 'coords' in arch_data:
+            coords = arch_data['coords'][:, :3]
+        else:
+            logger.warning(f"Cannot save LAZ patch: no coordinates found in {list(arch_data.keys())}")
+            return
+        
+        # Create LAZ file
+        header = laspy.LasHeader(version="1.4", point_format=6)
+        header.offsets = [coords[:, 0].min(), coords[:, 1].min(), coords[:, 2].min()]
+        header.scales = [0.001, 0.001, 0.001]
+        
+        las = laspy.LasData(header)
+        las.x = coords[:, 0]
+        las.y = coords[:, 1]
+        las.z = coords[:, 2]
+        
+        # Add classification if available
+        if 'labels' in arch_data:
+            las.classification = arch_data['labels'].astype(np.uint8)
+        elif 'classification' in original_patch:
+            las.classification = original_patch['classification'].astype(np.uint8)
+        
+        # Add intensity if available
+        if 'intensity' in original_patch:
+            las.intensity = (original_patch['intensity'] * 65535).astype(np.uint16)
+        
+        # Add RGB if available
+        if 'rgb' in arch_data:
+            rgb = (arch_data['rgb'] * 65535).astype(np.uint16)
+            las.red = rgb[:, 0]
+            las.green = rgb[:, 1]
+            las.blue = rgb[:, 2]
+        
+        # Write LAZ file
+        las.write(str(save_path))
     
     def _redownload_tile(self, laz_file: Path) -> bool:
         """
@@ -944,7 +1022,9 @@ class LiDARProcessor:
                           (default: None, uses self.save_enriched_laz)
             only_enriched: If True, only save enriched LAZ and skip patch creation
                           (default: None, uses self.only_enriched_laz)
-            output_format: Output format - 'npz', 'hdf5', 'pytorch', 'laz', 'multi'
+            output_format: Output format - 'npz', 'hdf5', 'pytorch'/'torch', 'laz'
+                          Supports multi-format: 'hdf5,laz' to save in both formats
+                          (Note: PyTorch format requires torch to be installed)
             build_spatial_index: If True, build octree/KNN spatial index
             tile_idx: Current tile index (for progress display)
             total_tiles: Total number of tiles (for progress display)
@@ -1212,23 +1292,45 @@ class LiDARProcessor:
         # to enable incremental saving
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Determine which architectures to format
-        target_archs = (
-            ['pointnet++', 'octree', 'transformer', 'sparse_conv']
-            if architecture == 'multi'
-            else [architecture]
-        )
-        
-        # Initialize formatter once
-        formatter = MultiArchitectureFormatter(
-            target_archs=target_archs,
-            num_points=self.num_points,
-            use_rgb=(rgb is not None),
-            use_infrared=(nir is not None),
-            use_geometric=True,
-            use_radiometric=False,
-            use_contextual=False
-        )
+        # Determine which architectures to format and initialize appropriate formatter
+        if architecture == 'hybrid':
+            # Hybrid mode: use HybridFormatter (single comprehensive format)
+            from ..io.formatters import HybridFormatter
+            formatter = HybridFormatter(
+                num_points=self.num_points,
+                use_rgb=(rgb is not None),
+                use_infrared=(nir is not None),
+                use_geometric=True,
+                use_radiometric=True,
+                use_contextual=True
+            )
+            target_archs = ['hybrid']  # Will save as single hybrid format
+        elif architecture == 'multi':
+            # Multi mode: format for all architectures separately
+            from ..io.formatters import MultiArchitectureFormatter
+            target_archs = ['pointnet++', 'octree', 'transformer', 'sparse_conv']
+            formatter = MultiArchitectureFormatter(
+                target_archs=target_archs,
+                num_points=self.num_points,
+                use_rgb=(rgb is not None),
+                use_infrared=(nir is not None),
+                use_geometric=True,
+                use_radiometric=True,
+                use_contextual=True
+            )
+        else:
+            # Single architecture mode
+            from ..io.formatters import MultiArchitectureFormatter
+            target_archs = [architecture]
+            formatter = MultiArchitectureFormatter(
+                target_archs=target_archs,
+                num_points=self.num_points,
+                use_rgb=(rgb is not None),
+                use_infrared=(nir is not None),
+                use_geometric=True,
+                use_radiometric=True,
+                use_contextual=True
+            )
         
         # ===== AUGMENTATION LOOP: Process original + augmented versions =====
         for version_idx in range(num_versions):
@@ -1694,23 +1796,54 @@ class LiDARProcessor:
                 # Format patch
                 formatted = formatter.format_patch(patch)
                 
-                # Handle hybrid formatter (returns single dict) vs multi-arch formatter (returns dict of dicts)
+                # Handle hybrid vs multi-arch vs single-arch formatter
                 if architecture == 'hybrid':
-                    patches_to_save = [(architecture, formatted)]
-                else:
+                    # Hybrid mode: HybridFormatter returns a single comprehensive dict
+                    # Save as one file with all data (points, features, labels, rgb, nir, normals, etc.)
+                    patches_to_save = [('hybrid', formatted)]
+                elif architecture == 'multi':
+                    # Multi mode: MultiArchitectureFormatter returns dict with architecture keys
+                    # Save separate files for each architecture
                     patches_to_save = [(arch, formatted[arch]) for arch in target_archs]
+                else:
+                    # Single architecture mode: MultiArchitectureFormatter returns dict with architecture keys
+                    # Extract the specific architecture data
+                    patches_to_save = [(architecture, formatted[architecture])]
                 
-                # Save based on output format
+                # Save based on output format (supports multi-format)
+                # Parse output_format: can be single format or comma-separated list
+                formats_to_save = [fmt.strip() for fmt in output_format.split(',')]
+                
                 for arch, arch_data in patches_to_save:
-                    if output_format == 'npz':
-                        # Include version in filename if augmented
-                        if version == 'original':
-                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}.npz"
-                        else:
-                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version}.npz"
-                        save_path = output_dir / filename
-                        np.savez_compressed(save_path, **arch_data)
-                        num_saved += 1
+                    # Determine base filename (without extension)
+                    if version == 'original':
+                        base_filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}"
+                    else:
+                        base_filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version}"
+                    
+                    # Save in each requested format
+                    for fmt in formats_to_save:
+                        if fmt == 'npz':
+                            save_path = output_dir / f"{base_filename}.npz"
+                            np.savez_compressed(save_path, **arch_data)
+                            num_saved += 1
+                        elif fmt == 'hdf5':
+                            save_path = output_dir / f"{base_filename}.h5"
+                            with h5py.File(save_path, 'w') as f:
+                                for key, value in arch_data.items():
+                                    f.create_dataset(key, data=value, compression='gzip', compression_opts=9)
+                            num_saved += 1
+                        elif fmt in ['pytorch', 'torch']:
+                            save_path = output_dir / f"{base_filename}.pt"
+                            # Convert numpy arrays to torch tensors
+                            torch_data = {k: torch.from_numpy(v) for k, v in arch_data.items()}
+                            torch.save(torch_data, save_path)
+                            num_saved += 1
+                        elif fmt == 'laz':
+                            # Save patch as LAZ point cloud
+                            save_path = output_dir / f"{base_filename}.laz"
+                            self._save_patch_as_laz(save_path, arch_data, patch)
+                            num_saved += 1
             
             # Clear patches list to free memory
             patches.clear()

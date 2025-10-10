@@ -38,7 +38,7 @@ stitching:
   auto_download_neighbors: true
   cache_enabled: true
 output:
-  format: hdf5
+  format: hdf5,laz # Multi-format: save patches as both HDF5 and LAZ
   save_enriched_laz: true
   only_enriched_laz: false
   save_stats: true
