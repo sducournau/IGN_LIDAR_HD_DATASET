@@ -285,8 +285,14 @@ class LiDARProcessor:
             logger.warning(f"Cannot save LAZ patch: no coordinates found in {list(arch_data.keys())}")
             return
         
+        # Determine point format based on available data
+        # Format 8: supports RGB + NIR (LAS 1.4)
+        # Format 6: standard format without RGB
+        has_rgb = 'rgb' in arch_data
+        point_format = 8 if has_rgb else 6
+        
         # Create LAZ file
-        header = laspy.LasHeader(version="1.4", point_format=6)
+        header = laspy.LasHeader(version="1.4", point_format=point_format)
         header.offsets = [coords[:, 0].min(), coords[:, 1].min(), coords[:, 2].min()]
         header.scales = [0.001, 0.001, 0.001]
         
@@ -311,6 +317,11 @@ class LiDARProcessor:
             las.red = rgb[:, 0]
             las.green = rgb[:, 1]
             las.blue = rgb[:, 2]
+        
+        # Add NIR if available and point format supports it (format 8)
+        if point_format == 8 and 'nir' in original_patch and original_patch['nir'] is not None:
+            nir = (original_patch['nir'] * 65535).astype(np.uint16)
+            las.nir = nir
         
         # Write LAZ file
         las.write(str(save_path))
