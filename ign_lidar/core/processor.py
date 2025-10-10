@@ -51,6 +51,8 @@ class LiDARProcessor:
                  style_encoding: str = 'constant',
                  include_rgb: bool = False,
                  rgb_cache_dir: Path = None,
+                 include_infrared: bool = False,
+                 compute_ndvi: bool = False,
                  use_gpu: bool = False,
                  use_gpu_chunked: bool = True,
                  gpu_batch_size: int = 1_000_000,
@@ -60,7 +62,9 @@ class LiDARProcessor:
                  buffer_size: float = 10.0,
                  stitching_config: dict = None,
                  save_enriched_laz: bool = False,
-                 only_enriched_laz: bool = False):
+                 only_enriched_laz: bool = False,
+                 architecture: str = 'pointnet++',
+                 output_format: str = 'npz'):
         """
         Initialize processor.
         
@@ -83,6 +87,8 @@ class LiDARProcessor:
                            - 'multihot': Multi-label with weights [N, 13]
             include_rgb: If True, add RGB from IGN orthophotos
             rgb_cache_dir: Directory to cache orthophoto tiles
+            include_infrared: If True, add NIR (near-infrared) channel from LAZ files
+            compute_ndvi: If True, compute NDVI from RGB and NIR (requires both)
             use_gpu: If True, use GPU acceleration for feature computation
                     (requires CuPy and RAPIDS cuML)
             use_gpu_chunked: If True, use chunked GPU processing for large tiles
@@ -97,6 +103,9 @@ class LiDARProcessor:
             buffer_size: Buffer zone size for tile stitching (in meters)
             save_enriched_laz: If True, save enriched LAZ files with computed features
             only_enriched_laz: If True, only save enriched LAZ files (skip patch creation)
+            architecture: Target DL architecture ('pointnet++', 'octree', 'transformer', 
+                         'sparse_conv', 'hybrid', 'multi')
+            output_format: Output format - 'npz', 'hdf5', 'pytorch', 'laz', 'multi'
         """
         self.lod_level = lod_level
         self.augment = augment
@@ -111,6 +120,8 @@ class LiDARProcessor:
         self.style_encoding = style_encoding
         self.include_rgb = include_rgb
         self.rgb_cache_dir = rgb_cache_dir
+        self.include_infrared = include_infrared
+        self.compute_ndvi = compute_ndvi
         self.use_gpu = use_gpu
         self.use_gpu_chunked = use_gpu_chunked
         self.gpu_batch_size = gpu_batch_size
@@ -120,6 +131,8 @@ class LiDARProcessor:
         self.preprocess_config = preprocess_config
         self.save_enriched_laz = save_enriched_laz
         self.only_enriched_laz = only_enriched_laz
+        self.architecture = architecture
+        self.output_format = output_format
         
         # Validate: only_enriched_laz requires save_enriched_laz
         if only_enriched_laz and not save_enriched_laz:
@@ -172,6 +185,23 @@ class LiDARProcessor:
                 )
                 logger.error("Install with: pip install requests Pillow")
                 self.include_rgb = False
+        
+        # Initialize Infrared fetcher if needed
+        self.infrared_fetcher = None
+        if include_infrared:
+            try:
+                from ..preprocessing.infrared_augmentation import IGNInfraredFetcher
+                # Use same cache dir as RGB or a subdirectory
+                infrared_cache_dir = (rgb_cache_dir / "infrared" if rgb_cache_dir 
+                                     else Path("C:/Users/Simon/ign/cache/infrared"))
+                self.infrared_fetcher = IGNInfraredFetcher(cache_dir=infrared_cache_dir)
+                logger.info("Infrared augmentation enabled (IGN IRC orthophotos)")
+            except ImportError as e:
+                logger.error(
+                    f"Infrared augmentation requires additional packages: {e}"
+                )
+                logger.error("Install with: pip install requests Pillow")
+                self.include_infrared = False
 
         # Validate GPU availability if requested
         if use_gpu:
@@ -430,11 +460,14 @@ class LiDARProcessor:
             else:
                 # Augmented version - apply transformations BEFORE features
                 (points_v, intensity_v,
-                 return_number_v, classification_v) = augment_raw_points(
+                 return_number_v, classification_v, _, _, _) = augment_raw_points(
                     original_data['points'],
                     original_data['intensity'],
                     original_data['return_number'],
-                    original_data['classification']
+                    original_data['classification'],
+                    rgb=None,
+                    nir=None,
+                    ndvi=None
                 )
                 version_label = f"aug_{version_idx-1}"
                 logger.info(
@@ -662,31 +695,27 @@ class LiDARProcessor:
             f"({num_versions} versions)"
         )
         
-        # Group patches by base patch index for naming
-        patches_by_base = {}
-        for patch in all_patches_collected:
-            version = patch.pop('_version', 'original')
-            # Find base patch index (all patches with same spatial origin)
-            base_key = tuple(patch['points'][:3, :].flatten())
-            if base_key not in patches_by_base:
-                patches_by_base[base_key] = []
-            patches_by_base[base_key].append((version, patch))
+        # Group patches by version and original patch order
+        # Since we collect patches in order: all patches from v0, then v1, then v2...
+        # We need to track which patches belong together across versions
+        patches_per_version = len(all_patches_collected) // num_versions
         
         # Save patches with proper naming
-        for base_idx, (_, patch_group) in enumerate(
-            patches_by_base.items()
-        ):
-            for version_label, patch in patch_group:
-                if version_label == 'original':
-                    patch_name = f"{laz_file.stem}_patch_{base_idx:04d}.npz"
-                else:
-                    patch_name = (
-                        f"{laz_file.stem}_patch_{base_idx:04d}_"
-                        f"{version_label}.npz"
-                    )
-                save_path = output_dir / patch_name
-                save_patch(save_path, patch, self.lod_level)
-                num_saved += 1
+        for patch_idx, patch in enumerate(all_patches_collected):
+            version = patch.pop('_version', 'original')
+            # Calculate base patch index (same for all versions of a patch)
+            base_idx = patch_idx % patches_per_version
+            
+            if version == 'original':
+                patch_name = f"{laz_file.stem}_patch_{base_idx:04d}.npz"
+            else:
+                patch_name = (
+                    f"{laz_file.stem}_patch_{base_idx:04d}_"
+                    f"{version}.npz"
+                )
+            save_path = output_dir / patch_name
+            save_patch(save_path, patch, self.lod_level)
+            num_saved += 1
         
         tile_time = time.time() - tile_start
         pts_processed = (len(original_data['points']) * num_versions)
@@ -789,6 +818,8 @@ class LiDARProcessor:
             process_func = partial(
                 self.process_tile,
                 output_dir=output_dir,
+                architecture=self.architecture,
+                output_format=self.output_format,
                 total_tiles=total_tiles,
                 skip_existing=skip_existing
             )
@@ -820,6 +851,8 @@ class LiDARProcessor:
             for idx, laz_file in enumerate(laz_files, 1):
                 result = self.process_tile(
                     laz_file, output_dir,
+                    architecture=self.architecture,
+                    output_format=self.output_format,
                     tile_idx=idx, total_tiles=total_tiles,
                     skip_existing=skip_existing
                 )
@@ -835,6 +868,17 @@ class LiDARProcessor:
                     tiles_skipped += 1
                 else:
                     tiles_processed += 1
+                
+                # ✅ OPTIMIZATION: Explicit garbage collection every 5 tiles
+                if idx % 5 == 0:
+                    import gc
+                    gc.collect()
+                    try:
+                        import psutil
+                        mem = psutil.virtual_memory()
+                        logger.debug(f"  Memory: {mem.available/(1024**3):.1f}GB available")
+                    except ImportError:
+                        pass
         
         logger.info("")
         logger.info("="*70)
@@ -996,16 +1040,21 @@ class LiDARProcessor:
         return_number = np.array(las.return_number, dtype=np.float32)
         classification = np.array(las.classification, dtype=np.uint8)
         
-        # Try to load NIR if available
+        # Try to load NIR if available and requested
+        # Note: NIR from LAZ is loaded here, but NIR from orthophotos is fetched later (after preprocessing)
         nir = None
-        if hasattr(las, 'nir') or hasattr(las, 'near_infrared'):
-            try:
-                nir_raw = (las.nir if hasattr(las, 'nir') 
-                          else las.near_infrared)
-                nir = np.array(nir_raw, dtype=np.float32) / 65535.0
-                logger.info(f"  ✓ NIR channel detected")
-            except:
-                pass
+        nir_from_laz = False
+        if self.include_infrared:
+            # First try to load from LAZ file
+            if hasattr(las, 'nir') or hasattr(las, 'near_infrared'):
+                try:
+                    nir_raw = (las.nir if hasattr(las, 'nir') 
+                              else las.near_infrared)
+                    nir = np.array(nir_raw, dtype=np.float32) / 65535.0
+                    nir_from_laz = True
+                    logger.info(f"  ✓ NIR channel detected in LAZ file")
+                except Exception as e:
+                    logger.warning(f"  ⚠️  NIR channel in LAZ but failed to load: {e}")
         
         logger.info(
             f"  📊 Loaded {len(points):,} points | "
@@ -1027,7 +1076,11 @@ class LiDARProcessor:
                 nir = nir[mask]
             logger.info(f"  After bbox filter: {len(points):,} points")
         
-        # ===== STEP 2: Preprocessing (if enabled) =====
+        # ===== STEP 2: Preprocessing (if enabled) - BEFORE augmentation =====
+        # Apply preprocessing to the base data before augmentation so that:
+        # 1. All augmented versions inherit the preprocessing
+        # 2. Stitching can use the preprocessed data directly
+        preprocessing_mask = None
         if self.preprocess:
             logger.info("  🧹 Preprocessing...")
             from ..preprocessing.preprocessing import (
@@ -1058,6 +1111,8 @@ class LiDARProcessor:
                 cumulative_mask &= ror_mask
             
             original_count = len(points)
+            preprocessing_mask = cumulative_mask.copy()
+            
             points = points[cumulative_mask]
             intensity = intensity[cumulative_mask]
             return_number = return_number[cumulative_mask]
@@ -1071,85 +1126,245 @@ class LiDARProcessor:
                 f"({reduction:.1%} reduction)"
             )
         
-        # ===== STEP 3: Compute Features (in-memory) =====
-        logger.info("  🔧 Computing features...")
-        feature_start = time.time()
-        
-        # Determine if we should use tile stitching for boundary-aware features
-        use_boundary_aware = self.use_stitching and laz_file.parent.exists()
-        
-        if use_boundary_aware:
-            logger.info("  🔗 Enabling tile stitching for boundary-aware features...")
+        # ===== STEP 3: Fetch RGB and NIR ONCE (before augmentation loop) =====
+        # RGB and NIR are fetched from orthophotos based on point coordinates.
+        # Since augmentation only changes geometry slightly (rotations, jitter),
+        # we fetch RGB/NIR once and reuse for all augmented versions.
+        rgb = None
+        if self.include_rgb and self.rgb_fetcher:
+            logger.info("  🎨 Fetching RGB from IGN orthophotos...")
             try:
-                from .tile_stitcher import TileStitcher
-                from ..features.features_boundary import BoundaryAwareFeatureComputer
-                
-                # Initialize stitcher
-                stitcher = TileStitcher(buffer_size=self.buffer_size)
-                
-                # Load tile with neighbors
-                tile_data = stitcher.load_tile_with_neighbors(
-                    tile_path=laz_file,
-                    auto_detect_neighbors=True
+                tile_bbox = (
+                    points[:, 0].min(),
+                    points[:, 1].min(),
+                    points[:, 0].max(),
+                    points[:, 1].max()
                 )
-                
-                core_points = tile_data['core_points']
-                buffer_points = tile_data['buffer_points']
-                
-                # Get tile bounds from stitcher
-                tile_bounds = stitcher.get_tile_bounds(laz_file)
-                
-                # Compute boundary-aware features
-                computer = BoundaryAwareFeatureComputer(
-                    k_neighbors=self.k_neighbors or 20,
-                    boundary_threshold=self.buffer_size,
-                    compute_normals=True,
-                    compute_curvature=True,
-                    compute_planarity=self.include_extra_features,
-                    compute_verticality=self.include_extra_features
+                rgb = self.rgb_fetcher.augment_points_with_rgb(
+                    points, bbox=tile_bbox
                 )
-                
-                features = computer.compute_features(
-                    core_points=core_points,
-                    buffer_points=buffer_points if len(buffer_points) > 0 else None,
-                    tile_bounds=tile_bounds
-                )
-                
-                # Extract feature arrays
-                normals = features['normals']
-                curvature = features['curvature']
-                
-                # Build geo_features dictionary (not array!)
-                # Only include features that are present (validation may drop some)
-                if self.include_extra_features:
-                    geo_features = {}
-                    for feat_name in ['planarity', 'linearity', 'sphericity', 'verticality']:
-                        if feat_name in features:
-                            geo_features[feat_name] = features[feat_name]
-                    
-                    # If all features were dropped, set to None
-                    if not geo_features:
-                        geo_features = None
-                        logger.warning(
-                            "  ⚠️  All geometric features dropped due to artifacts"
-                        )
-                else:
-                    geo_features = None
-                
-                # Height feature (relative to local minimum)
-                height = points[:, 2] - points[:, 2].min()
-                
-                num_boundary = features['num_boundary_points']
-                logger.info(
-                    f"  ✓ Boundary-aware features computed "
-                    f"({num_boundary} boundary points affected)"
-                )
-                
+                rgb = rgb.astype(np.float32) / 255.0
+                logger.info(f"  ✓ RGB added")
             except Exception as e:
-                logger.warning(
-                    f"  ⚠️  Tile stitching failed, falling back to standard: {e}"
+                logger.warning(f"  ⚠️  RGB fetch failed: {e}")
+        
+        # Fetch NIR (if requested and not already from LAZ)
+        if self.include_infrared and not nir_from_laz and self.infrared_fetcher:
+            logger.info("  📡 Fetching NIR from infrared orthophotos...")
+            try:
+                tile_bbox = (
+                    points[:, 0].min(),
+                    points[:, 1].min(),
+                    points[:, 0].max(),
+                    points[:, 1].max()
                 )
-                use_boundary_aware = False
+                nir = self.infrared_fetcher.augment_points_with_infrared(
+                    points, bbox=tile_bbox
+                )
+                if nir is not None:
+                    nir = nir.astype(np.float32) / 255.0  # Normalize to [0, 1]
+                    logger.info(f"  ✓ NIR fetched from orthophotos")
+                else:
+                    logger.warning(f"  ⚠️  NIR fetch returned None")
+            except Exception as e:
+                logger.warning(f"  ⚠️  NIR fetch failed: {e}")
+        
+        # Compute NDVI (if requested and both NIR & RGB available)
+        ndvi = None
+        if self.compute_ndvi and nir is not None and rgb is not None:
+            # NDVI = (NIR - Red) / (NIR + Red)
+            red = rgb[:, 0]
+            with np.errstate(divide='ignore', invalid='ignore'):
+                ndvi = (nir - red) / (nir + red + 1e-8)
+                ndvi = np.clip(ndvi, -1, 1)
+            logger.info(f"  ✓ NDVI computed")
+        elif self.compute_ndvi:
+            if nir is None:
+                logger.warning(f"  ⚠️  NDVI requested but NIR not available")
+            if rgb is None:
+                logger.warning(f"  ⚠️  NDVI requested but RGB not available")
+        
+        # Store preprocessed data for potential augmentation
+        original_data = {
+            'points': points.copy(),
+            'intensity': intensity.copy(),
+            'return_number': return_number.copy(),
+            'classification': classification.copy(),
+            'nir': nir.copy() if nir is not None else None,
+            'rgb': rgb.copy() if rgb is not None else None,
+            'ndvi': ndvi.copy() if ndvi is not None else None
+        }
+        
+        # Determine number of versions to process (original + augmentations)
+        num_versions = 1 + (self.num_augmentations if self.augment else 0)
+        all_patches_collected = []
+        
+        # ===== AUGMENTATION LOOP: Process original + augmented versions =====
+        for version_idx in range(num_versions):
+            # Apply augmentation to raw data if not the first version
+            if version_idx == 0:
+                # Original version - no augmentation
+                points = original_data['points'].copy()
+                intensity = original_data['intensity'].copy()
+                return_number = original_data['return_number'].copy()
+                classification = original_data['classification'].copy()
+                nir = original_data['nir'].copy() if original_data['nir'] is not None else None
+                rgb = original_data['rgb'].copy() if original_data['rgb'] is not None else None
+                ndvi = original_data['ndvi'].copy() if original_data['ndvi'] is not None else None
+                version_label = "original"
+            else:
+                # Augmented version - apply transformations BEFORE features
+                # Note: RGB, NIR, and NDVI must also be filtered by dropout mask
+                (points, intensity,
+                 return_number, classification, rgb, nir, ndvi) = augment_raw_points(
+                    original_data['points'],
+                    original_data['intensity'],
+                    original_data['return_number'],
+                    original_data['classification'],
+                    rgb=original_data['rgb'],
+                    nir=original_data['nir'],
+                    ndvi=original_data['ndvi']
+                )
+                version_label = f"aug_{version_idx-1}"
+                logger.info(
+                    f"  🔄 Augmented v{version_idx}/{num_versions-1} "
+                    f"({len(points):,} points after dropout) - using standard features"
+                )
+            
+            # ===== STEP 4: Compute Features (in-memory) =====
+            if version_idx == 0:
+                logger.info("  🔧 Computing features...")
+            feature_start = time.time()
+            
+            # Determine if we should use tile stitching for boundary-aware features
+            # NOTE: Stitching is ONLY available for the original (non-augmented) version
+            # because augmentation changes point counts (dropout), making it impossible
+            # to align with the reloaded tile data
+            use_boundary_aware = (
+                self.use_stitching 
+                and laz_file.parent.exists() 
+                and version_idx == 0  # Only for original version
+            )
+            
+            if use_boundary_aware:
+                logger.info("  🔗 Enabling tile stitching for boundary-aware features...")
+                try:
+                    from .tile_stitcher import TileStitcher
+                    from ..features.features_boundary import BoundaryAwareFeatureComputer
+                    
+                    # Initialize stitcher
+                    stitcher = TileStitcher(buffer_size=self.buffer_size)
+                    
+                    # ✅ NEW APPROACH: Pass preprocessed core points directly to avoid reloading
+                    # This eliminates coordinate mismatch issues caused by:
+                    # 1. Different loading order between initial load and stitcher reload
+                    # 2. Floating point precision differences
+                    # 3. Need for expensive KD-tree alignment
+                    
+                    # Load neighbors ONLY (not the core tile)
+                    tile_data = stitcher.load_tile_with_neighbors(
+                        tile_path=laz_file,
+                        auto_detect_neighbors=True,
+                        use_provided_core_points=True,  # Tell stitcher we'll provide core points
+                        core_points=points  # Pass preprocessed points directly
+                    )
+                    
+                    # Core points are now exactly the preprocessed points (no alignment needed!)
+                    core_points = tile_data['core_points']  # Should be identical to 'points'
+                    buffer_points = tile_data['buffer_points']
+                    
+                    # Get tile bounds from stitcher (computed from provided core points)
+                    tile_bounds = stitcher.get_tile_bounds(laz_file)
+                    
+                    # Verify that core_points match preprocessed points exactly
+                    if not np.array_equal(core_points, points):
+                        logger.error(
+                            f"  ❌ Core points mismatch after stitcher! "
+                            f"This should never happen. "
+                            f"core: {len(core_points)}, preproc: {len(points)}"
+                        )
+                        use_boundary_aware = False
+                    
+                    if use_boundary_aware:
+                        # At this point:
+                        # - core_points are exactly the preprocessed points (passed directly)
+                        # - core_points[i] == points[i] (guaranteed by np.array_equal check above)
+                        # - buffer_points contains the buffer zone from neighbors
+                        
+                        num_core_points = len(core_points)
+                        num_buffer_points = len(buffer_points) if buffer_points is not None else 0
+                        
+                        logger.info(
+                            f"  🔧 Using preprocessed core points: {len(core_points):,} points "
+                            f"+ {num_buffer_points:,} buffer points"
+                        )
+                        
+                        # Compute boundary-aware features
+                        computer = BoundaryAwareFeatureComputer(
+                            k_neighbors=self.k_neighbors or 20,
+                            boundary_threshold=self.buffer_size,
+                            compute_normals=True,
+                            compute_curvature=True,
+                            compute_planarity=self.include_extra_features,
+                            compute_verticality=self.include_extra_features
+                        )
+                        
+                        features = computer.compute_features(
+                            core_points=core_points,
+                            buffer_points=buffer_points if len(buffer_points) > 0 else None,
+                            tile_bounds=tile_bounds
+                        )
+                        
+                        # Features are now already aligned with preprocessed points
+                        # (because we filtered core_points before computing features)
+                        
+                        # Extract feature arrays
+                        normals = features['normals']
+                        curvature = features['curvature']
+                        
+                        # Verify feature sizes match preprocessed data
+                        if len(normals) != len(points):
+                            logger.error(
+                                f"❌ Feature size mismatch! "
+                                f"normals={len(normals)}, points={len(points)}, "
+                                f"core_points={len(core_points)}"
+                            )
+                            raise ValueError(
+                                f"Feature computation failed: size mismatch "
+                                f"(normals: {len(normals)}, points: {len(points)})"
+                            )
+                        
+                        # Build geo_features dictionary (not array!)
+                        # Only include features that are present (validation may drop some)
+                        if self.include_extra_features:
+                            geo_features = {}
+                            for feat_name in ['planarity', 'linearity', 'sphericity', 'verticality']:
+                                if feat_name in features:
+                                    geo_features[feat_name] = features[feat_name]
+                            
+                            # If all features were dropped, set to None
+                            if not geo_features:
+                                geo_features = None
+                                logger.warning(
+                                    "  ⚠️  All geometric features dropped due to artifacts"
+                                )
+                        else:
+                            geo_features = None
+                        
+                        # Height feature (relative to local minimum)
+                        height = points[:, 2] - points[:, 2].min()
+                        
+                        num_boundary = features['num_boundary_points']
+                        logger.info(
+                            f"  ✓ Boundary-aware features computed "
+                            f"({num_boundary} boundary points affected)"
+                        )
+                    
+                except Exception as e:
+                    logger.warning(
+                        f"  ⚠️  Tile stitching failed, falling back to standard: {e}"
+                    )
+                    use_boundary_aware = False
         
         # Standard feature computation (no stitching)
         if not use_boundary_aware:
@@ -1239,40 +1454,14 @@ class LiDARProcessor:
                 )
         
         feature_time = time.time() - feature_start
-        logger.info(f"  ⏱️  Features: {feature_time:.1f}s")
+        if version_idx == 0:
+            logger.info(f"  ⏱️  Features: {feature_time:.1f}s")
         
-        # ===== STEP 4: Add RGB (if requested) =====
-        rgb = None
-        if self.include_rgb and self.rgb_fetcher:
-            logger.info("  🎨 Fetching RGB from IGN orthophotos...")
-            try:
-                tile_bbox = (
-                    points[:, 0].min(),
-                    points[:, 1].min(),
-                    points[:, 0].max(),
-                    points[:, 1].max()
-                )
-                rgb = self.rgb_fetcher.augment_points_with_rgb(
-                    points, bbox=tile_bbox
-                )
-                rgb = rgb.astype(np.float32) / 255.0
-                logger.info(f"  ✓ RGB added")
-            except Exception as e:
-                logger.warning(f"  ⚠️  RGB fetch failed: {e}")
-                rgb = np.full((len(points), 3), 0.5, dtype=np.float32)
+        # Note: RGB, NIR, and NDVI were already fetched before the augmentation loop
+        # and are preserved in the version-specific variables above
         
-        # ===== STEP 5: Compute NDVI (if NIR available) =====
-        ndvi = None
-        if nir is not None and rgb is not None:
-            # NDVI = (NIR - Red) / (NIR + Red)
-            red = rgb[:, 0]
-            with np.errstate(divide='ignore', invalid='ignore'):
-                ndvi = (nir - red) / (nir + red + 1e-8)
-                ndvi = np.clip(ndvi, -1, 1)
-            logger.info(f"  ✓ NDVI computed")
-        
-        # ===== STEP 6: Save Enriched LAZ (optional) =====
-        if save_enriched:
+        # ===== STEP 5: Save Enriched LAZ (optional, only for original version) =====
+        if save_enriched and version_idx == 0:
             logger.info("  💾 Saving enriched LAZ...")
             enriched_path = output_dir / "enriched" / f"{laz_file.stem}_enriched.laz"
             enriched_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1399,33 +1588,18 @@ class LiDARProcessor:
             except Exception as e:
                 logger.warning(f"  ⚠️  Failed to save enriched LAZ: {e}")
         
-        # Check if we should skip patch creation (only_enriched mode)
-        # When only_enriched is True, we only generate enriched LAZ files
-        if only_enriched:
-            tile_time = time.time() - tile_start
-            logger.info(
-                f"  ✅ Enrichment complete (patches skipped): "
-                f"{tile_time:.1f}s ({len(points)/tile_time:.0f} pts/s)"
-            )
-            return {
-                'num_patches': 0,
-                'processing_time': tile_time,
-                'points_processed': len(points),
-                'skipped': False,
-                'enriched_only': True
-            }
-        
-        # ===== STEP 7: Remap Labels =====
+        # ===== STEP 6: Remap Labels =====
         labels = np.array([
             self.class_mapping.get(c, self.default_class)
             for c in classification
         ], dtype=np.uint8)
         
-        # ===== STEP 8: Extract Patches =====
-        logger.info(
-            f"  📦 Extracting patches "
-            f"(size={self.patch_size}m, points={self.num_points})..."
-        )
+        # ===== STEP 7: Extract Patches =====
+        if version_idx == 0:
+            logger.info(
+                f"  📦 Extracting patches "
+                f"(size={self.patch_size}m, points={self.num_points})..."
+            )
         
         # Build feature dictionary
         all_features = {
@@ -1457,9 +1631,41 @@ class LiDARProcessor:
             target_num_points=self.num_points
         )
         
-        logger.info(f"  ✓ Extracted {len(patches)} patches")
+        # Tag patches with version label AND spatial index
+        # The spatial index is determined from the patch order (consistent across augmentations)
+        for patch_idx, patch in enumerate(patches):
+            patch['_version'] = version_label
+            patch['_spatial_idx'] = patch_idx  # Track spatial location
         
-        # ===== STEP 9: Format for Target Architecture =====
+        # Collect patches from this version
+        all_patches_collected.extend(patches)
+        
+        if version_idx == 0:
+            logger.info(f"  ✓ Extracted {len(patches)} patches from original")
+        else:
+            logger.info(f"  ✓ Extracted {len(patches)} patches from {version_label}")
+        
+        # END OF AUGMENTATION LOOP
+        
+        logger.info(f"  ✅ Total patches collected: {len(all_patches_collected)} ({num_versions} versions)")
+        
+        # Check if we should skip patch saving (only_enriched mode)
+        # When only_enriched is True, we only generate enriched LAZ files
+        if only_enriched:
+            tile_time = time.time() - tile_start
+            logger.info(
+                f"  ✅ Enrichment complete (patches skipped): "
+                f"{tile_time:.1f}s ({len(original_data['points'])/tile_time:.0f} pts/s)"
+            )
+            return {
+                'num_patches': 0,
+                'processing_time': tile_time,
+                'points_processed': len(original_data['points']) * num_versions,
+                'skipped': False,
+                'enriched_only': True
+            }
+        
+        # ===== STEP 8: Format for Target Architecture =====
         logger.info(f"  🏗️  Formatting for architecture: {architecture}")
         
         # Determine which architectures to format
@@ -1469,113 +1675,164 @@ class LiDARProcessor:
             else [architecture]
         )
         
-        # Initialize formatter
-        formatter = MultiArchitectureFormatter(
-            target_archs=target_archs,
-            num_points=self.num_points,
-            use_rgb=(rgb is not None),
-            use_infrared=(nir is not None),
-            use_geometric=True,
-            use_radiometric=False,
-            use_contextual=False
-        )
+        # Initialize formatter - use HybridFormatter for hybrid architecture
+        if architecture == 'hybrid':
+            from ..io.formatters.hybrid_formatter import HybridFormatter
+            formatter = HybridFormatter(
+                num_points=self.num_points,
+                normalize=True,
+                standardize_features=True,
+                use_rgb=(rgb is not None),
+                use_infrared=(nir is not None),
+                use_geometric=True,
+                use_radiometric=False,
+                use_contextual=False
+            )
+        else:
+            formatter = MultiArchitectureFormatter(
+                target_archs=target_archs,
+                num_points=self.num_points,
+                use_rgb=(rgb is not None),
+                use_infrared=(nir is not None),
+                use_geometric=True,
+                use_radiometric=False,
+                use_contextual=False
+            )
         
-        # ===== STEP 10: Save Formatted Patches =====
+        # ===== STEP 9: Save Formatted Patches =====
         output_dir.mkdir(parents=True, exist_ok=True)
         num_saved = 0
         
-        for patch_idx, patch in enumerate(patches):
-            formatted = formatter.format_patch(patch)
+        # Group patches by spatial index (consistent across augmentations)
+        patches_by_spatial_idx = {}
+        for patch in all_patches_collected:
+            version = patch.pop('_version', 'original')
+            spatial_idx = patch.pop('_spatial_idx', 0)  # Extract spatial index
             
-            # Save based on output format
-            for arch in target_archs:
-                arch_data = formatted[arch]
+            if spatial_idx not in patches_by_spatial_idx:
+                patches_by_spatial_idx[spatial_idx] = []
+            patches_by_spatial_idx[spatial_idx].append((version, patch))
+        
+        # Save patches with proper naming (spatial_idx for location, version for augmentation)
+        for spatial_idx in sorted(patches_by_spatial_idx.keys()):
+            patch_group = patches_by_spatial_idx[spatial_idx]
+            for version_label, patch in patch_group:
+                formatted = formatter.format_patch(patch)
                 
-                if output_format == 'npz':
-                    filename = f"{laz_file.stem}_{arch}_patch_{patch_idx:04d}.npz"
-                    save_path = output_dir / filename
-                    np.savez_compressed(save_path, **arch_data)
+                # Handle hybrid formatter (returns single dict) vs multi-arch formatter (returns dict of dicts)
+                if architecture == 'hybrid':
+                    # Hybrid formatter returns a single optimized dict
+                    # Save with 'hybrid' architecture name
+                    patches_to_save = [(architecture, formatted)]
+                else:
+                    # Multi-arch formatter returns dict with arch keys
+                    patches_to_save = [(arch, formatted[arch]) for arch in target_archs]
+                
+                # Save based on output format
+                for arch, arch_data in patches_to_save:
                     
-                elif output_format == 'pytorch':
-                    import torch
-                    filename = f"{laz_file.stem}_{arch}_patch_{patch_idx:04d}.pt"
-                    save_path = output_dir / filename
-                    tensors = {}
-                    for k, v in arch_data.items():
-                        if isinstance(v, np.ndarray):
-                            tensors[k] = torch.from_numpy(v)
-                        elif isinstance(v, (int, float)):
-                            tensors[k] = torch.tensor(v)
-                        elif isinstance(v, dict):
-                            # Handle nested dicts (like octree structure)
-                            tensors[k] = v
-                    torch.save(tensors, save_path)
-                    
-                elif output_format == 'hdf5':
-                    import h5py
-                    filename = f"{laz_file.stem}_{arch}_patch_{patch_idx:04d}.h5"
-                    save_path = output_dir / filename
-                    with h5py.File(save_path, 'w') as f:
+                    if output_format == 'npz':
+                        # Include version in filename if augmented
+                        if version_label == 'original':
+                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}.npz"
+                        else:
+                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version_label}.npz"
+                        save_path = output_dir / filename
+                        np.savez_compressed(save_path, **arch_data)
+                        
+                    elif output_format == 'pytorch':
+                        import torch
+                        # Include version in filename if augmented
+                        if version_label == 'original':
+                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}.pt"
+                        else:
+                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version_label}.pt"
+                        save_path = output_dir / filename
+                        tensors = {}
                         for k, v in arch_data.items():
-                            f.create_dataset(k, data=v, compression='gzip')
-                
-                elif output_format == 'laz':
-                    filename = f"{laz_file.stem}_{arch}_patch_{patch_idx:04d}.laz"
-                    save_path = output_dir / filename
+                            if isinstance(v, np.ndarray):
+                                tensors[k] = torch.from_numpy(v)
+                            elif isinstance(v, (int, float)):
+                                tensors[k] = torch.tensor(v)
+                            elif isinstance(v, dict):
+                                # Handle nested dicts (like octree structure)
+                                tensors[k] = v
+                        torch.save(tensors, save_path)
+                        
+                    elif output_format == 'hdf5':
+                        import h5py
+                        # Include version in filename if augmented
+                        if version_label == 'original':
+                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}.h5"
+                        else:
+                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version_label}.h5"
+                        save_path = output_dir / filename
+                        with h5py.File(save_path, 'w') as f:
+                            for k, v in arch_data.items():
+                                f.create_dataset(k, data=v, compression='gzip')
                     
-                    # Create LAZ file from patch data
-                    # Get points from arch_data (handle different formats)
-                    if 'points' in arch_data:
-                        patch_points = arch_data['points']
-                    elif 'xyz' in arch_data:
-                        patch_points = arch_data['xyz']
-                    else:
-                        logger.warning(f"No points found in arch_data for {filename}")
-                        continue
+                    elif output_format == 'laz':
+                        # Include version in filename if augmented
+                        if version_label == 'original':
+                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}.laz"
+                        else:
+                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version_label}.laz"
+                        save_path = output_dir / filename
+                        
+                        # Create LAZ file from patch data
+                        # Get points from arch_data (handle different formats)
+                        if 'points' in arch_data:
+                            patch_points = arch_data['points']
+                        elif 'xyz' in arch_data:
+                            patch_points = arch_data['xyz']
+                        else:
+                            logger.warning(f"No points found in arch_data for {filename}")
+                            continue
+                        
+                        # Create minimal LAS header (LAS 1.2, point format 0)
+                        from laspy import LasHeader, LasData
+                        header = LasHeader(point_format=0, version="1.2")
+                        header.offsets = np.min(patch_points, axis=0)
+                        header.scales = np.array([0.01, 0.01, 0.01])
+                        
+                        patch_las = LasData(header)
+                        patch_las.x = patch_points[:, 0]
+                        patch_las.y = patch_points[:, 1]
+                        patch_las.z = patch_points[:, 2]
+                        
+                        # Add features as extra dimensions if available
+                        if 'features' in arch_data and arch_data['features'] is not None:
+                            features_data = arch_data['features']
+                            if features_data.shape[1] > 0:
+                                # Add first few features as extra dimensions (limit to avoid bloat)
+                                max_features = min(10, features_data.shape[1])
+                                for i in range(max_features):
+                                    try:
+                                        patch_las.add_extra_dim(laspy.ExtraBytesParams(
+                                            name=f"feature_{i}", type=np.float32
+                                        ))
+                                        setattr(patch_las, f"feature_{i}", features_data[:, i].astype(np.float32))
+                                    except Exception as e:
+                                        logger.debug(f"Could not add feature {i}: {e}")
+                        
+                            # Add labels if available
+                            if 'labels' in arch_data:
+                                patch_las.classification = arch_data['labels'].astype(np.uint8)
+                            
+                            patch_las.write(save_path)
                     
-                    # Create minimal LAS header (LAS 1.2, point format 0)
-                    from laspy import LasHeader, LasData
-                    header = LasHeader(point_format=0, version="1.2")
-                    header.offsets = np.min(patch_points, axis=0)
-                    header.scales = np.array([0.01, 0.01, 0.01])
-                    
-                    patch_las = LasData(header)
-                    patch_las.x = patch_points[:, 0]
-                    patch_las.y = patch_points[:, 1]
-                    patch_las.z = patch_points[:, 2]
-                    
-                    # Add features as extra dimensions if available
-                    if 'features' in arch_data and arch_data['features'] is not None:
-                        features_data = arch_data['features']
-                        if features_data.shape[1] > 0:
-                            # Add first few features as extra dimensions (limit to avoid bloat)
-                            max_features = min(10, features_data.shape[1])
-                            for i in range(max_features):
-                                try:
-                                    patch_las.add_extra_dim(laspy.ExtraBytesParams(
-                                        name=f"feature_{i}", type=np.float32
-                                    ))
-                                    setattr(patch_las, f"feature_{i}", features_data[:, i].astype(np.float32))
-                                except Exception as e:
-                                    logger.debug(f"Could not add feature {i}: {e}")
-                    
-                    # Add labels if available
-                    if 'labels' in arch_data:
-                        patch_las.classification = arch_data['labels'].astype(np.uint8)
-                    
-                    patch_las.write(save_path)
-                
-                num_saved += 1
+                    num_saved += 1
         
         tile_time = time.time() - tile_start
+        pts_processed = len(original_data['points']) * num_versions
         logger.info(
             f"  ✅ Unified processing complete: {num_saved} patches in "
-            f"{tile_time:.1f}s ({len(points)/tile_time:.0f} pts/s)"
+            f"{tile_time:.1f}s ({pts_processed/tile_time:.0f} pts/s)"
         )
         
         return {
             'num_patches': num_saved,
             'processing_time': tile_time,
-            'points_processed': len(points),
+            'points_processed': pts_processed,
             'skipped': False
         }

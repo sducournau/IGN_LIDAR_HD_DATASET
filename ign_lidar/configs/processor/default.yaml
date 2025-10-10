@@ -5,6 +5,9 @@
 # LOD level for classification
 lod_level: LOD2 # LOD2 or LOD3
 
+# Architecture configuration
+architecture: pointnet++ # pointnet++, octree, transformer, sparse_conv, hybrid, multi
+
 # Hardware configuration
 use_gpu: false
 num_workers: 4

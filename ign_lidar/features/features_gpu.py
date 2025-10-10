@@ -381,17 +381,19 @@ class GPUFeatureComputer:
         λ1 = eigenvalues[:, 1]
         λ2 = eigenvalues[:, 2]
         
-        # Safe division
+        # Safe division - use λ0 (largest eigenvalue) for normalization
+        # This matches the boundary-aware features and standard literature
         λ0_safe = λ0 + 1e-8
         sum_λ = λ0 + λ1 + λ2 + 1e-8
         
-        # Compute features (CORRECTED to match CPU formulas - Weinmann et al.)
-        # Using sum_λ normalization for standard eigenvalue-based features
-        planarity = ((λ1 - λ2) / sum_λ).astype(np.float32)
-        linearity = ((λ0 - λ1) / sum_λ).astype(np.float32)
-        sphericity = (λ2 / sum_λ).astype(np.float32)
+        # Compute features using λ0 normalization (consistent with boundary features)
+        # Formula: Weinmann et al. - normalized by largest eigenvalue λ0
+        # Range: linearity [0, 1], planarity [0, 1], sphericity [0, 1]
+        linearity = ((λ0 - λ1) / λ0_safe).astype(np.float32)
+        planarity = ((λ1 - λ2) / λ0_safe).astype(np.float32)
+        sphericity = (λ2 / λ0_safe).astype(np.float32)
         anisotropy = ((λ0 - λ2) / λ0_safe).astype(np.float32)
-        roughness = (λ2 / sum_λ).astype(np.float32)
+        roughness = (λ2 / sum_λ).astype(np.float32)  # Keep sum normalization for roughness
         
         mean_distances = np.mean(distances[:, 1:], axis=1)
         density = (1.0 / (mean_distances + 1e-8)).astype(np.float32)
@@ -704,7 +706,8 @@ class GPUFeatureComputer:
         
         # Initialize geometric features dict
         feature_keys = ['planarity', 'linearity', 'sphericity',
-                        'anisotropy', 'roughness', 'density']
+                        'anisotropy', 'roughness', 'density',
+                        'verticality', 'horizontality']
         geo_features = {key: np.zeros(N, dtype=np.float32)
                         for key in feature_keys}
         
@@ -799,13 +802,18 @@ class GPUFeatureComputer:
             λ0_safe = λ0 + 1e-8
             sum_λ = λ0 + λ1 + λ2 + 1e-8
             
-            chunk_planarity = ((λ1 - λ2) / sum_λ).astype(np.float32)
-            chunk_linearity = ((λ0 - λ1) / sum_λ).astype(np.float32)
-            chunk_sphericity = (λ2 / sum_λ).astype(np.float32)
+            # Use λ0 normalization (consistent with boundary features)
+            chunk_linearity = ((λ0 - λ1) / λ0_safe).astype(np.float32)
+            chunk_planarity = ((λ1 - λ2) / λ0_safe).astype(np.float32)
+            chunk_sphericity = (λ2 / λ0_safe).astype(np.float32)
             chunk_anisotropy = ((λ0 - λ2) / λ0_safe).astype(np.float32)
-            chunk_roughness = (λ2 / sum_λ).astype(np.float32)
+            chunk_roughness = (λ2 / sum_λ).astype(np.float32)  # Keep sum normalization
             mean_distances = np.mean(distances[:, 1:], axis=1)
             chunk_density = (1.0 / (mean_distances + 1e-8)).astype(np.float32)
+            
+            # Compute verticality and horizontality from normals
+            chunk_verticality = self.compute_verticality(chunk_normals)
+            chunk_horizontality = np.abs(chunk_normals[:, 2]).astype(np.float32)
             
             # Store results in output arrays
             normals[start_idx:end_idx] = chunk_normals
@@ -817,6 +825,8 @@ class GPUFeatureComputer:
             geo_features['anisotropy'][start_idx:end_idx] = chunk_anisotropy
             geo_features['roughness'][start_idx:end_idx] = chunk_roughness
             geo_features['density'][start_idx:end_idx] = chunk_density
+            geo_features['verticality'][start_idx:end_idx] = chunk_verticality
+            geo_features['horizontality'][start_idx:end_idx] = chunk_horizontality
             
             # Cleanup chunk data
             del (chunk_data, chunk_class, query_points, tree,
@@ -827,7 +837,7 @@ class GPUFeatureComputer:
                  neighbors_geo, centroids_geo, centered_geo, cov_matrices_geo,
                  eigenvalues_geo, chunk_planarity, chunk_linearity,
                  chunk_sphericity, chunk_anisotropy, chunk_roughness,
-                 chunk_density)
+                 chunk_density, chunk_verticality, chunk_horizontality)
         
         logger.info(
             "Per-chunk feature computation complete (GPU without cuML)"

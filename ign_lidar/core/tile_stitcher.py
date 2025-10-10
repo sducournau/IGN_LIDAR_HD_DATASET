@@ -147,7 +147,9 @@ class TileStitcher:
         self,
         tile_path: Path,
         neighbor_tiles: Optional[List[Path]] = None,
-        auto_detect_neighbors: bool = False
+        auto_detect_neighbors: bool = False,
+        use_provided_core_points: bool = False,
+        core_points: Optional[np.ndarray] = None
     ) -> Dict[str, np.ndarray]:
         """
         Load a tile and extract buffer zones from its neighbors.
@@ -159,6 +161,10 @@ class TileStitcher:
                            to detect neighbors automatically
             auto_detect_neighbors: If True, automatically detect neighbor tiles
                                   based on filename pattern (e.g., grid coordinates)
+            use_provided_core_points: If True, use the provided core_points instead
+                                     of loading from LAZ file (useful after preprocessing)
+            core_points: Pre-loaded core points (N, 3) to use if use_provided_core_points=True
+                        This allows using preprocessed points directly
         
         Returns:
             Dictionary with:
@@ -181,18 +187,29 @@ class TileStitcher:
         if not tile_path.exists():
             raise FileNotFoundError(f"Core tile not found: {tile_path}")
         
-        # Load core tile
-        logger.info(f"Loading core tile: {tile_path.name}")
-        core_data = self._load_tile(tile_path)
-        
-        if core_data is None or len(core_data['points']) == 0:
-            raise ValueError(f"Core tile {tile_path} has no points")
-        
-        core_points = core_data['points']
-        core_features = core_data['features']
+        # Load or use provided core tile points
+        if use_provided_core_points and core_points is not None:
+            # Use preprocessed points directly - no need to reload!
+            logger.info(f"Using provided preprocessed core points: {len(core_points):,} points")
+            core_points_xyz = core_points
+            # For features, we'll use empty arrays since we only need geometry for stitching
+            core_features = np.empty((len(core_points), 0))
+            # Flag to skip feature extraction from neighbors too
+            skip_features = True
+        else:
+            # Traditional path: load from LAZ file
+            logger.info(f"Loading core tile: {tile_path.name}")
+            core_data = self._load_tile(tile_path)
+            
+            if core_data is None or len(core_data['points']) == 0:
+                raise ValueError(f"Core tile {tile_path} has no points")
+            
+            core_points_xyz = core_data['points']
+            core_features = core_data['features']
+            skip_features = False
         
         # Get core tile bounds
-        core_bounds = self._compute_bounds(core_points)
+        core_bounds = self._compute_bounds(core_points_xyz)
         logger.info(f"Core tile bounds: {core_bounds}")
         
         # Auto-detect neighbors if requested
@@ -226,7 +243,8 @@ class TileStitcher:
                     buffer_data = self._extract_buffer_zone(
                         neighbor_path,
                         core_bounds,
-                        self.buffer_size
+                        self.buffer_size,
+                        skip_features=skip_features
                     )
                     
                     if buffer_data is not None and len(buffer_data['points']) > 0:
@@ -250,10 +268,10 @@ class TileStitcher:
             logger.warning("No buffer points extracted from neighbors")
         
         # Combine core + buffer
-        num_core = len(core_points)
+        num_core = len(core_points_xyz)
         num_buffer = len(buffer_points)
         
-        combined_points = np.vstack([core_points, buffer_points])
+        combined_points = np.vstack([core_points_xyz, buffer_points])
         combined_features = np.vstack([core_features, buffer_features])
         
         # Create core mask (True for core points, False for buffer)
@@ -266,7 +284,7 @@ class TileStitcher:
         )
         
         return {
-            'core_points': core_points,
+            'core_points': core_points_xyz,
             'core_features': core_features,
             'buffer_points': buffer_points,
             'buffer_features': buffer_features,
@@ -348,12 +366,17 @@ class TileStitcher:
         if not tile_path.exists():
             raise FileNotFoundError(f"Tile not found: {tile_path}")
         
-        # Load from cache if available
+        # ✅ OPTIMIZATION: Try fast header-only read first
+        fast_bounds = self._get_tile_bounds_fast(tile_path)
+        if fast_bounds is not None:
+            return fast_bounds
+        
+        # Fallback: Load from cache if available
         if self._tile_cache and tile_path in self._tile_cache:
             cached = self._tile_cache[tile_path]
             return self._compute_bounds(cached['points'])
         
-        # Load tile and compute bounds
+        # Last resort: Load full tile and compute bounds
         tile_data = self._load_tile(tile_path)
         if tile_data is None or len(tile_data['points']) == 0:
             raise ValueError(f"Tile {tile_path} has no points")
@@ -450,7 +473,8 @@ class TileStitcher:
         self,
         neighbor_path: Path,
         core_bounds: Tuple[float, float, float, float],
-        buffer_size: float
+        buffer_size: float,
+        skip_features: bool = False
     ) -> Optional[Dict[str, np.ndarray]]:
         """
         Extract buffer zone from a neighbor tile.
@@ -461,6 +485,7 @@ class TileStitcher:
             neighbor_path: Path to neighbor tile
             core_bounds: (xmin, ymin, xmax, ymax) of core tile
             buffer_size: Buffer width in meters
+            skip_features: If True, return empty feature arrays (for geometry-only stitching)
         
         Returns:
             Dictionary with 'points' and 'features' in buffer zone,
@@ -473,7 +498,8 @@ class TileStitcher:
             return None
         
         neighbor_points = neighbor_data['points']
-        neighbor_features = neighbor_data['features']
+        # If skip_features is True, we only need points for geometry
+        neighbor_features = neighbor_data['features'] if not skip_features else np.empty((len(neighbor_points), 0))
         
         # Expand core bounds by buffer size
         xmin, ymin, xmax, ymax = core_bounds
@@ -573,8 +599,10 @@ class TileStitcher:
         Returns:
             List of adjacent tile paths or None
         """
-        # Get core tile bounds
-        core_bounds = self.get_tile_bounds(tile_path)
+        # Get core tile bounds (fast - header only)
+        core_bounds = self._get_tile_bounds_fast(tile_path)
+        if core_bounds is None:
+            return None
         xmin, ymin, xmax, ymax = core_bounds
         
         # Buffer for adjacency check (tiles that are within this distance are considered neighbors)
@@ -595,8 +623,10 @@ class TileStitcher:
                 continue
             
             try:
-                # Get neighbor bounds
-                neighbor_bounds = self.get_tile_bounds(neighbor_path)
+                # Get neighbor bounds (fast - header only)
+                neighbor_bounds = self._get_tile_bounds_fast(neighbor_path)
+                if neighbor_bounds is None:
+                    continue
                 n_xmin, n_ymin, n_xmax, n_ymax = neighbor_bounds
                 
                 # Check if tiles are adjacent (share a boundary or overlap)
@@ -729,8 +759,10 @@ class TileStitcher:
         Returns:
             List of dicts with missing neighbor information
         """
-        # Get core tile bounds
-        core_bounds = self.get_tile_bounds(tile_path)
+        # Get core tile bounds (fast - header only)
+        core_bounds = self._get_tile_bounds_fast(tile_path)
+        if core_bounds is None:
+            return None
         xmin, ymin, xmax, ymax = core_bounds
         
         # Calculate expected adjacent tile positions

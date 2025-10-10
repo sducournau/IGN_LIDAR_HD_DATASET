@@ -13,6 +13,7 @@ ign-lidar-hd process \
   input_dir="/mnt/c/Users/Simon/ign/raw_tiles/urban_dense" \
   output_dir="/mnt/c/Users/Simon/ign/training_patches_lod2_hybrid" \
   processor.lod_level=LOD2 \
+  processor.architecture=hybrid \
   processor.use_gpu=true \
   processor.num_workers=4 \
   processor.num_points=16384 \
@@ -137,6 +138,7 @@ ign-lidar-hd process \
   input_dir="/mnt/c/Users/Simon/ign/raw_tiles/urban_dense" \
   output_dir="/mnt/c/Users/Simon/ign/training_patches_lod3" \
   processor.lod_level=LOD3 \
+  processor.architecture=hybrid \
   processor.num_points=32768 \
   processor.augment=true \
   processor.num_augmentations=5 \

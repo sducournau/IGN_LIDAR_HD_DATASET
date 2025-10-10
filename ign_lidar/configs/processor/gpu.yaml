@@ -5,6 +5,9 @@
 # LOD level
 lod_level: LOD2
 
+# Architecture configuration
+architecture: pointnet++ # pointnet++, octree, transformer, sparse_conv, hybrid, multi
+
 # Hardware - GPU enabled
 use_gpu: true
 num_workers: 8 # More workers for GPU pipeline

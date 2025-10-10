@@ -46,7 +46,7 @@ def print_config_summary(cfg: DictConfig) -> None:
     logger.info(f"GPU: {cfg.processor.use_gpu}")
     logger.info(f"Workers: {cfg.processor.num_workers}")
     
-    if cfg.output.only_enriched_laz:
+    if OmegaConf.select(cfg, "output.only_enriched_laz", default=False):
         logger.info(f"Mode: Enriched LAZ only (no patches) ✨")
     else:
         logger.info(f"Patch size: {cfg.processor.patch_size}m")
@@ -59,7 +59,7 @@ def print_config_summary(cfg: DictConfig) -> None:
     if cfg.stitching.enabled and hasattr(cfg.stitching, 'auto_download_neighbors'):
         logger.info(f"Auto-download neighbors: {cfg.stitching.auto_download_neighbors}")
     
-    if not cfg.output.only_enriched_laz:
+    if not OmegaConf.select(cfg, "output.only_enriched_laz", default=False):
         logger.info(f"Output format: {cfg.output.format}")
     logger.info(f"Save enriched LAZ: {cfg.output.save_enriched_laz}")
     logger.info("="*70)
@@ -232,8 +232,8 @@ def process_lidar(cfg: DictConfig) -> None:
         use_stitching=cfg.stitching.enabled,
         buffer_size=cfg.stitching.buffer_size,
         stitching_config=stitching_config,
-        save_enriched_laz=cfg.output.save_enriched_laz,
-        only_enriched_laz=cfg.output.only_enriched_laz,
+        save_enriched_laz=OmegaConf.select(cfg, "output.save_enriched_laz", default=False),
+        only_enriched_laz=OmegaConf.select(cfg, "output.only_enriched_laz", default=False),
     )
     
     # Process
@@ -253,7 +253,7 @@ def process_lidar(cfg: DictConfig) -> None:
         # Summary
         logger.info("="*70)
         logger.info("✅ Processing complete!")
-        if cfg.output.only_enriched_laz:
+        if OmegaConf.select(cfg, "output.only_enriched_laz", default=False):
             logger.info(f"  Mode: Enriched LAZ only (no patches)")
             logger.info(f"  Enriched LAZ files: {output_dir / 'enriched'}")
         else:

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2025-10-10
+
+### Fixed
+
+- **Planarity Feature Computation**: Fixed formula to correctly compute planarity eigenvalues
+- **Preprocessing Stitching**: Fixed boundary feature computation in tile stitching workflow
+- **Feature Validation**: Improved artifact detection at tile boundaries
+
+### Changed
+
+- **Code Cleanup**: Removed temporary debug files and improved repository organization
+- **Documentation**: Updated README and documentation for v2.1.1
+
 ## [2.1.0] - 2025-10-09
 
 ### Added

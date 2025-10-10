@@ -913,7 +913,9 @@ class GPUChunkedFeatureComputer:
             'linearity': np.zeros(N, dtype=np.float32),
             'sphericity': np.zeros(N, dtype=np.float32),
             'roughness': np.zeros(N, dtype=np.float32),
-            'density': np.zeros(N, dtype=np.float32)
+            'density': np.zeros(N, dtype=np.float32),
+            'verticality': np.zeros(N, dtype=np.float32),
+            'horizontality': np.zeros(N, dtype=np.float32)
         }
         
         # Compute per-chunk for memory efficiency
@@ -1030,18 +1032,21 @@ class GPUChunkedFeatureComputer:
                 if key in chunk_geo:
                     geo_features[key][start_idx:end_idx] = chunk_geo[key]
             
-            # Compute verticality from normals (for wall detection)
+            # Compute verticality and horizontality from normals
             chunk_normals_for_vert = normals[start_idx:end_idx]
             verticality_chunk = gpu_computer.compute_verticality(
                 chunk_normals_for_vert
             )
-            if 'verticality' not in geo_features:
-                geo_features['verticality'] = np.zeros(N, dtype=np.float32)
             geo_features['verticality'][start_idx:end_idx] = verticality_chunk
+            
+            # Horizontality = abs(nz) - how horizontal the surface is
+            horizontality_chunk = np.abs(chunk_normals_for_vert[:, 2]).astype(np.float32)
+            geo_features['horizontality'][start_idx:end_idx] = horizontality_chunk
             
             # Cleanup
             del chunk_points, chunk_classification, chunk_normals
             del global_indices_gpu, local_indices, chunk_geo
+            del verticality_chunk, horizontality_chunk
             self._free_gpu_memory()
         
         logger.info("✓ All features computed per-chunk successfully")

@@ -58,23 +58,57 @@ class BaseFormatter:
             
         return points_normalized.astype(np.float32)
     
-    def _normalize_features(self, features: np.ndarray) -> np.ndarray:
+    def _normalize_features(self, features: np.ndarray, exclude_normals: bool = True) -> np.ndarray:
         """
         Standardize features (mean=0, std=1).
         
+        IMPORTANT: Normals (first 3 dimensions if present) should NOT be standardized
+        as they are already unit vectors with geometric meaning. Standardizing them
+        causes quantization artifacts and stripe patterns in derived features.
+        
         Args:
             features: [N, C] array of features
+            exclude_normals: If True, skip standardization for first 3 dims (normals)
             
         Returns:
             Standardized features
         """
         if features.shape[1] == 0:
             return features
-            
-        mean = features.mean(axis=0, keepdims=True)
-        std = features.std(axis=0, keepdims=True) + 1e-8
         
-        features_norm = (features - mean) / std
+        # Check if first 3 dimensions are likely normals (unit vectors)
+        # Normals should have values roughly in [-1, 1] and norm close to 1
+        likely_normals = False
+        if exclude_normals and features.shape[1] >= 3:
+            first_3_cols = features[:, :3]
+            norms = np.linalg.norm(first_3_cols, axis=1)
+            # Check if most norms are close to 1 (within 20% tolerance)
+            if np.mean(np.abs(norms - 1.0) < 0.2) > 0.5:
+                likely_normals = True
+        
+        if likely_normals:
+            # Standardize only non-normal features (dims 3+)
+            if features.shape[1] > 3:
+                # Keep normals as-is
+                normals = features[:, :3].copy()
+                other_features = features[:, 3:]
+                
+                # Standardize other features
+                mean = other_features.mean(axis=0, keepdims=True)
+                std = other_features.std(axis=0, keepdims=True) + 1e-8
+                other_features_norm = (other_features - mean) / std
+                
+                # Concatenate back
+                features_norm = np.concatenate([normals, other_features_norm], axis=1)
+            else:
+                # Only normals, no standardization needed
+                features_norm = features.copy()
+        else:
+            # Standard normalization for all features
+            mean = features.mean(axis=0, keepdims=True)
+            std = features.std(axis=0, keepdims=True) + 1e-8
+            features_norm = (features - mean) / std
+        
         return features_norm.astype(np.float32)
     
     def _normalize_rgb(self, rgb: np.ndarray, mode: str = 'standard') -> np.ndarray:
@@ -138,12 +172,16 @@ class BaseFormatter:
         # 2. Infrared features (2 channels) 🌡️
         if use_infrared:
             if 'nir' in patch:
-                nir = patch['nir']  # [N, 1]
+                nir = patch['nir']  # [N] or [N, 1]
+                if nir.ndim == 1:
+                    nir = nir[:, np.newaxis]  # Ensure [N, 1]
                 nir_norm = (nir.astype(np.float32) / 255.0)
                 features.append(nir_norm)
             
             if 'ndvi' in patch:
-                ndvi = patch['ndvi']  # [N, 1] ∈ [-1, 1]
+                ndvi = patch['ndvi']  # [N] or [N, 1] ∈ [-1, 1]
+                if ndvi.ndim == 1:
+                    ndvi = ndvi[:, np.newaxis]  # Ensure [N, 1]
                 features.append(ndvi.astype(np.float32))
         
         # 3. Geometric features (13 channels) 📐

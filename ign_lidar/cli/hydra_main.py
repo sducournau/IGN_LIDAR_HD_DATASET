@@ -135,6 +135,8 @@ def process_lidar(cfg: DictConfig) -> None:
         include_extra_features=cfg.features.include_extra,
         k_neighbors=cfg.features.k_neighbors,
         include_rgb=cfg.features.use_rgb,
+        include_infrared=cfg.features.use_infrared,
+        compute_ndvi=cfg.features.compute_ndvi,
         use_gpu=cfg.processor.use_gpu,
         use_gpu_chunked=cfg.features.use_gpu_chunked,
         gpu_batch_size=cfg.features.gpu_batch_size,
@@ -142,6 +144,8 @@ def process_lidar(cfg: DictConfig) -> None:
         preprocess_config=preprocess_config,
         use_stitching=cfg.stitching.enabled,
         buffer_size=cfg.stitching.buffer_size,
+        architecture=cfg.processor.architecture,
+        output_format=cfg.output.format,
     )
     
     # Process

@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 2.1.0** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 2.1.1** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/website/static/img/lod3.png?raw=true" alt="LoD3 Building Model Icon" width="600">
 
@@ -86,14 +86,19 @@ flowchart TD
 
 ---
 
-## ✨ What's New (v2.0.1)
+## ✨ What's New (v2.1.1)
 
-- **Enriched LAZ Only Mode:** Process tiles to generate enriched LAZ files without creating patches (3-5x faster). New `output.only_enriched_laz` parameter.
-- **Automatic Corruption Recovery:** Detect and auto-recover from corrupted LAZ files with up to 2 retry attempts and integrity verification.
-- **Modular Architecture:** Specialized modules for core, features, preprocessing, I/O, CLI, and config.
-- **Single-step RAW→Patches workflow:** Faster, more efficient, and less disk usage.
-- **Boundary-Aware Feature Computation:** Improved quality at tile boundaries with buffer zone extraction.
-- **Modern Hydra-based configuration:** Hierarchical, flexible, and experiment-friendly.
+- **Bug Fixes:** Fixed planarity feature computation formula and preprocessing stitching for boundary features
+- **Improved Validation:** Enhanced feature validation and artifact detection at tile boundaries
+- **Code Quality:** Repository cleanup and better code organization
+- **Documentation:** Updated documentation and improved examples
+
+**Previous Release (v2.1.0):**
+
+- **Feature Validation:** Automatic detection of geometric feature artifacts at tile boundaries
+- **French Documentation:** Complete French i18n structure (73 files)
+- **Hybrid Model Support:** Optimized LOD3 hybrid model training configurations
+- **Enhanced Documentation:** Training commands reference and workflow guides
 
 See [CHANGELOG.md](CHANGELOG.md) for full details and previous releases.
 

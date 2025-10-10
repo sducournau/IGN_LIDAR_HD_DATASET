@@ -11,8 +11,11 @@ def augment_raw_points(
     points: np.ndarray,
     intensity: np.ndarray,
     return_number: np.ndarray,
-    classification: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    classification: np.ndarray,
+    rgb: np.ndarray = None,
+    nir: np.ndarray = None,
+    ndvi: np.ndarray = None
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Apply data augmentation to raw point cloud data BEFORE feature computation.
     
@@ -31,10 +34,13 @@ def augment_raw_points(
         intensity: [N] intensity values
         return_number: [N] return numbers
         classification: [N] ASPRS classification codes
+        rgb: [N, 3] RGB values (optional)
+        nir: [N] near-infrared values (optional)
+        ndvi: [N] NDVI values (optional)
         
     Returns:
-        Tuple of (augmented_points, intensity, return_number, classification)
-        All arrays are filtered by the dropout mask
+        Tuple of (augmented_points, intensity, return_number, classification, rgb, nir, ndvi)
+        All arrays are filtered by the same dropout mask
     """
     N = len(points)
     points_aug = points.copy()
@@ -67,7 +73,12 @@ def augment_raw_points(
     return_number_aug = return_number[keep_mask]
     classification_aug = classification[keep_mask]
     
-    return points_aug, intensity_aug, return_number_aug, classification_aug
+    # Apply dropout to optional RGB, NIR, NDVI arrays
+    rgb_aug = rgb[keep_mask] if rgb is not None else None
+    nir_aug = nir[keep_mask] if nir is not None else None
+    ndvi_aug = ndvi[keep_mask] if ndvi is not None else None
+    
+    return points_aug, intensity_aug, return_number_aug, classification_aug, rgb_aug, nir_aug, ndvi_aug
 
 
 def extract_patches(

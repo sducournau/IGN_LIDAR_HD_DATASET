@@ -505,18 +505,18 @@ def extract_geometric_features(points: np.ndarray, normals: np.ndarray,
     Using standard formulas (Weinmann et al., Demantké et al.)
     where λ0 >= λ1 >= λ2 are eigenvalues in descending order:
     
-    - Linearity: (λ0-λ1)/Σλ - 1D structures (edges, cables) [0,1]
-    - Planarity: (λ1-λ2)/Σλ - 2D structures (roofs, walls) [0,1]
-    - Sphericity: λ2/Σλ - 3D structures (vegetation, noise) [0,1]
+    - Linearity: (λ0-λ1)/λ0 - 1D structures (edges, cables) [0,1]
+    - Planarity: (λ1-λ2)/λ0 - 2D structures (roofs, walls) [0,1]
+    - Sphericity: λ2/λ0 - 3D structures (vegetation, noise) [0,1]
     - Anisotropy: (λ0-λ2)/λ0 - general directionality [0,1]
     - Roughness: λ2/Σλ - surface roughness (smooth vs rough) [0,1]
     - Density: 1/mean_dist - local point density
     
     Properties:
-    - Linearity + Planarity + Sphericity = λ0/Σλ (NOT 1.0, this is normal)
+    - Linearity + Planarity + Sphericity = 1.0 (exact, due to λ0 normalization)
     - For 1D: Linearity ≈ 1, Planarity ≈ 0, Sphericity ≈ 0
     - For 2D: Linearity ≈ 0, Planarity ≈ 1, Sphericity ≈ 0
-    - For 3D: Linearity ≈ 0, Planarity ≈ 0, Sphericity ≈ 1/3
+    - For 3D: Linearity ≈ 0, Planarity ≈ 0, Sphericity ≈ 1
     
     Note: Verticality/Horizontality removed (use normals directly)
     
@@ -582,12 +582,13 @@ def extract_geometric_features(points: np.ndarray, normals: np.ndarray,
         sum_λ = λ0 + λ1 + λ2 + 1e-8
         λ0_safe = λ0 + 1e-8
         
-        # Compute features (standard formulas)
-        linearity[i] = (λ0 - λ1) / sum_λ
-        planarity[i] = (λ1 - λ2) / sum_λ
-        sphericity[i] = λ2 / sum_λ
+        # Compute features using λ0 normalization (consistent with GPU/boundary)
+        # Formula: Weinmann et al. - normalized by largest eigenvalue λ0
+        linearity[i] = (λ0 - λ1) / λ0_safe
+        planarity[i] = (λ1 - λ2) / λ0_safe
+        sphericity[i] = λ2 / λ0_safe
         anisotropy[i] = (λ0 - λ2) / λ0_safe
-        roughness[i] = λ2 / sum_λ
+        roughness[i] = λ2 / sum_λ  # Keep sum normalization for roughness
         
         # Density (number of neighbors / volume)
         density[i] = len(neighbors_i) / (4/3 * np.pi * radius**3 + 1e-8)
@@ -669,6 +670,8 @@ def _compute_all_features_chunked(
         'anisotropy': np.zeros(n_points, dtype=np.float32),
         'roughness': np.zeros(n_points, dtype=np.float32),
         'density': np.zeros(n_points, dtype=np.float32),
+        'verticality': np.zeros(n_points, dtype=np.float32),
+        'horizontality': np.zeros(n_points, dtype=np.float32),
     }
     
     if include_extra:
@@ -677,7 +680,6 @@ def _compute_all_features_chunked(
             'neighborhood_extent': np.zeros(n_points, dtype=np.float32),
             'height_extent_ratio': np.zeros(n_points, dtype=np.float32),
             'local_roughness': np.zeros(n_points, dtype=np.float32),
-            'verticality': np.zeros(n_points, dtype=np.float32),
         })
     
     # Process chunks
@@ -864,13 +866,15 @@ def _compute_all_features_chunked(
             geo_features['local_roughness'][start_idx:end_idx] = (
                 roughness_slice
             )
-            
-            # Verticality
-            chunk_normals_slice = normals[start_idx:end_idx]
-            verticality_chunk = compute_verticality(chunk_normals_slice)
-            geo_features['verticality'][start_idx:end_idx] = (
-                verticality_chunk
-            )
+        
+        # Compute verticality and horizontality from normals (always computed)
+        chunk_normals_slice = normals[start_idx:end_idx]
+        verticality_chunk = compute_verticality(chunk_normals_slice)
+        geo_features['verticality'][start_idx:end_idx] = verticality_chunk
+        
+        # Horizontality = abs(nz) - how horizontal the surface is
+        horizontality_chunk = np.abs(chunk_normals_slice[:, 2]).astype(np.float32)
+        geo_features['horizontality'][start_idx:end_idx] = horizontality_chunk
     
     print(f"✓ Chunked processing complete")
     return normals, curvature, height, geo_features
@@ -1072,10 +1076,14 @@ def compute_all_features_optimized(
             'height_extent_ratio': height_extent_ratio,
             'local_roughness': local_roughness,
         })
-        
-        # Verticality (IMPORTANT for walls)
-        verticality = compute_verticality(normals)
-        geo_features['verticality'] = verticality
+    
+    # Verticality and horizontality (IMPORTANT for walls/roofs)
+    verticality = compute_verticality(normals)
+    geo_features['verticality'] = verticality
+    
+    # Horizontality = abs(nz) - how horizontal the surface is
+    horizontality = np.abs(normals[:, 2]).astype(np.float32)
+    geo_features['horizontality'] = horizontality
     
     return normals, curvature, height, geo_features
 

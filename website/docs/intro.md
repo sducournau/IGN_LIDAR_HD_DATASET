@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.0.2** | Python 3.8+ | MIT License
+**Version 2.1.1** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -27,13 +27,29 @@ Complete redesign with **modular architecture**, **Hydra CLI**, and **unified pi
 
 ---
 
-## 🎉 Latest Release: v2.0.2
+## 🎉 Latest Release: v2.1.1
 
-### 🚀 Complete Architecture Overhaul
+### � Maintenance Release
 
-Version 2.0 represents a **major redesign** of the entire library with significant improvements:
+Version 2.1.1 is a maintenance release with important bug fixes:
 
-**New in v2.0.2:**
+**New in v2.1.1:**
+
+- 🐛 **Bug Fixes**: Fixed planarity feature computation formula and preprocessing stitching for boundary features
+- ✅ **Improved Validation**: Enhanced feature validation and artifact detection at tile boundaries
+- 🧹 **Code Quality**: Repository cleanup and better code organization
+
+**Previous Release v2.1.0:**
+
+- 🔍 **Feature Validation**: Automatic detection of geometric feature artifacts at tile boundaries
+- 🌍 **French Documentation**: Complete French i18n structure (73 files)
+- 🎓 **Hybrid Model Support**: Optimized LOD3 hybrid model training configurations
+
+### 🚀 v2.0 Architecture Overhaul
+
+Version 2.0 represented a **major redesign** of the entire library:
+
+**Key Features in v2.0.2:**
 
 - 🔧 **Enhanced Stability**: Improved error handling and memory management
 - 🐛 **Bug Fixes**: Resolved edge cases in boundary-aware processing and tile stitching

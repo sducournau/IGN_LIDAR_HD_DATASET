@@ -1,51 +1,52 @@
 ---
 sidebar_position: 1
-title: "Premiers Pas"
-description: Complete beginner's guide to IGN LiDAR HD processing
-keywords: [getting-started, beginner, tutorial, first-steps, introduction]
+title: Premiers Pas
+description: Guide complet pour débutants sur le traitement IGN LiDAR HD
+keywords:
+  [
+    getting-started,
+    beginner,
+    tutorial,
+    first-steps,
+    introduction,
+    démarrage,
+    débutant,
+    tutoriel,
+    premiers-pas,
+  ]
 ---
 
-<!-- 🇫🇷 TRADUCTION FRANÇAISE REQUISE -->
-<!-- Ce fichier est un modèle qui nécessite une traduction manuelle. -->
-<!-- Veuillez traduire le contenu ci-dessous en conservant : -->
-<!-- - Le frontmatter (métadonnées en haut) -->
-<!-- - Les blocs de code (traduire uniquement les commentaires) -->
-<!-- - Les liens et chemins de fichiers -->
-<!-- - La structure Markdown -->
+# Premiers Pas avec IGN LiDAR HD
 
+Bienvenue sur IGN LiDAR HD ! Ce guide complet vous aidera à démarrer avec le traitement des données LiDAR haute densité de l'Institut National de l'Information Géographique et Forestière (IGN).
 
+## Qu'est-ce qu'IGN LiDAR HD ?
 
-# Getting Started with IGN LiDAR HD
+IGN LiDAR HD est une bibliothèque Python conçue pour traiter les données LiDAR haute densité de l'Institut National de l'Information Géographique et Forestière (IGN) en jeux de données prêts pour l'apprentissage automatique. Elle fournit des outils pour :
 
-Welcome to IGN LiDAR HD! This comprehensive guide will help you get started with processing French National Geographic Institute LiDAR data.
+- **Téléchargement de données** : Téléchargement automatisé des dalles LiDAR de l'IGN
+- **Extraction de caractéristiques** : Détection des bâtiments, classification de la végétation, analyse du sol
+- **Augmentation RGB** : Enrichissement en couleurs à partir d'orthophotos
+- **Export de données** : Formats de sortie multiples pour différentes applications
+- **Accélération GPU** : Traitement haute performance pour les grands jeux de données
 
-## What is IGN LiDAR HD?
+## Prérequis
 
-IGN LiDAR HD is a Python library designed to process high-density LiDAR data from the French National Geographic Institute (IGN) into machine learning-ready datasets. It provides tools for:
+### Configuration système
 
-- **Data Download**: Automated downloading of IGN LiDAR tiles
-- **Feature Extraction**: Building detection, vegetation classification, ground analysis
-- **RGB Augmentation**: Color enrichment from orthophotos
-- **Data Export**: Multiple output formats for different applications
-- **GPU Acceleration**: High-performance processing for large datasets
+**Configuration minimale :**
 
-## Prerequisites
+- Python 3.8 ou supérieur
+- 8 Go de RAM
+- 10 Go d'espace disque libre
+- Connexion Internet pour le téléchargement des données
 
-### System Requirements
-
-**Minimum Requirements:**
-
-- Python 3.8 or higher
-- 8GB RAM
-- 10GB free disk space
-- Internet connection for data download
-
-**Recommended Requirements:**
+**Configuration recommandée :**
 
 - Python 3.11
-- 16GB+ RAM
-- SSD storage with 50GB+ free space
-- NVIDIA GPU with 8GB+ VRAM (optional)
+- 16 Go+ de RAM
+- Stockage SSD avec 50 Go+ d'espace libre
+- GPU NVIDIA avec 8 Go+ de VRAM (optionnel)
 
 ### Python Environment
 
