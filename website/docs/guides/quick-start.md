@@ -15,112 +15,70 @@ Make sure you have IGN LiDAR HD installed. If not, see the [Installation Guide](
 
 ---
 
-## 🚀 Your First Workflow
+## 🚀 Your First Workflow (v2++ Modern CLI)
 
-Let's process LiDAR data in 3 simple steps: Download → Enrich → Create Patches
+Let's process LiDAR data in 2 simple steps with the unified v2++ pipeline: Download → Process
 
 ### Step 1: Download LiDAR Tiles
 
-Download tiles from IGN servers using geographic coordinates:
+Download tiles from IGN servers using Lambert93 coordinates:
 
 ```bash
+# Download tiles within 5km radius of Paris center
 ign-lidar-hd download \
-  --bbox 2.3,48.8,2.4,48.9 \
-  --output data/raw \
-  --max-tiles 5
+  --position 650000 6860000 \
+  --radius 5000 \
+  data/raw_tiles
 ```
 
 **What this does:**
 
 - Queries IGN WFS service for available tiles
-- Downloads up to 5 tiles in the specified bounding box (Paris area)
-- Saves LAZ files to `data/raw/`
+- Downloads tiles within 5km of the specified position
+- Saves LAZ files to `data/raw_tiles/`
 - Skips already downloaded tiles
 
-:::info Bounding Box Format
-`--bbox lon_min,lat_min,lon_max,lat_max` (WGS84 coordinates)
+:::info Coordinate Systems
+The `download` command uses **Lambert93 coordinates** (EPSG:2154), not WGS84.
 
-Example areas:
+Example positions (Lambert93):
 
-- Paris: `2.3,48.8,2.4,48.9`
-- Marseille: `5.3,43.2,5.4,43.3`
-- Lyon: `4.8,45.7,4.9,45.8`
+- Paris center: `650000 6860000`
+- Marseille: `893000 6250000`
+- Lyon: `842000 6518000`
+
+You can also use:
+
+- `--bbox XMIN YMIN XMAX YMAX` for rectangular areas
+- `--location paris_center` for predefined locations
   :::
 
-### Step 2: Enrich with Features
+### Step 2: Process to ML-Ready Patches
 
-Add geometric features and optional RGB colors:
+The v2++ **unified pipeline** handles everything in one command:
 
 ```bash
-ign-lidar-hd enrich \
-  --input-dir data/raw \
-  --output data/enriched \
-  --mode full \
-  --use-gpu
+# Complete processing: features + patches in one step
+ign-lidar-hd process \
+  input_dir=data/raw_tiles \
+  output_dir=data/patches
 ```
 
 **What this does:**
 
-- Computes geometric features (normals, curvature, planarity)
-- Adds all additional features in 'full' mode
-- Uses GPU acceleration if available (falls back to CPU)
-- **No augmentation by default** (use --augment to enable)
-- Skips already enriched tiles
-
-:::info Data Augmentation (Disabled by Default)
-By default, the enrich command creates **only the original tile**. To enable augmentation, add `--augment` which creates **4 versions** of each tile:
-
-- `tile_name.laz` (original)
-- `tile_name_aug1.laz` (augmented version 1)
-- `tile_name_aug2.laz` (augmented version 2)
-- `tile_name_aug3.laz` (augmented version 3)
-
-Each augmented version applies random rotation, jitter, scaling, and dropout before feature computation.
-
-To enable: add `--augment`  
-To change count: add `--num-augmentations N`
-:::
-
-**Features Added:**
-
-- Surface normals (3D vectors)
-- Curvature (principal curvature)
-- Planarity, verticality, horizontality
-- Local point density
-- Building classification labels
-
-:::tip Add RGB Colors
-Add `--add-rgb --rgb-cache-dir cache/` to enrich with colors from IGN orthophotos!
-:::
-
-### Step 3: Create Training Patches
-
-Generate machine learning-ready patches:
-
-```bash
-# Note: Augmentation happens during ENRICH phase (disabled by default)
-# Use --augment flag in enrich step to create augmented versions
-ign-lidar-hd patch \
-  --input-dir data/enriched \
-  --output data/patches \
-  --lod-level LOD2 \
-  --num-points 16384
-```
-
-**What this does:**
-
-- Creates 150m × 150m patches from enriched tiles
+- Computes geometric features (normals, curvature, planarity, etc.)
+- Creates 150m × 150m training patches
 - Samples 16,384 points per patch
-- Processes both original and augmented tiles (created during enrich)
+- Uses CPU by default (add `processor=gpu` for GPU acceleration)
 - Saves as compressed NPZ files
 
 **Output Structure:**
 
 ```text
 data/patches/
-├── tile_0501_6320_patch_0.npz
-├── tile_0501_6320_patch_1.npz
-├── tile_0501_6320_patch_2.npz
+├── LHD_FXX_0649_6863_patch_0000.npz
+├── LHD_FXX_0649_6863_patch_0001.npz
+├── LHD_FXX_0649_6863_patch_0002.npz
 └── ...
 ```
 
@@ -128,8 +86,97 @@ Each NPZ file contains:
 
 - `points`: [N, 3] XYZ coordinates
 - `normals`: [N, 3] surface normals
-- `features`: [N, 27] geometric features
+- `features`: [N, 27+] geometric features
 - `labels`: [N] building class labels
+
+---
+
+## 🎯 Advanced Processing Options
+
+### GPU-Accelerated Processing
+
+```bash
+# 10-20x faster with GPU
+ign-lidar-hd process \
+  processor=gpu \
+  input_dir=data/raw_tiles \
+  output_dir=data/patches
+```
+
+### LOD3 Training Dataset
+
+```bash
+# Complete LOD3 configuration (5 building classes)
+ign-lidar-hd process \
+  experiment=config_lod3_training \
+  input_dir=data/raw_tiles \
+  output_dir=data/lod3_patches
+```
+
+**Includes:**
+
+- 32,768 points per patch
+- 3x geometric augmentation
+- RGB + NIR + NDVI features
+- Tile stitching (eliminates edge artifacts)
+- Auto-download neighbor tiles
+
+### RGB + Infrared + NDVI
+
+```bash
+# Multi-modal features for vegetation analysis
+ign-lidar-hd process \
+  features=vegetation \
+  input_dir=data/raw_tiles \
+  output_dir=data/multimodal_patches \
+  features.use_rgb=true \
+  features.use_infrared=true \
+  features.compute_ndvi=true
+```
+
+### Generate Only Enriched LAZ (No Patches)
+
+```bash
+# For visualization in QGIS/CloudCompare
+ign-lidar-hd process \
+  input_dir=data/raw_tiles \
+  output_dir=data/enriched_laz \
+  output=enriched_only
+```
+
+### Custom Configuration
+
+```bash
+# Fine-tune every parameter
+ign-lidar-hd process \
+  input_dir=data/raw_tiles \
+  output_dir=data/custom_patches \
+  processor.lod_level=LOD3 \
+  processor.num_points=32768 \
+  processor.patch_size=200.0 \
+  processor.augment=true \
+  processor.num_augmentations=5 \
+  features.k_neighbors=30 \
+  features.use_rgb=true \
+  features.sampling_method=fps \
+  stitching.enabled=true \
+  output.save_enriched_laz=true
+```
+
+---
+
+## ✅ Verify Your Dataset
+
+```bash
+# Check data quality
+ign-lidar-hd verify data/patches
+
+# Detailed statistics
+ign-lidar-hd verify data/patches --detailed
+
+# Generate JSON report
+ign-lidar-hd verify data/patches --output report.json
+```
 
 ---
 

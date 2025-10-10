@@ -1,6 +1,20 @@
 ---
 slug: /
-sidebar_positio---
+sidebar_position: 1
+title: IGN LiDAR HD Processing Library
+---
+
+# IGN LiDAR HD Processing Library
+
+**Version 2.1.2** | Python 3.8+ | MIT License
+
+[![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+:::tip Major Update: v2.0 Architecture Overhaul!
+Complete redesign with **modular architecture**, **Hydra configuration system**, and **unified pipeline**! Existing users, see the [Migration Guide](/guides/migration-v1-to-v2) to upgrade from v1.x.
+:::
 
 ## 🎉 Latest Release: v2.1.2
 
@@ -15,20 +29,7 @@ Version 2.1.2 is a maintenance release with documentation updates:
 
 **Previous Release v2.1.1:**
 
-Version 2.1.1 was a maintenance release with important bug fixes:tle: IGN LiDAR HD Processing Library
----
-
-# IGN LiDAR HD Processing Library
-
-**Version 2.1.2** | Python 3.8+ | MIT License
-
-[![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-:::tip Major Update: v2.0 Architecture Overhaul!
-Complete redesign with **modular architecture**, **Hydra CLI**, and **unified pipeline**! Existing users, see the [Migration Guide](/guides/migration-v1-to-v2) to upgrade from v1.x.
-:::
+Version 2.1.1 was a maintenance release with important bug fixes:
 
 ## 📺 Video Demo
 
@@ -152,8 +153,8 @@ Transform French LiDAR data into machine learning-ready datasets for building cl
 - **🚀 GPU-accelerated**: Optional CUDA support for 12-20x faster processing
 - **🌈 Rich feature extraction**: 28+ geometric and color features
 - **🌿 Multi-modal**: Geometry + RGB + Infrared support
-- **📦 Pipeline ready**: YAML config, smart caching, resumability
-- **🔧 Flexible**: CLI tools + Python API
+- **📦 Hydra Configuration**: Hierarchical YAML configs with powerful overrides
+- **🔧 Flexible**: Modern CLI + Python API
 
 :::
 
@@ -165,36 +166,350 @@ Install the library:
 pip install ign-lidar-hd
 ```
 
-Process your first tile:
+#### Modern CLI (v2.0+)
+
+The v2.0+ CLI combines Hydra's configuration power with intuitive Click commands:
 
 ```bash
+# Download tiles from IGN servers
+ign-lidar-hd download \
+  --position 650000 6860000 \
+  --radius 5000 \
+  data/raw_tiles
+
+# Process tiles to create ML-ready patches
+ign-lidar-hd process \
+  input_dir=data/raw_tiles \
+  output_dir=data/patches
+
+# Verify dataset quality
+ign-lidar-hd verify data/patches
+
+# Show configuration info
+ign-lidar-hd info
+
+# Convert patches for QGIS visualization
+ign-lidar-hd batch-convert \
+  data/patches \
+  --output data/qgis \
+  --format qgis
+```
+
+#### Advanced Processing Examples
+
+```bash
+# LOD3 training with GPU acceleration
+ign-lidar-hd process \
+  experiment=config_lod3_training \
+  input_dir=data/raw_tiles \
+  output_dir=data/patches \
+  processor.use_gpu=true
+
+# Custom configuration with overrides
+ign-lidar-hd process \
+  processor=gpu \
+  features=full \
+  input_dir=data/raw_tiles \
+  output_dir=data/patches \
+  processor.num_points=32768 \
+  features.k_neighbors=30 \
+  features.use_rgb=true \
+  features.compute_ndvi=true \
+  stitching.enabled=true
+
+# Generate only enriched LAZ (no patches)
+ign-lidar-hd process \
+  input_dir=data/raw_tiles \
+  output_dir=data/enriched \
+  output=enriched_only
+```
+
+#### Legacy CLI (Backward Compatible)
+
+```bash
+# Legacy CLI still works for v1.x compatibility
 ign-lidar-hd enrich \
   --input-dir data/raw_tiles \
   --output data/enriched \
   --auto-params \
   --preprocess \
-  --add-rgb \
-  --add-infrared
+  --add-rgb
 ```
 
-With GPU acceleration:
+📖 Continue to [Installation](/installation/quick-start) for detailed setup instructions and [Hydra CLI Guide](/guides/hydra-cli) for advanced usage.
+
+---
+
+## 🎯 Hydra Configuration System
+
+The v2.0 architecture introduces a powerful Hydra-based configuration system for flexible, reproducible workflows.
+
+### Key Features
+
+- **📁 Hierarchical Configs**: Compose complex configurations from simple building blocks
+- **🔧 Config Groups**: Organized presets for processor, features, experiments
+- **⚙️ Command-line Overrides**: Change any parameter without editing files
+- **✅ Type Safety**: Configuration validation at runtime
+- **🔄 Experiment Presets**: Pre-configured workflows for common tasks
+
+### Configuration Structure
+
+```
+ign_lidar/configs/
+├── config.yaml                     # Root configuration
+├── processor/                      # Processing backend configs
+│   ├── default.yaml               # CPU baseline (LOD2, 16K points)
+│   ├── gpu.yaml                   # GPU accelerated
+│   ├── cpu_fast.yaml              # Quick processing
+│   └── memory_constrained.yaml    # Low memory systems
+├── features/                       # Feature computation configs
+│   ├── full.yaml                  # All features enabled
+│   ├── minimal.yaml               # Basic geometric features
+│   ├── pointnet.yaml              # PointNet++ optimized
+│   ├── buildings.yaml             # Building-specific features
+│   └── vegetation.yaml            # Vegetation analysis
+├── experiment/                     # Complete workflow presets
+│   ├── config_lod3_training.yaml  # LOD3 hybrid model training
+│   ├── pointnet_training.yaml     # PointNet++ training
+│   ├── buildings_lod2.yaml        # LOD2 building detection
+│   ├── buildings_lod3.yaml        # LOD3 building detection
+│   └── boundary_aware_autodownload.yaml  # Auto-download neighbors
+├── preprocess/                     # Preprocessing configs
+│   └── default.yaml               # Outlier removal, voxelization
+├── stitching/                      # Tile stitching configs
+│   └── enhanced.yaml              # Boundary-aware processing
+└── output/                         # Output format configs
+    └── default.yaml               # NPZ format with metadata
+```
+
+### Example Configurations
+
+#### Basic Processing
 
 ```bash
-# Install GPU support (one-time setup)
-./install_cuml.sh
-
-# Process with GPU
-ign-lidar-hd enrich \
-  --input-dir data/raw_tiles \
-  --output data/enriched \
-  --auto-params \
-  --preprocess \
-  --use-gpu \
-  --add-rgb \
-  --add-infrared
+# Minimal command - uses all defaults from config.yaml
+ign-lidar-hd \
+  input_dir=/path/to/tiles \
+  output_dir=/path/to/output
 ```
 
-📖 Continue to [Installation](/installation/quick-start) for detailed setup instructions.
+**Uses:** `config.yaml` defaults (CPU, LOD2, 16K points, random sampling)
+
+#### GPU Processing
+
+```bash
+# Override processor group to use GPU
+ign-lidar-hd \
+  processor=gpu \
+  input_dir=/path/to/tiles \
+  output_dir=/path/to/output
+```
+
+**Config:** `processor/gpu.yaml`
+
+```yaml
+use_gpu: true
+num_workers: 8
+pin_memory: true
+prefetch_factor: 4
+```
+
+#### LOD3 Training Dataset
+
+```bash
+# Use complete experiment preset
+ign-lidar-hd \
+  experiment=config_lod3_training \
+  input_dir=/path/to/tiles \
+  output_dir=/path/to/patches
+```
+
+**Config:** `experiment/config_lod3_training.yaml`
+
+```yaml
+processor:
+  lod_level: LOD3
+  architecture: hybrid
+  num_points: 32768
+  use_gpu: true
+  augment: true
+
+features:
+  mode: full
+  k_neighbors: 30
+  use_rgb: true
+  compute_ndvi: true
+  sampling_method: fps # Farthest Point Sampling
+  normalize_xyz: true
+
+stitching:
+  enabled: true
+  buffer_size: 20.0
+  auto_download_neighbors: true
+```
+
+#### Custom Overrides
+
+```bash
+# Mix preset with custom overrides
+ign-lidar-hd \
+  experiment=pointnet_training \
+  input_dir=/path/to/tiles \
+  output_dir=/path/to/output \
+  processor.num_points=65536 \
+  features.k_neighbors=50 \
+  processor.augment=false \
+  output.format=torch
+```
+
+### Available Experiment Presets
+
+| Preset                          | Use Case                               | Key Settings                                   |
+| ------------------------------- | -------------------------------------- | ---------------------------------------------- |
+| **config_lod3_training**        | LOD3 hybrid model training             | GPU, 32K points, FPS, full features, NDVI      |
+| **pointnet_training**           | PointNet++ training                    | GPU, 16K points, FPS, normalized features      |
+| **buildings_lod2**              | LOD2 building detection                | CPU, building features, standard preprocessing |
+| **buildings_lod3**              | LOD3 building detection                | GPU, hybrid arch, enhanced features            |
+| **boundary_aware_autodownload** | Seamless tile boundaries               | Auto-download neighbors, 20m buffer            |
+| **fast**                        | Quick prototyping                      | Minimal features, no preprocessing             |
+| **semantic_sota**               | State-of-the-art semantic segmentation | Full features, aggressive preprocessing        |
+
+📖 See [Configuration System Guide](/guides/configuration-system) for detailed documentation.
+
+---
+
+## 💡 Common Usage Examples
+
+### 1. Quick Prototyping (CPU)
+
+```bash
+# Fast processing for testing
+ign-lidar-hd \
+  processor=cpu_fast \
+  features=minimal \
+  input_dir=data/test_tile \
+  output_dir=data/test_output
+```
+
+**Best for:** Testing pipeline, debugging, small datasets
+
+### 2. Production Training Dataset (GPU)
+
+```bash
+# Full quality with GPU acceleration
+ign-lidar-hd \
+  experiment=config_lod3_training \
+  input_dir=data/urban_tiles \
+  output_dir=data/training_patches \
+  processor.num_workers=8 \
+  stitching.buffer_size=30.0
+```
+
+**Best for:** Training deep learning models, production datasets
+
+### 3. Multi-tile Boundary-Aware Processing
+
+```bash
+# Automatic neighbor detection and download
+ign-lidar-hd \
+  experiment=boundary_aware_autodownload \
+  input_dir=data/tiles \
+  output_dir=data/seamless_patches
+```
+
+**Best for:** Large-scale processing, eliminating boundary artifacts
+
+### 4. PointNet++ Training Dataset
+
+```bash
+# Optimized for PointNet++ architecture
+ign-lidar-hd \
+  experiment=pointnet_training \
+  input_dir=data/raw \
+  output_dir=data/pointnet_patches \
+  processor.num_points=16384 \
+  features.sampling_method=fps \
+  output.format=torch
+```
+
+**Best for:** PointNet++ models, PyTorch training
+
+### 5. Memory-Constrained System
+
+```bash
+# Low memory usage
+ign-lidar-hd \
+  processor=memory_constrained \
+  features=minimal \
+  input_dir=data/tiles \
+  output_dir=data/patches \
+  processor.num_workers=2 \
+  processor.batch_size=1
+```
+
+**Best for:** Systems with limited RAM, laptop processing
+
+### 6. Custom Configuration File
+
+Create `my_config.yaml`:
+
+```yaml
+# @package _global_
+defaults:
+  - override /processor: gpu
+  - override /features: full
+
+processor:
+  lod_level: LOD3
+  num_points: 32768
+  augment: true
+  num_augmentations: 5
+
+features:
+  k_neighbors: 40
+  use_rgb: true
+  compute_ndvi: true
+
+input_dir: /mnt/data/lidar_tiles
+output_dir: /mnt/data/training_dataset
+```
+
+Run with:
+
+```bash
+ign-lidar-hd \
+  --config-path=/path/to/configs \
+  --config-name=my_config
+```
+
+### 7. Parameter Sweep (Hyperparameter Search)
+
+```bash
+# Test multiple point counts
+ign-lidar-hd \
+  --multirun \
+  processor=gpu \
+  processor.num_points=4096,8192,16384,32768 \
+  input_dir=data/tiles \
+  output_dir=data/multirun
+```
+
+**Results in:** `data/multirun/0/`, `data/multirun/1/`, etc.
+
+### 8. Enriched LAZ Only (No Patches)
+
+```bash
+# Generate enriched LAZ for visualization
+ign-lidar-hd \
+  processor=default \
+  features=full \
+  input_dir=data/tiles \
+  output_dir=data/enriched \
+  output.save_enriched_laz=true \
+  output.only_enriched_laz=true
+```
+
+**Output:** LAZ files with computed features as extra dimensions
 
 ---
 
@@ -237,22 +552,31 @@ ign-lidar-hd enrich \
 
 ⚡ **Guides**
 
+- [Hydra CLI Guide](/guides/hydra-cli) - Modern configuration-based CLI
+- [Configuration System](/guides/configuration-system) - Deep dive into Hydra configs
+- [Unified Pipeline](/guides/unified-pipeline) - End-to-end workflows
+- [Migration v1 to v2](/guides/migration-v1-to-v2) - Upgrade guide
 - [GPU Acceleration](/guides/gpu-acceleration) - Performance optimization
-- [Basic Usage](/guides/basic-usage) - Common workflows
-- [Advanced Usage](/guides/advanced-usage) - Power user features
 
 🎨 **Features**
 
+- [Boundary-Aware Processing](/features/boundary-features) - Seamless tile stitching
 - [RGB Augmentation](/features/rgb-augmentation) - Add true color
 - [Infrared Augmentation](/features/infrared-augmentation) - NIR and NDVI
-- [Auto Parameters](/features/auto-params) - Automatic optimization
 - [LoD3 Classification](/features/lod3-classification) - Building detection
+- [Multi-Architecture Support](/features/multi-arch-datasets) - PointNet++, Octree, Transformer
+
+🏗️ **Architecture**
+
+- [System Architecture](/architecture) - Modular design overview
+- [Core Components](/api/core) - Processor, features, preprocessing
+- [Config Schema](/api/config) - Configuration data structures
 
 🔧 **API Reference**
 
 - [CLI Commands](/api/cli) - Command-line interface
 - [Python API](/api/features) - Programmatic usage
-- [Configuration](/api/configuration) - YAML pipelines
+- [Configuration](/api/configuration) - YAML config reference
 
 ---
 
