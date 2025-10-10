@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.2.0** | Python 3.8+ | MIT License
+**Version 2.2.1** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -15,6 +15,29 @@ title: IGN LiDAR HD Processing Library
 :::tip Major Update: v2.0 Architecture Overhaul!
 Complete redesign with **modular architecture**, **Hydra configuration system**, and **unified pipeline**! Existing users, see the [Migration Guide](/guides/migration-v1-to-v2) to upgrade from v1.x.
 :::
+
+## 🎉 Latest Release: v2.2.1
+
+### 🔧 Critical Augmentation Fix
+
+Version 2.2.1 fixes a critical spatial consistency bug in data augmentation:
+
+**New in v2.2.1:**
+
+- 🐛 **Critical Fix**: Augmented patches now correctly represent the same geographical regions as their originals
+- 🔄 **Pipeline Restructure**: Patches extracted once, then augmented individually (not tile-wide)
+- ✅ **Verification Tool**: New `scripts/verify_augmentation_fix.py` to check spatial consistency
+- 📝 **Documentation**: Comprehensive `AUGMENTATION_FIX.md` with migration guide
+
+:::warning Action Required
+Datasets with augmentation created before v2.2.1 should be **regenerated** for spatial consistency.
+:::
+
+**Previous Releases:**
+
+- **v2.2.0** - Multi-format output, LAZ patches, HDF5 fixes
+- **v2.1.2** - Documentation updates
+- **v2.1.1** - Bug fixes for planarity and boundary features
 
 ## 🎉 Latest Release: v2.2.0
 
@@ -47,29 +70,38 @@ Version 2.2.0 introduces powerful multi-format output capabilities and fixes cri
 
 ---
 
-## 🔥 What's New in v2.2.0
+## 🔥 What's New in v2.2.1
 
-### Multi-Format Output
+### Augmentation Spatial Consistency Fix
 
-Save your patches in multiple formats at once:
+**The Problem:** Before v2.2.1, augmented patches represented different geographical areas than their original patches due to tile-wide augmentation before extraction.
 
-```yaml
-output:
-  format: hdf5,laz  # Both HDF5 and LAZ simultaneously
+**The Solution:** Patches are now extracted once from original data, then each patch is augmented individually, ensuring all versions represent the same spatial region.
+
+```python
+# Before v2.2.1: Different regions! ❌
+urban_dense_patch_0000.npz      # Region A
+urban_dense_patch_0000_aug_0.npz  # Region B (wrong!)
+
+# v2.2.1+: Same region! ✅
+urban_dense_patch_0000.npz      # Region A
+urban_dense_patch_0000_aug_0.npz  # Region A (augmented)
 ```
 
-Supported formats:
-- **NPZ** - NumPy compressed (default, fast)
-- **HDF5** - Hierarchical data with gzip compression (now working!)
-- **PyTorch** - Direct `.pt` tensor files (requires PyTorch)
-- **LAZ** - Point cloud format for visualization (CloudCompare, QGIS, etc.)
+**Key Changes:**
 
-### New Tools
+- Enhanced `augment_raw_points()` with `return_mask` parameter for proper label alignment
+- Patch metadata tracking with `_version` and `_patch_idx`
+- Verification tool to validate spatial consistency
 
-- **HDF5 to LAZ Converter**: `scripts/convert_hdf5_to_laz.py` - Convert patches for visualization
-- **Hybrid Formatter**: Comprehensive single-file format for ensemble models
+See the [AUGMENTATION_FIX.md](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/AUGMENTATION_FIX.md) for complete details.
 
-See the [v2.2.0 Release Notes](/release-notes/v2.2.0) for complete details.
+### Previous v2.2.0 Features
+
+- **Multi-Format Output**: Save patches in multiple formats simultaneously
+- **LAZ Patches**: Export patches as LAZ for visualization (CloudCompare, QGIS)
+- **HDF5 Fix**: Critical fix for HDF5 format generation
+- **Hybrid Formatter**: Single-file format for ensemble models
 
 ### 🚀 v2.0 Architecture Overhaul
 

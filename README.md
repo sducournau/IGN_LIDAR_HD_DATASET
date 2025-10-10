@@ -9,7 +9,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 2.2.0** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 2.2.1** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/website/static/img/lod3.png?raw=true" alt="LoD3 Building Model Icon" width="600">
 
@@ -86,18 +86,23 @@ flowchart TD
 
 ---
 
-## ✨ What's New (v2.1.1)
+## ✨ What's New (v2.2.1)
 
-- **Bug Fixes:** Fixed planarity feature computation formula and preprocessing stitching for boundary features
-- **Improved Validation:** Enhanced feature validation and artifact detection at tile boundaries
-- **Code Quality:** Repository cleanup and better code organization
-- **Documentation:** Updated documentation and improved examples
+🔧 **Critical Augmentation Fix:**
 
-**Previous Release (v2.1.0):**
+- **Fixed Spatial Consistency:** Augmented patches now correctly represent the same geographical regions as their original patches
+- **Pipeline Restructure:** Patches are extracted once, then augmented individually (not tile-wide augmentation)
+- **Better Label Alignment:** Enhanced `augment_raw_points()` with `return_mask` parameter for proper dropout handling
+- **Verification Tool:** New `scripts/verify_augmentation_fix.py` to check patch spatial consistency
 
-- **Feature Validation:** Automatic detection of geometric feature artifacts at tile boundaries
-- **French Documentation:** Complete French i18n structure (73 files)
-- **Hybrid Model Support:** Optimized LOD3 hybrid model training configurations
+⚠️ **Action Required:** Datasets with augmentation created before v2.2.1 should be regenerated for spatial consistency.
+
+**Previous Release (v2.2.0):**
+
+- **Multi-Format Output:** Save patches in multiple formats simultaneously (HDF5, LAZ, PyTorch, NPZ)
+- **LAZ Patch Export:** Patches can be saved as LAZ point clouds for visualization
+- **Hybrid Architecture:** Comprehensive single-file format for ensemble models
+- **Format Validation:** Automatic validation of output format specifications
 - **Enhanced Documentation:** Training commands reference and workflow guides
 
 See [CHANGELOG.md](CHANGELOG.md) for full details and previous releases.

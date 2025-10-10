@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2025-10-10
+
+### Fixed
+
+- **Critical Augmentation Bug**: Fixed spatial inconsistency where augmented patches represented different geographical regions than their original patches
+  - Root cause: Augmentation was applied to entire tiles before patch extraction, causing spatial grid shifts
+  - Solution: Patches are now extracted once from original data, then each patch is augmented individually
+  - Impact: All patch versions (original, aug_0, aug_1, etc.) now represent the same spatial region
+  - **Breaking Change**: Datasets with augmentation created before v2.2.1 should be regenerated
+
+### Added
+
+- **Enhanced Augmentation Function**: Added `return_mask` parameter to `augment_raw_points()` for proper label alignment after dropout
+- **Patch Version Metadata**: Added `_version` and `_patch_idx` tracking to patches for better version management
+- **Augmentation Verification Tool**: New `scripts/verify_augmentation_fix.py` to validate spatial consistency of augmented patches
+- **Documentation**: Comprehensive `AUGMENTATION_FIX.md` explaining the issue, solution, and migration path
+
+### Changed
+
+- **Pipeline Restructure**: Changed from tile-level augmentation to patch-level augmentation
+  - Extracts patches once from original data (defines spatial locations)
+  - Creates augmented versions by transforming each patch individually
+  - Maintains spatial consistency across all augmentation versions
+
 ## [2.2.0] - 2025-10-10
 
 ### Added
