@@ -367,7 +367,7 @@ class LiDARProcessor:
                     las.add_extra_dim(laspy.ExtraBytesParams(
                         name=feat_name,
                         type=np.float32,
-                        description=f"Geometric feature: {feat_name}"
+                        description=f"Geom: {feat_name}"
                     ))
                     setattr(las, feat_name, original_patch[feat_name].astype(np.float32))
                 except Exception as e:
@@ -381,7 +381,7 @@ class LiDARProcessor:
                     las.add_extra_dim(laspy.ExtraBytesParams(
                         name=comp,
                         type=np.float32,
-                        description=f"Normal vector component {comp}"
+                        description=f"Normal {comp[-1]}"
                     ))
                     setattr(las, comp, normals[:, i].astype(np.float32))
             except Exception as e:
@@ -408,7 +408,7 @@ class LiDARProcessor:
                 las.add_extra_dim(laspy.ExtraBytesParams(
                     name='nir',
                     type=np.float32,
-                    description="Near Infrared reflectance (normalized 0-1)"
+                    description="NIR reflectance (norm 0-1)"
                 ))
                 las.nir = original_patch['nir'].astype(np.float32)
             except Exception as e:
@@ -419,7 +419,7 @@ class LiDARProcessor:
                 las.add_extra_dim(laspy.ExtraBytesParams(
                     name='ndvi',
                     type=np.float32,
-                    description="Normalized Difference Vegetation Index"
+                    description="NDVI (vegetation index)"
                 ))
                 las.ndvi = original_patch['ndvi'].astype(np.float32)
             except Exception as e:
