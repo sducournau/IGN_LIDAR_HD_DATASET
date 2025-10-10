@@ -202,13 +202,32 @@ def extract_patches(
 
 def augment_patch(patch: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
     """
-    Apply data augmentation to a patch.
+    Apply data augmentation to a single patch while maintaining correspondence.
+    
+    This function applies geometric transformations to a patch AFTER it has been
+    extracted, ensuring that augmented versions correspond to the same spatial
+    region as the original patch.
+    
+    Augmentations applied:
+    1. Random rotation around Z-axis (0-360°)
+    2. Random jitter (Gaussian noise, σ=0.01 for normalized patches)
+    3. Random scaling (0.95-1.05)
+    4. Random point dropout (5-15%)
     
     Args:
-        patch: Input patch dictionary
+        patch: Input patch dictionary containing:
+            - 'points': [N, 3] point coordinates (already normalized/centered)
+            - 'labels': [N] classification labels
+            - 'intensity': [N] intensity values
+            - 'return_number': [N] return numbers
+            - 'normals': [N, 3] normal vectors (optional)
+            - 'rgb': [N, 3] RGB colors (optional)
+            - 'nir': [N] NIR values (optional)
+            - 'ndvi': [N] NDVI values (optional)
+            - other features...
         
     Returns:
-        Augmented patch dictionary
+        Augmented patch dictionary with same keys as input, but transformed values
     """
     aug_patch = {}
     
@@ -216,44 +235,63 @@ def augment_patch(patch: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
     points = patch['points'].copy()
     N = len(points)
     
-    # 1. Random rotation around Z-axis
+    # 1. Random rotation around Z-axis (around patch center = origin for normalized patches)
     angle = np.random.uniform(0, 2 * np.pi)
     cos_a, sin_a = np.cos(angle), np.sin(angle)
     rotation_matrix = np.array([
         [cos_a, -sin_a, 0],
         [sin_a, cos_a, 0],
         [0, 0, 1]
-    ])
+    ], dtype=np.float32)
     points = points @ rotation_matrix.T
     
-    # 2. Random jitter
-    jitter = np.random.normal(0, 0.1, (N, 3))
+    # 2. Random jitter (smaller for already normalized patches)
+    # Use σ=0.01 instead of 0.1 since patches are normalized to [-1, 1] range
+    jitter = np.random.normal(0, 0.01, (N, 3)).astype(np.float32)
     points += jitter
     
     # 3. Random scaling
     scale = np.random.uniform(0.95, 1.05)
     points *= scale
     
-    # 4. Random dropout
+    # 4. Random dropout (simulates occlusion, missing data)
     dropout_ratio = np.random.uniform(0.05, 0.15)
     keep_mask = np.random.random(N) > dropout_ratio
     
-    # Apply dropout to all data
+    # Apply dropout to points
     points = points[keep_mask]
     aug_patch['points'] = points
     
     # Apply transformations to other arrays
     for key, value in patch.items():
         if key == 'points':
-            continue
-        elif key == 'normals':
-            # Rotate normals
+            continue  # Already handled
+        elif key == 'normals' and value is not None:
+            # Rotate normals (they are direction vectors)
             normals = value.copy()
             normals = normals @ rotation_matrix.T
             aug_patch['normals'] = normals[keep_mask]
+        elif key in ['labels', 'intensity', 'return_number', 'classification']:
+            # Apply dropout only
+            aug_patch[key] = value[keep_mask] if value is not None else None
+        elif key in ['rgb', 'nir', 'ndvi']:
+            # Apply dropout only (radiometric data not affected by rotation)
+            aug_patch[key] = value[keep_mask] if value is not None else None
+        elif key == 'height':
+            # Height is affected by scaling but not rotation (Z-axis rotation)
+            aug_patch[key] = (value * scale)[keep_mask] if value is not None else None
+        elif key == 'curvature':
+            # Curvature is invariant to rotation and scaling
+            aug_patch[key] = value[keep_mask] if value is not None else None
+        elif key in ['planarity', 'linearity', 'sphericity', 'anisotropy', 
+                     'roughness', 'density', 'verticality']:
+            # Geometric shape features are rotation-invariant
+            # But may be affected by jitter/dropout, so we just apply dropout
+            aug_patch[key] = value[keep_mask] if value is not None else None
         else:
-            # Just apply dropout
-            aug_patch[key] = value[keep_mask]
+            # For any other features, just apply dropout
+            if value is not None:
+                aug_patch[key] = value[keep_mask]
     
     return aug_patch
 

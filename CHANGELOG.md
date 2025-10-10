@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **LAZ Patch Features**: LAZ patches now include ALL computed features as extra dimensions
+  - Previously only saved XYZ, RGB, NIR, intensity, classification
+  - Now includes geometric features (planarity, linearity, sphericity, anisotropy, roughness, density, curvature, verticality)
+  - Now includes normals (nx, ny, nz)
+  - Now includes height features (height, z_normalized, z_from_ground, z_from_median)
+  - Now includes radiometric features (NDVI when NIR available)
+  - LAZ patches are now feature-complete and suitable for analysis/visualization
+
+### Added
+
+- **LAZ Feature Verification Tool**: New `scripts/verify_laz_features.py` to validate LAZ patches contain all features
+- **LAZ Fix Documentation**: Comprehensive `LAZ_FEATURES_FIX.md` explaining the issue and solution
+
 ## [2.2.1] - 2025-10-10
 
 ### Fixed

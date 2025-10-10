@@ -1,0 +1,56 @@
+processor:
+  lod_level: LOD3
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 1
+  patch_size: 150.0
+  patch_overlap: 0.1
+  num_points: 32768
+  augment: true
+  num_augmentations: 3
+  batch_size: 1
+  prefetch_factor: 1
+  pin_memory: false
+features:
+  mode: full
+  k_neighbors: 30
+  include_extra: true
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+  sampling_method: fps
+  normalize_xyz: true
+  normalize_features: true
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+preprocess:
+  enabled: true
+  sor_k: 12
+  sor_std: 2.0
+  ror_radius: 1.0
+  ror_neighbors: 3
+  voxel_enabled: true
+  voxel_size: 0.25
+stitching:
+  enabled: true
+  buffer_size: 20.0
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+output:
+  format: npz,laz
+  save_enriched_laz: true
+  only_enriched_laz: false
+  save_stats: true
+  save_metadata: true
+  compression: null
+input_dir: /mnt/c/Users/Simon/ign/raw_tiles/urban_dense
+output_dir: /mnt/c/Users/Simon/ign/patch_1st_training/urban_dense
+num_workers: 4
+verbose: true
+log_level: INFO
+bbox:
+  xmin: null
+  ymin: null
+  xmax: null
+  ymax: null

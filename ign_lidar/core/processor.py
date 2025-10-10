@@ -268,7 +268,7 @@ class LiDARProcessor:
     def _save_patch_as_laz(self, save_path: Path, arch_data: Dict[str, np.ndarray], 
                            original_patch: Dict[str, np.ndarray]) -> None:
         """
-        Save a patch as a LAZ point cloud file.
+        Save a patch as a LAZ point cloud file with all computed features.
         
         Args:
             save_path: Output LAZ file path
@@ -278,22 +278,52 @@ class LiDARProcessor:
         # Extract coordinates from arch_data
         # Most architectures have 'points' or 'coords' key
         if 'points' in arch_data:
-            coords = arch_data['points'][:, :3]  # XYZ
+            coords = arch_data['points'][:, :3].copy()  # XYZ
         elif 'coords' in arch_data:
-            coords = arch_data['coords'][:, :3]
+            coords = arch_data['coords'][:, :3].copy()
         else:
             logger.warning(f"Cannot save LAZ patch: no coordinates found in {list(arch_data.keys())}")
             return
         
+        # Restore LAMB93 coordinates if metadata available
+        # Extract tile coordinates from filename if possible
+        try:
+            filename = save_path.stem
+            parts = filename.split('_')
+            # Look for tile coordinates in filename (e.g., LHD_FXX_0649_6863_...)
+            if len(parts) >= 4 and parts[2].isdigit() and parts[3].isdigit():
+                tile_x = int(parts[2])
+                tile_y = int(parts[3])
+                # LAMB93 tiles are 1km x 1km, tile center at (tile_x * 1000 + 500, tile_y * 1000 + 500)
+                tile_center_x = tile_x * 1000 + 500
+                tile_center_y = tile_y * 1000 + 500
+                
+                # If metadata has centroid, restore original coordinates
+                if 'metadata' in original_patch and isinstance(original_patch['metadata'], dict):
+                    metadata = original_patch['metadata']
+                    if 'centroid' in metadata:
+                        centroid = np.array(metadata['centroid'])
+                        coords[:, 0] = coords[:, 0] + centroid[0] + tile_center_x
+                        coords[:, 1] = coords[:, 1] + centroid[1] + tile_center_y
+                        coords[:, 2] = coords[:, 2] + centroid[2]
+                    else:
+                        # No centroid, just apply tile offset
+                        coords[:, 0] = coords[:, 0] + tile_center_x
+                        coords[:, 1] = coords[:, 1] + tile_center_y
+        except Exception as e:
+            logger.debug(f"Could not restore LAMB93 coordinates: {e}")
+            # Continue with normalized coordinates
+        
         # Determine point format based on available data
+        # Format 3: supports RGB (LAS 1.4) - most compatible
         # Format 8: supports RGB + NIR (LAS 1.4)
-        # Format 6: standard format without RGB
         has_rgb = 'rgb' in arch_data
-        point_format = 8 if has_rgb else 6
+        has_nir = 'nir' in original_patch and original_patch['nir'] is not None
+        point_format = 8 if (has_rgb and has_nir) else (3 if has_rgb else 6)
         
         # Create LAZ file
         header = laspy.LasHeader(version="1.4", point_format=point_format)
-        header.offsets = [coords[:, 0].min(), coords[:, 1].min(), coords[:, 2].min()]
+        header.offsets = [np.floor(coords[:, 0].min()), np.floor(coords[:, 1].min()), np.floor(coords[:, 2].min())]
         header.scales = [0.001, 0.001, 0.001]
         
         las = laspy.LasData(header)
@@ -322,6 +352,92 @@ class LiDARProcessor:
         if point_format == 8 and 'nir' in original_patch and original_patch['nir'] is not None:
             nir = (original_patch['nir'] * 65535).astype(np.uint16)
             las.nir = nir
+        
+        # ===== Add computed features as extra dimensions =====
+        # Geometric features (planarity, linearity, sphericity, etc.)
+        geometric_features = [
+            'planarity', 'linearity', 'sphericity', 'anisotropy', 
+            'roughness', 'density', 'curvature', 'verticality'
+        ]
+        
+        for feat_name in geometric_features:
+            if feat_name in original_patch:
+                try:
+                    # Add as float32 extra dimension
+                    las.add_extra_dim(laspy.ExtraBytesParams(
+                        name=feat_name,
+                        type=np.float32,
+                        description=f"Geometric feature: {feat_name}"
+                    ))
+                    setattr(las, feat_name, original_patch[feat_name].astype(np.float32))
+                except Exception as e:
+                    logger.warning(f"  ⚠️  Could not add feature '{feat_name}' to LAZ: {e}")
+        
+        # Normals (normal_x, normal_y, normal_z for consistency)
+        if 'normals' in original_patch:
+            try:
+                normals = original_patch['normals']
+                for i, comp in enumerate(['normal_x', 'normal_y', 'normal_z']):
+                    las.add_extra_dim(laspy.ExtraBytesParams(
+                        name=comp,
+                        type=np.float32,
+                        description=f"Normal vector component {comp}"
+                    ))
+                    setattr(las, comp, normals[:, i].astype(np.float32))
+            except Exception as e:
+                logger.warning(f"  ⚠️  Could not add normals to LAZ: {e}")
+        
+        # Height features
+        height_features = ['height', 'z_normalized', 'z_from_ground', 'z_from_median']
+        for feat_name in height_features:
+            if feat_name in original_patch:
+                try:
+                    las.add_extra_dim(laspy.ExtraBytesParams(
+                        name=feat_name,
+                        type=np.float32,
+                        description=f"Height feature: {feat_name}"
+                    ))
+                    setattr(las, feat_name, original_patch[feat_name].astype(np.float32))
+                except Exception as e:
+                    logger.warning(f"  ⚠️  Could not add feature '{feat_name}' to LAZ: {e}")
+        
+        # Radiometric features (NIR, NDVI, etc.)
+        # Add NIR as extra dimension if not already included in point format
+        if point_format != 8 and 'nir' in original_patch and original_patch['nir'] is not None:
+            try:
+                las.add_extra_dim(laspy.ExtraBytesParams(
+                    name='nir',
+                    type=np.float32,
+                    description="Near Infrared reflectance (normalized 0-1)"
+                ))
+                las.nir = original_patch['nir'].astype(np.float32)
+            except Exception as e:
+                logger.warning(f"  ⚠️  Could not add NIR to LAZ: {e}")
+        
+        if 'ndvi' in original_patch and original_patch['ndvi'] is not None:
+            try:
+                las.add_extra_dim(laspy.ExtraBytesParams(
+                    name='ndvi',
+                    type=np.float32,
+                    description="Normalized Difference Vegetation Index"
+                ))
+                las.ndvi = original_patch['ndvi'].astype(np.float32)
+            except Exception as e:
+                logger.warning(f"  ⚠️  Could not add NDVI to LAZ: {e}")
+        
+        # Return number (if not already in standard fields)
+        if 'return_number' in original_patch:
+            try:
+                # Return number might already be a standard field
+                if not hasattr(las, 'return_number'):
+                    las.add_extra_dim(laspy.ExtraBytesParams(
+                        name='return_number',
+                        type=np.uint8,
+                        description="Return number"
+                    ))
+                    las.return_number = original_patch['return_number'].astype(np.uint8)
+            except Exception as e:
+                logger.warning(f"  ⚠️  Could not add return_number to LAZ: {e}")
         
         # Write LAZ file
         las.write(str(save_path))

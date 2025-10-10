@@ -26,6 +26,7 @@ from .infrared_augmentation import (
 from .utils import (
     augment_raw_points,
     extract_patches,
+    augment_patch,
 )
 from .tile_analyzer import analyze_tile
 
@@ -40,5 +41,6 @@ __all__ = [
     'augment_tile_with_infrared',
     'augment_raw_points',
     'extract_patches',
+    'augment_patch',
     'analyze_tile',
 ]
