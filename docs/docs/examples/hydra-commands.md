@@ -458,7 +458,7 @@ ign-lidar-hd process \
   output_dir=data/patches
 ```
 
-**Output:** PyTorch tensors (`.pt`)
+**Output:** PyTorch tensors (`.pt`) - Requires PyTorch installation
 
 ### HDF5 Format
 
@@ -469,7 +469,44 @@ ign-lidar-hd process \
   output_dir=data/patches
 ```
 
-**Output:** HDF5 files (`.h5`)
+**Output:** HDF5 files (`.h5`) with gzip compression
+
+### LAZ Patch Format
+
+```bash
+ign-lidar-hd process \
+  output.format=laz \
+  input_dir=data/tiles \
+  output_dir=data/patches
+```
+
+**Output:** LAZ point cloud files (`.laz`) for visualization in CloudCompare, QGIS, etc.
+
+### Multi-Format Output (New in v2.2.0)
+
+Save patches in multiple formats simultaneously:
+
+```bash
+# HDF5 + LAZ (for training + visualization)
+ign-lidar-hd process \
+  output.format=hdf5,laz \
+  input_dir=data/tiles \
+  output_dir=data/patches
+
+# NPZ + PyTorch + LAZ
+ign-lidar-hd process \
+  output.format=npz,torch,laz \
+  input_dir=data/tiles \
+  output_dir=data/patches
+
+# All formats
+ign-lidar-hd process \
+  output.format=npz,hdf5,torch,laz \
+  input_dir=data/tiles \
+  output_dir=data/patches
+```
+
+**Output:** Multiple file formats for each patch
 
 ### Enriched LAZ Only
 

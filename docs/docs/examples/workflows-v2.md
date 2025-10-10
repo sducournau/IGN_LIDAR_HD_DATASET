@@ -550,9 +550,11 @@ output.compression=gzip
 output.save_enriched_laz=false
 
 # Choose appropriate output format
-output.format=npz  # Smallest
-output.format=torch  # PyTorch-ready
-output.format=hdf5  # Large datasets
+output.format=npz  # Smallest, default
+output.format=torch  # PyTorch-ready (requires torch)
+output.format=hdf5  # Large datasets, with compression
+output.format=laz  # Visualization in CloudCompare/QGIS
+output.format=hdf5,laz  # Both training and visualization (v2.2.0+)
 ```
 
 ### Configuration Management

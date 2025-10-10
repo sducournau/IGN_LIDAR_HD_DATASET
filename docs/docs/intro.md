@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.1.2** | Python 3.8+ | MIT License
+**Version 2.2.0** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -16,20 +16,25 @@ title: IGN LiDAR HD Processing Library
 Complete redesign with **modular architecture**, **Hydra configuration system**, and **unified pipeline**! Existing users, see the [Migration Guide](/guides/migration-v1-to-v2) to upgrade from v1.x.
 :::
 
-## 🎉 Latest Release: v2.1.2
+## 🎉 Latest Release: v2.2.0
 
-### 🔧 Maintenance Release
+### 🎨 Multi-Format Output Support
 
-Version 2.1.2 is a maintenance release with documentation updates:
+Version 2.2.0 introduces powerful multi-format output capabilities and fixes critical HDF5 issues:
 
-**New in v2.1.2:**
+**New in v2.2.0:**
 
-- 📝 **Documentation**: Updated version across README, CHANGELOG, and Docusaurus
-- 🔄 **Package Metadata**: Synchronized version information
+- � **Multi-Format Output**: Save patches in multiple formats simultaneously (`hdf5,laz`, `npz,torch`, etc.)
+- 🗂️ **Complete Format Support**: NPZ, HDF5 (fixed!), PyTorch (.pt), and LAZ patches
+- 🔄 **HDF5 to LAZ Converter**: New tool to convert HDF5 patches to LAZ for visualization
+- 🎯 **Hybrid Architecture Formatter**: Single-file format for ensemble/hybrid models
+- 🐛 **HDF5 Bug Fix**: Critical fix - HDF5 format now properly generates files
+- 🔍 **Format Validation**: Automatic validation with clear error messages
 
-**Previous Release v2.1.1:**
+**Previous Releases:**
 
-Version 2.1.1 was a maintenance release with important bug fixes:
+- **v2.1.2** - Documentation updates
+- **v2.1.1** - Bug fixes for planarity and boundary features
 
 ## 📺 Video Demo
 
@@ -42,23 +47,29 @@ Version 2.1.1 was a maintenance release with important bug fixes:
 
 ---
 
-## 🎉 Latest Release: v2.1.1
+## 🔥 What's New in v2.2.0
 
-### � Maintenance Release
+### Multi-Format Output
 
-Version 2.1.1 is a maintenance release with important bug fixes:
+Save your patches in multiple formats at once:
 
-**New in v2.1.1:**
+```yaml
+output:
+  format: hdf5,laz  # Both HDF5 and LAZ simultaneously
+```
 
-- 🐛 **Bug Fixes**: Fixed planarity feature computation formula and preprocessing stitching for boundary features
-- ✅ **Improved Validation**: Enhanced feature validation and artifact detection at tile boundaries
-- 🧹 **Code Quality**: Repository cleanup and better code organization
+Supported formats:
+- **NPZ** - NumPy compressed (default, fast)
+- **HDF5** - Hierarchical data with gzip compression (now working!)
+- **PyTorch** - Direct `.pt` tensor files (requires PyTorch)
+- **LAZ** - Point cloud format for visualization (CloudCompare, QGIS, etc.)
 
-**Previous Release v2.1.0:**
+### New Tools
 
-- 🔍 **Feature Validation**: Automatic detection of geometric feature artifacts at tile boundaries
-- 🌍 **French Documentation**: Complete French i18n structure (73 files)
-- 🎓 **Hybrid Model Support**: Optimized LOD3 hybrid model training configurations
+- **HDF5 to LAZ Converter**: `scripts/convert_hdf5_to_laz.py` - Convert patches for visualization
+- **Hybrid Formatter**: Comprehensive single-file format for ensemble models
+
+See the [v2.2.0 Release Notes](/release-notes/v2.2.0) for complete details.
 
 ### 🚀 v2.0 Architecture Overhaul
 
