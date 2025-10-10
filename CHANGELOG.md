@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.2] - 2025-10-10
+
 ### Fixed
 
 - **LAZ Patch Features**: LAZ patches now include ALL computed features as extra dimensions
