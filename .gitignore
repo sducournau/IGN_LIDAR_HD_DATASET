@@ -21,6 +21,9 @@ wheels/
 *.egg
 MANIFEST
 
+# Build artifacts
+ign_lidar_hd-*/
+
 # Virtual environments
 .env
 .venv
