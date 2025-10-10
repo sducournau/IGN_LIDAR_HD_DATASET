@@ -27,6 +27,7 @@ Usage:
 import logging
 import os
 from pathlib import Path
+import tempfile
 import time
 from typing import Optional
 
@@ -122,6 +123,13 @@ def process_lidar(cfg: DictConfig) -> None:
     if cfg.preprocess.enabled:
         preprocess_config = OmegaConf.to_container(cfg.preprocess, resolve=True)
     
+    # Setup cache directory for RGB/Infrared orthophotos in user temp folder
+    # This ensures cross-platform compatibility and automatic cleanup
+    temp_dir = Path(tempfile.gettempdir())
+    rgb_cache_dir = temp_dir / "ign_lidar_cache" / "orthophotos"
+    rgb_cache_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(f"RGB/Infrared cache directory: {rgb_cache_dir}")
+    
     # Initialize processor
     logger.info("Initializing LiDAR processor...")
     processor = LiDARProcessor(
@@ -135,6 +143,7 @@ def process_lidar(cfg: DictConfig) -> None:
         include_extra_features=cfg.features.include_extra,
         k_neighbors=cfg.features.k_neighbors,
         include_rgb=cfg.features.use_rgb,
+        rgb_cache_dir=rgb_cache_dir,  # Add cache directory
         include_infrared=cfg.features.use_infrared,
         compute_ndvi=cfg.features.compute_ndvi,
         use_gpu=cfg.processor.use_gpu,

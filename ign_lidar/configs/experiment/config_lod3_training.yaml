@@ -38,8 +38,8 @@ stitching:
   auto_download_neighbors: true
   cache_enabled: true
 output:
-  format: npz
-  save_enriched_laz: false
+  format: hdf5
+  save_enriched_laz: true
   only_enriched_laz: false
   save_stats: true
   save_metadata: true

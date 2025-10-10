@@ -4,6 +4,7 @@ Main LiDAR Processing Class
 
 import logging
 from pathlib import Path
+import tempfile
 from typing import Dict, List, Optional, Any
 import multiprocessing as mp
 from functools import partial
@@ -177,8 +178,12 @@ class LiDARProcessor:
         if include_rgb:
             try:
                 from ..preprocessing.rgb_augmentation import IGNOrthophotoFetcher
+                # Use provided cache dir or default to user temp folder
+                if rgb_cache_dir is None:
+                    rgb_cache_dir = Path(tempfile.gettempdir()) / "ign_lidar_cache" / "orthophotos"
+                    rgb_cache_dir.mkdir(parents=True, exist_ok=True)
                 self.rgb_fetcher = IGNOrthophotoFetcher(cache_dir=rgb_cache_dir)
-                logger.info("RGB augmentation enabled (IGN orthophotos)")
+                logger.info(f"RGB augmentation enabled (IGN orthophotos, cache: {rgb_cache_dir})")
             except ImportError as e:
                 logger.error(
                     f"RGB augmentation requires additional packages: {e}"
@@ -191,11 +196,14 @@ class LiDARProcessor:
         if include_infrared:
             try:
                 from ..preprocessing.infrared_augmentation import IGNInfraredFetcher
-                # Use same cache dir as RGB or a subdirectory
-                infrared_cache_dir = (rgb_cache_dir / "infrared" if rgb_cache_dir 
-                                     else Path("C:/Users/Simon/ign/cache/infrared"))
+                # Use same cache dir as RGB or default to user temp folder
+                if self.rgb_cache_dir is None:
+                    infrared_cache_dir = Path(tempfile.gettempdir()) / "ign_lidar_cache" / "infrared"
+                else:
+                    infrared_cache_dir = Path(self.rgb_cache_dir).parent / "infrared"
+                infrared_cache_dir.mkdir(parents=True, exist_ok=True)
                 self.infrared_fetcher = IGNInfraredFetcher(cache_dir=infrared_cache_dir)
-                logger.info("Infrared augmentation enabled (IGN IRC orthophotos)")
+                logger.info(f"Infrared augmentation enabled (IGN IRC orthophotos, cache: {infrared_cache_dir})")
             except ImportError as e:
                 logger.error(
                     f"Infrared augmentation requires additional packages: {e}"
@@ -1198,6 +1206,29 @@ class LiDARProcessor:
         # Determine number of versions to process (original + augmentations)
         num_versions = 1 + (self.num_augmentations if self.augment else 0)
         all_patches_collected = []
+        num_saved = 0  # Track total patches saved across all versions
+        
+        # Prepare formatter and output directory BEFORE the loop
+        # to enable incremental saving
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Determine which architectures to format
+        target_archs = (
+            ['pointnet++', 'octree', 'transformer', 'sparse_conv']
+            if architecture == 'multi'
+            else [architecture]
+        )
+        
+        # Initialize formatter once
+        formatter = MultiArchitectureFormatter(
+            target_archs=target_archs,
+            num_points=self.num_points,
+            use_rgb=(rgb is not None),
+            use_infrared=(nir is not None),
+            use_geometric=True,
+            use_radiometric=False,
+            use_contextual=False
+        )
         
         # ===== AUGMENTATION LOOP: Process original + augmented versions =====
         for version_idx in range(num_versions):
@@ -1645,18 +1676,49 @@ class LiDARProcessor:
                 patch['_version'] = version_label
                 patch['_spatial_idx'] = patch_idx  # Track spatial location
             
-            # Collect patches from this version
-            all_patches_collected.extend(patches)
-            
             # Always log extraction result for debugging
             if version_idx == 0:
                 logger.info(f"  ✓ Extracted {len(patches)} patches from original")
             else:
                 logger.info(f"  ✓ Extracted {len(patches)} patches from {version_label}")
+            
+            # ===== INCREMENTAL SAVE: Save patches immediately after extraction =====
+            # This reduces memory pressure by not accumulating all patches in memory
+            num_patches_this_version = len(patches)
+            logger.info(f"  💾 Saving {num_patches_this_version} patches from {version_label}...")
+            
+            for patch in patches:
+                version = patch.pop('_version', 'original')
+                spatial_idx = patch.pop('_spatial_idx', 0)
+                
+                # Format patch
+                formatted = formatter.format_patch(patch)
+                
+                # Handle hybrid formatter (returns single dict) vs multi-arch formatter (returns dict of dicts)
+                if architecture == 'hybrid':
+                    patches_to_save = [(architecture, formatted)]
+                else:
+                    patches_to_save = [(arch, formatted[arch]) for arch in target_archs]
+                
+                # Save based on output format
+                for arch, arch_data in patches_to_save:
+                    if output_format == 'npz':
+                        # Include version in filename if augmented
+                        if version == 'original':
+                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}.npz"
+                        else:
+                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version}.npz"
+                        save_path = output_dir / filename
+                        np.savez_compressed(save_path, **arch_data)
+                        num_saved += 1
+            
+            # Clear patches list to free memory
+            patches.clear()
+            logger.info(f"  ✓ Saved {num_patches_this_version} patches from {version_label}, freed memory")
         
         # END OF AUGMENTATION LOOP
         
-        logger.info(f"  ✅ Total patches collected: {len(all_patches_collected)} ({num_versions} versions)")
+        logger.info(f"  ✅ Total patches saved: {num_saved} ({num_versions} versions)")
         
         # Check if we should skip patch saving (only_enriched mode)
         # When only_enriched is True, we only generate enriched LAZ files
@@ -1674,151 +1736,11 @@ class LiDARProcessor:
                 'enriched_only': True
             }
         
-        # ===== STEP 8: Format for Target Architecture =====
-        logger.info(f"  🏗️  Formatting for architecture: {architecture}")
+        # ===== STEP 8: Patches Already Saved Incrementally ===== 
+        # (Patches were saved immediately after extraction in the augmentation loop)
+        # This eliminates memory buildup from accumulating all patches
         
-        # Determine which architectures to format
-        target_archs = (
-            ['pointnet++', 'octree', 'transformer', 'sparse_conv']
-            if architecture == 'multi'
-            else [architecture]
-        )
-        
-        # Initialize formatter - use MultiArchitectureFormatter for all architectures including hybrid
-        formatter = MultiArchitectureFormatter(
-            target_archs=target_archs,
-            num_points=self.num_points,
-            use_rgb=(rgb is not None),
-            use_infrared=(nir is not None),
-            use_geometric=True,
-            use_radiometric=False,
-            use_contextual=False
-        )
-        
-        # ===== STEP 9: Save Formatted Patches =====
-        output_dir.mkdir(parents=True, exist_ok=True)
-        num_saved = 0
-        
-        # Group patches by spatial index (consistent across augmentations)
-        patches_by_spatial_idx = {}
-        for patch in all_patches_collected:
-            version = patch.pop('_version', 'original')
-            spatial_idx = patch.pop('_spatial_idx', 0)  # Extract spatial index
-            
-            if spatial_idx not in patches_by_spatial_idx:
-                patches_by_spatial_idx[spatial_idx] = []
-            patches_by_spatial_idx[spatial_idx].append((version, patch))
-        
-        # Save patches with proper naming (spatial_idx for location, version for augmentation)
-        for spatial_idx in sorted(patches_by_spatial_idx.keys()):
-            patch_group = patches_by_spatial_idx[spatial_idx]
-            for version_label, patch in patch_group:
-                formatted = formatter.format_patch(patch)
-                
-                # Handle hybrid formatter (returns single dict) vs multi-arch formatter (returns dict of dicts)
-                if architecture == 'hybrid':
-                    # Hybrid formatter returns a single optimized dict
-                    # Save with 'hybrid' architecture name
-                    patches_to_save = [(architecture, formatted)]
-                else:
-                    # Multi-arch formatter returns dict with arch keys
-                    patches_to_save = [(arch, formatted[arch]) for arch in target_archs]
-                
-                # Save based on output format
-                for arch, arch_data in patches_to_save:
-                    
-                    if output_format == 'npz':
-                        # Include version in filename if augmented
-                        if version_label == 'original':
-                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}.npz"
-                        else:
-                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version_label}.npz"
-                        save_path = output_dir / filename
-                        np.savez_compressed(save_path, **arch_data)
-                        
-                    elif output_format == 'pytorch':
-                        import torch
-                        # Include version in filename if augmented
-                        if version_label == 'original':
-                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}.pt"
-                        else:
-                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version_label}.pt"
-                        save_path = output_dir / filename
-                        tensors = {}
-                        for k, v in arch_data.items():
-                            if isinstance(v, np.ndarray):
-                                tensors[k] = torch.from_numpy(v)
-                            elif isinstance(v, (int, float)):
-                                tensors[k] = torch.tensor(v)
-                            elif isinstance(v, dict):
-                                # Handle nested dicts (like octree structure)
-                                tensors[k] = v
-                        torch.save(tensors, save_path)
-                        
-                    elif output_format == 'hdf5':
-                        import h5py
-                        # Include version in filename if augmented
-                        if version_label == 'original':
-                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}.h5"
-                        else:
-                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version_label}.h5"
-                        save_path = output_dir / filename
-                        with h5py.File(save_path, 'w') as f:
-                            for k, v in arch_data.items():
-                                f.create_dataset(k, data=v, compression='gzip')
-                    
-                    elif output_format == 'laz':
-                        # Include version in filename if augmented
-                        if version_label == 'original':
-                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}.laz"
-                        else:
-                            filename = f"{laz_file.stem}_{arch}_patch_{spatial_idx:04d}_{version_label}.laz"
-                        save_path = output_dir / filename
-                        
-                        # Create LAZ file from patch data
-                        # Get points from arch_data (handle different formats)
-                        if 'points' in arch_data:
-                            patch_points = arch_data['points']
-                        elif 'xyz' in arch_data:
-                            patch_points = arch_data['xyz']
-                        else:
-                            logger.warning(f"No points found in arch_data for {filename}")
-                            continue
-                        
-                        # Create minimal LAS header (LAS 1.2, point format 0)
-                        from laspy import LasHeader, LasData
-                        header = LasHeader(point_format=0, version="1.2")
-                        header.offsets = np.min(patch_points, axis=0)
-                        header.scales = np.array([0.01, 0.01, 0.01])
-                        
-                        patch_las = LasData(header)
-                        patch_las.x = patch_points[:, 0]
-                        patch_las.y = patch_points[:, 1]
-                        patch_las.z = patch_points[:, 2]
-                        
-                        # Add features as extra dimensions if available
-                        if 'features' in arch_data and arch_data['features'] is not None:
-                            features_data = arch_data['features']
-                            if features_data.shape[1] > 0:
-                                # Add first few features as extra dimensions (limit to avoid bloat)
-                                max_features = min(10, features_data.shape[1])
-                                for i in range(max_features):
-                                    try:
-                                        patch_las.add_extra_dim(laspy.ExtraBytesParams(
-                                            name=f"feature_{i}", type=np.float32
-                                        ))
-                                        setattr(patch_las, f"feature_{i}", features_data[:, i].astype(np.float32))
-                                    except Exception as e:
-                                        logger.debug(f"Could not add feature {i}: {e}")
-                        
-                            # Add labels if available
-                            if 'labels' in arch_data:
-                                patch_las.classification = arch_data['labels'].astype(np.uint8)
-                            
-                            patch_las.write(save_path)
-                    
-                    num_saved += 1
-        
+        # Calculate final statistics
         tile_time = time.time() - tile_start
         pts_processed = len(original_data['points']) * num_versions
         logger.info(
