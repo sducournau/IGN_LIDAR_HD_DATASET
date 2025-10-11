@@ -14,22 +14,22 @@ Add the following function and modify the command:
 
 ```python
 def load_hydra_config_from_file(
-    config_file: str, 
+    config_file: str,
     overrides: Optional[list] = None
 ) -> DictConfig:
     """
     Load Hydra configuration from a custom YAML file.
-    
+
     This allows users to provide their own config files instead of
     using only the built-in presets.
-    
+
     Args:
         config_file: Path to custom YAML config file
         overrides: List of CLI overrides to apply on top
-        
+
     Returns:
         Composed Hydra configuration
-        
+
     Example:
         >>> cfg = load_hydra_config_from_file(
         ...     "my_custom_config.yaml",
@@ -38,36 +38,36 @@ def load_hydra_config_from_file(
     """
     from pathlib import Path
     import yaml
-    
+
     config_file = Path(config_file)
-    
+
     if not config_file.exists():
         raise FileNotFoundError(f"Config file not found: {config_file}")
-    
+
     # Load the custom config
     with open(config_file, 'r') as f:
         custom_config = yaml.safe_load(f)
-    
+
     # Get the package config directory for defaults
     package_config_dir = get_config_dir()
-    
+
     # Clear any existing Hydra instance
     GlobalHydra.instance().clear()
-    
+
     # Initialize Hydra with package config directory
     with initialize_config_dir(config_dir=package_config_dir, version_base=None):
         # Start with base config
         cfg = compose(config_name="config", overrides=overrides or [])
-        
+
         # Merge custom config on top
         custom_omega = OmegaConf.create(custom_config)
         cfg = OmegaConf.merge(cfg, custom_omega)
-        
+
         # Apply CLI overrides last (highest priority)
         if overrides:
             override_cfg = OmegaConf.from_dotlist(overrides)
             cfg = OmegaConf.merge(cfg, override_cfg)
-        
+
         # Handle output shorthand
         if hasattr(cfg, 'output') and isinstance(cfg.output, str):
             output_mode = cfg.output
@@ -79,7 +79,7 @@ def load_hydra_config_from_file(
                 "save_metadata": output_mode != 'enriched_only',
                 "compression": None
             })
-        
+
         return cfg
 
 
@@ -98,19 +98,19 @@ def load_hydra_config_from_file(
 def process_command(config_file, show_config, overrides):
     """
     Process LiDAR tiles to create training patches.
-    
+
     OVERRIDES: Hydra configuration overrides in key=value format
-    
+
     Examples:
         # Use built-in config with overrides
         ign-lidar-hd process input_dir=data/raw output_dir=data/patches
-        
+
         # Use custom config file
         ign-lidar-hd process --config-file my_config.yaml
-        
+
         # Use custom config + overrides
         ign-lidar-hd process -c my_config.yaml processor.use_gpu=true
-        
+
         # Show composed config without processing
         ign-lidar-hd process -c my_config.yaml --show-config
     """
@@ -121,7 +121,7 @@ def process_command(config_file, show_config, overrides):
             cfg = load_hydra_config_from_file(config_file, list(overrides))
         else:
             cfg = load_hydra_config(list(overrides))
-        
+
         # Show config and exit if requested
         if show_config:
             click.echo("=" * 70)
@@ -129,10 +129,10 @@ def process_command(config_file, show_config, overrides):
             click.echo("=" * 70)
             click.echo(OmegaConf.to_yaml(cfg))
             return
-        
+
         # Process
         process_lidar(cfg)
-        
+
     except Exception as e:
         logger.error(f"Error: {e}")
         if logger.getEffectiveLevel() <= logging.DEBUG:
@@ -167,17 +167,19 @@ features:
   mode: full
   k_neighbors: 30
   use_rgb: true
-  
+
 input_dir: /data/lidar/raw
 output_dir: /data/lidar/patches
 ```
 
 **Command:**
+
 ```bash
 ign-lidar-hd process --config-file my_custom_config.yaml processor.num_workers=16
 ```
 
 **Result:**
+
 - `processor.use_gpu = true` (from custom file)
 - `processor.num_workers = 16` (from CLI override)
 - `processor.patch_size = 200.0` (from custom file)
@@ -223,6 +225,7 @@ output_dir: /data/lidar/enriched
 ```
 
 **Usage:**
+
 ```bash
 ign-lidar-hd process -c configs/custom_gpu_processing.yaml
 ```
@@ -268,6 +271,7 @@ output_dir: /data/lidar/training_patches
 ```
 
 **Usage:**
+
 ```bash
 ign-lidar-hd process -c configs/training_dataset.yaml
 ```
@@ -295,11 +299,12 @@ output:
   save_enriched_laz: true
   only_enriched_laz: true
 
-input_dir: ???  # Required from CLI
-output_dir: ???  # Required from CLI
+input_dir: ??? # Required from CLI
+output_dir: ??? # Required from CLI
 ```
 
 **Usage:**
+
 ```bash
 ign-lidar-hd process -c configs/quick_enrich.yaml \
   input_dir=/data/raw \
@@ -336,11 +341,11 @@ class MemoryInfo:
     available: int
     used: int
     percent: float
-    
+
     def to_gb(self, value: int) -> float:
         """Convert bytes to GB."""
         return value / (1024 ** 3)
-    
+
     def __str__(self) -> str:
         return (
             f"Memory: {self.to_gb(self.used):.2f}/{self.to_gb(self.total):.2f} GB "
@@ -351,20 +356,20 @@ class MemoryInfo:
 class MemoryManager:
     """
     Manages memory usage and provides automatic batch sizing.
-    
+
     Monitors system memory and adjusts processing parameters
     to prevent out-of-memory errors.
     """
-    
+
     def __init__(self, safety_margin: float = 0.2):
         """
         Initialize memory manager.
-        
+
         Args:
             safety_margin: Safety margin (0-1) to leave available
         """
         self.safety_margin = safety_margin
-        
+
     def get_memory_info(self) -> MemoryInfo:
         """Get current memory usage information."""
         mem = psutil.virtual_memory()
@@ -374,12 +379,12 @@ class MemoryManager:
             used=mem.used,
             percent=mem.percent
         )
-    
+
     def get_available_memory(self) -> int:
         """Get available memory in bytes."""
         mem = psutil.virtual_memory()
         return mem.available
-    
+
     def estimate_point_cloud_memory(
         self,
         num_points: int,
@@ -388,21 +393,21 @@ class MemoryManager:
     ) -> int:
         """
         Estimate memory required for point cloud.
-        
+
         Args:
             num_points: Number of points
             num_features: Number of features per point
             dtype: Data type ('float32' or 'float64')
-            
+
         Returns:
             Estimated memory in bytes
         """
         bytes_per_value = 4 if dtype == 'float32' else 8
         base_memory = num_points * num_features * bytes_per_value
-        
+
         # Add overhead for intermediate arrays (factor of 2)
         return base_memory * 2
-    
+
     def calculate_optimal_batch_size(
         self,
         num_points: int,
@@ -413,52 +418,52 @@ class MemoryManager:
     ) -> int:
         """
         Calculate optimal batch size based on available memory.
-        
+
         Args:
             num_points: Total number of points to process
             num_features: Number of features per point
             dtype: Data type
             min_batch: Minimum batch size
             max_batch: Maximum batch size (optional)
-            
+
         Returns:
             Optimal batch size
         """
         available = self.get_available_memory()
         usable = int(available * (1 - self.safety_margin))
-        
+
         # Estimate memory per point
         memory_per_point = self.estimate_point_cloud_memory(1, num_features, dtype)
-        
+
         # Calculate batch size
         batch_size = usable // memory_per_point
         batch_size = max(batch_size, min_batch)
-        
+
         if max_batch is not None:
             batch_size = min(batch_size, max_batch)
-        
+
         batch_size = min(batch_size, num_points)
-        
+
         logger.debug(
             f"Calculated batch size: {batch_size:,} points "
             f"(available memory: {usable / (1024**3):.2f} GB)"
         )
-        
+
         return batch_size
-    
+
     def check_memory_available(self, required_gb: float) -> bool:
         """
         Check if sufficient memory is available.
-        
+
         Args:
             required_gb: Required memory in GB
-            
+
         Returns:
             True if sufficient memory available
         """
         available_gb = self.get_available_memory() / (1024 ** 3)
         return available_gb >= required_gb
-    
+
     def wait_for_memory(
         self,
         required_gb: float,
@@ -467,32 +472,32 @@ class MemoryManager:
     ) -> bool:
         """
         Wait for sufficient memory to become available.
-        
+
         Args:
             required_gb: Required memory in GB
             timeout: Maximum wait time in seconds
             check_interval: Check interval in seconds
-            
+
         Returns:
             True if memory became available, False if timeout
         """
         import time
-        
+
         elapsed = 0
         while elapsed < timeout:
             if self.check_memory_available(required_gb):
                 return True
-            
+
             logger.info(
                 f"Waiting for memory: {required_gb:.2f} GB required, "
                 f"{self.get_available_memory() / (1024**3):.2f} GB available"
             )
-            
+
             time.sleep(check_interval)
             elapsed += check_interval
-        
+
         return False
-    
+
     def log_memory_usage(self, prefix: str = "") -> None:
         """Log current memory usage."""
         info = self.get_memory_info()
@@ -519,7 +524,7 @@ def calculate_batch_size(
     """Calculate optimal batch size (backward compatibility)."""
     if available_memory is None:
         available_memory = get_available_memory()
-    
+
     manager = MemoryManager(safety_margin=1.0 - safety_factor)
     return manager.calculate_optimal_batch_size(total_points)
 ```
@@ -527,12 +532,14 @@ def calculate_batch_size(
 ### Migration Guide:
 
 **Old imports:**
+
 ```python
 from ign_lidar.core.memory_manager import MemoryManager
 from ign_lidar.core.memory_utils import get_available_memory, estimate_memory_usage
 ```
 
 **New imports:**
+
 ```python
 from ign_lidar.core.memory import MemoryManager, get_available_memory, estimate_memory_usage
 ```
@@ -554,7 +561,7 @@ from ign_lidar.cli.commands.process import load_hydra_config_from_file
 def test_load_custom_config_file(tmp_path):
     """Test loading configuration from custom file."""
     config_file = tmp_path / "test_config.yaml"
-    
+
     config_content = {
         "processor": {
             "use_gpu": True,
@@ -567,12 +574,12 @@ def test_load_custom_config_file(tmp_path):
         "input_dir": "/test/input",
         "output_dir": "/test/output"
     }
-    
+
     with open(config_file, 'w') as f:
         yaml.dump(config_content, f)
-    
+
     cfg = load_hydra_config_from_file(str(config_file))
-    
+
     assert cfg.processor.use_gpu == True
     assert cfg.processor.num_workers == 8
     assert cfg.features.mode == "full"
@@ -582,7 +589,7 @@ def test_load_custom_config_file(tmp_path):
 def test_custom_config_with_overrides(tmp_path):
     """Test custom config + CLI overrides."""
     config_file = tmp_path / "test_config.yaml"
-    
+
     config_content = {
         "processor": {
             "use_gpu": False,
@@ -591,16 +598,16 @@ def test_custom_config_with_overrides(tmp_path):
         "input_dir": "/test/input",
         "output_dir": "/test/output"
     }
-    
+
     with open(config_file, 'w') as f:
         yaml.dump(config_content, f)
-    
+
     # Overrides should take precedence
     cfg = load_hydra_config_from_file(
         str(config_file),
         ["processor.use_gpu=true", "processor.num_workers=16"]
     )
-    
+
     assert cfg.processor.use_gpu == True  # Overridden
     assert cfg.processor.num_workers == 16  # Overridden
 
@@ -622,7 +629,7 @@ from ign_lidar.core.memory import MemoryManager, get_available_memory, estimate_
 def test_memory_manager():
     """Test MemoryManager basic functionality."""
     manager = MemoryManager()
-    
+
     info = manager.get_memory_info()
     assert info.total > 0
     assert info.available > 0
@@ -632,13 +639,13 @@ def test_memory_manager():
 def test_batch_size_calculation():
     """Test optimal batch size calculation."""
     manager = MemoryManager()
-    
+
     batch_size = manager.calculate_optimal_batch_size(
         num_points=1_000_000,
         num_features=3,
         min_batch=100
     )
-    
+
     assert batch_size >= 100
     assert batch_size <= 1_000_000
 
@@ -647,7 +654,7 @@ def test_backward_compatibility():
     """Test backward compatibility of utility functions."""
     available = get_available_memory()
     assert available > 0
-    
+
     estimated = estimate_memory_usage(10000, 3)
     assert estimated > 0
 ```
@@ -660,7 +667,7 @@ def test_backward_compatibility():
 
 Add new section:
 
-```markdown
+````markdown
 ## Loading Custom Configuration Files
 
 You can create your own configuration files and load them with the `--config-file` option:
@@ -682,6 +689,7 @@ features:
 input_dir: /data/lidar/raw
 output_dir: /data/lidar/patches
 ```
+````
 
 ### Load and Process
 
@@ -698,6 +706,7 @@ Settings are applied in this order (highest priority last):
 3. **CLI overrides** - Command-line `key=value` arguments
 
 Example:
+
 ```bash
 # Custom file sets num_workers=8, override to 16
 ign-lidar-hd process -c my_config.yaml processor.num_workers=16
@@ -710,6 +719,7 @@ Preview the final configuration without processing:
 ```bash
 ign-lidar-hd process -c my_config.yaml --show-config
 ```
+
 ```
 
 ---
@@ -783,3 +793,4 @@ ign-lidar-hd process -c my_config.yaml --show-config
 ---
 
 **End of Implementation Plan**
+```

@@ -5,7 +5,7 @@ Main LiDAR Processing Class
 import logging
 from pathlib import Path
 import tempfile
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Literal
 import multiprocessing as mp
 from functools import partial
 import time
@@ -44,6 +44,9 @@ from .skip_checker import PatchSkipChecker
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Processing mode type definition
+ProcessingMode = Literal["patches_only", "both", "enriched_only"]
+
 
 def aggressive_memory_cleanup():
     """
@@ -79,7 +82,9 @@ class LiDARProcessor:
     Main class for processing IGN LiDAR HD data into ML-ready datasets.
     """
     
-    def __init__(self, lod_level: str = 'LOD2', augment: bool = False,
+    def __init__(self, lod_level: str = 'LOD2', 
+                 processing_mode: ProcessingMode = "patches_only",
+                 augment: bool = False,
                  num_augmentations: int = 3, bbox=None,
                  patch_size: float = 150.0,
                  patch_overlap: float = 0.1,
@@ -100,8 +105,8 @@ class LiDARProcessor:
                  use_stitching: bool = False,
                  buffer_size: float = 10.0,
                  stitching_config: dict = None,
-                 save_enriched_laz: bool = False,
-                 only_enriched_laz: bool = False,
+                 save_enriched_laz: bool = None,
+                 only_enriched_laz: bool = None,
                  architecture: str = 'pointnet++',
                  output_format: str = 'npz'):
         """
@@ -109,6 +114,10 @@ class LiDARProcessor:
         
         Args:
             lod_level: 'LOD2' or 'LOD3'
+            processing_mode: Processing mode - 'patches_only' (default), 'both', or 'enriched_only'
+                           - 'patches_only': Create ML patches only (default, fastest for training)
+                           - 'both': Create both patches and enriched LAZ files  
+                           - 'enriched_only': Only create enriched LAZ (fastest for GIS)
             augment: Enable data augmentation
             num_augmentations: Number of augmentations per patch
             bbox: Bounding box (xmin, ymin, xmax, ymax) for filtering
@@ -140,14 +149,44 @@ class LiDARProcessor:
             use_stitching: If True, enable tile stitching for boundary-aware
                           feature computation (Sprint 3)
             buffer_size: Buffer zone size for tile stitching (in meters)
-            save_enriched_laz: If True, save enriched LAZ files with computed features
-            only_enriched_laz: If True, only save enriched LAZ files (skip patch creation)
+            save_enriched_laz: DEPRECATED - use processing_mode instead
+            only_enriched_laz: DEPRECATED - use processing_mode instead
             architecture: Target DL architecture ('pointnet++', 'octree', 'transformer', 
                          'sparse_conv', 'hybrid', 'multi')
             output_format: Output format - 'npz', 'hdf5', 'pytorch'/'torch', 'laz'
                           Supports multi-format: 'hdf5,laz' to save in both formats
                           (Note: PyTorch format requires torch to be installed)
         """
+        # Handle backward compatibility for deprecated flags
+        if save_enriched_laz is not None or only_enriched_laz is not None:
+            logger.warning(
+                "⚠️  'save_enriched_laz' and 'only_enriched_laz' are deprecated. "
+                "Please use 'processing_mode' instead:\n"
+                "  - processing_mode='patches_only' (default)\n"
+                "  - processing_mode='both' (patches + enriched LAZ)\n"
+                "  - processing_mode='enriched_only' (LAZ only)"
+            )
+            # Convert old flags to new mode
+            if only_enriched_laz:
+                processing_mode = "enriched_only"
+                logger.info("→ Using processing_mode='enriched_only'")
+            elif save_enriched_laz:
+                processing_mode = "both"
+                logger.info("→ Using processing_mode='both'")
+            else:
+                processing_mode = "patches_only"
+                logger.info("→ Using processing_mode='patches_only'")
+        
+        # Store processing mode
+        self.processing_mode = processing_mode
+        
+        # Derive save/only flags from processing mode for backward compatibility
+        self.save_enriched_laz = processing_mode in ["both", "enriched_only"]
+        self.only_enriched_laz = processing_mode == "enriched_only"
+        
+        logger.info(f"✨ Processing mode: {self.processing_mode}")
+        
+        # Store other parameters
         self.lod_level = lod_level
         self.augment = augment
         self.num_augmentations = num_augmentations
@@ -170,8 +209,7 @@ class LiDARProcessor:
         self.use_stitching = use_stitching
         self.buffer_size = buffer_size
         self.preprocess_config = preprocess_config
-        self.save_enriched_laz = save_enriched_laz
-        self.only_enriched_laz = only_enriched_laz
+        # Note: save_enriched_laz and only_enriched_laz set above from processing_mode
         self.architecture = architecture
         self.output_format = output_format
         
@@ -193,14 +231,6 @@ class LiDARProcessor:
                 f"PyTorch format requested but torch is not installed. "
                 f"Install with: pip install torch"
             )
-        
-        # Validate: only_enriched_laz requires save_enriched_laz
-        if only_enriched_laz and not save_enriched_laz:
-            logger.warning(
-                "only_enriched_laz=True requires save_enriched_laz=True. "
-                "Enabling save_enriched_laz automatically."
-            )
-            self.save_enriched_laz = True
         
         # Enhanced stitching configuration
         if stitching_config is None:

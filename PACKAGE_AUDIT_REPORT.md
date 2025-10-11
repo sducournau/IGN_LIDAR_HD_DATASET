@@ -1,4 +1,5 @@
 # IGN LiDAR HD Package Audit & Optimization Report
+
 **Date:** October 11, 2025  
 **Version:** 2.2.2  
 **Auditor:** GitHub Copilot
@@ -22,24 +23,28 @@ This audit identifies **critical issues** in the package structure, configuratio
 ### Current State: TWO PARALLEL SYSTEMS ⚠️
 
 #### System A: Hydra-based (Main)
+
 - **Location:** `ign_lidar/config/schema.py` + `ign_lidar/configs/*.yaml`
 - **Type:** Structured dataclasses with OmegaConf
 - **Features:** Type validation, hierarchical composition, CLI overrides
 - **Usage:** Primary configuration system
 
 #### System B: Pipeline YAML Loader
+
 - **Location:** `ign_lidar/core/pipeline_config.py`
 - **Type:** Dictionary-based YAML loader
 - **Features:** Simple YAML loading with basic validation
 - **Usage:** Unclear - appears unused or underutilized
 
 ### Problem: Redundancy & Confusion
+
 - Two different ways to load configurations
 - No clear integration between systems
 - `PipelineConfig` appears to be an orphaned implementation
 - Users may be confused about which system to use
 
 ### Recommendation: **CONSOLIDATE**
+
 **Action:** Extend Hydra system to support loading from custom file paths
 
 ---
@@ -49,12 +54,14 @@ This audit identifies **critical issues** in the package structure, configuratio
 ### Current State: DUAL CLI IMPLEMENTATIONS ⚠️
 
 #### CLI Type 1: Click-based (`cli/main.py` + `cli/commands/`)
+
 - Entry point: `ign-lidar-hd` command
 - Modern user experience with subcommands
 - Delegates to Hydra for configuration
 - **5 commands:** process, download, verify, batch-convert, info
 
 #### CLI Type 2: Pure Hydra (`cli/hydra_main.py`)
+
 - Direct `@hydra.main` decorator
 - Legacy compatibility mode
 - Can be invoked with `--config-path` flag
@@ -64,21 +71,24 @@ This audit identifies **critical issues** in the package structure, configuratio
 **CRITICAL ISSUE:** The `process` command currently does NOT support loading from a custom YAML file path!
 
 Current implementation in `cli/commands/process.py`:
+
 ```python
 def load_hydra_config(overrides: Optional[list] = None) -> DictConfig:
     """Load Hydra configuration with overrides."""
     config_dir = get_config_dir()  # HARDCODED to package configs/
-    
+
     with initialize_config_dir(config_dir=config_dir, version_base=None):
         cfg = compose(config_name="config", overrides=overrides or [])
 ```
 
 **What's Missing:**
+
 - No `--config-file` or `--config-path` option
 - Cannot load user's custom YAML from arbitrary location
 - Must use package's built-in configs + overrides only
 
 ### User Impact:
+
 ❌ Users CANNOT do: `ign-lidar-hd process --config-file my_custom_config.yaml`  
 ✅ Users CAN only do: `ign-lidar-hd process experiment=buildings_lod2 input_dir=...`
 
@@ -87,7 +97,9 @@ def load_hydra_config(overrides: Optional[list] = None) -> DictConfig:
 ## 3. Package Structure Analysis
 
 ### ✅ Strengths:
+
 1. **Clear module separation:**
+
    - `core/` - Processing logic
    - `features/` - Feature computation
    - `preprocessing/` - Data preprocessing
@@ -104,16 +116,19 @@ def load_hydra_config(overrides: Optional[list] = None) -> DictConfig:
 ### ⚠️ Areas for Consolidation:
 
 #### Memory Management (3 modules!)
+
 - `core/memory_manager.py` - Main memory manager
 - `core/memory_utils.py` - Memory utilities
 - Consider: Merge into single `core/memory.py`
 
 #### Configuration (2 systems!)
+
 - `config/schema.py` - Hydra dataclasses
 - `core/pipeline_config.py` - YAML loader
 - Consider: Enhance schema.py with custom file loading
 
 #### Stitching Config (Duplicated?)
+
 - `core/stitching_config.py` - Configuration dataclass
 - `config/schema.py:StitchingConfig` - Another config class
 - Consider: Use single source of truth
@@ -123,12 +138,14 @@ def load_hydra_config(overrides: Optional[list] = None) -> DictConfig:
 ## 4. Dependency Analysis
 
 ### Core Dependencies (Well-chosen ✅)
+
 ```toml
 numpy, laspy, lazrs, scikit-learn, scipy, tqdm, click
 PyYAML, hydra-core, omegaconf, requests, Pillow, h5py
 ```
 
 ### Optional Dependencies (Good strategy ✅)
+
 - `rgb` - Image processing
 - `gpu` - CUDA acceleration (user installs cupy)
 - `gpu-full` - RAPIDS cuML
@@ -136,6 +153,7 @@ PyYAML, hydra-core, omegaconf, requests, Pillow, h5py
 - `all` - All features except GPU
 
 ### Recommendation: ✅ Keep current structure
+
 - Empty `gpu` extra is smart (avoids build issues)
 - Users instructed to install cupy separately
 - Good documentation in pyproject.toml
@@ -145,25 +163,30 @@ PyYAML, hydra-core, omegaconf, requests, Pillow, h5py
 ## 5. File Organization Audit
 
 ### Scripts Directory Analysis
+
 **Location:** `/scripts/`
 
 #### Active Scripts (Keep):
+
 - `benchmark_performance.py` - Performance testing
 - `convert_*.py` - Format conversion utilities
 - `test_integration_e2e.py` - E2E testing
 - `verify_*.py` - Verification utilities
 
 #### Migration/Cleanup Scripts (Move to archive):
+
 - `migrate_imports.py` - V1→V2 migration (obsolete)
 - `migrate_to_v2.py` - V1→V2 migration (obsolete)
 - `remove_legacy.py` - Cleanup script (obsolete)
 - `cleanup_old_files.py` - Cleanup script (one-time use)
 
 #### Tests (Move to tests/):
+
 - `test_stitching.py` → `tests/test_stitching.py`
 - `test_integration_e2e.py` → `tests/test_integration_e2e.py`
 
 ### Archive Directory ✅
+
 **Good practice:** `/archive/` contains old logs, outputs, docs
 
 ---
@@ -177,6 +200,7 @@ PyYAML, hydra-core, omegaconf, requests, Pillow, h5py
 **Solution:** Add `--config-file` option to process command
 
 **Implementation:**
+
 ```python
 @click.command()
 @click.option('--config-file', '-c', type=click.Path(exists=True),
@@ -194,7 +218,8 @@ def process_command(config_file, overrides):
 
 **Problem:** Two config systems (`schema.py` + `pipeline_config.py`)
 
-**Solution:** 
+**Solution:**
+
 - Option A: Deprecate `pipeline_config.py`, extend Hydra system
 - Option B: Make `pipeline_config.py` a Hydra config loader wrapper
 
@@ -205,6 +230,7 @@ def process_command(config_file, overrides):
 **Problem:** 3 separate memory-related modules
 
 **Solution:** Consolidate:
+
 ```
 core/
   memory.py  # Merged from memory_manager + memory_utils
@@ -218,11 +244,13 @@ core/
 ### High Priority (Implement Now) 🔴
 
 1. **Add Custom Config File Support**
+
    - Implement `--config-file` option in process command
    - Support loading from absolute/relative paths
    - Merge with overrides
 
 2. **Consolidate Configuration Systems**
+
    - Deprecate or refactor `pipeline_config.py`
    - Document Hydra as the primary config system
    - Add migration guide if needed
@@ -235,14 +263,17 @@ core/
 ### Medium Priority (Next Release) 🟡
 
 4. **Consolidate Memory Modules**
+
    - Merge `memory_manager.py` + `memory_utils.py`
    - Keep clean public API
 
 5. **Resolve Stitching Config Duplication**
+
    - Remove `core/stitching_config.py` if redundant
    - Use `config/schema.py:StitchingConfig` as single source
 
 6. **Archive Migration Scripts**
+
    - Move obsolete migration scripts to `/archive/scripts/`
    - Keep only active utilities in `/scripts/`
 
@@ -253,10 +284,12 @@ core/
 ### Low Priority (Future) 🟢
 
 8. **CLI Consolidation**
+
    - Consider removing pure Hydra entry point (keep Click-based)
    - Or clearly document two modes (interactive vs programmatic)
 
 9. **Type Hints Enhancement**
+
    - Add comprehensive type hints across all modules
    - Run mypy for static type checking
 
@@ -331,21 +364,25 @@ archive/                   # ✨ OBSOLETE CODE
 ## 9. Implementation Roadmap
 
 ### Phase 1: Critical Fixes (Week 1)
+
 - [ ] Implement `--config-file` option
 - [ ] Test custom config loading
 - [ ] Update documentation with examples
 
 ### Phase 2: Consolidation (Week 2)
+
 - [ ] Merge memory modules
 - [ ] Deprecate `pipeline_config.py` or integrate it
 - [ ] Resolve stitching config duplication
 
 ### Phase 3: Cleanup (Week 3)
+
 - [ ] Archive migration scripts
 - [ ] Move tests to proper directory
 - [ ] Update all documentation
 
 ### Phase 4: Optimization (Week 4+)
+
 - [ ] Profile and optimize performance
 - [ ] Add comprehensive type hints
 - [ ] CI/CD improvements
@@ -355,15 +392,18 @@ archive/                   # ✨ OBSOLETE CODE
 ## 10. Testing Requirements
 
 ### New Tests Needed:
+
 1. **Custom config file loading**
+
    ```python
    def test_load_custom_config_file():
        # Test loading from absolute path
-       # Test loading from relative path  
+       # Test loading from relative path
        # Test config + overrides precedence
    ```
 
 2. **Config precedence**
+
    ```python
    def test_config_precedence():
        # custom_file < defaults < overrides
@@ -387,12 +427,14 @@ The package has a **solid foundation** with good separation of concerns, but suf
 4. **🟡 MINOR:** File organization issues
 
 **Priority Actions:**
+
 1. Add `--config-file` option to process command
 2. Consolidate configuration systems
 3. Merge memory modules
 4. Clean up archive/scripts organization
 
 **Estimated Effort:**
+
 - Phase 1 (Critical): 1-2 days
 - Phase 2 (Consolidation): 2-3 days
 - Phase 3 (Cleanup): 1-2 days
