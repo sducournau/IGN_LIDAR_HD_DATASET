@@ -129,7 +129,7 @@ prefetch_factor: 1
 pin_memory: false
 ```
 
-**Use case:** Laptops, systems with <8GB RAM, memory-constrained environments
+**Use case:** Laptops, systems with &lt;8GB RAM, memory-constrained environments
 
 ---
 
