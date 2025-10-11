@@ -275,6 +275,11 @@ class LiDARProcessor:
                 )
                 logger.error("Install with: pip install requests Pillow")
                 self.include_infrared = False
+            except Exception as e:
+                logger.error(
+                    f"Failed to initialize infrared fetcher: {e}"
+                )
+                self.include_infrared = False
 
         # Validate GPU availability if requested
         if use_gpu:
@@ -1598,6 +1603,8 @@ class LiDARProcessor:
                 logger.warning(f"  ⚠️  RGB fetch failed: {e}")
         
         # Fetch NIR (if requested and not already from LAZ)
+        logger.debug(f"  🔍 NIR conditions: include_infrared={self.include_infrared}, "
+                    f"nir_from_laz={nir_from_laz}, infrared_fetcher={self.infrared_fetcher is not None}")
         if self.include_infrared and not nir_from_laz and self.infrared_fetcher:
             logger.info("  📡 Fetching NIR from infrared orthophotos...")
             try:
@@ -1617,6 +1624,8 @@ class LiDARProcessor:
                     logger.warning(f"  ⚠️  NIR fetch returned None")
             except Exception as e:
                 logger.warning(f"  ⚠️  NIR fetch failed: {e}")
+        elif self.include_infrared and not nir_from_laz:
+            logger.warning(f"  ⚠️  NIR requested but infrared_fetcher not available")
         
         # Compute NDVI (if requested and both NIR & RGB available)
         ndvi = None
@@ -1919,7 +1928,7 @@ class LiDARProcessor:
                 if enriched_path.exists():
                     file_size_mb = enriched_path.stat().st_size / (1024 * 1024)
                     verify_las = laspy.read(str(enriched_path))
-                    extra_dims = verify_las.point_format.extra_dimension_names
+                    extra_dims = list(verify_las.point_format.extra_dimension_names)
                     logger.info(
                         f"  📊 Enriched LAZ: {len(verify_las.points):,} points, "
                         f"{len(extra_dims)} extra dimensions, {file_size_mb:.1f} MB"

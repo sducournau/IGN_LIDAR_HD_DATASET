@@ -134,6 +134,7 @@ def process_lidar(cfg: DictConfig) -> None:
     logger.info("Initializing LiDAR processor...")
     processor = LiDARProcessor(
         lod_level=cfg.processor.lod_level,
+        processing_mode=cfg.output.processing_mode,
         augment=cfg.processor.augment,
         num_augmentations=cfg.processor.num_augmentations,
         bbox=cfg.bbox.to_tuple() if hasattr(cfg.bbox, 'to_tuple') else None,
