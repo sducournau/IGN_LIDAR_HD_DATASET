@@ -1644,6 +1644,14 @@ class LiDARProcessor:
             'ndvi': ndvi.copy() if ndvi is not None else None
         }
         
+        # Save LAS header information before deleting (needed for enriched LAZ saving)
+        las_header_info = {
+            'point_format_id': las.header.point_format.id,
+            'version': las.header.version,
+            'offsets': las.header.offsets,
+            'scales': las.header.scales
+        }
+        
         # Memory cleanup after loading and preprocessing
         del las
         if preprocessing_mask is not None:
@@ -1821,8 +1829,8 @@ class LiDARProcessor:
             logger.info("  💾 Saving enriched LAZ file...")
             enriched_path = output_dir / f"{laz_file.stem}_enriched.laz"
             
-            # Create new LAS with features
-            original_format_id = las.header.point_format.id
+            # Create new LAS with features (using saved header info)
+            original_format_id = las_header_info['point_format_id']
             
             # If we have RGB, use a format that supports it
             if rgb is not None:
@@ -1839,9 +1847,9 @@ class LiDARProcessor:
                 target_format = original_format_id
             
             # Create a fresh header with the appropriate point format
-            new_header = laspy.LasHeader(version=las.header.version, point_format=target_format)
-            new_header.offsets = las.header.offsets
-            new_header.scales = las.header.scales
+            new_header = laspy.LasHeader(version=las_header_info['version'], point_format=target_format)
+            new_header.offsets = las_header_info['offsets']
+            new_header.scales = las_header_info['scales']
             
             # Create new LAS with the correct size
             new_las = laspy.LasData(new_header)

@@ -6,17 +6,17 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.2.1** | Python 3.8+ | MIT License
+**Version 2.3.0** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-:::tip Major Update: v2.0 Architecture Overhaul!
-Complete redesign with **modular architecture**, **Hydra configuration system**, and **unified pipeline**! Existing users, see the [Migration Guide](/guides/migration-v1-to-v2) to upgrade from v1.x.
+:::tip Major Update: v2.3.0 - Processing Modes & Custom Configs!
+New **explicit processing modes** and **YAML configuration files** make workflows clearer and more flexible! Check out the [Processing Modes Guide](#-quick-start-processing-modes) and ready-to-use [example configs](#-example-configuration-files).
 :::
 
-## 🎉 Latest Release: v2.2.1
+## 🎉 Latest Release: v2.3.0
 
 ### 🔧 Critical Augmentation Fix
 
@@ -70,31 +70,157 @@ Version 2.2.0 introduces powerful multi-format output capabilities and fixes cri
 
 ---
 
-## 🔥 What's New in v2.2.1
+## � Quick Start: Processing Modes
 
-### Augmentation Spatial Consistency Fix
+Version 2.3.0 introduces three clear processing modes to match your workflow:
 
-**The Problem:** Before v2.2.1, augmented patches represented different geographical areas than their original patches due to tile-wide augmentation before extraction.
+### Mode 1: Patches Only (ML Training) - Default
 
-**The Solution:** Patches are now extracted once from original data, then each patch is augmented individually, ensuring all versions represent the same spatial region.
+Creates only ML-ready patches for training models:
 
-```python
-# Before v2.2.1: Different regions! ❌
-urban_dense_patch_0000.npz      # Region A
-urban_dense_patch_0000_aug_0.npz  # Region B (wrong!)
-
-# v2.2.1+: Same region! ✅
-urban_dense_patch_0000.npz      # Region A
-urban_dense_patch_0000_aug_0.npz  # Region A (augmented)
+```bash
+ign-lidar-hd process \
+  input_dir=data/raw \
+  output_dir=data/patches \
+  output.processing_mode=patches_only
 ```
 
-**Key Changes:**
+Or use the example config:
 
-- Enhanced `augment_raw_points()` with `return_mask` parameter for proper label alignment
-- Patch metadata tracking with `_version` and `_patch_idx`
-- Verification tool to validate spatial consistency
+```bash
+ign-lidar-hd process \
+  --config-file examples/config_training_dataset.yaml \
+  input_dir=data/raw \
+  output_dir=data/patches
+```
 
-See the [AUGMENTATION_FIX.md](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/AUGMENTATION_FIX.md) for complete details.
+**Output:** `tile_patch_0001.npz`, `tile_patch_0002.npz`, ...
+
+### Mode 2: Both (ML + GIS)
+
+Creates both patches AND enriched LAZ files:
+
+```bash
+ign-lidar-hd process \
+  input_dir=data/raw \
+  output_dir=data/both \
+  output.processing_mode=both
+```
+
+Or use the complete workflow config:
+
+```bash
+ign-lidar-hd process \
+  --config-file examples/config_complete.yaml \
+  input_dir=data/raw \
+  output_dir=data/both
+```
+
+**Output:**
+
+- ML patches: `tile_patch_0001.npz`, ...
+- GIS files: `tile_enriched.laz`
+
+### Mode 3: Enriched LAZ Only (GIS Analysis)
+
+Creates only enriched LAZ files (fastest for GIS workflows):
+
+```bash
+ign-lidar-hd process \
+  input_dir=data/raw \
+  output_dir=data/enriched \
+  output.processing_mode=enriched_only
+```
+
+Or use the quick enrichment config:
+
+```bash
+ign-lidar-hd process \
+  --config-file examples/config_quick_enrich.yaml \
+  input_dir=data/raw \
+  output_dir=data/enriched
+```
+
+**Output:** `tile_enriched.laz` with added features
+
+### Preview Configuration Before Processing
+
+```bash
+ign-lidar-hd process \
+  --config-file examples/config_training_dataset.yaml \
+  --show-config \
+  input_dir=data/raw \
+  output_dir=data/patches
+```
+
+This displays the full merged configuration without running any processing.
+
+---
+
+## 📁 Example Configuration Files
+
+Four production-ready configs are available in the `examples/` directory:
+
+1. **`config_gpu_processing.yaml`** - GPU-accelerated LAZ enrichment
+2. **`config_training_dataset.yaml`** - ML training with augmentation
+3. **`config_quick_enrich.yaml`** - Fast LAZ feature enrichment
+4. **`config_complete.yaml`** - Both patches and enriched LAZ
+
+See [Example Configurations](/examples/config-files) for detailed usage.
+
+---
+
+## 🔥 What's New in v2.3.0
+
+### Processing Modes & Custom Configurations
+
+Version 2.3.0 makes workflow configuration clearer and more flexible:
+
+**Key Improvements:**
+
+- **Explicit Processing Modes** replace confusing boolean flags:
+  - `processing_mode="patches_only"` (default) - ML training dataset
+  - `processing_mode="both"` - Patches + enriched LAZ
+  - `processing_mode="enriched_only"` - LAZ enrichment only
+- **Custom Config Files**: Load complete workflows from YAML
+  - Four production-ready examples in `examples/` directory
+  - `--config-file` / `-c` option for easy loading
+  - `--show-config` to preview merged configuration
+- **Smart Precedence**: Package defaults < Custom file < CLI overrides
+- **Backward Compatible**: Old flags still work with deprecation warnings
+
+**Migration Example:**
+
+```python
+# Old API (still works, but deprecated)
+processor = LiDARTileProcessor(
+    save_enriched_laz=True,
+    only_enriched_laz=True
+)
+
+# New API (recommended)
+processor = LiDARTileProcessor(
+    processing_mode="enriched_only"
+)
+```
+
+**CLI Examples:**
+
+```bash
+# Old way (deprecated)
+ign-lidar-hd process input_dir=data/ output.save_enriched_laz=true
+
+# New way (clear and explicit)
+ign-lidar-hd process input_dir=data/ output.processing_mode=both
+```
+
+See [Processing Modes Usage Guide](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/PROCESSING_MODES_USAGE.md) for complete details.
+
+### Previous v2.2.1 Features
+
+- **Augmentation Fix**: Spatial consistency for augmented patches
+- **Enhanced Pipeline**: Extract once, augment individually
+- **Verification Tool**: `scripts/verify_augmentation_fix.py`
 
 ### Previous v2.2.0 Features
 
@@ -241,7 +367,32 @@ ign-lidar-hd batch-convert \
 #### Advanced Processing Examples
 
 ```bash
-# LOD3 training with GPU acceleration
+# NEW v2.3.0: Use example configs for common workflows
+ign-lidar-hd process \
+  --config-file examples/config_training_dataset.yaml \
+  input_dir=data/raw_tiles \
+  output_dir=data/patches
+
+# NEW v2.3.0: GPU processing with enriched LAZ only
+ign-lidar-hd process \
+  --config-file examples/config_gpu_processing.yaml \
+  input_dir=data/raw_tiles \
+  output_dir=data/enriched
+
+# NEW v2.3.0: Complete workflow (patches + enriched LAZ)
+ign-lidar-hd process \
+  --config-file examples/config_complete.yaml \
+  input_dir=data/raw_tiles \
+  output_dir=data/both
+
+# NEW v2.3.0: Preview configuration before running
+ign-lidar-hd process \
+  --config-file examples/config_training_dataset.yaml \
+  --show-config \
+  input_dir=data/raw_tiles \
+  output_dir=data/patches
+
+# LOD3 training with GPU acceleration (Hydra experiments)
 ign-lidar-hd process \
   experiment=config_lod3_training \
   input_dir=data/raw_tiles \
@@ -260,11 +411,24 @@ ign-lidar-hd process \
   features.compute_ndvi=true \
   stitching.enabled=true
 
-# Generate only enriched LAZ (no patches)
+# NEW v2.3.0: Processing modes (replaces old boolean flags)
+# Mode 1: Patches only (default)
+ign-lidar-hd process \
+  input_dir=data/raw_tiles \
+  output_dir=data/patches \
+  output.processing_mode=patches_only
+
+# Mode 2: Both patches and enriched LAZ
+ign-lidar-hd process \
+  input_dir=data/raw_tiles \
+  output_dir=data/both \
+  output.processing_mode=both
+
+# Mode 3: Enriched LAZ only
 ign-lidar-hd process \
   input_dir=data/raw_tiles \
   output_dir=data/enriched \
-  output=enriched_only
+  output.processing_mode=enriched_only
 ```
 
 #### Legacy CLI (Backward Compatible)
