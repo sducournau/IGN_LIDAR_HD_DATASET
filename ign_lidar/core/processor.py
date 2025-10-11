@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Any
 import multiprocessing as mp
 from functools import partial
 import time
+import gc
 
 import numpy as np
 import laspy
@@ -38,9 +39,39 @@ from ..features.architectural_styles import (
     encode_multi_style_feature,
     infer_multi_styles_from_characteristics
 )
+from .skip_checker import PatchSkipChecker
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+def aggressive_memory_cleanup():
+    """
+    Aggressive memory cleanup to prevent OOM.
+    Clears all caches and forces garbage collection.
+    """
+    gc.collect()
+    
+    # Clear CUDA cache if available
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+    except (ImportError, RuntimeError):
+        pass
+    
+    # Clear CuPy cache if available
+    try:
+        import cupy as cp
+        mempool = cp.get_default_memory_pool()
+        pinned_mempool = cp.get_default_pinned_memory_pool()
+        mempool.free_all_blocks()
+        pinned_mempool.free_all_blocks()
+    except (ImportError, AttributeError):
+        pass
+    
+    gc.collect()
 
 
 class LiDARProcessor:
@@ -262,6 +293,17 @@ class LiDARProcessor:
         else:
             self.class_mapping = ASPRS_TO_LOD3
             self.default_class = 29
+        
+        # Initialize intelligent skip checker
+        self.skip_checker = PatchSkipChecker(
+            output_format=output_format,
+            architecture=architecture,
+            num_augmentations=num_augmentations,
+            augment=augment,
+            validate_content=True,  # Enable content validation
+            min_file_size=1024,  # 1KB minimum
+            only_enriched_laz=only_enriched_laz,  # Check for enriched LAZ if enabled
+        )
             
         logger.info(f"Initialized LiDARProcessor with {lod_level}")
     
@@ -1067,6 +1109,8 @@ class LiDARProcessor:
                 self.process_tile,
                 output_dir=output_dir,
                 architecture=self.architecture,
+                save_enriched=self.save_enriched_laz,
+                only_enriched=self.only_enriched_laz,
                 output_format=self.output_format,
                 total_tiles=total_tiles,
                 skip_existing=skip_existing
@@ -1100,6 +1144,8 @@ class LiDARProcessor:
                 result = self.process_tile(
                     laz_file, output_dir,
                     architecture=self.architecture,
+                    save_enriched=self.save_enriched_laz,
+                    only_enriched=self.only_enriched_laz,
                     output_format=self.output_format,
                     tile_idx=idx, total_tiles=total_tiles,
                     skip_existing=skip_existing
@@ -1119,7 +1165,6 @@ class LiDARProcessor:
                 
                 # ✅ OPTIMIZATION: Explicit garbage collection every 5 tiles
                 if idx % 5 == 0:
-                    import gc
                     gc.collect()
                     try:
                         import psutil
@@ -1212,36 +1257,158 @@ class LiDARProcessor:
         
         progress_prefix = f"[{tile_idx}/{total_tiles}]" if total_tiles > 0 else ""
         
-        # Check if patches already exist
+        # ===== INTELLIGENT SKIP: Check if patches already exist =====
+        # This skip checker validates:
+        # - Patches exist for this tile
+        # - Patches are not corrupted (file size, content validation)
+        # - Expected number of patches present (if augmentation enabled)
+        # If valid patches exist, skip ALL processing including:
+        # - LAZ loading, preprocessing, feature computation, patch extraction
         if skip_existing:
-            tile_stem = laz_file.stem
-            pattern = f"{tile_stem}_*_patch_*.{output_format}"
-            existing_patches = list(output_dir.glob(pattern))
+            should_skip, skip_info = self.skip_checker.should_skip_tile(
+                laz_file,
+                output_dir,
+                expected_patches=None  # We don't know expected count yet
+            )
             
-            if existing_patches:
-                num_existing = len(existing_patches)
-                logger.info(
-                    f"{progress_prefix} ⏭️  {laz_file.name}: "
-                    f"{num_existing} patches exist, skipping"
-                )
+            if should_skip:
+                skip_msg = self.skip_checker.format_skip_message(laz_file, skip_info)
+                logger.info(f"{progress_prefix} {skip_msg}")
+                
+                # Return early - NO preprocessing, NO feature computation, NO patch extraction
                 return {
                     'num_patches': 0,
                     'processing_time': 0.0,
                     'points_processed': 0,
-                    'skipped': True
+                    'skipped': True,
+                    'skip_reason': skip_info.get('reason', 'unknown'),
+                    'skip_info': skip_info
                 }
+            else:
+                # Log reason for processing (e.g., corrupted patches, incomplete, etc.)
+                skip_msg = self.skip_checker.format_skip_message(laz_file, skip_info)
+                logger.info(f"{progress_prefix} {skip_msg}")
         
         logger.info(f"{progress_prefix} 🚀 Unified processing: {laz_file.name}")
         tile_start = time.time()
         
-        # ===== STEP 1: Load RAW LiDAR =====
+        # ===== STEP 1: Load RAW LiDAR (with memory-efficient chunking) =====
         logger.info(f"  📂 Loading RAW LiDAR...")
+        
+        # Check file size first to determine if chunking is needed
+        file_size_mb = laz_file.stat().st_size / (1024 * 1024)
+        use_chunked_loading = file_size_mb > 500  # Use chunking for files > 500MB
+        
+        if use_chunked_loading:
+            logger.info(f"  ⚠️  Large file detected ({file_size_mb:.1f}MB), using chunked loading...")
+        
+        # Initialize variables (will be set in loading branches)
+        points = None
+        intensity = None
+        return_number = None
+        classification = None
+        nir = None
+        nir_from_laz = False
+        las = None
         
         # Try to load LAZ file, with auto-recovery for corrupted files
         max_retries = 2
         for attempt in range(max_retries):
             try:
-                las = laspy.read(str(laz_file))
+                if use_chunked_loading:
+                    # Use memory-mapped reading for large files
+                    with laspy.open(str(laz_file)) as laz_reader:
+                        # Read header to get point count
+                        header = laz_reader.header
+                        total_points = header.point_count
+                        logger.info(f"  📊 File contains {total_points:,} points - loading in chunks...")
+                        
+                        # Define chunk size based on available memory (10M points per chunk)
+                        chunk_size = 10_000_000
+                        
+                        # Pre-allocate arrays
+                        all_points = []
+                        all_intensity = []
+                        all_return_number = []
+                        all_classification = []
+                        all_nir = [] if self.include_infrared else None
+                        
+                        # Read in chunks
+                        for i, points_chunk in enumerate(laz_reader.chunk_iterator(chunk_size)):
+                            chunk_num = i + 1
+                            logger.info(f"    📦 Loading chunk {chunk_num}/{(total_points + chunk_size - 1) // chunk_size}...")
+                            
+                            chunk_xyz = np.vstack([points_chunk.x, points_chunk.y, points_chunk.z]).T.astype(np.float32)
+                            all_points.append(chunk_xyz)
+                            all_intensity.append(np.array(points_chunk.intensity, dtype=np.float32) / 65535.0)
+                            all_return_number.append(np.array(points_chunk.return_number, dtype=np.float32))
+                            all_classification.append(np.array(points_chunk.classification, dtype=np.uint8))
+                            
+                            # Try to load NIR if available
+                            if self.include_infrared and all_nir is not None:
+                                if hasattr(points_chunk, 'nir') or hasattr(points_chunk, 'near_infrared'):
+                                    try:
+                                        nir_raw = (points_chunk.nir if hasattr(points_chunk, 'nir') 
+                                                  else points_chunk.near_infrared)
+                                        all_nir.append(np.array(nir_raw, dtype=np.float32) / 65535.0)
+                                    except:
+                                        all_nir = None  # Disable NIR if any chunk fails
+                            
+                            # Clean up chunk memory
+                            del points_chunk, chunk_xyz
+                            gc.collect()
+                        
+                        # Concatenate all chunks
+                        logger.info(f"  🔗 Concatenating {len(all_points)} chunks...")
+                        points = np.vstack(all_points)
+                        intensity = np.concatenate(all_intensity)
+                        return_number = np.concatenate(all_return_number)
+                        classification = np.concatenate(all_classification)
+                        nir = np.concatenate(all_nir) if all_nir is not None and len(all_nir) > 0 else None
+                        nir_from_laz = nir is not None
+                        
+                        if nir_from_laz:
+                            logger.info(f"  ✓ NIR channel detected in LAZ file")
+                        
+                        # Clean up chunk lists
+                        del all_points, all_intensity, all_return_number, all_classification, all_nir
+                        gc.collect()
+                        
+                        # Create a minimal las object for compatibility
+                        las = type('obj', (object,), {
+                            'x': points[:, 0], 
+                            'y': points[:, 1], 
+                            'z': points[:, 2],
+                            'intensity': (intensity * 65535).astype(np.uint16),
+                            'return_number': return_number.astype(np.uint8),
+                            'classification': classification
+                        })()
+                        if nir is not None:
+                            las.nir = (nir * 65535).astype(np.uint16)
+                else:
+                    # Standard loading for smaller files
+                    las = laspy.read(str(laz_file))
+                    
+                    # Extract basic data
+                    points = np.vstack([las.x, las.y, las.z]).T.astype(np.float32)
+                    intensity = np.array(las.intensity, dtype=np.float32) / 65535.0
+                    return_number = np.array(las.return_number, dtype=np.float32)
+                    classification = np.array(las.classification, dtype=np.uint8)
+                    
+                    # Try to load NIR if available and requested
+                    nir = None
+                    nir_from_laz = False
+                    if self.include_infrared:
+                        if hasattr(las, 'nir') or hasattr(las, 'near_infrared'):
+                            try:
+                                nir_raw = (las.nir if hasattr(las, 'nir') 
+                                          else las.near_infrared)
+                                nir = np.array(nir_raw, dtype=np.float32) / 65535.0
+                                nir_from_laz = True
+                                logger.info(f"  ✓ NIR channel detected in LAZ file")
+                            except Exception as e:
+                                logger.warning(f"  ⚠️  NIR channel in LAZ but failed to load: {e}")
+                
                 break  # Success
             except Exception as e:
                 error_msg = str(e)
@@ -1284,28 +1451,6 @@ class LiDARProcessor:
                         'error': str(e)
                     }
         
-        # Extract basic data
-        points = np.vstack([las.x, las.y, las.z]).T.astype(np.float32)
-        intensity = np.array(las.intensity, dtype=np.float32) / 65535.0
-        return_number = np.array(las.return_number, dtype=np.float32)
-        classification = np.array(las.classification, dtype=np.uint8)
-        
-        # Try to load NIR if available and requested
-        # Note: NIR from LAZ is loaded here, but NIR from orthophotos is fetched later (after preprocessing)
-        nir = None
-        nir_from_laz = False
-        if self.include_infrared:
-            # First try to load from LAZ file
-            if hasattr(las, 'nir') or hasattr(las, 'near_infrared'):
-                try:
-                    nir_raw = (las.nir if hasattr(las, 'nir') 
-                              else las.near_infrared)
-                    nir = np.array(nir_raw, dtype=np.float32) / 65535.0
-                    nir_from_laz = True
-                    logger.info(f"  ✓ NIR channel detected in LAZ file")
-                except Exception as e:
-                    logger.warning(f"  ⚠️  NIR channel in LAZ but failed to load: {e}")
-        
         logger.info(
             f"  📊 Loaded {len(points):,} points | "
             f"Classes: {len(np.unique(classification))}"
@@ -1335,32 +1480,69 @@ class LiDARProcessor:
             logger.info("  🧹 Preprocessing...")
             from ..preprocessing.preprocessing import (
                 statistical_outlier_removal,
-                radius_outlier_removal
+                radius_outlier_removal,
+                voxel_downsample
             )
             
             cfg = self.preprocess_config or {}
-            sor_cfg = cfg.get('sor', {'enable': True})
-            ror_cfg = cfg.get('ror', {'enable': True})
+            original_count = len(points)
             
+            # STEP 1: Apply voxel downsampling FIRST if enabled (GPU accelerated!)
+            # This drastically reduces point count before expensive operations
+            if cfg.get('voxel_enabled', False):
+                voxel_size = cfg.get('voxel_size', 0.25)
+                before_voxel = len(points)
+                
+                # GPU-accelerated voxel downsampling
+                use_gpu_voxel = self.use_gpu and self.use_gpu_chunked
+                if use_gpu_voxel:
+                    logger.info(f"  📦 GPU voxel downsampling (size={voxel_size}m)...")
+                else:
+                    logger.info(f"  📦 CPU voxel downsampling (size={voxel_size}m)...")
+                
+                # Voxel downsample returns: (downsampled_points, keep_indices)
+                points_voxel, keep_indices = voxel_downsample(
+                    points, 
+                    voxel_size=voxel_size,
+                    method='centroid',
+                    use_gpu=use_gpu_voxel
+                )
+                
+                # Apply keep_indices to other arrays
+                points = points_voxel
+                intensity = intensity[keep_indices]
+                return_number = return_number[keep_indices]
+                classification = classification[keep_indices]
+                if nir is not None:
+                    nir = nir[keep_indices]
+            
+            # STEP 2: Now apply outlier removal on the reduced point set
+            # Note: Outlier removal uses CPU (kd-tree). GPU doesn't help much here.
             cumulative_mask = np.ones(len(points), dtype=bool)
             
-            if sor_cfg.get('enable', True):
+            # SOR - Statistical Outlier Removal
+            if cfg.get('enabled', True):
+                logger.info(f"  🧹 Statistical outlier removal (k={cfg.get('sor_k', 12)})...")
                 _, sor_mask = statistical_outlier_removal(
                     points,
-                    k=sor_cfg.get('k', 12),
-                    std_multiplier=sor_cfg.get('std_multiplier', 2.0)
+                    k=cfg.get('sor_k', 12),
+                    std_multiplier=cfg.get('sor_std', 2.0)
                 )
                 cumulative_mask &= sor_mask
+                logger.info(f"  ✓ SOR: kept {np.sum(sor_mask):,}/{len(points):,} points")
             
-            if ror_cfg.get('enable', True):
+            # ROR - Radius Outlier Removal  
+            if cfg.get('enabled', True):
+                logger.info(f"  🧹 Radius outlier removal (r={cfg.get('ror_radius', 1.0)}m)...")
                 _, ror_mask = radius_outlier_removal(
                     points,
-                    radius=ror_cfg.get('radius', 1.0),
-                    min_neighbors=ror_cfg.get('min_neighbors', 4)
+                    radius=cfg.get('ror_radius', 1.0),
+                    min_neighbors=cfg.get('ror_neighbors', 4)
                 )
                 cumulative_mask &= ror_mask
+                logger.info(f"  ✓ ROR: kept {np.sum(ror_mask):,}/{len(points):,} points")
             
-            original_count = len(points)
+            before_outlier_removal = len(points)
             preprocessing_mask = cumulative_mask.copy()
             
             points = points[cumulative_mask]
@@ -1370,10 +1552,16 @@ class LiDARProcessor:
             if nir is not None:
                 nir = nir[cumulative_mask]
             
-            reduction = 1 - len(points) / original_count
+            outlier_reduction = 1 - len(points) / before_outlier_removal
             logger.info(
-                f"  ✓ Preprocessing: {len(points):,}/{original_count:,} "
-                f"({reduction:.1%} reduction)"
+                f"  ✓ Outlier removal: {len(points):,}/{before_outlier_removal:,} "
+                f"({outlier_reduction:.1%} reduction)"
+            )
+            
+            total_reduction = 1 - len(points) / original_count
+            logger.info(
+                f"  ✓ Preprocessing complete: {len(points):,}/{original_count:,} points "
+                f"({total_reduction:.1%} total reduction)"
             )
         
         # ===== STEP 3: Fetch RGB and NIR ONCE (before augmentation loop) =====
@@ -1444,6 +1632,43 @@ class LiDARProcessor:
             'rgb': rgb.copy() if rgb is not None else None,
             'ndvi': ndvi.copy() if ndvi is not None else None
         }
+        
+        # Memory cleanup after loading and preprocessing
+        del las
+        if preprocessing_mask is not None:
+            del preprocessing_mask
+        aggressive_memory_cleanup()
+        
+        # Log memory status if psutil available
+        try:
+            import psutil
+            mem = psutil.virtual_memory()
+            logger.info(f"  💾 Memory: {mem.available/(1024**3):.1f}GB available ({mem.percent:.1f}% used)")
+        except ImportError:
+            pass
+        
+        logger.debug(f"  🧹 Memory cleaned after loading/preprocessing")
+        
+        # ===== EARLY EXIT: If only_enriched_laz is enabled, skip ALL patch processing =====
+        # This must happen BEFORE formatter initialization and augmentation loop
+        # to prevent any patch-related processing
+        if only_enriched:
+            tile_time = time.time() - tile_start
+            num_points_processed = len(original_data['points'])
+            logger.info(
+                f"  ✅ Enrichment complete (only_enriched_laz mode - NO patches created): "
+                f"{tile_time:.1f}s ({num_points_processed/tile_time:.0f} pts/s)"
+            )
+            # Clean up and return immediately
+            original_data.clear()
+            aggressive_memory_cleanup()
+            return {
+                'num_patches': 0,
+                'processing_time': tile_time,
+                'points_processed': num_points_processed,
+                'skipped': False,
+                'enriched_only': True
+            }
         
         # Determine number of versions to process (original + augmentations)
         num_versions = 1 + (self.num_augmentations if self.augment else 0)
@@ -1669,7 +1894,7 @@ class LiDARProcessor:
                     num_points = len(points)
                     use_chunked = (
                         self.use_gpu_chunked and 
-                        num_points > 5_000_000  # Use chunked for >5M points
+                        num_points > 500_000  # Use GPU chunked for >500K points (aggressive for speed!)
                     )
                     
                     if use_chunked:
@@ -1753,6 +1978,11 @@ class LiDARProcessor:
                 logger.info(f"  ⏱️  Features: {feature_time:.1f}s")
             else:
                 logger.info(f"  ⏱️  Features for {version_label}: {feature_time:.1f}s")
+            
+            # Memory cleanup after feature computation
+            if use_boundary_aware and 'computer' in locals():
+                del computer
+            gc.collect()
             
             # Note: RGB, NIR, and NDVI were already fetched before the augmentation loop
             # and are preserved in the version-specific variables above
@@ -1957,6 +2187,8 @@ class LiDARProcessor:
             ], dtype=np.uint8)
             
             # ===== STEP 7: Extract Patches =====
+            # Note: If only_enriched_laz=True, we already returned early above
+            # This code only runs when creating patches
             # Log extraction start for ALL versions (not just original)
             if version_idx == 0:
                 logger.info(
@@ -2103,27 +2335,17 @@ class LiDARProcessor:
             
             # Clear patches list to free memory
             patches.clear()
+            del patches
+            
+            # Aggressive cleanup after saving each version
+            if version_idx > 0:  # For augmented versions, clean up aggressively
+                gc.collect()
+            
             logger.info(f"  ✓ Saved {num_patches_this_version} patches from {version_label}, freed memory")
         
         # END OF AUGMENTATION LOOP
         
         logger.info(f"  ✅ Total patches saved: {num_saved} ({num_versions} versions)")
-        
-        # Check if we should skip patch saving (only_enriched mode)
-        # When only_enriched is True, we only generate enriched LAZ files
-        if only_enriched:
-            tile_time = time.time() - tile_start
-            logger.info(
-                f"  ✅ Enrichment complete (patches skipped): "
-                f"{tile_time:.1f}s ({len(original_data['points'])/tile_time:.0f} pts/s)"
-            )
-            return {
-                'num_patches': 0,
-                'processing_time': tile_time,
-                'points_processed': len(original_data['points']) * num_versions,
-                'skipped': False,
-                'enriched_only': True
-            }
         
         # ===== STEP 8: Patches Already Saved Incrementally ===== 
         # (Patches were saved immediately after extraction in the augmentation loop)
@@ -2136,6 +2358,48 @@ class LiDARProcessor:
             f"  ✅ Unified processing complete: {num_saved} patches in "
             f"{tile_time:.1f}s ({pts_processed/tile_time:.0f} pts/s)"
         )
+        
+        # ===== AGGRESSIVE MEMORY CLEANUP =====
+        # Force garbage collection and clear large data structures
+        original_data.clear()
+        if 'points' in locals():
+            del points
+        if 'intensity' in locals():
+            del intensity
+        if 'return_number' in locals():
+            del return_number
+        if 'classification' in locals():
+            del classification
+        if 'rgb' in locals():
+            del rgb
+        if 'nir' in locals():
+            del nir
+        if 'ndvi' in locals():
+            del ndvi
+        if 'normals' in locals():
+            del normals
+        if 'curvature' in locals():
+            del curvature
+        if 'height' in locals():
+            del height
+        if 'geo_features' in locals():
+            del geo_features
+        if 'features' in locals():
+            del features
+        if 'all_features' in locals():
+            del all_features
+        if 'stitcher' in locals():
+            del stitcher
+        if 'tile_data' in locals():
+            del tile_data
+        if 'core_points' in locals():
+            del core_points
+        if 'buffer_points' in locals():
+            del buffer_points
+        
+        # Use our aggressive cleanup function
+        aggressive_memory_cleanup()
+        logger.debug(f"  🧹 Aggressive memory cleanup completed")
         
         return {
             'num_patches': num_saved,

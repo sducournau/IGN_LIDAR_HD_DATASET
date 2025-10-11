@@ -3,9 +3,9 @@ processor:
   architecture: hybrid
   use_gpu: true
   num_workers: 1 # Sequential processing to avoid memory duplication
-  patch_size: 150.0 # Not used when only_enriched_laz=true
-  patch_overlap: 0.0 # Not used when only_enriched_laz=true
-  num_points: 32768 # Not used when only_enriched_laz=true
+  patch_size: 150.0
+  patch_overlap: 0.0 # Disabled - not creating patches
+  num_points: 32768 # Not used when only creating enriched LAZ
   augment: false
   num_augmentations: 0
   batch_size: 1 # Optimized for single worker
@@ -38,14 +38,14 @@ stitching:
   auto_download_neighbors: false
   cache_enabled: false
 output:
-  format: npz # Not used when only_enriched_laz=true
-  save_enriched_laz: true # Save enriched LAZ files with computed features
-  only_enriched_laz: true # ONLY create enriched LAZ files, NO patches
+  format: laz # Only LAZ output
+  save_enriched_laz: true
+  only_enriched_laz: true # ONLY create enriched LAZ files, no patches
   save_stats: true
   save_metadata: true
   compression: null
 input_dir: /mnt/c/Users/Simon/ign/unified_dataset
-output_dir: /mnt/c/Users/Simon/ign/enriched_tiles_only # Changed name to reflect enriched-only mode
+output_dir: /mnt/c/Users/Simon/ign/patch_unified_dataset
 num_workers: 1 # Sequential file-level processing to avoid memory duplication
 verbose: true
 log_level: INFO

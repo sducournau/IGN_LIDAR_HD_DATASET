@@ -1,0 +1,56 @@
+processor:
+  lod_level: LOD2
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 4 # Increased for LOD2 (simpler classification)
+  patch_size: 200.0 # Larger patches for LOD2 (less detail needed)
+  patch_overlap: 0.1 # Reduced overlap for LOD2
+  num_points: 16384 # LOD2 needs less points (simpler features)
+  augment: false
+  num_augmentations: 0
+  batch_size: 4 # Higher batch size for LOD2 (faster processing)
+  prefetch_factor: 2
+  pin_memory: true # Enable for faster GPU transfer
+features:
+  mode: full
+  k_neighbors: 20 # Reduced for LOD2 (simpler geometry)
+  include_extra: true
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+  sampling_method: fps
+  normalize_xyz: true
+  normalize_features: true
+  gpu_batch_size: 2000000 # Increased for LOD2 (simpler features, more memory available)
+  use_gpu_chunked: true # cuML acceleration enabled
+preprocess:
+  enabled: true
+  sor_k: 10 # Reduced for LOD2 (less noise sensitivity)
+  sor_std: 2.5 # Standard outlier removal for LOD2
+  ror_radius: 1.5
+  ror_neighbors: 3
+  voxel_enabled: true # Enable voxelization for LOD2 (faster, less detail needed)
+  voxel_size: 0.5 # Larger voxel size for LOD2 building classification
+stitching:
+  enabled: true
+  buffer_size: 20.0 # Larger buffer for LOD2 (smoother transitions)
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+output:
+  format: npz,laz # Multi-format: save patches as both NPZ and LAZ
+  save_enriched_laz: true
+  only_enriched_laz: false
+  save_stats: true
+  save_metadata: true
+  compression: gzip # Enable compression for LOD2 (simpler data compresses well)
+input_dir: /mnt/c/Users/Simon/ign/unified_dataset
+output_dir: /mnt/c/Users/Simon/ign/patch_unified_dataset
+num_workers: 4
+verbose: true
+log_level: INFO
+bbox:
+  xmin: null
+  ymin: null
+  xmax: null
+  ymax: null

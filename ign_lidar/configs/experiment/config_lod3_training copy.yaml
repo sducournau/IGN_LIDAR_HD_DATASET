@@ -1,0 +1,56 @@
+processor:
+  lod_level: LOD3
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 1 # Sequential processing to avoid memory duplication
+  patch_size: 150.0
+  patch_overlap: 0.15 # Increased for smoother stitching
+  num_points: 32768 # Reduced from 32768 to save memory (still good for LOD3)
+  augment: false
+  num_augmentations: 0
+  batch_size: 1 # Reduced to 1 to avoid OOM with large tiles
+  prefetch_factor: 1 # Reduced prefetch to minimize memory usage
+  pin_memory: false # Disabled to save RAM (slight speed trade-off)
+features:
+  mode: full
+  k_neighbors: 30
+  include_extra: true
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+  sampling_method: fps
+  normalize_xyz: true
+  normalize_features: true
+  gpu_batch_size: 1000000 # Reduced from 1M to prevent GPU OOM with 33M points
+  use_gpu_chunked: true # cuML acceleration enabled
+preprocess:
+  enabled: true
+  sor_k: 20
+  sor_std: 1.5 # Increased from 2.0 - less aggressive, keeps more points
+  ror_radius: 0.5
+  ror_neighbors: 6
+  voxel_enabled: true # ENABLED to reduce memory usage for large tiles
+  voxel_size: 0.05 # Increased from 0.15m to reduce point count (33M -> ~18M)
+stitching:
+  enabled: true
+  buffer_size: 10.0 # Reduced from 15m to lower memory overhead
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+output:
+  format: npz,laz # Multi-format: save patches as both HDF5 and LAZ
+  save_enriched_laz: true
+  only_enriched_laz: false
+  save_stats: true
+  save_metadata: true
+  compression: null
+input_dir: /mnt/c/Users/Simon/ign/unified_dataset
+output_dir: /mnt/c/Users/Simon/ign/patch_unified_dataset
+num_workers: 1 # Sequential file-level processing to avoid memory duplication
+verbose: true
+log_level: INFO
+bbox:
+  xmin: null
+  ymin: null
+  xmax: null
+  ymax: null
