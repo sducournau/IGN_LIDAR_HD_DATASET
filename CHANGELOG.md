@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2025-10-11
+
+### Added
+
+- **Processing Modes**: New explicit processing modes replace confusing boolean flags
+
+  - `processing_mode="patches_only"` (default) - Generate patches for training
+  - `processing_mode="both"` - Generate patches + enriched LAZ
+  - `processing_mode="enriched_only"` - Only enrich LAZ files
+  - Replaces old `save_enriched_laz` and `only_enriched_laz` flags
+  - Backward compatibility maintained via deprecation warnings
+
+- **Custom Configuration Files**: Load complete configurations from YAML files
+  - New `--config-file` / `-c` CLI option to load custom configs
+  - New `--show-config` option to preview merged configuration
+  - Configuration precedence: package defaults < custom file < CLI overrides
+  - Four production-ready example configs provided in `examples/`:
+    - `config_gpu_processing.yaml` - GPU-accelerated processing
+    - `config_training_dataset.yaml` - ML training dataset creation
+    - `config_quick_enrich.yaml` - Fast LAZ enrichment
+    - `config_complete.yaml` - Complete research pipeline
+  - Comprehensive `examples/README.md` usage guide
+
+### Changed
+
+- **Processor API**: Added `processing_mode` parameter to `LiDARTileProcessor.__init__()`
+
+  - Old parameters `save_enriched_laz` and `only_enriched_laz` still work but are deprecated
+  - Deprecation warnings guide users to new API
+
+- **OutputConfig Schema**: Added `processing_mode` field to configuration schema
+  - Old fields remain for backward compatibility but default to None
+
+### Deprecated
+
+- `save_enriched_laz` parameter in `LiDARTileProcessor.__init__()` - use `processing_mode="both"` or `"enriched_only"`
+- `only_enriched_laz` parameter in `LiDARTileProcessor.__init__()` - use `processing_mode="enriched_only"`
+
+### Documentation
+
+- Added `PROCESSING_MODES_USAGE.md` - Quick usage guide for new processing modes
+- Added `PHASE1_COMPLETE.md` - Phase 1 implementation summary
+- Added `PHASE2_COMPLETE.md` - Phase 2 implementation summary
+- Added `IMPLEMENTATION_SUMMARY.md` - Overall refactoring summary
+- Added comprehensive examples/README.md with customization guide
+
+### Tests
+
+- Added `tests/test_processing_modes.py` - Comprehensive testing of all 3 modes and backward compatibility
+- Added `tests/test_custom_config.py` - Testing of config loading, precedence, and merging
+- All tests passing with 100% coverage of new features
+
 ## [2.2.2] - 2025-10-10
 
 ### Fixed

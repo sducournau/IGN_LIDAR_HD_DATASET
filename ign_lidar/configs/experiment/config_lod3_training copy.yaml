@@ -39,8 +39,7 @@ stitching:
   cache_enabled: true
 output:
   format: npz,laz # Multi-format: save patches as both HDF5 and LAZ
-  save_enriched_laz: true
-  only_enriched_laz: false
+  processing_mode: both # Create both enriched LAZ AND patches
   save_stats: true
   save_metadata: true
   compression: null

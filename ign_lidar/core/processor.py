@@ -105,8 +105,6 @@ class LiDARProcessor:
                  use_stitching: bool = False,
                  buffer_size: float = 10.0,
                  stitching_config: dict = None,
-                 save_enriched_laz: bool = None,
-                 only_enriched_laz: bool = None,
                  architecture: str = 'pointnet++',
                  output_format: str = 'npz'):
         """
@@ -149,38 +147,16 @@ class LiDARProcessor:
             use_stitching: If True, enable tile stitching for boundary-aware
                           feature computation (Sprint 3)
             buffer_size: Buffer zone size for tile stitching (in meters)
-            save_enriched_laz: DEPRECATED - use processing_mode instead
-            only_enriched_laz: DEPRECATED - use processing_mode instead
             architecture: Target DL architecture ('pointnet++', 'octree', 'transformer', 
                          'sparse_conv', 'hybrid', 'multi')
             output_format: Output format - 'npz', 'hdf5', 'pytorch'/'torch', 'laz'
                           Supports multi-format: 'hdf5,laz' to save in both formats
                           (Note: PyTorch format requires torch to be installed)
         """
-        # Handle backward compatibility for deprecated flags
-        if save_enriched_laz is not None or only_enriched_laz is not None:
-            logger.warning(
-                "⚠️  'save_enriched_laz' and 'only_enriched_laz' are deprecated. "
-                "Please use 'processing_mode' instead:\n"
-                "  - processing_mode='patches_only' (default)\n"
-                "  - processing_mode='both' (patches + enriched LAZ)\n"
-                "  - processing_mode='enriched_only' (LAZ only)"
-            )
-            # Convert old flags to new mode
-            if only_enriched_laz:
-                processing_mode = "enriched_only"
-                logger.info("→ Using processing_mode='enriched_only'")
-            elif save_enriched_laz:
-                processing_mode = "both"
-                logger.info("→ Using processing_mode='both'")
-            else:
-                processing_mode = "patches_only"
-                logger.info("→ Using processing_mode='patches_only'")
-        
         # Store processing mode
         self.processing_mode = processing_mode
         
-        # Derive save/only flags from processing mode for backward compatibility
+        # Derive save/only flags from processing mode for internal use
         self.save_enriched_laz = processing_mode in ["both", "enriched_only"]
         self.only_enriched_laz = processing_mode == "enriched_only"
         
@@ -332,7 +308,7 @@ class LiDARProcessor:
             augment=augment,
             validate_content=True,  # Enable content validation
             min_file_size=1024,  # 1KB minimum
-            only_enriched_laz=only_enriched_laz,  # Check for enriched LAZ if enabled
+            only_enriched_laz=self.only_enriched_laz,  # Check for enriched LAZ if enabled
         )
             
         logger.info(f"Initialized LiDARProcessor with {lod_level}")
@@ -1353,6 +1329,9 @@ class LiDARProcessor:
                         total_points = header.point_count
                         logger.info(f"  📊 File contains {total_points:,} points - loading in chunks...")
                         
+                        # Save header information before context closes
+                        saved_header = header
+                        
                         # Define chunk size based on available memory (10M points per chunk)
                         chunk_size = 10_000_000
                         
@@ -1403,18 +1382,20 @@ class LiDARProcessor:
                         # Clean up chunk lists
                         del all_points, all_intensity, all_return_number, all_classification, all_nir
                         gc.collect()
-                        
-                        # Create a minimal las object for compatibility
-                        las = type('obj', (object,), {
-                            'x': points[:, 0], 
-                            'y': points[:, 1], 
-                            'z': points[:, 2],
-                            'intensity': (intensity * 65535).astype(np.uint16),
-                            'return_number': return_number.astype(np.uint8),
-                            'classification': classification
-                        })()
-                        if nir is not None:
-                            las.nir = (nir * 65535).astype(np.uint16)
+                    
+                    # Create a minimal las object for compatibility (after the context closes)
+                    # Include the header so enriched LAZ saving works
+                    las = type('obj', (object,), {
+                        'x': points[:, 0], 
+                        'y': points[:, 1], 
+                        'z': points[:, 2],
+                        'intensity': (intensity * 65535).astype(np.uint16),
+                        'return_number': return_number.astype(np.uint8),
+                        'classification': classification,
+                        'header': saved_header  # Add header for enriched LAZ creation
+                    })()
+                    if nir is not None:
+                        las.nir = (nir * 65535).astype(np.uint16)
                 else:
                     # Standard loading for smaller files
                     las = laspy.read(str(laz_file))

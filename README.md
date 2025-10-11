@@ -88,7 +88,23 @@ flowchart TD
 
 ## ✨ What's New (v2.2.1)
 
-🔧 **Critical Augmentation Fix:**
+🎉 **v2.3.0 - Processing Modes & Custom Configurations:**
+
+- **✨ Explicit Processing Modes:** Clear, intuitive modes replace confusing boolean flags
+  - `processing_mode="patches_only"` - ML training dataset creation (default)
+  - `processing_mode="both"` - Patches + enriched LAZ
+  - `processing_mode="enriched_only"` - LAZ enrichment only
+- **� Custom Config Files:** Load complete workflows from YAML (see `examples/` directory)
+  - `--config-file` / `-c` option for configuration loading
+  - `--show-config` to preview merged configuration
+  - 4 production-ready example configs included
+  - Config precedence: defaults < file < CLI overrides
+- **🔄 Backward Compatible:** Old API still works with deprecation warnings
+- **📖 Enhanced Documentation:** Comprehensive usage guides and examples
+
+**Previous Release (v2.2.2):**
+
+�🔧 **Critical Augmentation Fix:**
 
 - **Fixed Spatial Consistency:** Augmented patches now correctly represent the same geographical regions as their original patches
 - **Pipeline Restructure:** Patches are extracted once, then augmented individually (not tile-wide augmentation)
@@ -96,14 +112,6 @@ flowchart TD
 - **Verification Tool:** New `scripts/verify_augmentation_fix.py` to check patch spatial consistency
 
 ⚠️ **Action Required:** Datasets with augmentation created before v2.2.1 should be regenerated for spatial consistency.
-
-**Previous Release (v2.2.0):**
-
-- **Multi-Format Output:** Save patches in multiple formats simultaneously (HDF5, LAZ, PyTorch, NPZ)
-- **LAZ Patch Export:** Patches can be saved as LAZ point clouds for visualization
-- **Hybrid Architecture:** Comprehensive single-file format for ensemble models
-- **Format Validation:** Automatic validation of output format specifications
-- **Enhanced Documentation:** Training commands reference and workflow guides
 
 See [CHANGELOG.md](CHANGELOG.md) for full details and previous releases.
 
@@ -281,7 +289,63 @@ ign-lidar-hd enrich \
 - `--augment` - Enable geometric augmentation (disabled by default)
 - `--num-augmentations` - Number of augmented versions (default: 3)
 
-#### 3. Patch Command
+#### 3. Process Command (New in v2.3.0) ⭐
+
+**One-stop processing with explicit modes and custom configurations:**
+
+```bash
+# Training dataset creation (default)
+ign-lidar-hd process \
+  --input-dir data/ \
+  --output-dir outputs/ \
+  --processing-mode patches_only
+
+# Complete workflow with enriched LAZ + patches
+ign-lidar-hd process \
+  --input-dir data/ \
+  --output-dir outputs/ \
+  --processing-mode both \
+  --use-gpu
+
+# Fast LAZ enrichment only
+ign-lidar-hd process \
+  --input-dir data/ \
+  --output-dir outputs/ \
+  --processing-mode enriched_only
+
+# Using custom configuration file (v2.3.0)
+ign-lidar-hd process --config-file examples/config_gpu_processing.yaml
+
+# Preview configuration before processing
+ign-lidar-hd process --config-file my_config.yaml --show-config
+
+# Override config values via CLI (highest priority)
+ign-lidar-hd process \
+  --config-file config.yaml \
+  processor.use_gpu=true \
+  processor.num_workers=8
+```
+
+**Processing Modes (v2.3.0):**
+
+- `patches_only` (default) - Generate patches for ML training
+- `both` - Generate both patches and enriched LAZ files
+- `enriched_only` - Only enrich LAZ files (no patch extraction)
+
+**Custom Configuration Files (v2.3.0):**
+
+Load complete workflows from YAML files. See `examples/` for templates:
+
+- `config_gpu_processing.yaml` - GPU-accelerated complete pipeline
+- `config_training_dataset.yaml` - ML training dataset with augmentation
+- `config_quick_enrich.yaml` - Fast LAZ enrichment workflow
+- `config_complete.yaml` - Full research pipeline
+
+Configuration precedence: **package defaults** < **custom file** < **CLI overrides**
+
+See `examples/README.md` for detailed configuration guide.
+
+#### 4. Patch Command
 
 Create training patches from enriched files:
 

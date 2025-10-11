@@ -30,24 +30,13 @@ features:
 
 preprocess:
   enabled: false # Disable preprocessing to keep all points
-  sor_k: 0
-  sor_std: 1.5
-  ror_radius: 0.0
-  ror_neighbors: 0
-  voxel_enabled: false
-  voxel_size: 0.1
 
 stitching:
   enabled: false # Disable stitching for faster processing
-  buffer_size: 0.0
-  auto_detect_neighbors: false
-  auto_download_neighbors: false
-  cache_enabled: false
 
 output:
-  format: npz # Not used in enriched-only mode
-  save_enriched_laz: true # Save enriched LAZ files
-  only_enriched_laz: true # ONLY create enriched LAZ, NO patches
+  processing_mode: enriched_only # Only create enriched LAZ (fastest)
+  format: laz # Not used in enriched-only mode
   save_stats: true
   save_metadata: true
   compression: null

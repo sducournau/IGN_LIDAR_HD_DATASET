@@ -1,0 +1,36 @@
+# Custom Configuration Example - GPU Processing
+# Use this for fast processing with GPU acceleration
+
+processor:
+  lod_level: LOD2
+  use_gpu: true
+  num_workers: 1 # Use 1 worker with GPU
+  patch_size: 150.0
+  num_points: 32768
+  augment: false
+
+features:
+  mode: full
+  k_neighbors: 30
+  include_extra: true
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+
+preprocess:
+  enabled: false
+
+stitching:
+  enabled: false
+
+output:
+  processing_mode: enriched_only # Only create enriched LAZ (fastest)
+  format: laz
+  save_stats: true
+  save_metadata: true
+
+# REQUIRED: Set these when running
+input_dir: ??? # Set with: input_dir=/path/to/raw/data
+output_dir: ??? # Set with: output_dir=/path/to/output

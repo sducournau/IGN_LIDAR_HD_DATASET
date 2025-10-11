@@ -64,7 +64,7 @@ stitching:
 
 # Output configuration
 output:
-  save_enriched_laz: true
+  processing_mode: both
   save_metadata: true
   save_visualizations: false
 

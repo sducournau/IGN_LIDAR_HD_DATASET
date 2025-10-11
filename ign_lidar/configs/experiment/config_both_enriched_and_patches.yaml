@@ -45,8 +45,7 @@ stitching:
 
 output:
   format: npz # NPZ format for training patches
-  save_enriched_laz: true # ALSO save enriched LAZ files
-  only_enriched_laz: false # Create both enriched LAZ AND patches
+  processing_mode: both # Create both enriched LAZ AND patches
   save_stats: true
   save_metadata: true
   compression: null

@@ -46,11 +46,14 @@ def print_config_summary(cfg: DictConfig) -> None:
     logger.info(f"GPU: {cfg.processor.use_gpu}")
     logger.info(f"Workers: {cfg.processor.num_workers}")
     
-    if OmegaConf.select(cfg, "output.only_enriched_laz", default=False):
-        logger.info(f"Mode: Enriched LAZ only (no patches) ✨")
-    else:
+    # Get processing mode
+    processing_mode = OmegaConf.select(cfg, "output.processing_mode", default="patches_only")
+    logger.info(f"Processing mode: {processing_mode}")
+    
+    if processing_mode != "enriched_only":
         logger.info(f"Patch size: {cfg.processor.patch_size}m")
         logger.info(f"Points per patch: {cfg.processor.num_points}")
+        logger.info(f"Output format: {cfg.output.format}")
     
     logger.info(f"Features mode: {cfg.features.mode}")
     logger.info(f"Preprocessing: {cfg.preprocess.enabled}")
@@ -59,9 +62,6 @@ def print_config_summary(cfg: DictConfig) -> None:
     if cfg.stitching.enabled and hasattr(cfg.stitching, 'auto_download_neighbors'):
         logger.info(f"Auto-download neighbors: {cfg.stitching.auto_download_neighbors}")
     
-    if not OmegaConf.select(cfg, "output.only_enriched_laz", default=False):
-        logger.info(f"Output format: {cfg.output.format}")
-    logger.info(f"Save enriched LAZ: {cfg.output.save_enriched_laz}")
     logger.info("="*70)
 
 
@@ -82,13 +82,93 @@ def load_hydra_config(overrides: Optional[list] = None) -> DictConfig:
             output_mode = cfg.output
             cfg.output = OmegaConf.create({
                 "format": "npz",
-                "save_enriched_laz": output_mode in ['both', 'enriched_only'],
-                "only_enriched_laz": output_mode == 'enriched_only',
+                "processing_mode": output_mode,
                 "save_stats": True,
                 "save_metadata": output_mode != 'enriched_only',
                 "compression": None
             })
         
+        return cfg
+
+
+def load_config_from_file(
+    config_file: str,
+    overrides: Optional[list] = None
+) -> DictConfig:
+    """
+    Load Hydra configuration from a custom YAML file.
+    
+    This allows users to provide their own config files instead of
+    using only the built-in presets.
+    
+    Args:
+        config_file: Path to custom YAML config file (absolute or relative)
+        overrides: List of CLI overrides to apply on top
+        
+    Returns:
+        Composed Hydra configuration
+        
+    Example:
+        >>> cfg = load_config_from_file(
+        ...     'my_config.yaml',
+        ...     ['processor.use_gpu=true']
+        ... )
+    """
+    import yaml
+    
+    config_path = Path(config_file)
+    
+    # Resolve to absolute path
+    if not config_path.is_absolute():
+        config_path = Path.cwd() / config_path
+    
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    
+    logger.info(f"Loading custom config from: {config_path}")
+    
+    # Load the custom config
+    with open(config_path, 'r') as f:
+        custom_config = yaml.safe_load(f)
+    
+    # Get the package config directory for defaults
+    package_config_dir = get_config_dir()
+    
+    # Clear any existing Hydra instance
+    GlobalHydra.instance().clear()
+    
+    # Initialize Hydra with package config directory
+    with initialize_config_dir(config_dir=package_config_dir, version_base=None):
+        # Start with base config
+        cfg = compose(config_name="config", overrides=[])
+        
+        # Set struct mode to False to allow new keys
+        OmegaConf.set_struct(cfg, False)
+        
+        # Merge custom config on top
+        custom_omega = OmegaConf.create(custom_config)
+        cfg = OmegaConf.merge(cfg, custom_omega)
+        
+        # Apply CLI overrides (highest priority)
+        if overrides:
+            override_omega = OmegaConf.from_dotlist(overrides)
+            cfg = OmegaConf.merge(cfg, override_omega)
+        
+        # Re-enable struct mode
+        OmegaConf.set_struct(cfg, True)
+        
+        # Handle output shorthand
+        if hasattr(cfg, 'output') and isinstance(cfg.output, str):
+            output_mode = cfg.output
+            cfg.output = OmegaConf.create({
+                "format": "npz",
+                "processing_mode": output_mode,
+                "save_stats": True,
+                "save_metadata": output_mode != 'enriched_only',
+                "compression": None
+            })
+        
+        logger.info("✅ Custom config loaded successfully")
         return cfg
 
 
@@ -138,7 +218,7 @@ def create_default_config():
         },
         "output": {
             "format": "npz",
-            "save_enriched_laz": False,
+            "processing_mode": "patches_only",
             "save_stats": True,
             "save_metadata": True,
             "compression": None
@@ -161,16 +241,15 @@ def process_lidar(cfg: DictConfig) -> None:
     """Process LiDAR tiles to create training patches."""
     # CRITICAL: Handle 'output' shorthand parameter FIRST
     # This must happen before any code tries to access cfg.output properties
-    # Maps: output=enriched_only -> output.only_enriched_laz=True
-    #       output=both -> output.save_enriched_laz=True
-    #       output=patches -> (default, no enriched LAZ)
+    # Maps: output=enriched_only -> output.processing_mode='enriched_only'
+    #       output=both -> output.processing_mode='both'
+    #       output=patches -> output.processing_mode='patches_only' (default)
     if hasattr(cfg, 'output') and isinstance(cfg.output, str):
         output_mode = cfg.output
         # Replace string with proper OutputConfig
         cfg.output = OmegaConf.create({
             "format": "npz",
-            "save_enriched_laz": output_mode in ['both', 'enriched_only'],
-            "only_enriched_laz": output_mode == 'enriched_only',
+            "processing_mode": output_mode,
             "save_stats": True,
             "save_metadata": output_mode != 'enriched_only',  # No metadata for enriched_only mode
             "compression": None
@@ -215,8 +294,13 @@ def process_lidar(cfg: DictConfig) -> None:
     
     # Initialize processor
     logger.info("Initializing LiDAR processor...")
+    
+    # Get processing mode
+    processing_mode = OmegaConf.select(cfg, "output.processing_mode", default="patches_only")
+    
     processor = LiDARProcessor(
         lod_level=cfg.processor.lod_level,
+        processing_mode=processing_mode,
         augment=cfg.processor.augment,
         num_augmentations=cfg.processor.num_augmentations,
         bbox=cfg.bbox.to_tuple() if hasattr(cfg.bbox, 'to_tuple') else None,
@@ -232,8 +316,6 @@ def process_lidar(cfg: DictConfig) -> None:
         use_stitching=cfg.stitching.enabled,
         buffer_size=cfg.stitching.buffer_size,
         stitching_config=stitching_config,
-        save_enriched_laz=OmegaConf.select(cfg, "output.save_enriched_laz", default=False),
-        only_enriched_laz=OmegaConf.select(cfg, "output.only_enriched_laz", default=False),
     )
     
     # Process
@@ -269,56 +351,58 @@ def process_lidar(cfg: DictConfig) -> None:
 
 
 @click.command()
+@click.option(
+    '--config-file', '-c',
+    type=click.Path(exists=True),
+    help='Path to custom YAML config file (optional)'
+)
+@click.option(
+    '--show-config',
+    is_flag=True,
+    help='Show the composed configuration and exit (no processing)'
+)
 @click.argument('overrides', nargs=-1)
-def process_command(overrides):
+def process_command(config_file, show_config, overrides):
     """
     Process LiDAR tiles to create training patches.
     
     OVERRIDES: Hydra configuration overrides in key=value format
     
     Examples:
+        # Use built-in config with overrides
         ign-lidar-hd process input_dir=data/raw output_dir=data/patches
-        ign-lidar-hd process experiment=buildings_lod2 input_dir=data/raw output_dir=data/patches  
-        ign-lidar-hd process processor.use_gpu=true input_dir=data/raw output_dir=data/patches
+        
+        # Use experiment preset
+        ign-lidar-hd process experiment=buildings_lod2 input_dir=data/raw output_dir=data/patches
+        
+        # Load custom config file
+        ign-lidar-hd process --config-file my_config.yaml
+        
+        # Custom config + overrides (overrides have highest priority)
+        ign-lidar-hd process -c my_config.yaml processor.use_gpu=true
+        
+        # Preview config without processing
+        ign-lidar-hd process -c my_config.yaml --show-config
     """
-    try:
-        # Try to use Hydra configuration
+    # Load configuration
+    if config_file:
+        cfg = load_config_from_file(config_file, list(overrides))
+    else:
         cfg = load_hydra_config(list(overrides))
+    
+    # Show config and exit if requested
+    if show_config:
+        logger.info("="*70)
+        logger.info("Configuration Preview")
+        logger.info("="*70)
+        print(OmegaConf.to_yaml(cfg))
+        logger.info("="*70)
+        logger.info("(Configuration preview only - no processing performed)")
+        return
+    
+    # Process with the loaded config
+    try:
         process_lidar(cfg)
     except Exception as e:
-        # Fallback to direct parameters
-        if not overrides:
-            logger.error("No configuration provided. Use input_dir=path output_dir=path")
-            raise click.ClickException("Configuration required")
-        
-        # Parse overrides into dict
-        config_dict = {}
-        for override in overrides:
-            if '=' in override:
-                key, value = override.split('=', 1)
-                # Handle nested keys
-                keys = key.split('.')
-                current = config_dict
-                for k in keys[:-1]:
-                    if k not in current:
-                        current[k] = {}
-                    elif not isinstance(current[k], dict):
-                        # If the key exists but is not a dict (e.g., a string value),
-                        # we need to convert it to a dict to support nested keys
-                        current[k] = {}
-                    current = current[k]
-                current[keys[-1]] = value
-        
-        # Create config from parsed overrides
-        cfg = create_default_config()
-        if 'input_dir' in config_dict:
-            cfg.input_dir = config_dict['input_dir']
-        if 'output_dir' in config_dict:
-            cfg.output_dir = config_dict['output_dir']
-        
-        # Apply nested overrides
-        for key, value in config_dict.items():
-            if '.' not in key and key not in ['input_dir', 'output_dir']:
-                continue
-        
-        process_lidar(cfg)
+        logger.error(f"Error: {e}")
+        raise click.ClickException(str(e))

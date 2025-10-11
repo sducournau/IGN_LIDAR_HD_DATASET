@@ -3,9 +3,9 @@ processor:
   architecture: hybrid
   use_gpu: true
   num_workers: 1 # Sequential processing to avoid memory duplication
-  patch_size: 150.0 # Not used when only_enriched_laz=true
-  patch_overlap: 0.0 # Not used when only_enriched_laz=true
-  num_points: 32768 # Not used when only_enriched_laz=true
+  patch_size: 150.0 # Not used in enriched-only mode
+  patch_overlap: 0.0 # Not used in enriched-only mode
+  num_points: 32768 # Not used in enriched-only mode
   augment: false
   num_augmentations: 0
   batch_size: 1 # Optimized for single worker
@@ -39,29 +39,7 @@ stitching:
   cache_enabled: false
 output:
   format: npz # Output format for patches (npz, hdf5, pytorch, laz)
-
-  # ========== OUTPUT MODE CONFIGURATION ==========
-  # Three modes available:
-  #
-  # MODE 1: Only enriched LAZ files (NO patches)
-  #   save_enriched_laz: true
-  #   only_enriched_laz: true
-  #   → Fast processing, saves full tiles with RGB+NIR+geometric features
-  #
-  # MODE 2: Only patches (NO enriched LAZ)
-  #   save_enriched_laz: false
-  #   only_enriched_laz: false
-  #   → Standard training pipeline, creates NPZ patches only
-  #
-  # MODE 3: Both enriched LAZ AND patches
-  #   save_enriched_laz: true
-  #   only_enriched_laz: false
-  #   → Complete output: enriched LAZ + training patches
-  # ===============================================
-
-  save_enriched_laz: true # Save enriched LAZ files with computed features
-  only_enriched_laz: true # If true: ONLY create enriched LAZ files, NO patches
-
+  processing_mode: enriched_only # Only create enriched LAZ files (no patches)
   save_stats: true
   save_metadata: true
   compression: null

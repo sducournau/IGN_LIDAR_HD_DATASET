@@ -1,0 +1,38 @@
+# Custom Configuration Example - Complete Workflow
+# Use this to create both ML patches and enriched LAZ files
+
+processor:
+  lod_level: LOD2
+  use_gpu: false
+  num_workers: 4
+  patch_size: 150.0
+  num_points: 16384
+  augment: false
+
+features:
+  mode: full
+  k_neighbors: 30
+  include_extra: true
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+
+preprocess:
+  enabled: true
+  sor_k: 12
+  sor_std: 2.0
+
+stitching:
+  enabled: true
+  buffer_size: 10.0
+  auto_detect_neighbors: true
+
+output:
+  processing_mode: both # Create both patches AND enriched LAZ
+  format: npz
+  save_stats: true
+  save_metadata: true
+
+# Example with actual paths (edit these)
+input_dir: data/raw
+output_dir: data/processed

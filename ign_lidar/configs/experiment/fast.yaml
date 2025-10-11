@@ -35,6 +35,6 @@ stitching:
 
 output:
   format: npz
-  save_enriched_laz: false
+  processing_mode: patches_only
   save_stats: false
   save_metadata: false

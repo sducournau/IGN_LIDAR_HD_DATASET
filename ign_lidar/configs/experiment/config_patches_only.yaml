@@ -45,8 +45,7 @@ stitching:
 
 output:
   format: npz # NPZ format for PyTorch training
-  save_enriched_laz: false # Do NOT save enriched LAZ
-  only_enriched_laz: false # Create patches
+  processing_mode: patches_only # Only create training patches
   save_stats: true
   save_metadata: true
   compression: null

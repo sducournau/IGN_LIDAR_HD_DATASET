@@ -135,15 +135,16 @@ class OutputConfig:
     
     Attributes:
         format: Output format ('npz', 'hdf5', 'torch', 'laz', 'all')
-        save_enriched_laz: Save enriched LAZ files with features
-        only_enriched_laz: If True, only save enriched LAZ files (skip patch creation)
+        processing_mode: Processing mode - 'patches_only' (default), 'both', or 'enriched_only'
+                        - 'patches_only': Create ML patches only (default, fastest for training)
+                        - 'both': Create both patches and enriched LAZ files  
+                        - 'enriched_only': Only create enriched LAZ (fastest for GIS)
         save_stats: Save processing statistics
         save_metadata: Save patch metadata
         compression: Compression level (0-9, None for no compression)
     """
     format: Literal["npz", "hdf5", "torch", "laz", "all"] = "npz"
-    save_enriched_laz: bool = False
-    only_enriched_laz: bool = False
+    processing_mode: Literal["patches_only", "both", "enriched_only"] = "patches_only"
     save_stats: bool = True
     save_metadata: bool = True
     compression: Optional[int] = None
