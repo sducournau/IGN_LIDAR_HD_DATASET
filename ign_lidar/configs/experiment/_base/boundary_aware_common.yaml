@@ -1,0 +1,54 @@
+# Base Configuration for Boundary-Aware Processing
+#
+# Common settings shared by boundary-aware processing experiments
+# (boundary_aware_autodownload, boundary_aware_offline, etc.)
+#
+# This file defines default values for tile stitching with neighbor tiles.
+
+# @package _global_
+
+# Common processor settings for boundary-aware
+processor:
+  use_gpu: true
+  num_workers: 8
+  use_stitching: true # Enable tile stitching
+  buffer_size: 15.0 # 15m buffer zone for neighbor context
+
+  # Larger patches for better context
+  patch_size: 150.0
+  num_points: 16384
+
+  # Augmentation
+  augment: true
+  num_augmentations: 5
+
+# Common feature settings for boundary-aware
+features:
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+  include_extra_features: true
+
+# Common stitching settings
+stitching:
+  enabled: true
+  buffer_size: 15.0
+
+  # Quality settings
+  boundary_smoothing: true
+  edge_artifact_removal: true
+  compute_boundary_features: true
+
+  # Logging
+  verbose_logging: true
+  save_stitching_stats: true
+
+# Output configuration
+output:
+  processing_mode: both
+  save_metadata: true
+  save_visualizations: false
+
+# Global settings
+verbose: true
+log_level: INFO

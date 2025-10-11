@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Phase 4 Refactoring Complete** (2025-10-12)
+
+  - Extracted 6 modular components from monolithic processor (2,609 → ~800 lines)
+  - New modules: memory, serialization, loader, enrichment, patch_extractor, stitching
+  - Type-safe interfaces with dataclasses
+  - Improved testability and maintainability
+  - Single source of truth for all operations
+
+- **Intelligent Skip System** (2025-10-12)
+  - Automatic detection and skipping of already-processed tiles
+  - Deep content validation for patches and enriched LAZ files
+  - Partial skip optimization: skip what exists, generate what's missing
+  - Feature validation for enriched LAZ (normals, RGB, NIR, NDVI, geometric features)
+  - Automatic recovery from corrupted or incomplete outputs
+  - ~1800x faster on re-runs (0.1s vs 180s per tile)
+  - ~2x faster for partial processing (add enriched LAZ to existing patches or vice versa)
+  - Smart skip messages: ⏭️ (skip), 🔄 (process)
+  - Comprehensive documentation: `docs/INTELLIGENT_SKIP.md`
+
+### Changed
+
+- **Modular Architecture**: Complete processor refactoring
+  - Processor now orchestrates specialized modules
+  - Better separation of concerns
+  - Improved code organization and reusability
+- **Enhanced Skip Checker**: `PatchSkipChecker` now validates:
+  - Enriched LAZ feature completeness (core + optional features)
+  - Patch content integrity (coords, labels, dimensions)
+  - Configuration-based feature validation
+  - Supports "both" mode with partial skip logic
+- **Processor Integration**: `process_tile()` now passes enrichment config to skip checker
+  - Enables intelligent skip based on expected features
+  - Supports partial skip when only one output type exists
+
 ## [2.3.0] - 2025-10-11
 
 ### Added

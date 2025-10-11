@@ -38,7 +38,7 @@
 
 ## 📊 Overview
 
-This library transforms raw IGN (Institut National de l'Information Géographique et Forestière) LiDAR HD point clouds into structured datasets ready for machine learning applications. Built specifically for building classification tasks, it handles the complete pipeline from data acquisition to training-ready patches.
+Transform raw IGN LiDAR HD point clouds into ML-ready datasets for building classification. Complete pipeline from data acquisition to training-ready patches with GPU acceleration and intelligent workflow automation.
 
 ### 📺 Video Demo
 
@@ -46,43 +46,8 @@ This library transforms raw IGN (Institut National de l'Information Géographiqu
   <a href="https://www.youtube.com/watch?v=ksBWEhkVqQI" target="_blank">
     <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800">
   </a>
-  <p><em>▶️ Click to watch: Learn how to process LiDAR data for machine learning applications</em></p>
+  <p><em>▶️ Watch: Process LiDAR data for machine learning applications</em></p>
 </div>
-
-### 🔄 Processing Workflow
-
-```mermaid
-flowchart TD
-    A[IGN LiDAR HD Data] --> B[Download Tiles]
-    B --> C[Enrich with Features]
-    C --> D[Create Training Patches]
-    D --> E[ML-Ready Dataset]
-
-    B --> B1[Smart Skip Detection]
-    C --> C1[GPU/CPU Processing]
-    C --> C2[Geometric Features]
-    C --> C3[Data Augmentation]
-    C --> C4[RGB + Infrared NIR]
-    C --> C5[NDVI Calculation]
-    D --> D1[LOD Classification]
-
-    style A fill:#e1f5fe
-    style E fill:#e8f5e8
-    style B1 fill:#fff3e0
-    style C1 fill:#fff3e0
-    style C3 fill:#fff3e0
-    style C4 fill:#c8e6c9
-    style C5 fill:#c8e6c9
-```
-
-### 📈 Project Stats
-
-- 🏗️ **14 core modules** - Comprehensive processing toolkit
-- 📝 **10 example scripts** - From basic usage to complex workflows
-- 🧪 **Comprehensive test suite** - Ensuring reliability and performance
-- 🌍 **50+ curated tiles** - Covering diverse French territories
-- ⚡ **GPU & CPU support** - Flexible computation backends
-- 🔄 **Smart resumability** - Never reprocess existing data
 
 ---
 
@@ -343,6 +308,49 @@ Load complete workflows from YAML files. See `examples/` for templates:
 Configuration precedence: **package defaults** < **custom file** < **CLI overrides**
 
 See `examples/README.md` for detailed configuration guide.
+
+**Experiment Presets:**
+
+Use pre-configured experiment profiles optimized for specific use cases:
+
+```bash
+# Building LOD2 classification (8K points, no RGB)
+ign-lidar-hd process experiment=buildings_lod2 input_dir=data/
+
+# Building LOD3 classification (16K points, RGB + stitching)
+ign-lidar-hd process experiment=buildings_lod3 input_dir=data/
+
+# PointNet/PointNet++ training (16K points, PyTorch format)
+ign-lidar-hd process experiment=pointnet_training input_dir=data/
+
+# State-of-the-art semantic segmentation (32K points, 7 augmentations)
+ign-lidar-hd process experiment=semantic_sota input_dir=data/
+
+# Vegetation NDVI analysis (16K points, NDVI features)
+ign-lidar-hd process experiment=vegetation_ndvi input_dir=data/
+
+# Combine experiment with custom overrides
+ign-lidar-hd process \
+  experiment=buildings_lod2 \
+  input_dir=data/ \
+  processor.use_gpu=true \
+  processor.num_workers=8
+
+# List all available presets
+ign-lidar-hd info --presets
+```
+
+Available experiment presets include:
+
+- `buildings_lod2` - Standard building classification (LOD2, 8192 points)
+- `buildings_lod3` - Detailed building classification (LOD3, 16384 points, RGB)
+- `pointnet_training` - ML training dataset (PyTorch format, 16384 points)
+- `semantic_sota` - Semantic segmentation research (32768 points, heavy augmentation)
+- `vegetation_ndvi` - Vegetation analysis (NDVI features, 16384 points)
+- `boundary_aware_lod2` - Boundary-aware LOD2 processing
+- `boundary_aware_lod3` - Boundary-aware LOD3 processing
+
+Each preset includes optimized settings for LOD level, point count, features, output format, and augmentation strategy.
 
 #### 4. Patch Command
 
