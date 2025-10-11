@@ -44,7 +44,7 @@ This library transforms raw IGN (Institut National de l'Information Géographiqu
 
 <div align="center">
   <a href="https://www.youtube.com/watch?v=ksBWEhkVqQI" target="_blank">
-    <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/v1.6.3/website/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800">
+    <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/v1.6.3/docs/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800">
   </a>
   <p><em>▶️ Click to watch: Learn how to process LiDAR data for machine learning applications</em></p>
 </div>
