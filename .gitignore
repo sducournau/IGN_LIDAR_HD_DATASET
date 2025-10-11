@@ -117,3 +117,12 @@ consolidate_repo.py
 # Keep data directory structure but ignore contents
 data/validation/*.json
 data/validation/*.npz
+
+# Archive directory (development artifacts)
+archive/
+
+# Output directories (can be regenerated)
+outputs/
+
+# Log files
+*.log
