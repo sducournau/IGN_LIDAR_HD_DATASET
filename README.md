@@ -11,7 +11,7 @@
 
 **Version 2.3.0** | [📚 Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-<img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/website/static/img/lod3.png?raw=true" alt="LoD3 Building Model Icon" width="600">
+<img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true" alt="LoD3 Building Model Icon" width="600">
 
 **A comprehensive Python library for processing IGN LiDAR HD data into machine learning-ready datasets for Building Level of Detail (LOD) classification tasks.**
 
@@ -44,7 +44,7 @@ This library transforms raw IGN (Institut National de l'Information Géographiqu
 
 <div align="center">
   <a href="https://www.youtube.com/watch?v=ksBWEhkVqQI" target="_blank">
-    <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/docs/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800">
+    <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/aerial.png?raw=true" alt="IGN LiDAR HD Processing Demo" width="800">
   </a>
   <p><em>▶️ Click to watch: Learn how to process LiDAR data for machine learning applications</em></p>
 </div>
