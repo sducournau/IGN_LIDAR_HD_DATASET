@@ -414,13 +414,24 @@ class GPUFeatureComputer:
         anisotropy[~valid_features] = 0.0
         roughness[~valid_features] = 0.0
         
+        # === FACULTATIVE FEATURES: WALL AND ROOF SCORES ===
+        # Wall score: High planarity + Vertical surface (|normal_z| close to 0)
+        # Roof score: High planarity + Horizontal surface (|normal_z| close to 1)
+        verticality = (1.0 - np.abs(normals[:, 2])).astype(np.float32)  # 0=horizontal, 1=vertical
+        horizontality = np.abs(normals[:, 2]).astype(np.float32)        # 1=horizontal, 0=vertical
+        
+        wall_score = (planarity * verticality).astype(np.float32)
+        roof_score = (planarity * horizontality).astype(np.float32)
+        
         features = {
             'planarity': planarity,
             'linearity': linearity,
             'sphericity': sphericity,
             'anisotropy': anisotropy,
             'roughness': roughness,
-            'density': density
+            'density': density,
+            'wall_score': wall_score,
+            'roof_score': roof_score
         }
         
         return features

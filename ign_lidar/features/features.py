@@ -17,6 +17,10 @@ Features computed:
 - Roughness: Surface roughness (smooth roofs vs rough vegetation)
 - Density: Local point density
 
+Facultative features (automatically computed):
+- Wall Score: Planarity * Verticality (high for vertical planar surfaces)
+- Roof Score: Planarity * Horizontality (high for horizontal planar surfaces)
+
 Removed redundant features:
 - Verticality/Horizontality: Already in normals (use normal_z)
 """
@@ -593,6 +597,15 @@ def extract_geometric_features(points: np.ndarray, normals: np.ndarray,
         # Density (number of neighbors / volume)
         density[i] = len(neighbors_i) / (4/3 * np.pi * radius**3 + 1e-8)
     
+    # === FACULTATIVE FEATURES: WALL AND ROOF SCORES ===
+    # Wall score: High planarity + Vertical surface (|normal_z| close to 0)
+    # Roof score: High planarity + Horizontal surface (|normal_z| close to 1)
+    verticality = 1.0 - np.abs(normals[:, 2])  # 0=horizontal, 1=vertical
+    horizontality = np.abs(normals[:, 2])      # 1=horizontal, 0=vertical
+    
+    wall_score = (planarity * verticality).astype(np.float32)
+    roof_score = (planarity * horizontality).astype(np.float32)
+    
     # Stocker les features
     features = {
         'planarity': planarity,
@@ -600,7 +613,9 @@ def extract_geometric_features(points: np.ndarray, normals: np.ndarray,
         'sphericity': sphericity,
         'anisotropy': anisotropy,
         'roughness': roughness,
-        'density': density
+        'density': density,
+        'wall_score': wall_score,
+        'roof_score': roof_score
     }
     
     return features
@@ -1037,13 +1052,24 @@ def compute_all_features_optimized(
     roughness[~valid_features] = 0.0
     # Density can remain (computed from distances, not eigenvalues)
     
+    # === FACULTATIVE FEATURES: WALL AND ROOF SCORES ===
+    # Wall score: High planarity + Vertical surface (|normal_z| close to 0)
+    # Roof score: High planarity + Horizontal surface (|normal_z| close to 1)
+    verticality = 1.0 - np.abs(normals[:, 2])  # 0=horizontal, 1=vertical
+    horizontality = np.abs(normals[:, 2])      # 1=horizontal, 0=vertical
+    
+    wall_score = (planarity * verticality).astype(np.float32)
+    roof_score = (planarity * horizontality).astype(np.float32)
+    
     geo_features = {
         'planarity': planarity,
         'linearity': linearity,
         'sphericity': sphericity,
         'anisotropy': anisotropy,
         'roughness': roughness,
-        'density': density
+        'density': density,
+        'wall_score': wall_score,
+        'roof_score': roof_score
     }
     
     # === EXTRA FEATURES (if requested) ===

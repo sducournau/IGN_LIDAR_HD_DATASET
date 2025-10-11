@@ -96,7 +96,7 @@ class CPUFeatureComputer(BaseFeatureComputer):
         result = {
             'normals': normals,
             'curvature': curvature,
-            'height_above_ground': height,
+            'height': height,  # Use 'height' key to match processor expectations
         }
         result.update(geo_features)
         
@@ -154,7 +154,7 @@ class GPUFeatureComputer(BaseFeatureComputer):
         result = {
             'normals': normals,
             'curvature': curvature,
-            'height_above_ground': height,
+            'height': height,  # Use 'height' key to match processor expectations
         }
         result.update(geo_features)
         
@@ -223,7 +223,7 @@ class GPUChunkedFeatureComputer(BaseFeatureComputer):
         result = {
             'normals': normals,
             'curvature': curvature,
-            'height_above_ground': height,
+            'height': height,  # Use 'height' key to match processor expectations
         }
         result.update(geo_features)
         

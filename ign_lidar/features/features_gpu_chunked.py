@@ -915,7 +915,9 @@ class GPUChunkedFeatureComputer:
             'roughness': np.zeros(N, dtype=np.float32),
             'density': np.zeros(N, dtype=np.float32),
             'verticality': np.zeros(N, dtype=np.float32),
-            'horizontality': np.zeros(N, dtype=np.float32)
+            'horizontality': np.zeros(N, dtype=np.float32),
+            'wall_score': np.zeros(N, dtype=np.float32),
+            'roof_score': np.zeros(N, dtype=np.float32)
         }
         
         # Compute per-chunk for memory efficiency
@@ -1043,10 +1045,19 @@ class GPUChunkedFeatureComputer:
             horizontality_chunk = np.abs(chunk_normals_for_vert[:, 2]).astype(np.float32)
             geo_features['horizontality'][start_idx:end_idx] = horizontality_chunk
             
+            # === FACULTATIVE FEATURES: WALL AND ROOF SCORES ===
+            # Wall score: High planarity + Vertical surface
+            # Roof score: High planarity + Horizontal surface
+            chunk_planarity = geo_features['planarity'][start_idx:end_idx]
+            wall_score_chunk = (chunk_planarity * verticality_chunk).astype(np.float32)
+            roof_score_chunk = (chunk_planarity * horizontality_chunk).astype(np.float32)
+            geo_features['wall_score'][start_idx:end_idx] = wall_score_chunk
+            geo_features['roof_score'][start_idx:end_idx] = roof_score_chunk
+            
             # Cleanup
             del chunk_points, chunk_classification, chunk_normals
             del global_indices_gpu, local_indices, chunk_geo
-            del verticality_chunk, horizontality_chunk
+            del verticality_chunk, horizontality_chunk, wall_score_chunk, roof_score_chunk
             self._free_gpu_memory()
         
         logger.info("✓ All features computed per-chunk successfully")
