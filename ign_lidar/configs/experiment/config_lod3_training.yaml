@@ -38,9 +38,30 @@ stitching:
   auto_download_neighbors: false
   cache_enabled: false
 output:
-  format: npz # Not used when only_enriched_laz=true
+  format: npz # Output format for patches (npz, hdf5, pytorch, laz)
+
+  # ========== OUTPUT MODE CONFIGURATION ==========
+  # Three modes available:
+  #
+  # MODE 1: Only enriched LAZ files (NO patches)
+  #   save_enriched_laz: true
+  #   only_enriched_laz: true
+  #   → Fast processing, saves full tiles with RGB+NIR+geometric features
+  #
+  # MODE 2: Only patches (NO enriched LAZ)
+  #   save_enriched_laz: false
+  #   only_enriched_laz: false
+  #   → Standard training pipeline, creates NPZ patches only
+  #
+  # MODE 3: Both enriched LAZ AND patches
+  #   save_enriched_laz: true
+  #   only_enriched_laz: false
+  #   → Complete output: enriched LAZ + training patches
+  # ===============================================
+
   save_enriched_laz: true # Save enriched LAZ files with computed features
-  only_enriched_laz: true # ONLY create enriched LAZ files, NO patches
+  only_enriched_laz: true # If true: ONLY create enriched LAZ files, NO patches
+
   save_stats: true
   save_metadata: true
   compression: null

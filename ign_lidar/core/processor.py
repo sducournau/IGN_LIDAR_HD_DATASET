@@ -1649,25 +1649,289 @@ class LiDARProcessor:
         
         logger.debug(f"  🧹 Memory cleaned after loading/preprocessing")
         
-        # ===== EARLY EXIT: If only_enriched_laz is enabled, skip ALL patch processing =====
-        # This must happen BEFORE formatter initialization and augmentation loop
-        # to prevent any patch-related processing
+        # ===== ENRICHED LAZ ONLY MODE: Save enriched LAZ and exit early =====
+        # If only_enriched_laz is enabled, save the enriched LAZ file with all computed features
+        # and then skip ALL patch processing
         if only_enriched:
+            logger.info("  🎯 Only enriched LAZ mode - computing features and saving enriched file...")
+            
+            # Extract data from original_data dict for feature computation
+            points = original_data['points']
+            intensity = original_data['intensity']
+            return_number = original_data['return_number']
+            classification = original_data['classification']
+            rgb = original_data['rgb']
+            nir = original_data['nir']
+            ndvi = original_data['ndvi']
+            
+            # ===== STEP 4: Compute geometric features =====
+            feature_start = time.time()
+            logger.info("  🔧 Computing geometric features...")
+            
+            # Determine if we should use boundary-aware stitching
+            use_boundary_aware = False
+            if self.use_stitching and self.stitcher is not None:
+                # Check if neighbors exist for boundary-aware processing
+                neighbors_exist = self.stitcher.check_neighbors_exist(laz_file)
+                if neighbors_exist:
+                    logger.info("  🔗 Using tile stitching for boundary features...")
+                    use_boundary_aware = True
+                    
+                    try:
+                        # Load adjacent tiles and compute boundary-aware features
+                        features = self.stitcher.compute_boundary_aware_features(
+                            laz_file=laz_file,
+                            k=self.k_neighbors if self.k_neighbors else 20
+                        )
+                        
+                        # Extract feature components
+                        normals = features['normals']
+                        curvature = features['curvature']
+                        
+                        # Extract geometric features
+                        if 'geometric_features' in features:
+                            geo_dict = features['geometric_features']
+                            # Convert dict to array or keep as dict based on what we have
+                            if isinstance(geo_dict, dict):
+                                geo_features = geo_dict
+                            else:
+                                geo_features = {
+                                    'planarity': geo_dict[:, 0],
+                                    'linearity': geo_dict[:, 1],
+                                    'sphericity': geo_dict[:, 2],
+                                    'verticality': geo_dict[:, 3] if geo_dict.shape[1] > 3 else np.abs(normals[:, 2])
+                                }
+                        else:
+                            geo_features = None
+                        
+                        # Height feature (relative to local minimum)
+                        height = points[:, 2] - points[:, 2].min()
+                        
+                        num_boundary = features.get('num_boundary_points', 0)
+                        logger.info(
+                            f"  ✓ Boundary-aware features computed "
+                            f"({num_boundary} boundary points affected)"
+                        )
+                    
+                    except Exception as e:
+                        logger.warning(
+                            f"  ⚠️  Tile stitching failed, falling back to standard: {e}"
+                        )
+                        use_boundary_aware = False
+            
+            # Standard feature computation (no stitching)
+            if not use_boundary_aware:
+                # Choose GPU or CPU based on configuration
+                if self.use_gpu:
+                    # Check if we should use chunked GPU processing for large tiles
+                    num_points = len(points)
+                    use_chunked = (
+                        self.use_gpu_chunked and 
+                        num_points > 500_000  # Use GPU chunked for >500K points
+                    )
+                    
+                    if use_chunked:
+                        # Use chunked GPU processing for large tiles
+                        try:
+                            from ..features.features_gpu_chunked import (
+                                GPUChunkedFeatureComputer,
+                                GPU_AVAILABLE,
+                                CUML_AVAILABLE
+                            )
+                            
+                            if GPU_AVAILABLE and CUML_AVAILABLE:
+                                logger.info(
+                                    f"🚀 Using GPU chunked processing "
+                                    f"({num_points:,} points, "
+                                    f"batch_size={self.gpu_batch_size:,})"
+                                )
+                                
+                                # Initialize chunked computer
+                                computer = GPUChunkedFeatureComputer(
+                                    chunk_size=self.gpu_batch_size,
+                                    use_gpu=True,
+                                    show_progress=False
+                                )
+                                
+                                # Compute all features with chunked processing
+                                k = self.k_neighbors if self.k_neighbors else 20
+                                normals, curvature, height, geo_features = (
+                                    computer.compute_all_features_chunked(
+                                        points=points,
+                                        classification=classification,
+                                        k=k
+                                    )
+                                )
+                                
+                                # Add verticality if not present
+                                if isinstance(geo_features, dict) and 'verticality' not in geo_features:
+                                    verticality = np.abs(normals[:, 2])
+                                    geo_features['verticality'] = verticality
+                            else:
+                                logger.warning(
+                                    "GPU chunked requested but not available. Using standard GPU."
+                                )
+                                use_chunked = False
+                        except Exception as e:
+                            logger.warning(
+                                f"GPU chunked processing failed: {e}. Falling back to standard GPU."
+                            )
+                            use_chunked = False
+                    
+                    if not use_chunked:
+                        # Use standard GPU processing
+                        from ..features.features import compute_all_features_with_gpu
+                        normals, curvature, height, geo_features = (
+                            compute_all_features_with_gpu(
+                                points=points,
+                                classification=classification,
+                                k=self.k_neighbors,
+                                auto_k=(self.k_neighbors is None),
+                                use_gpu=True
+                            )
+                        )
+                else:
+                    # CPU processing
+                    normals, curvature, height, geo_features = (
+                        compute_all_features_optimized(
+                            points=points,
+                            classification=classification,
+                            k=self.k_neighbors,
+                            auto_k=(self.k_neighbors is None),
+                            include_extra=self.include_extra_features,
+                            patch_center=np.mean(points, axis=0) if self.include_extra_features else None
+                        )
+                    )
+            
+            feature_time = time.time() - feature_start
+            logger.info(f"  ⏱️  Features computed: {feature_time:.1f}s")
+            
+            # ===== STEP 5: Save Enriched LAZ =====
+            logger.info("  💾 Saving enriched LAZ file...")
+            enriched_path = output_dir / f"{laz_file.stem}_enriched.laz"
+            
+            # Create new LAS with features
+            original_format_id = las.header.point_format.id
+            
+            # If we have RGB, use a format that supports it
+            if rgb is not None:
+                # Map to RGB-compatible formats
+                if original_format_id in [0, 1]:
+                    target_format = 2  # Basic + RGB
+                elif original_format_id in [6]:
+                    target_format = 7  # LAS 1.4 + RGB
+                elif original_format_id in [2, 3, 5, 7, 8, 10]:
+                    target_format = original_format_id  # Already supports RGB
+                else:
+                    target_format = 7  # Default to LAS 1.4 with RGB
+            else:
+                target_format = original_format_id
+            
+            # Create a fresh header with the appropriate point format
+            new_header = laspy.LasHeader(version=las.header.version, point_format=target_format)
+            new_header.offsets = las.header.offsets
+            new_header.scales = las.header.scales
+            
+            # Create new LAS with the correct size
+            new_las = laspy.LasData(new_header)
+            new_las.x = points[:, 0]
+            new_las.y = points[:, 1]
+            new_las.z = points[:, 2]
+            new_las.intensity = (intensity * 65535.0).astype(np.uint16)
+            new_las.return_number = return_number.astype(np.uint8)
+            new_las.classification = classification
+            
+            # Add RGB if available
+            if rgb is not None:
+                new_las.red = (rgb[:, 0] * 65535.0).astype(np.uint16)
+                new_las.green = (rgb[:, 1] * 65535.0).astype(np.uint16)
+                new_las.blue = (rgb[:, 2] * 65535.0).astype(np.uint16)
+            
+            # Add extra dimensions for features
+            try:
+                expected_size = len(points)
+                
+                # Core geometric features (always computed)
+                new_las.add_extra_dim(laspy.ExtraBytesParams(name="normal_x", type=np.float32))
+                new_las.add_extra_dim(laspy.ExtraBytesParams(name="normal_y", type=np.float32))
+                new_las.add_extra_dim(laspy.ExtraBytesParams(name="normal_z", type=np.float32))
+                new_las.add_extra_dim(laspy.ExtraBytesParams(name="curvature", type=np.float32))
+                new_las.add_extra_dim(laspy.ExtraBytesParams(name="height", type=np.float32))
+                
+                new_las.normal_x = normals[:, 0].astype(np.float32)
+                new_las.normal_y = normals[:, 1].astype(np.float32)
+                new_las.normal_z = normals[:, 2].astype(np.float32)
+                new_las.curvature = curvature.astype(np.float32)
+                new_las.height = height.astype(np.float32)
+                
+                # Add geometric features if computed
+                if geo_features is not None:
+                    if isinstance(geo_features, dict):
+                        for feature_name, feature_values in geo_features.items():
+                            if len(feature_values) == expected_size:
+                                new_las.add_extra_dim(laspy.ExtraBytesParams(
+                                    name=feature_name, type=np.float32
+                                ))
+                                setattr(new_las, feature_name, feature_values.astype(np.float32))
+                    else:
+                        feature_names = ['planarity', 'linearity', 'sphericity', 'verticality']
+                        for i, feature_name in enumerate(feature_names[:geo_features.shape[1]]):
+                            if len(geo_features[:, i]) == expected_size:
+                                new_las.add_extra_dim(laspy.ExtraBytesParams(
+                                    name=feature_name, type=np.float32
+                                ))
+                                setattr(new_las, feature_name, geo_features[:, i].astype(np.float32))
+                
+                # Add NIR if available
+                if nir is not None and len(nir) == expected_size:
+                    new_las.add_extra_dim(laspy.ExtraBytesParams(name="nir", type=np.float32))
+                    new_las.nir = nir.astype(np.float32)
+                
+                # Add NDVI if computed
+                if ndvi is not None and len(ndvi) == expected_size:
+                    new_las.add_extra_dim(laspy.ExtraBytesParams(name="ndvi", type=np.float32))
+                    new_las.ndvi = ndvi.astype(np.float32)
+                
+                # Write the enriched LAZ file
+                new_las.write(enriched_path)
+                logger.info(f"  ✅ Enriched LAZ saved: {enriched_path.name}")
+                
+                # Verify the file
+                if enriched_path.exists():
+                    file_size_mb = enriched_path.stat().st_size / (1024 * 1024)
+                    verify_las = laspy.read(str(enriched_path))
+                    extra_dims = verify_las.point_format.extra_dimension_names
+                    logger.info(
+                        f"  📊 Enriched LAZ: {len(verify_las.points):,} points, "
+                        f"{len(extra_dims)} extra dimensions, {file_size_mb:.1f} MB"
+                    )
+                    logger.info(f"     Extra dimensions: {extra_dims}")
+                else:
+                    logger.error(f"  ❌ Failed to write enriched LAZ file!")
+                
+            except Exception as e:
+                logger.error(f"  ❌ Error saving enriched LAZ: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+            
+            # Clean up and return
             tile_time = time.time() - tile_start
-            num_points_processed = len(original_data['points'])
+            num_points_processed = len(points)
+            original_data.clear()
+            aggressive_memory_cleanup()
+            
             logger.info(
                 f"  ✅ Enrichment complete (only_enriched_laz mode - NO patches created): "
                 f"{tile_time:.1f}s ({num_points_processed/tile_time:.0f} pts/s)"
             )
-            # Clean up and return immediately
-            original_data.clear()
-            aggressive_memory_cleanup()
+            
             return {
                 'num_patches': 0,
                 'processing_time': tile_time,
                 'points_processed': num_points_processed,
                 'skipped': False,
-                'enriched_only': True
+                'enriched_only': True,
+                'enriched_laz_path': str(enriched_path)
             }
         
         # Determine number of versions to process (original + augmentations)
