@@ -49,14 +49,3 @@ output:
   save_stats: true
   save_metadata: true
   compression: null
-
-input_dir: /mnt/c/Users/Simon/ign/unified_dataset
-output_dir: /mnt/c/Users/Simon/ign/training_patches
-num_workers: 4
-verbose: true
-log_level: INFO
-bbox:
-  xmin: null
-  ymin: null
-  xmax: null
-  ymax: null

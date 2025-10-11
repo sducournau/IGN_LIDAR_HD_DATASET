@@ -8,25 +8,18 @@
 
 # @package _global_
 defaults:
-  - override /processor: default
-  - override /features: buildings
-  - override /preprocess: default
-  - override /stitching: disabled
-  - override /output: default
+  - _base/buildings_common # Inherit common building settings
+  - _self_ # Apply experiment overrides last
 
+# LOD2-specific overrides (inherit most from buildings_common base)
 processor:
   lod_level: LOD2
   num_points: 8192 # Moderate size for LOD2
-  augment: false
 
 features:
   mode: minimal
   k_neighbors: 15
-  include_extra: true # Height, verticality for buildings
   use_rgb: false # RGB not critical for LOD2
 
-preprocess:
-  enabled: true # Clean outliers
-
-# Override global settings if needed
-# num_workers: 8
+stitching:
+  enabled: false # Disable stitching for LOD2

@@ -8,69 +8,20 @@
 #
 # Use for: Processing tiles with potentially missing neighbors
 
+# @package _global_
 defaults:
-  - override /processor: gpu
-  - override /features: full
-  - override /preprocess: aggressive
-  - override /stitching: auto_download # ⚡ Enable auto-download
-  - override /output: default
+  - _base/boundary_aware_common # Inherit common boundary-aware settings
+  - _self_ # Apply experiment overrides last
 
 # Experiment metadata
 experiment_name: "boundary_aware_autodownload"
 experiment_description: "Boundary-aware processing with automatic neighbor download"
 
-# Processing configuration
-processor:
-  use_stitching: true # Enable tile stitching
-  buffer_size: 15.0 # 15m buffer zone for neighbor context
-
-  # Use GPU if available
-  use_gpu: true
-  num_workers: 8
-
-  # Larger patches for better context
-  patch_size: 150.0
-  num_points: 16384
-
-  # Augmentation
-  augment: true
-  num_augmentations: 5
-
-# Features configuration
-features:
-  use_rgb: true
-  use_infrared: true
-  compute_ndvi: true
-  include_extra_features: true
-
-# Stitching configuration
+# Auto-download specific overrides
 stitching:
-  enabled: true
-  buffer_size: 15.0
-
-  # Auto-download enabled
   auto_detect_neighbors: true
   auto_download_neighbors: true # ⚡ Download missing neighbors
   validate_tiles: true
-
-  # Quality settings
-  boundary_smoothing: true
-  edge_artifact_removal: true
-  compute_boundary_features: true
-
-  # Logging
-  verbose_logging: true
-  save_stitching_stats: true
-
-# Output configuration
-output:
-  processing_mode: both
-  save_metadata: true
-  save_visualizations: false
-
-# Global settings
-verbose: true
-log_level: INFO
 # Notes:
 # This configuration will:
 # 1. Load each tile

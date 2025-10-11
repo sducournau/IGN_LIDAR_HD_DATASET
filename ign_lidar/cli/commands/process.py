@@ -310,6 +310,8 @@ def process_lidar(cfg: DictConfig) -> None:
         include_extra_features=cfg.features.include_extra,
         k_neighbors=cfg.features.k_neighbors,
         include_rgb=cfg.features.use_rgb,
+        include_infrared=cfg.features.use_infrared,
+        compute_ndvi=cfg.features.compute_ndvi,
         use_gpu=cfg.processor.use_gpu,
         preprocess=cfg.preprocess.enabled,
         preprocess_config=preprocess_config,

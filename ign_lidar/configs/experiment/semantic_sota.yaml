@@ -8,30 +8,20 @@
 
 # @package _global_
 defaults:
-  - override /processor: gpu
-  - override /features: full
-  - override /preprocess: aggressive
-  - override /stitching: enabled
-  - override /output: hdf5
+  - _base/training_common # Inherit common training settings
+  - _self_ # Apply experiment overrides last
 
+# SOTA-specific overrides
 processor:
   lod_level: LOD3
   num_points: 32768 # Large patches for SOTA
-  augment: true
   num_augmentations: 7 # Extensive augmentation
-  use_gpu: true
-  num_workers: 8
 
 features:
-  mode: full
   k_neighbors: 20
-  include_extra: true
-  use_rgb: true
   use_infrared: true
   compute_ndvi: true
   sampling_method: fps # Best quality
-  normalize_xyz: true
-  normalize_features: true
 
 preprocess:
   enabled: true
@@ -41,10 +31,7 @@ preprocess:
   ror_neighbors: 6
 
 stitching:
-  enabled: true
   buffer_size: 15.0 # Larger buffer for better quality
 
 output:
   format: hdf5 # Fast I/O for large datasets
-  save_stats: true
-  save_metadata: true

@@ -106,16 +106,37 @@ def info_command(ctx, version, dependencies, config, presets):
         click.echo("=" * 20)
         
         try:
-            from ...config.defaults import list_presets
-            presets_dict = list_presets()
+            # List experiment YAML files instead of Python presets
+            from pathlib import Path
+            config_dir = Path(__file__).parent.parent.parent / "configs" / "experiment"
             
-            if presets_dict:
-                for name, description in presets_dict.items():
-                    click.echo(f"  {name:20s} - {description}")
+            if config_dir.exists():
+                yaml_files = sorted(config_dir.glob("*.yaml"))
+                if yaml_files:
+                    for yaml_file in yaml_files:
+                        preset_name = yaml_file.stem
+                        # Try to read description from YAML comment
+                        try:
+                            with open(yaml_file, 'r') as f:
+                                for line in f:
+                                    if line.strip().startswith('# Optimized') or line.strip().startswith('# State-of'):
+                                        description = line.strip()[2:].strip()
+                                        break
+                                    elif line.strip() and not line.strip().startswith('#'):
+                                        description = "Experiment configuration"
+                                        break
+                                else:
+                                    description = "Experiment configuration"
+                        except Exception:
+                            description = "Experiment configuration"
+                        
+                        click.echo(f"  {preset_name:30s} - {description}")
+                else:
+                    click.echo("  No presets found")
             else:
-                click.echo("  No presets found")
-        except ImportError:
-            click.echo("  Preset information not available")
+                click.echo("  Preset directory not found")
+        except Exception as e:
+            click.echo(f"  Error listing presets: {e}")
         
         click.echo()
         click.echo("Usage examples:")

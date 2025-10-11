@@ -60,6 +60,11 @@ class PatchSkipChecker:
         tile_path: Path,
         output_dir: Path,
         expected_patches: Optional[int] = None,
+        save_enriched: bool = False,
+        include_rgb: bool = False,
+        include_infrared: bool = False,
+        compute_ndvi: bool = False,
+        include_extra_features: bool = False,
     ) -> Tuple[bool, Dict[str, any]]:
         """
         Check if a tile should be skipped based on existing patches or enriched LAZ.
@@ -68,6 +73,11 @@ class PatchSkipChecker:
             tile_path: Path to input tile
             output_dir: Directory where patches are stored
             expected_patches: Expected number of base patches (if known)
+            save_enriched: Whether enriched LAZ saving is enabled
+            include_rgb: Whether RGB enrichment is enabled
+            include_infrared: Whether infrared enrichment is enabled
+            compute_ndvi: Whether NDVI computation is enabled
+            include_extra_features: Whether extra geometric features are enabled
         
         Returns:
             Tuple of (should_skip, info_dict)
@@ -78,19 +88,86 @@ class PatchSkipChecker:
         
         # Special case: If only_enriched_laz mode, check for enriched LAZ file
         if self.only_enriched_laz:
-            enriched_dir = output_dir / "enriched"
-            enriched_path = enriched_dir / f"{tile_stem}_enriched.laz"
+            # In enriched_only mode, files are saved directly in output_dir (no subdirectory)
+            enriched_path = output_dir / f"{tile_stem}_enriched.laz"
             
+            # Check if enriched LAZ exists and validate its features
             if enriched_path.exists() and enriched_path.stat().st_size > self.min_file_size:
-                return True, {
-                    'reason': 'enriched_laz_exists',
-                    'enriched_path': str(enriched_path),
-                    'file_size_mb': enriched_path.stat().st_size / (1024 * 1024),
-                }
+                is_valid, validation_info = self._validate_enriched_laz(
+                    enriched_path,
+                    include_rgb=include_rgb,
+                    include_infrared=include_infrared,
+                    compute_ndvi=compute_ndvi,
+                    include_extra_features=include_extra_features
+                )
+                
+                if is_valid:
+                    return True, {
+                        'reason': 'enriched_laz_exists_valid',
+                        'enriched_path': str(enriched_path),
+                        'file_size_mb': enriched_path.stat().st_size / (1024 * 1024),
+                        'features_validated': validation_info.get('features_present', []),
+                    }
+                else:
+                    return False, {
+                        'reason': 'enriched_laz_invalid',
+                        'enriched_path': str(enriched_path),
+                        'validation_error': validation_info.get('error', 'Unknown error'),
+                        'missing_features': validation_info.get('missing_features', []),
+                    }
             else:
                 return False, {
                     'reason': 'no_enriched_laz',
                     'enriched_path': str(enriched_path),
+                }
+        
+        # For "both" mode: check if BOTH enriched LAZ AND patches exist
+        if save_enriched and not self.only_enriched_laz:
+            # In "both" mode, enriched LAZ is saved in "enriched" subdirectory
+            enriched_path = output_dir / "enriched" / f"{tile_stem}_enriched.laz"
+            
+            # Check enriched LAZ
+            enriched_exists = False
+            if enriched_path.exists() and enriched_path.stat().st_size > self.min_file_size:
+                is_valid, validation_info = self._validate_enriched_laz(
+                    enriched_path,
+                    include_rgb=include_rgb,
+                    include_infrared=include_infrared,
+                    compute_ndvi=compute_ndvi,
+                    include_extra_features=include_extra_features
+                )
+                enriched_exists = is_valid
+            
+            # Check patches
+            existing_patches = self._find_tile_patches(tile_stem, output_dir)
+            if existing_patches:
+                validation_results = self._validate_patches(existing_patches)
+                patches_exist = validation_results['num_valid'] > 0 and validation_results['num_corrupted'] == 0
+            else:
+                patches_exist = False
+            
+            # Skip only if BOTH exist and are valid
+            if enriched_exists and patches_exist:
+                return True, {
+                    'reason': 'both_enriched_and_patches_exist',
+                    'enriched_path': str(enriched_path),
+                    'enriched_file_size_mb': enriched_path.stat().st_size / (1024 * 1024),
+                    'num_patches': len(existing_patches),
+                    'features_validated': validation_info.get('features_present', []),
+                }
+            elif enriched_exists and not patches_exist:
+                return False, {
+                    'reason': 'enriched_exists_but_no_patches',
+                    'enriched_path': str(enriched_path),
+                }
+            elif patches_exist and not enriched_exists:
+                return False, {
+                    'reason': 'patches_exist_but_no_enriched',
+                    'num_patches': len(existing_patches),
+                }
+            else:
+                return False, {
+                    'reason': 'neither_enriched_nor_patches_exist',
                 }
         
         # Calculate expected number of patches
@@ -387,6 +464,102 @@ class PatchSkipChecker:
         except Exception as e:
             return False, f"LAZ load error: {str(e)}"
     
+    def _validate_enriched_laz(
+        self,
+        enriched_path: Path,
+        include_rgb: bool = False,
+        include_infrared: bool = False,
+        compute_ndvi: bool = False,
+        include_extra_features: bool = False,
+    ) -> Tuple[bool, Dict[str, any]]:
+        """
+        Validate enriched LAZ file has expected features.
+        
+        Args:
+            enriched_path: Path to enriched LAZ file
+            include_rgb: Whether RGB should be present
+            include_infrared: Whether NIR should be present
+            compute_ndvi: Whether NDVI should be present
+            include_extra_features: Whether extra geometric features should be present
+        
+        Returns:
+            Tuple of (is_valid, info_dict)
+        """
+        try:
+            import laspy
+            
+            # Load the LAZ file
+            las = laspy.read(str(enriched_path))
+            
+            # Check basic validity
+            if len(las.points) == 0:
+                return False, {'error': 'Empty point cloud'}
+            
+            # Get extra dimensions present in file (convert generator to list!)
+            if hasattr(las.point_format, 'extra_dimension_names'):
+                extra_dims = list(las.point_format.extra_dimension_names)
+            else:
+                extra_dims = []
+            
+            # Core features that should always be present
+            core_features = ['normal_x', 'normal_y', 'normal_z', 'curvature', 'height']
+            missing_core = [f for f in core_features if f not in extra_dims]
+            
+            if missing_core:
+                return False, {
+                    'error': f'Missing core features: {missing_core}',
+                    'missing_features': missing_core,
+                    'features_present': extra_dims,
+                }
+            
+            # Check optional features based on configuration
+            missing_optional = []
+            
+            if include_rgb:
+                # RGB might be in standard RGB fields or extra dimensions
+                has_rgb = (hasattr(las, 'red') and hasattr(las, 'green') and hasattr(las, 'blue'))
+                if not has_rgb:
+                    missing_optional.append('RGB')
+            
+            if include_infrared:
+                has_nir = 'nir' in extra_dims or hasattr(las, 'nir')
+                if not has_nir:
+                    missing_optional.append('NIR')
+            
+            if compute_ndvi:
+                has_ndvi = 'ndvi' in extra_dims
+                if not has_ndvi:
+                    missing_optional.append('NDVI')
+            
+            if include_extra_features:
+                # Check for geometric features
+                geo_features = ['planarity', 'linearity', 'sphericity', 'verticality']
+                missing_geo = [f for f in geo_features if f not in extra_dims]
+                if missing_geo:
+                    missing_optional.extend(missing_geo)
+            
+            # If critical optional features are missing, consider invalid
+            if missing_optional:
+                logger.debug(f"Enriched LAZ missing optional features: {missing_optional}")
+                return False, {
+                    'error': f'Missing optional features: {missing_optional}',
+                    'missing_features': missing_optional,
+                    'features_present': extra_dims,
+                }
+            
+            # All checks passed
+            return True, {
+                'features_present': core_features + extra_dims,
+                'point_count': len(las.points),
+            }
+            
+        except ImportError:
+            # laspy not available, assume valid
+            logger.warning("laspy not available, cannot validate enriched LAZ features")
+            return True, {'error': 'laspy_not_available'}
+        except Exception as e:
+            return False, {'error': f'Validation error: {str(e)}'}
+    
     def format_skip_message(self, tile_path: Path, skip_info: Dict[str, any]) -> str:
         """
         Format a user-friendly skip message.
@@ -404,9 +577,37 @@ class PatchSkipChecker:
         expected_count = skip_info.get('expected_count', None)
         corrupted_count = skip_info.get('corrupted_count', 0)
         
-        if reason == 'enriched_laz_exists':
+        # New enriched LAZ skip reasons
+        if reason == 'enriched_laz_exists_valid':
+            file_size_mb = skip_info.get('file_size_mb', 0)
+            features = skip_info.get('features_validated', [])
+            return f"⏭️  {tile_path.name}: Valid enriched LAZ exists ({file_size_mb:.1f} MB, {len(features)} features), skipping"
+        
+        elif reason == 'enriched_laz_invalid':
+            error = skip_info.get('validation_error', 'unknown')
+            missing = skip_info.get('missing_features', [])
+            return f"🔄 {tile_path.name}: Enriched LAZ invalid ({error}, missing: {missing}), reprocessing"
+        
+        elif reason == 'both_enriched_and_patches_exist':
+            file_size_mb = skip_info.get('enriched_file_size_mb', 0)
+            num_patches = skip_info.get('num_patches', 0)
+            return f"⏭️  {tile_path.name}: Both enriched LAZ ({file_size_mb:.1f} MB) and {num_patches} patches exist, skipping"
+        
+        elif reason == 'enriched_exists_but_no_patches':
+            return f"🔄 {tile_path.name}: Enriched LAZ exists but patches missing, processing patches only"
+        
+        elif reason == 'patches_exist_but_no_enriched':
+            num_patches = skip_info.get('num_patches', 0)
+            return f"🔄 {tile_path.name}: {num_patches} patches exist but enriched LAZ missing, processing enriched LAZ only"
+        
+        elif reason == 'neither_enriched_nor_patches_exist':
+            return f"🔄 {tile_path.name}: No outputs found, full processing"
+        
+        # Legacy enriched LAZ reason (backward compatibility)
+        elif reason == 'enriched_laz_exists':
             file_size_mb = skip_info.get('file_size_mb', 0)
             return f"⏭️  {tile_path.name}: Enriched LAZ exists ({file_size_mb:.1f} MB), skipping"
+        
         elif reason == 'complete_and_valid':
             if expected_count:
                 return f"⏭️  {tile_path.name}: {valid_count}/{expected_count} patches valid, skipping"

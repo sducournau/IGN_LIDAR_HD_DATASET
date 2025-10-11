@@ -8,26 +8,18 @@
 
 # @package _global_
 defaults:
-  - override /processor: gpu
-  - override /features: vegetation
-  - override /preprocess: default
-  - override /stitching: disabled
-  - override /output: default
+  - _base/training_common # Inherit common training settings
+  - _self_ # Apply experiment overrides last
 
+# Vegetation-specific overrides
 processor:
   lod_level: LOD2
   num_points: 16384
-  augment: true
-  num_augmentations: 5 # More augmentation for vegetation variety
 
 features:
-  mode: full
   k_neighbors: 20
-  include_extra: true
-  use_rgb: true
   use_infrared: true # Critical for NDVI
   compute_ndvi: true # NDVI vegetation index
-  normalize_features: true # Important for multi-modal
 
-preprocess:
-  enabled: true
+stitching:
+  enabled: false # Disable stitching for vegetation

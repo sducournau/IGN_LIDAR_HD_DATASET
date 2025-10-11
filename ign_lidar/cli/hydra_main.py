@@ -236,7 +236,8 @@ def info(cfg: DictConfig) -> None:
     """
     setup_logging(cfg)
     
-    from ..config.defaults import list_presets
+    # List experiment YAML files instead of Python presets
+    from pathlib import Path
     
     logger.info("="*70)
     logger.info("IGN LiDAR HD v2.0 - Configuration Info")
@@ -244,9 +245,30 @@ def info(cfg: DictConfig) -> None:
     
     logger.info("\nAvailable Experiment Presets:")
     logger.info("-" * 70)
-    presets = list_presets()
-    for name, description in presets.items():
-        logger.info(f"  {name:20s} - {description}")
+    
+    config_dir = Path(__file__).parent.parent / "configs" / "experiment"
+    if config_dir.exists():
+        yaml_files = sorted(config_dir.glob("*.yaml"))
+        for yaml_file in yaml_files:
+            preset_name = yaml_file.stem
+            # Try to read description from YAML comment
+            try:
+                with open(yaml_file, 'r') as f:
+                    for line in f:
+                        if line.strip().startswith('# Optimized') or line.strip().startswith('# State-of'):
+                            description = line.strip()[2:].strip()
+                            break
+                        elif line.strip() and not line.strip().startswith('#'):
+                            description = "Experiment configuration"
+                            break
+                    else:
+                        description = "Experiment configuration"
+            except Exception:
+                description = "Experiment configuration"
+            
+            logger.info(f"  {preset_name:30s} - {description}")
+    else:
+        logger.warning("Preset directory not found")
     
     logger.info("\n" + "="*70)
     logger.info("Current Configuration:")

@@ -43,13 +43,3 @@ output:
   save_stats: true
   save_metadata: true
   compression: null
-input_dir: /mnt/c/Users/Simon/ign/unified_dataset
-output_dir: /mnt/c/Users/Simon/ign/enriched_tiles_only # Changed name to reflect enriched-only mode
-num_workers: 1 # Sequential file-level processing to avoid memory duplication
-verbose: true
-log_level: INFO
-bbox:
-  xmin: null
-  ymin: null
-  xmax: null
-  ymax: null

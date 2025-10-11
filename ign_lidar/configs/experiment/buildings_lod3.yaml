@@ -8,27 +8,22 @@
 
 # @package _global_
 defaults:
-  - override /processor: gpu
-  - override /features: buildings
-  - override /preprocess: default
-  - override /stitching: enabled
-  - override /output: default
+  - _base/buildings_common # Inherit common building settings
+  - _self_ # Apply experiment overrides last
 
+# LOD3-specific overrides
 processor:
   lod_level: LOD3
   num_points: 16384 # More points for detailed LOD3
   augment: true # Augmentation helps with fine-grained classes
   num_augmentations: 3
+  use_gpu: true
 
 features:
   mode: full
   k_neighbors: 20
-  include_extra: true
   use_rgb: true # RGB helps for LOD3 details
 
-preprocess:
-  enabled: true
-
 stitching:
-  enabled: true # Important for building boundaries
-  buffer_size: 15.0
+  enabled: true
+  buffer_size: 15.0 # Important for building boundaries

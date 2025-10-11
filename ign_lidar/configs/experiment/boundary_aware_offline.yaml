@@ -3,43 +3,22 @@
 # This configuration uses tile stitching but disables auto-download.
 # Best for: Offline processing, pre-downloaded datasets, or when network is unavailable
 
+# @package _global_
 defaults:
-  - override /processor: gpu
-  - override /features: full
-  - override /preprocess: aggressive
-  - override /stitching: enhanced # Enhanced stitching WITHOUT auto-download
-  - override /output: default
+  - _base/boundary_aware_common # Inherit common boundary-aware settings
+  - _self_ # Apply experiment overrides last
 
 experiment_name: "boundary_aware_offline"
 experiment_description: "Boundary-aware processing with local tiles only (no downloads)"
 
-processor:
-  use_stitching: true
-  buffer_size: 15.0
-  use_gpu: true
-  num_workers: 8
-  patch_size: 150.0
-  num_points: 16384
-
+# Offline-specific overrides
 stitching:
-  enabled: true
-  buffer_size: 15.0
-
-  # Detection enabled, download disabled
   auto_detect_neighbors: true
   auto_download_neighbors: false # ❌ No automatic downloads
 
   # Use only locally available tiles
   cache_enabled: true
   parallel_loading: true
-
-  # Quality settings
-  boundary_smoothing: true
-  edge_artifact_removal: true
-  compute_boundary_features: true
-
-verbose: true
-log_level: INFO
 # Notes:
 # - Will use neighbors if already present locally
 # - Will not attempt to download missing neighbors

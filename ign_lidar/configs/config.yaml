@@ -2,6 +2,7 @@
 #
 # This is the main configuration file that composes all sub-configurations.
 # Use Hydra to override values: python -m ign_lidar.cli.main processor.use_gpu=true
+# Use experiments: python -m ign_lidar.cli.main experiment=buildings_lod2
 
 defaults:
   - processor: default
@@ -10,6 +11,7 @@ defaults:
   - stitching: enhanced
   - output: default
   - _self_
+  - optional experiment: null # Optional experiment presets (override config defaults)
 
 # ============================================================================
 # I/O PATHS (Required - must be provided via command line or override)
