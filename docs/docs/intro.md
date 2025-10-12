@@ -112,22 +112,21 @@ See [example configs directory](/examples/config-files) for complete workflows.
 
 ## 🎯 What's New
 
-### v2.3.0 (2025-10-11)
+### v2.4.0 (2025-10-12) - Latest Release
 
-- **Processing Modes**: Clear, intuitive modes replace boolean flags
-- **Custom Config Files**: YAML-based workflows with example templates
-- **Intelligent Skip System**: ~1800x faster re-runs, automatic recovery
+- **🔧 Enhanced Feature Validation**: All geometric features guaranteed within [0, 1] range
+- **✅ Production-Ready ML Stability**: Eliminates NaN/Inf values, improved convergence
+- **⚡ Zero Overhead**: Less than 1% performance impact from validation
+- **🎯 Complete Feature Parity**: Consistent results across CPU/GPU/boundary paths
+- **📊 Robustness Guarantees**: Eigenvalue clamping, density normalization
 
-### v2.2.1 (2025-10-08)
+[Read the full release notes →](/release-notes/v2.4.0)
 
-- Fixed spatial consistency in augmented patches
-- Enhanced augmentation pipeline
+### Previous Releases
 
-### v2.0.0 (2025-09-15)
-
-- Modular architecture with Hydra CLI
-- Boundary-aware feature computation
-- Multi-architecture dataset support
+**v2.3.0** - Processing modes, YAML configs, intelligent skip system  
+**v2.2.1** - Spatial consistency fixes, enhanced augmentation  
+**v2.0.0** - Modular architecture, boundary-aware features
 
 ---
 
