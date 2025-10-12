@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.4] - 2025-10-12
+
+### Added
+
+- **LAZ Data Quality Tools**: New post-processing tools for enriched LAZ file validation and correction
+  - `scripts/fix_enriched_laz.py`: Automated tool to fix common data quality issues in enriched LAZ files
+    - Detects and reports NDVI calculation errors (all values -1.0 due to missing NIR data)
+    - Identifies extreme eigenvalue outliers (values >10,000 indicating numerical artifacts)
+    - Caps eigenvalues to reasonable limits (default: 100) to prevent ML training issues
+    - Recomputes derived features (anisotropy, planarity, linearity, sphericity, omnivariance, eigenentropy, change_curvature)
+    - Validates results and generates detailed diagnostic reports
+    - Command-line interface with options for custom eigenvalue caps and feature recomputation
+  - Comprehensive diagnostic reports:
+    - `LAZ_ENRICHMENT_ISSUES_REPORT.md`: Detailed technical analysis of data quality issues
+    - `ENRICHMENT_ANALYSIS_SUMMARY.md`: Executive summary with impact assessment
+    - `scripts/README_FIX_ENRICHED_LAZ.md`: Complete user guide with examples
+    - `ENRICHMENT_QUICK_REFERENCE.md`: Quick reference card for common issues
+
+### Fixed
+
+- **Data Quality Issues in Enriched LAZ Files**: Identified and documented three critical issues
+  - **NDVI Calculation Failure**: All NDVI values = -1.0 when NIR data is missing or corrupted
+    - Root cause: NIR channel stored as float32 with near-zero values instead of uint16 [0-65535]
+    - Impact: NDVI feature completely unusable for vegetation detection/classification
+    - Fix: Added validation to detect missing NIR data and skip NDVI computation with warnings
+  - **Extreme Eigenvalue Outliers**: ~0.18% of points with eigenvalue_1 > 100 (max observed: 52,842)
+    - Root cause: Numerical instability in PCA computation on degenerate neighborhoods
+    - Impact: Corrupts all eigenvalue-based features, causes ML training instability
+    - Fix: Added eigenvalue capping at computation time and post-processing correction
+  - **Cascading Derived Feature Corruption**: Features computed from eigenvalues inherit artifacts
+    - Affected: change_curvature (max 24,531 vs expected <1), omnivariance (max 3,742 vs expected <10)
+    - Impact: ~9,000 points with unrealistic feature values, visual artifacts in visualizations
+    - Fix: Recompute all derived features from corrected eigenvalues
+
+### Changed
+
+- **Enrichment Pipeline Robustness**: Enhanced validation and error handling
+  - Added NIR data validation before NDVI computation (checks for zero/near-zero values)
+  - Added warnings when NIR max value < 0.001 indicates missing/corrupted data
+  - Improved error messages to help diagnose data quality issues
+  - Added expected feature value range documentation for validation
+
+### Documentation
+
+- **LAZ Quality Diagnostic Suite**: Complete documentation for data quality analysis
+  - Comprehensive diagnostic report with root cause analysis, percentile distributions, spatial analysis
+  - Quick reference card with Python code snippets for health checks
+  - User guide with batch processing examples and troubleshooting
+  - Expected value ranges table for all geometric features (eigenvalues, derived features)
+
+### Performance
+
+- **Fix Script Performance**: Efficiently processes large point clouds
+  - ~1M points/second analysis and fixing speed
+  - Tested on 21M point file (~4GB): 45 seconds total processing time
+  - Memory efficient: ~6x file size in RAM (includes multiple array copies)
+
 ## [2.4.3] - 2025-10-12
 
 ### Added

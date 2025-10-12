@@ -2,7 +2,7 @@
 # Use this to quickly enrich tiles with RGB, NIR, NDVI, and geometric features
 # without creating training patches
 processor:
-  lod_level: LOD3
+  lod_level: LOD2
   architecture: hybrid
   use_gpu: true
   num_workers: 1 # Sequential processing to avoid memory duplication
@@ -16,7 +16,7 @@ processor:
   pin_memory: true
 
 features:
-  mode: full
+  mode: core
   k_neighbors: 30
   include_extra: true
   use_rgb: true
