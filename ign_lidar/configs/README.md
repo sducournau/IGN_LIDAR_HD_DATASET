@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains Hydra configuration files for the IGN LiDAR HD v2.0 processing pipeline. Configurations are organized by component and can be composed using Hydra's defaults mechanism.
+This directory contains Hydra configuration files for the IGN LiDAR HD processing pipeline. Configurations are organized by component and can be composed using Hydra's defaults mechanism.
 
 ## Directory Structure
 
@@ -328,8 +328,8 @@ rm /path/to/corrupted_tile.laz
 
 ## Related Documentation
 
-- [AUTO_DOWNLOAD_NEIGHBORS.md](../../AUTO_DOWNLOAD_NEIGHBORS.md) - Feature guide
-- [TILE_STITCHING_SUMMARY.md](../../TILE_STITCHING_SUMMARY.md) - Implementation details
+- [Main Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+- [Configuration Reference](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/api/configuration)
 - [Hydra Documentation](https://hydra.cc/) - Configuration framework
 
 ## Configuration Schema
@@ -354,6 +354,11 @@ save_stitching_stats: bool # Save statistics
 
 ## Version History
 
-- **v2.1** (Oct 2025): Added auto-download neighbors feature
+- **v2.4.2** (Oct 2025): Complete GPU acceleration for all advanced features
+- **v2.3.0**: Processing modes and YAML configurations
+- **v2.1**: Auto-download neighbors feature
 - **v2.0**: Enhanced tile stitching with bbox-based detection
-- **v1.0**: Initial stitching implementation
+
+---
+
+*Configuration guide for IGN LiDAR HD v2.4.2*

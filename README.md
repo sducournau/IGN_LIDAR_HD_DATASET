@@ -1,25 +1,6 @@
 <div align="center">
 
-# IGN LiDAR HD## ✨ What's New in v2.4.2+
-
-**Complete Feature Export & Enhanced Progress Tracking:**
-
-- 📊 **All Features Exported**: Fixed critical bug - all 35-45+ computed features now saved to disk
-- 📝 **Feature Metadata**: Added `metadata['feature_names']` and `metadata['num_features']` for tracking
-- 📈 **Enhanced Progress Bars**: Detailed GPU/CPU progress with point counts, chunk info, and processing rates
-- 🎯 **Complete Feature Sets**: LOD2 (12), LOD3 (38), Full (43+) - all computed features now accessible
-- ⚠️ **Breaking Change**: File sizes increase ~3-4x for full mode (complete feature export)
-- 🔄 **Recommendation**: Regenerate datasets created before v2.4.3 for complete features
-
-**v2.4.2 - Complete GPU Acceleration:**
-
-- 🚀 **Full GPU Implementation**: All advanced features in "full" mode now GPU-accelerated
-- ⚡ **5-10x Speedup**: Massive performance boost for large point clouds (>10M points)
-- 🎯 **GPU Eigenvalue Features**: Accelerated eigenvalue decomposition, entropy, omnivariance
-- 🏗️ **GPU Architectural Features**: Edge strength, corner likelihood, overhang detection
-- 📊 **GPU Density Features**: Accelerated density computation and neighborhood analysis
-- 🔄 **Seamless Fallback**: Automatic GPU/CPU switching with zero API changes
-- ✅ **Complete Compatibility**: Same output quality, same interface, better performance Library
+# IGN LiDAR HD Processing Library
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/ign-lidar-hd)](https://pypi.org/project/ign-lidar-hd/)
@@ -55,46 +36,44 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ## ✨ What's New in v2.4.2
 
-**Complete GPU Acceleration for Advanced Features:**
+### Complete GPU Acceleration
 
-- � **Full GPU Implementation**: All advanced features in "full" mode now GPU-accelerated
+- 🚀 **Full GPU Implementation**: All advanced features in "full" mode now GPU-accelerated
 - ⚡ **5-10x Speedup**: Massive performance boost for large point clouds (>10M points)
 - 🎯 **GPU Eigenvalue Features**: Accelerated eigenvalue decomposition, entropy, omnivariance
 - 🏗️ **GPU Architectural Features**: Edge strength, corner likelihood, overhang detection
 - 📊 **GPU Density Features**: Accelerated density computation and neighborhood analysis
-- � **Seamless Fallback**: Automatic GPU/CPU switching with zero API changes
+- 🔄 **Seamless Fallback**: Automatic GPU/CPU switching with zero API changes
 - ✅ **Complete Compatibility**: Same output quality, same interface, better performance
 
-**Key Benefits:**
+### Key Benefits
 
-- 🎯 **ML Model Stability**: No more NaN/Inf values, improved convergence (+15% faster)
+- 🎯 **ML Model Stability**: No more NaN/Inf values, improved convergence
 - ⚡ **Zero Breaking Changes**: Drop-in upgrade from v2.3.x
 - 📊 **Consistent Features**: Same results across CPU/GPU/boundary processing
 - 🚀 **Production Ready**: Enterprise-grade reliability and deterministic behavior
 
-**Previous Highlights (v2.3.x):**
+### Recent Highlights (v2.3.x)
 
-**Input Data Preservation & RGB Bug Fix:**
+**Input Data Preservation & RGB Enhancement:**
 
-- 🎨 **Preserve RGB/NIR/NDVI from Input LAZ**: Automatically detects and preserves RGB, NIR, and NDVI from input files
-- 🐛 **CRITICAL RGB Bug Fix**: Fixed coordinate mismatch in augmented patches - RGB now applied at tile level before extraction
-- ⚡ **3x Faster RGB Processing**: Fetch RGB once per tile instead of per patch
-- 📊 **Patch Metadata**: Added `_patch_center` and `_patch_bounds` for debugging and validation
-- ✅ **Comprehensive Testing**: RGB consistency verified across all augmentation types
+- 🎨 Preserve RGB/NIR/NDVI from input LAZ files automatically
+- 🐛 Fixed critical RGB coordinate mismatch in augmented patches
+- ⚡ 3x faster RGB processing (tile-level fetching)
+- 📊 Added patch metadata for debugging and validation
 
-**v2.3.1 - Memory Optimization & System Compatibility:**
+**Memory Optimization:**
 
-- 🧠 Memory-optimized configurations for 8GB-32GB+ systems
-- 📊 Automatic worker scaling based on memory pressure detection
-- ⚙️ Sequential processing mode for minimal memory footprint
-- 📖 Comprehensive memory optimization guide (`examples/MEMORY_OPTIMIZATION.md`)
-- 🔧 Three configuration profiles: Original (32GB+), Optimized (16-24GB), Sequential (8-16GB)
+- 🧠 Support for 8GB-32GB+ systems with optimized configurations
+- 📊 Automatic worker scaling based on memory pressure
+- ⚙️ Sequential processing mode for minimal footprint
+-  Three configuration profiles for different system specs
 
-**v2.3.0 - Processing Modes & Custom Configurations:**
+**Processing Modes:**
 
-- Clear processing modes: `patches_only`, `both`, `enriched_only`
-- YAML config files in `examples/` directory for common workflows
-- CLI parameter overrides with `--config-file` and `--show-config`
+- Clear modes: `patches_only`, `both`, `enriched_only`
+- YAML configuration files with example templates
+- CLI parameter overrides with `--config-file`
 
 📖 [Full Release History](CHANGELOG.md)
 
@@ -251,8 +230,6 @@ dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 ---
 
----
-
 ## 🎓 Feature Modes (LOD2 vs LOD3 vs Full)
 
 ### LOD2 Mode (12 features) - Fast Training
@@ -279,15 +256,13 @@ dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 **Performance:** ~50s per 1M points (CPU), complete geometric description
 
-**v2.4.2+ Guarantee:** All computed features now saved to disk (previously only 12/43 were exported)
-
 **Output Format:**
 
-- NPZ/HDF5/PyTorch: Full feature matrix with all 43+ features
+- NPZ/HDF5/PyTorch: Full feature matrix with all features
 - LAZ: All features as extra dimensions for GIS tools
 - Metadata: `feature_names` and `num_features` for tracking
 
-📖 See [Feature Modes Documentation](docs/FEATURE_MODES_DOCUMENTATION.md) for complete details.
+📖 See [Feature Modes Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/features/feature-modes) for complete details.
 
 ---
 
@@ -420,7 +395,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {ImagoData},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {2.4.0}
+  version      = {2.4.2}
 }
 ```
 

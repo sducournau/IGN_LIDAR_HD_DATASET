@@ -2,9 +2,7 @@
 
 This directory contains example configuration files for common use cases with IGN LiDAR HD.
 
----
-
-## 🎯 Multi-Scale Training (NEW!)
+## 🎯 Multi-Scale Training
 
 **Train hybrid models on multiple patch sizes for robust LOD3 classification:**
 
@@ -23,7 +21,7 @@ python examples/merge_multiscale_dataset.py --output patches_multiscale
 
 📚 **See [MULTI_SCALE_TRAINING_STRATEGY.md](MULTI_SCALE_TRAINING_STRATEGY.md) for complete guide**
 
-### Available Multi-Scale Configs:
+### Available Multi-Scale Configs
 
 - **`config_lod3_training_50m.yaml`** - 50m patches (24k points) for fine architectural details
 - **`config_lod3_training_100m.yaml`** - 100m patches (32k points) for balanced context
@@ -209,10 +207,10 @@ ign-lidar-hd process \
 
 ## 🔗 See Also
 
-- [Processing Modes Usage Guide](../PROCESSING_MODES_USAGE.md)
-- [Phase 1 Complete Summary](../PHASE1_COMPLETE.md)
-- [Main Documentation](../docs/)
+- [Main Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+- [Feature Modes Guide](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/features/feature-modes)
+- [CLI Reference](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/api/cli)
 
 ---
 
-_Example configs for IGN LiDAR HD v2.3.0_
+*Example configuration files for IGN LiDAR HD v2.4.2*

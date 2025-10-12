@@ -1,8 +1,8 @@
-# Conda Installation Guide for IGN LiDAR HD
+# Conda Installation Guide
 
 This guide provides instructions for installing and packaging IGN LiDAR HD using conda.
 
-## Quick Installation
+## 🚀 Quick Installation
 
 ### Option 1: From Environment File (Recommended)
 
@@ -100,7 +100,7 @@ conda install -c file://$(pwd)/dist/conda ign-lidar-hd
 conda create -n test-env -c file://$(pwd)/dist/conda ign-lidar-hd
 ```
 
-## Testing Installation
+## 🧪 Testing Installation
 
 After installation, test the package:
 
@@ -109,52 +109,34 @@ After installation, test the package:
 python -c "import ign_lidar; print('✓ Package imported successfully')"
 
 # Test CLI commands
-ign-lidar --help
-ign-lidar-qgis --help
+ign-lidar-hd --help
 
-# Run comprehensive test
-python test_installation.py
+# Verify version
+python -c "import ign_lidar; print(f'Version: {ign_lidar.__version__}')"
 ```
 
-## Publishing to Conda-Forge (Future)
-
-To publish to conda-forge, you would need to:
-
-1. Fork the conda-forge/staged-recipes repository
-2. Add your recipe to `recipes/ign-lidar-hd/`
-3. Submit a pull request
-4. Follow the conda-forge review process
-
-## Package Structure
+## 📦 Package Structure
 
 The conda package includes:
 
-- **Main CLI**: `ign-lidar` - Hydra-based processing pipeline
-- **QGIS Converter**: `ign-lidar-qgis` - Convert LAZ files for QGIS compatibility
+- **Main CLI**: `ign-lidar-hd` - Complete processing pipeline with Hydra configuration
 - **Python API**: Full programmatic access to all functionality
+- **Example Configs**: YAML templates in `examples/` directory
 
-## Dependencies
+## 📚 Documentation
 
-### Core Dependencies (conda-forge)
+For complete documentation, visit:
 
-- numpy ≥1.21.0
-- scikit-learn ≥1.0.0
-- tqdm ≥4.60.0
-- click ≥8.0.0
-- pyyaml ≥6.0
-- psutil ≥5.8.0
-- requests ≥2.25.0
-- pillow ≥9.0.0
-- hydra-core ≥1.3.0
-- omegaconf ≥2.3.0
+- [Installation Guide](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/installation/quick-start)
+- [GPU Setup Guide](../GPU_SETUP.md)
+- [Configuration Reference](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/api/configuration)
 
-### PyPI Dependencies
+## 🔗 See Also
 
-- laspy ≥2.3.0
-- lazrs ≥0.5.0
+- [Main README](../README.md)
+- [Example Configurations](../examples/README.md)
+- [Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-### Optional Dependencies
+---
 
-- torch (for neural network datasets)
-- cupy (for GPU acceleration)
-- h5py (for HDF5 output format)
+*Conda installation guide for IGN LiDAR HD v2.4.2*
