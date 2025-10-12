@@ -381,6 +381,11 @@ class GPUFeatureComputer:
         λ1 = eigenvalues[:, 1]
         λ2 = eigenvalues[:, 2]
         
+        # Clamp eigenvalues to non-negative (handle numerical artifacts)
+        λ0 = np.maximum(λ0, 0.0)
+        λ1 = np.maximum(λ1, 0.0)
+        λ2 = np.maximum(λ2, 0.0)
+        
         # Safe division - use λ0 (largest eigenvalue) for normalization
         # This matches the boundary-aware features and standard literature
         λ0_safe = λ0 + 1e-8
@@ -389,14 +394,15 @@ class GPUFeatureComputer:
         # Compute features using λ0 normalization (consistent with boundary features)
         # Formula: Weinmann et al. - normalized by largest eigenvalue λ0
         # Range: linearity [0, 1], planarity [0, 1], sphericity [0, 1]
-        linearity = ((λ0 - λ1) / λ0_safe).astype(np.float32)
-        planarity = ((λ1 - λ2) / λ0_safe).astype(np.float32)
-        sphericity = (λ2 / λ0_safe).astype(np.float32)
-        anisotropy = ((λ0 - λ2) / λ0_safe).astype(np.float32)
-        roughness = (λ2 / sum_λ).astype(np.float32)  # Keep sum normalization for roughness
+        # Explicitly clamp to [0, 1] to handle edge cases
+        linearity = np.clip((λ0 - λ1) / λ0_safe, 0.0, 1.0).astype(np.float32)
+        planarity = np.clip((λ1 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
+        sphericity = np.clip(λ2 / λ0_safe, 0.0, 1.0).astype(np.float32)
+        anisotropy = np.clip((λ0 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
+        roughness = np.clip(λ2 / sum_λ, 0.0, 1.0).astype(np.float32)  # Keep sum normalization for roughness
         
         mean_distances = np.mean(distances[:, 1:], axis=1)
-        density = (1.0 / (mean_distances + 1e-8)).astype(np.float32)
+        density = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0).astype(np.float32)
         
         # === VALIDATE AND FILTER DEGENERATE FEATURES ===
         # Points with insufficient/degenerate eigenvalues

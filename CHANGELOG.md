@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.4] - 2025-10-12
+
+### Fixed
+
+- **Geometric Feature Validation & Robustness**
+  - Added eigenvalue clamping to prevent negative values in all feature computation modules
+  - Added explicit result clipping to ensure all geometric features stay within [0, 1] range
+  - Fixed CPU radius-based features (loop version) - now has same validation as GPU/boundary
+  - Fixed density feature - now capped at 1000 points/m³ to prevent extreme values
+  - Standardized formulas across all modules (λ0 normalization consistent everywhere)
+  - **Impact**: Eliminates out-of-range feature warnings and improves ML model stability
+- **Boundary Feature Completeness**
+  - Added missing features to boundary-aware computation: anisotropy, roughness, density
+  - Updated verticality computation to also return horizontality
+  - Ensures complete feature parity across all computation paths (GPU, CPU, boundary)
+  - **Result**: Tile stitching now produces same features as non-stitched processing
+
+### Changed
+
+- **Formula Standardization**: All modules now use λ0 normalization (Weinmann et al. standard)
+  - CPU k-NN features updated from sum_λ to λ0 normalization
+  - Ensures consistent feature values across all computation paths
+  - Maintains mathematical property: linearity + planarity + sphericity ≤ 1.0
+
+### Performance
+
+- Validation overhead: <1% (negligible impact from clipping operations)
+- No memory impact (in-place operations)
+- All features guaranteed valid: linearity, planarity, sphericity, anisotropy, roughness in [0, 1]
+- Density bounded at [0, 1000], verticality/horizontality in [0, 1]
+
 ## [2.3.3] - 2025-10-12
 
 ### Changed

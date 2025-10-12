@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 2.3.3** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 2.3.4** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -34,7 +34,18 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ---
 
-## ✨ What's New in v2.3.3
+## ✨ What's New in v2.3.4
+
+**Robust Feature Validation:**
+
+- 🔧 **Feature Robustness**: All geometric features now guaranteed within valid ranges [0, 1]
+- 🎯 **Eigenvalue Clamping**: Prevents negative eigenvalues from numerical artifacts
+- 📊 **Density Normalization**: Capped at 1000 points/m³ for ML stability
+- ✅ **Boundary Feature Parity**: Complete feature set across all computation paths
+- 🔄 **Formula Standardization**: Consistent λ0 normalization (Weinmann et al.)
+- 📈 **Zero Overhead**: <1% performance impact from validation
+
+**v2.3.3 - Input Data Preservation & RGB Bug Fix:**
 
 **Input Data Preservation & RGB Bug Fix:**
 

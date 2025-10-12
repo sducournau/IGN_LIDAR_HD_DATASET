@@ -69,5 +69,5 @@ output:
   save_metadata: true
   compression: null
 
-input_dir: /mnt/c/Users/Simon/ign/enriched_tiles
-output_dir: /mnt/c/Users/Simon/ign/patches_50m
+input_dir: /mnt/c/Users/Simon/ign/versailles/input
+output_dir: /mnt/c/Users/Simon/ign/versailles/output

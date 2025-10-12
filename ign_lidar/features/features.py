@@ -582,20 +582,26 @@ def extract_geometric_features(points: np.ndarray, normals: np.ndarray,
         
         λ0, λ1, λ2 = eigenvals[0], eigenvals[1], eigenvals[2]
         
+        # Clamp eigenvalues to non-negative (handle numerical artifacts)
+        λ0 = max(λ0, 0.0)
+        λ1 = max(λ1, 0.0)
+        λ2 = max(λ2, 0.0)
+        
         # Avoid division by zero
         sum_λ = λ0 + λ1 + λ2 + 1e-8
         λ0_safe = λ0 + 1e-8
         
         # Compute features using λ0 normalization (consistent with GPU/boundary)
         # Formula: Weinmann et al. - normalized by largest eigenvalue λ0
-        linearity[i] = (λ0 - λ1) / λ0_safe
-        planarity[i] = (λ1 - λ2) / λ0_safe
-        sphericity[i] = λ2 / λ0_safe
-        anisotropy[i] = (λ0 - λ2) / λ0_safe
-        roughness[i] = λ2 / sum_λ  # Keep sum normalization for roughness
+        # Explicitly clamp to [0, 1] to handle edge cases
+        linearity[i] = np.clip((λ0 - λ1) / λ0_safe, 0.0, 1.0)
+        planarity[i] = np.clip((λ1 - λ2) / λ0_safe, 0.0, 1.0)
+        sphericity[i] = np.clip(λ2 / λ0_safe, 0.0, 1.0)
+        anisotropy[i] = np.clip((λ0 - λ2) / λ0_safe, 0.0, 1.0)
+        roughness[i] = np.clip(λ2 / sum_λ, 0.0, 1.0)  # Keep sum normalization for roughness
         
-        # Density (number of neighbors / volume)
-        density[i] = len(neighbors_i) / (4/3 * np.pi * radius**3 + 1e-8)
+        # Density (number of neighbors / volume) - capped at 1000 points/m³
+        density[i] = np.clip(len(neighbors_i) / (4/3 * np.pi * radius**3 + 1e-8), 0.0, 1000.0)
     
     # === FACULTATIVE FEATURES: WALL AND ROOF SCORES ===
     # Wall score: High planarity + Vertical surface (|normal_z| close to 0)
@@ -1015,6 +1021,9 @@ def compute_all_features_optimized(
     # Sort eigenvalues: λ0 >= λ1 >= λ2
     eigenvalues_sorted = np.sort(eigenvalues, axis=1)[:, ::-1]
     
+    # Clamp eigenvalues to non-negative (handle numerical artifacts)
+    eigenvalues_sorted = np.maximum(eigenvalues_sorted, 0.0)
+    
     λ0 = eigenvalues_sorted[:, 0]
     λ1 = eigenvalues_sorted[:, 1]
     λ2 = eigenvalues_sorted[:, 2]
@@ -1024,15 +1033,17 @@ def compute_all_features_optimized(
     sum_λ = λ0 + λ1 + λ2 + 1e-8
     
     # Calculer toutes les features géométriques (formules standards)
-    # CORRECT: Normalized by sum_λ (Weinmann et al., Demantké et al.)
-    linearity = ((λ0 - λ1) / sum_λ).astype(np.float32)
-    planarity = ((λ1 - λ2) / sum_λ).astype(np.float32)
-    sphericity = (λ2 / sum_λ).astype(np.float32)
-    anisotropy = ((λ0 - λ2) / λ0_safe).astype(np.float32)
-    roughness = (λ2 / sum_λ).astype(np.float32)
+    # Updated to use λ0 normalization (consistent with GPU/boundary)
+    # Formula: Weinmann et al. - normalized by largest eigenvalue λ0
+    # Explicitly clamp to [0, 1] to handle edge cases
+    linearity = np.clip((λ0 - λ1) / λ0_safe, 0.0, 1.0).astype(np.float32)
+    planarity = np.clip((λ1 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
+    sphericity = np.clip(λ2 / λ0_safe, 0.0, 1.0).astype(np.float32)
+    anisotropy = np.clip((λ0 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
+    roughness = np.clip(λ2 / sum_λ, 0.0, 1.0).astype(np.float32)  # Keep sum normalization for roughness
     
     mean_distances = np.mean(distances[:, 1:], axis=1)
-    density = (1.0 / (mean_distances + 1e-8)).astype(np.float32)
+    density = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0).astype(np.float32)
     
     # === VALIDATE AND FILTER DEGENERATE FEATURES ===
     # Points with insufficient/degenerate eigenvalues produce invalid features

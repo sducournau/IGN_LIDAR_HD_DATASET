@@ -97,11 +97,15 @@ class BoundaryAwareFeatureComputer:
         Returns:
             Dictionary with computed features:
                 - 'normals': (N, 3) Normal vectors
-                - 'curvature': (N,) Curvature values
-                - 'planarity': (N,) Planarity values
-                - 'linearity': (N,) Linearity values
-                - 'sphericity': (N,) Sphericity values
-                - 'verticality': (N,) Verticality values
+                - 'curvature': (N,) Curvature values [0, 1]
+                - 'planarity': (N,) Planarity values [0, 1]
+                - 'linearity': (N,) Linearity values [0, 1]
+                - 'sphericity': (N,) Sphericity values [0, 1]
+                - 'anisotropy': (N,) Anisotropy values [0, 1]
+                - 'roughness': (N,) Roughness values [0, 1]
+                - 'density': (N,) Density values [0, 1000]
+                - 'verticality': (N,) Verticality values [0, 1]
+                - 'horizontality': (N,) Horizontality values [0, 1]
                 - 'boundary_mask': (N,) Boolean mask (True = near boundary)
                 - 'num_boundary_points': int
         
@@ -185,9 +189,15 @@ class BoundaryAwareFeatureComputer:
                 )
                 results.update(planarity_features)
             
+            # NEW: Compute density
+            logger.debug("Computing density...")
+            results['density'] = self._compute_density(distances)
+            
             if self.compute_verticality:
-                logger.debug("Computing verticality...")
-                results['verticality'] = self._compute_verticality(normals)
+                logger.debug("Computing verticality and horizontality...")
+                verticality, horizontality = self._compute_verticality_and_horizontality(normals)
+                results['verticality'] = verticality
+                results['horizontality'] = horizontality
         
         # Validate features for artifacts (only if we have boundary points)
         if num_boundary > 0:
@@ -301,35 +311,53 @@ class BoundaryAwareFeatureComputer:
         Returns:
             (N,) Curvature values [0, 1]
         """
-        lambda_sum = eigenvalues.sum(axis=1)
+        # Ensure eigenvalues are non-negative (covariance matrices should be PSD)
+        eigenvalues_clean = np.maximum(eigenvalues, 0.0)
+        lambda_sum = eigenvalues_clean.sum(axis=1)
+        
         # Avoid division by zero
         curvature = np.where(
             lambda_sum > 1e-10,
-            eigenvalues[:, 2] / lambda_sum,
+            eigenvalues_clean[:, 2] / lambda_sum,
             0.0
         )
-        return curvature
+        
+        # Clamp to valid range
+        curvature = np.clip(curvature, 0.0, 1.0)
+        
+        return curvature.astype(np.float32)
     
     def _compute_planarity_features(
         self,
         eigenvalues: np.ndarray
     ) -> Dict[str, np.ndarray]:
         """
-        Compute planarity, linearity, and sphericity features.
+        Compute geometric features from eigenvalues.
         
-        Planarity: (λ2 - λ3) / λ1  → 1 for planes, 0 otherwise
-        Linearity: (λ1 - λ2) / λ1  → 1 for lines, 0 otherwise
-        Sphericity: λ3 / λ1        → 1 for spheres, 0 otherwise
+        Features (all normalized by λ1, largest eigenvalue):
+        - Planarity:   (λ2 - λ3) / λ1  → 1 for planes, 0 otherwise
+        - Linearity:   (λ1 - λ2) / λ1  → 1 for lines, 0 otherwise
+        - Sphericity:  λ3 / λ1         → 1 for spheres, 0 otherwise
+        - Anisotropy:  (λ1 - λ3) / λ1  → general directionality
+        - Roughness:   λ3 / Σλ         → surface roughness
+        
+        All features are clamped to [0, 1] range.
         
         Args:
             eigenvalues: (N, 3) Eigenvalues (λ1 ≥ λ2 ≥ λ3)
         
         Returns:
-            Dictionary with planarity, linearity, sphericity
+            Dictionary with planarity, linearity, sphericity, anisotropy, roughness
         """
         lambda1 = eigenvalues[:, 0]
         lambda2 = eigenvalues[:, 1]
         lambda3 = eigenvalues[:, 2]
+        
+        # Ensure eigenvalues are non-negative (covariance matrices should be PSD)
+        # Clamp negative values to zero (numerical artifacts)
+        lambda1 = np.maximum(lambda1, 0.0)
+        lambda2 = np.maximum(lambda2, 0.0)
+        lambda3 = np.maximum(lambda3, 0.0)
         
         # Avoid division by zero
         eps = 1e-10
@@ -352,27 +380,79 @@ class BoundaryAwareFeatureComputer:
             0.0
         )
         
+        # Clamp all features to valid range [0, 1]
+        # This handles rare numerical edge cases where λ3 > λ1 due to floating point errors
+        planarity = np.clip(planarity, 0.0, 1.0)
+        linearity = np.clip(linearity, 0.0, 1.0)
+        sphericity = np.clip(sphericity, 0.0, 1.0)
+        
+        # NEW: Add anisotropy feature (λ1 - λ3) / λ1
+        anisotropy = np.where(
+            lambda1 > eps,
+            (lambda1 - lambda3) / lambda1,
+            0.0
+        )
+        anisotropy = np.clip(anisotropy, 0.0, 1.0)
+        
+        # NEW: Add roughness feature λ3 / (λ1 + λ2 + λ3)
+        sum_lambda = lambda1 + lambda2 + lambda3 + eps
+        roughness = np.clip(lambda3 / sum_lambda, 0.0, 1.0)
+        
         return {
-            'planarity': planarity,
-            'linearity': linearity,
-            'sphericity': sphericity
+            'planarity': planarity.astype(np.float32),
+            'linearity': linearity.astype(np.float32),
+            'sphericity': sphericity.astype(np.float32),
+            'anisotropy': anisotropy.astype(np.float32),  # NEW
+            'roughness': roughness.astype(np.float32),    # NEW
         }
     
-    def _compute_verticality(self, normals: np.ndarray) -> np.ndarray:
+    def _compute_density(
+        self,
+        distances: np.ndarray
+    ) -> np.ndarray:
         """
-        Compute verticality from normal vectors.
+        Compute local point density from neighbor distances.
         
-        Verticality = 1 - |nz|  where nz is Z component of normal
-        → 1 for vertical surfaces (walls), 0 for horizontal
+        Density = 1 / mean_distance (inverse of average distance to neighbors)
+        Capped at 1000 to avoid extreme values in dense clusters.
+        
+        Args:
+            distances: (N, k) Distances to k nearest neighbors
+        
+        Returns:
+            (N,) Density values [0, 1000]
+        """
+        # Use distances to all neighbors except self (first column)
+        mean_distances = np.mean(distances[:, 1:], axis=1)
+        
+        # Density = inverse of distance (with safety epsilon)
+        density = 1.0 / (mean_distances + 1e-8)
+        
+        # Cap at reasonable maximum to avoid extreme values
+        density = np.clip(density, 0.0, 1000.0)
+        
+        return density.astype(np.float32)
+    
+    def _compute_verticality_and_horizontality(
+        self, 
+        normals: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Compute verticality and horizontality from normal vectors.
+        
+        Verticality   = 1 - |nz|  → 1 for vertical surfaces (walls), 0 for horizontal
+        Horizontality = |nz|      → 1 for horizontal surfaces (ground/roof), 0 for vertical
         
         Args:
             normals: (N, 3) Normal vectors
         
         Returns:
-            (N,) Verticality values [0, 1]
+            Tuple of (verticality, horizontality) arrays, both [0, 1]
         """
-        verticality = 1.0 - np.abs(normals[:, 2])
-        return verticality
+        abs_nz = np.abs(normals[:, 2])
+        verticality = 1.0 - abs_nz
+        horizontality = abs_nz
+        return verticality.astype(np.float32), horizontality.astype(np.float32)
     
     def _validate_features(
         self,
