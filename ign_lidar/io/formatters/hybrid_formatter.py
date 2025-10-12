@@ -95,13 +95,14 @@ class HybridFormatter(BaseFormatter):
             - metadata: comprehensive metadata
         """
         points = patch['points']
-        features = self._build_feature_matrix(
+        features, feature_names = self._build_feature_matrix(
             patch,
             use_rgb=self.use_rgb,
             use_infrared=self.use_infrared,
             use_geometric=self.use_geometric,
             use_radiometric=self.use_radiometric,
-            use_contextual=self.use_contextual
+            use_contextual=self.use_contextual,
+            return_feature_names=True
         )
         
         # Sample points if needed
@@ -128,6 +129,10 @@ class HybridFormatter(BaseFormatter):
             features_norm = features
             
         # Build comprehensive output
+        metadata = self._extract_metadata(patch)
+        metadata['feature_names'] = feature_names  # Add feature names to metadata
+        metadata['num_features'] = len(feature_names)
+        
         output = {
             # Core data (required)
             'points': points_norm,
@@ -135,7 +140,7 @@ class HybridFormatter(BaseFormatter):
             'labels': labels if labels is not None else np.zeros(len(points), dtype=np.int32),
             
             # Metadata
-            'metadata': self._extract_metadata(patch),
+            'metadata': metadata,
         }
         
         # Add individual features for flexible access

@@ -207,7 +207,7 @@ class GPUChunkedFeatureComputer(BaseFeatureComputer):
         computer = Impl(
             chunk_size=self.gpu_batch_size,
             use_gpu=True,
-            show_progress=False,
+            show_progress=True,  # Enable progress bars for GPU chunked processing
             auto_optimize=True
         )
         

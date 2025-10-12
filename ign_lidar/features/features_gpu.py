@@ -8,6 +8,7 @@ from typing import Dict, Tuple, Any, Union
 import numpy as np
 import warnings
 from pathlib import Path
+from tqdm import tqdm
 
 # Tenter import GPU
 GPU_AVAILABLE = False
@@ -1040,14 +1041,27 @@ class GPUFeatureComputer:
         
         # Calculate number of chunks
         num_chunks = (N + chunk_size - 1) // chunk_size
+        chunk_size_mb = (chunk_size * 12) / (1024 * 1024)  # Approx memory per chunk
         
         logger.info(
             f"Processing {N:,} points in {num_chunks} chunks "
             f"(GPU without cuML, per-chunk computation)"
         )
         
+        # Progress bar for chunk processing
+        chunk_iterator = range(num_chunks)
+        bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
+                   '[{elapsed}<{remaining}, {rate_fmt}]')
+        chunk_iterator = tqdm(
+            chunk_iterator,
+            desc=f"  🔧 GPU Features [sklearn] ({N:,} pts, {num_chunks} chunks @ {chunk_size_mb:.1f}MB)",
+            unit="chunk",
+            total=num_chunks,
+            bar_format=bar_fmt
+        )
+        
         # Process each chunk
-        for chunk_idx in range(num_chunks):
+        for chunk_idx in chunk_iterator:
             start_idx = chunk_idx * chunk_size
             end_idx = min((chunk_idx + 1) * chunk_size, N)
             chunk_points = end_idx - start_idx
@@ -1065,12 +1079,6 @@ class GPUFeatureComputer:
             local_start = start_idx - tree_start
             local_end = local_start + chunk_points
             query_points = chunk_data[local_start:local_end]
-            
-            logger.info(
-                f"  Chunk {chunk_idx + 1}/{num_chunks}: "
-                f"Processing {chunk_points:,} points "
-                f"(tree size: {len(chunk_data):,})"
-            )
             
             # Build local KDTree for this chunk
             tree = KDTree(chunk_data, metric='euclidean', leaf_size=30)
@@ -1166,8 +1174,11 @@ class GPUFeatureComputer:
                  chunk_sphericity, chunk_anisotropy, chunk_roughness,
                  chunk_density, chunk_verticality, chunk_horizontality)
         
+        # Log completion statistics
+        total_features = len(geo_features) + 3  # +3 for normals, curvature, height
         logger.info(
-            "Per-chunk feature computation complete (GPU without cuML)"
+            f"✓ GPU features computed successfully: "
+            f"{total_features} feature types, {N:,} points, {num_chunks} chunks processed"
         )
         
         return normals, curvature, height, geo_features

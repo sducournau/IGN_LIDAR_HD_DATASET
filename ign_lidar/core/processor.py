@@ -2524,42 +2524,46 @@ class LiDARProcessor:
                         
                         logger.debug(f"  ✓ Added core features: normals, curvature, height")
                         
-                        # Add geometric features if computed
-                        if geo_features is not None:
-                            if isinstance(geo_features, dict):
-                                # Dictionary format (from GPU/boundary-aware processing)
-                                for feature_name, feature_values in geo_features.items():
-                                    # Validate size
-                                    if len(feature_values) != expected_size:
-                                        logger.warning(
-                                            f"  ⚠️  Skipping feature {feature_name}: "
-                                            f"size mismatch ({len(feature_values)} != {expected_size})"
-                                        )
-                                        continue
-                                    
-                                    new_las.add_extra_dim(laspy.ExtraBytesParams(
-                                        name=feature_name, type=np.float32
-                                    ))
-                                    setattr(new_las, feature_name, feature_values.astype(np.float32))
-                                logger.debug(f"  ✓ Added {len(geo_features)} geometric features (dict)")
-                            else:
-                                # Array format (from CPU processing)
-                                feature_names = ['planarity', 'linearity', 'sphericity', 'verticality']
-                                for i, feature_name in enumerate(feature_names[:geo_features.shape[1]]):
-                                    # Validate size
-                                    if len(geo_features[:, i]) != expected_size:
-                                        logger.warning(
-                                            f"  ⚠️  Skipping feature {feature_name}: size mismatch"
-                                        )
-                                        continue
-                                    
-                                    new_las.add_extra_dim(laspy.ExtraBytesParams(
-                                        name=feature_name, type=np.float32
-                                    ))
-                                    setattr(new_las, feature_name, geo_features[:, i].astype(np.float32))
-                                logger.debug(f"  ✓ Added {geo_features.shape[1]} geometric features (array)")
+                        # Add ALL other features from feature_dict
+                        # Skip the ones already handled: 'normals', 'curvature', 'height', 'geo_features'
+                        # The feature computer already merged geo_features into the main dict
+                        skip_keys = {'normals', 'curvature', 'height', 'geo_features', 'num_boundary_points'}
+                        added_features = []
+                        
+                        for feature_name, feature_values in feature_dict.items():
+                            if feature_name in skip_keys:
+                                continue
+                            
+                            # Skip if not a numpy array (some metadata might be in dict)
+                            if not isinstance(feature_values, np.ndarray):
+                                continue
+                            
+                            # Skip if wrong dimensions (should be 1D array)
+                            if feature_values.ndim != 1:
+                                continue
+                            
+                            # Validate size
+                            if len(feature_values) != expected_size:
+                                logger.warning(
+                                    f"  ⚠️  Skipping feature {feature_name}: "
+                                    f"size mismatch ({len(feature_values)} != {expected_size})"
+                                )
+                                continue
+                            
+                            try:
+                                new_las.add_extra_dim(laspy.ExtraBytesParams(
+                                    name=feature_name, type=np.float32
+                                ))
+                                setattr(new_las, feature_name, feature_values.astype(np.float32))
+                                added_features.append(feature_name)
+                            except Exception as e:
+                                logger.warning(f"  ⚠️  Failed to add feature {feature_name}: {e}")
+                        
+                        if added_features:
+                            logger.debug(f"  ✓ Added {len(added_features)} additional features from feature_dict")
+                            logger.debug(f"     Features: {', '.join(added_features)}")
                         else:
-                            logger.debug(f"  ⚠️  No geometric features (geo_features is None)")
+                            logger.debug(f"  ⚠️  No additional features found in feature_dict")
                         
                         # Add NIR if available
                         if nir is not None:
@@ -2606,23 +2610,49 @@ class LiDARProcessor:
                             else:
                                 logger.debug(f"  ✓ Verified: {len(verify_extra_dims)} extra dimensions in written file")
                         
-                        # Log what was saved
-                        features_saved = ['normals', 'curvature', 'height']
-                        if geo_features is not None:
-                            if isinstance(geo_features, dict):
-                                features_saved.extend(geo_features.keys())
-                            else:
-                                features_saved.extend(['planarity', 'linearity', 'sphericity', 'verticality'])
+                        # Log what was saved - count all extra dimensions in the file
+                        extra_dims_list = list(new_las.point_format.extra_dimension_names)
+                        
+                        # Build a summary of feature categories
+                        feature_categories = []
+                        if any('normal' in f for f in extra_dims_list):
+                            feature_categories.append('normals')
+                        if 'curvature' in extra_dims_list:
+                            feature_categories.append('curvature')
+                        if 'height' in extra_dims_list:
+                            feature_categories.append('height')
+                        
+                        # Check for specific feature groups
+                        shape_descriptors = {'planarity', 'linearity', 'sphericity', 'roughness', 'anisotropy', 'omnivariance'}
+                        if any(f in extra_dims_list for f in shape_descriptors):
+                            feature_categories.append('shape_descriptors')
+                        
+                        eigenvalue_features = {'eigenvalue_1', 'eigenvalue_2', 'eigenvalue_3', 'sum_eigenvalues', 'eigenentropy'}
+                        if any(f in extra_dims_list for f in eigenvalue_features):
+                            feature_categories.append('eigenvalues')
+                        
+                        building_features = {'verticality', 'wall_score', 'roof_score'}
+                        if any(f in extra_dims_list for f in building_features):
+                            feature_categories.append('building_features')
+                        
+                        density_features = {'density', 'num_points_2m', 'neighborhood_extent', 'height_extent_ratio'}
+                        if any(f in extra_dims_list for f in density_features):
+                            feature_categories.append('density')
+                        
+                        arch_features = {'edge_strength', 'corner_likelihood', 'overhang_indicator', 'surface_roughness'}
+                        if any(f in extra_dims_list for f in arch_features):
+                            feature_categories.append('architectural')
+                        
                         if rgb is not None:
-                            features_saved.append('RGB')
-                        if nir is not None:
-                            features_saved.append('NIR')
-                        if ndvi is not None:
-                            features_saved.append('NDVI')
+                            feature_categories.append('RGB')
+                        if 'nir' in extra_dims_list:
+                            feature_categories.append('NIR')
+                        if 'ndvi' in extra_dims_list:
+                            feature_categories.append('NDVI')
                         
                         logger.info(
                             f"  ✓ Enriched LAZ saved: {enriched_path.name} "
-                            f"({len(features_saved)} feature groups: {', '.join(features_saved)})"
+                            f"({len(extra_dims_list)} features: {', '.join(feature_categories)})"
                         )
                     except Exception as e:
                         logger.error(f"  ❌ Failed to save enriched LAZ: {e}")

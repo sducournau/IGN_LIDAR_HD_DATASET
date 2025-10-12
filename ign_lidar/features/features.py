@@ -28,6 +28,7 @@ Removed redundant features:
 from typing import Dict, Tuple
 import numpy as np
 from sklearn.neighbors import KDTree
+from tqdm import tqdm
 import logging
 
 logger = logging.getLogger(__name__)
@@ -930,6 +931,7 @@ def _compute_all_features_chunked(
     """
     n_points = len(points)
     n_chunks = (n_points + chunk_size - 1) // chunk_size
+    chunk_size_mb = (chunk_size * 12) / (1024 * 1024)  # Approx memory per chunk
     
     print(f"Processing {n_points:,} points in {n_chunks} chunks of ~{chunk_size:,} points each")
     
@@ -985,16 +987,22 @@ def _compute_all_features_chunked(
             'local_roughness': np.zeros(n_points, dtype=np.float32),
         })
     
-    # Process chunks
-    for i in range(n_chunks):
+    # Process chunks with progress bar
+    bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
+               '[{elapsed}<{remaining}, {rate_fmt}]')
+    chunk_iterator = tqdm(
+        range(n_chunks),
+        desc=f"  💻 CPU Features ({n_points:,} pts, {n_chunks} chunks @ {chunk_size_mb:.1f}MB)",
+        unit="chunk",
+        total=n_chunks,
+        bar_format=bar_fmt
+    )
+    
+    for i in chunk_iterator:
         start_idx = i * chunk_size
         end_idx = min((i + 1) * chunk_size, n_points)
         chunk_points = points[start_idx:end_idx]
         chunk_len = end_idx - start_idx
-        
-        if (i + 1) % 5 == 0 or i == n_chunks - 1:
-            print(f"  Chunk {i+1}/{n_chunks} "
-                  f"({start_idx:,}-{end_idx:,})...")
         
         # Query neighbors for this chunk
         if radius > 0:
@@ -1179,7 +1187,12 @@ def _compute_all_features_chunked(
         horizontality_chunk = np.abs(chunk_normals_slice[:, 2]).astype(np.float32)
         geo_features['horizontality'][start_idx:end_idx] = horizontality_chunk
     
-    print(f"✓ Chunked processing complete")
+    # Log completion statistics
+    total_features = len(geo_features) + 3  # +3 for normals, curvature, height
+    print(
+        f"✓ CPU features computed successfully: "
+        f"{total_features} feature types, {n_points:,} points, {n_chunks} chunks processed"
+    )
     return normals, curvature, height, geo_features
 
 
@@ -1759,6 +1772,35 @@ def compute_features_by_mode(
         for feat_name, feat_values in height_feats.items():
             if feat_name in feature_set:
                 geo_features[feat_name] = feat_values
+    
+    # Coordinates (xyz)
+    if 'xyz' in feature_set:
+        # Store XYZ as separate features (will be expanded later)
+        geo_features['xyz'] = points.astype(np.float32)
+    
+    # Normal components
+    if 'normal_x' in feature_set:
+        geo_features['normal_x'] = normals[:, 0].astype(np.float32)
+    if 'normal_y' in feature_set:
+        geo_features['normal_y'] = normals[:, 1].astype(np.float32)
+    if 'normal_z' in feature_set:
+        geo_features['normal_z'] = normals[:, 2].astype(np.float32)
+    
+    # Curvature (if requested but not already in geo_features)
+    if 'curvature' in feature_set and 'curvature' not in geo_features:
+        geo_features['curvature'] = curvature
+    
+    # Spectral features (RGB, NIR, NDVI)
+    # Note: These require color data to be passed in, which is typically done
+    # in the higher-level processing pipeline. For now, we'll log a warning
+    # if they're requested but not available.
+    spectral_features = {'red', 'green', 'blue', 'nir', 'ndvi'}
+    requested_spectral = spectral_features & feature_set
+    if requested_spectral:
+        logger.warning(
+            f"⚠️  Spectral features requested ({requested_spectral}) but not available in compute_features_by_mode. "
+            f"These should be added from LAZ color data in the processing pipeline."
+        )
     
     logger.info(f"✓ Computed {len(geo_features)} features for mode '{mode}'")
     

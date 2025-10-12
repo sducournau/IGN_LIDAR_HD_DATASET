@@ -251,10 +251,10 @@ class GPUChunkedFeatureComputer:
             chunk_iterator = range(num_chunks)
             if self.show_progress:
                 bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
-                           '[{elapsed}<{remaining}]')
+                           '[{elapsed}<{remaining}, {rate_fmt}]')
                 chunk_iterator = tqdm(
                     chunk_iterator,
-                    desc="  GPU Normals",
+                    desc=f"  🎯 GPU Normals [cuML] ({N:,} pts)",
                     unit="chunk",
                     total=num_chunks,
                     bar_format=bar_fmt
@@ -375,10 +375,10 @@ class GPUChunkedFeatureComputer:
         chunk_iterator = range(num_chunks)
         if self.show_progress:
             bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
-                       '[{elapsed}<{remaining}]')
+                       '[{elapsed}<{remaining}, {rate_fmt}]')
             chunk_iterator = tqdm(
                 chunk_iterator,
-                desc="  GPU Normals",
+                desc=f"  🎯 GPU Normals ({N:,} pts)",
                 unit="chunk",
                 total=num_chunks,
                 bar_format=bar_fmt
@@ -717,10 +717,10 @@ class GPUChunkedFeatureComputer:
             chunk_iterator = range(num_chunks)
             if self.show_progress:
                 bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
-                           '[{elapsed}<{remaining}]')
+                           '[{elapsed}<{remaining}, {rate_fmt}]')
                 chunk_iterator = tqdm(
                     chunk_iterator,
-                    desc="  GPU Curvature",
+                    desc=f"  🎯 GPU Curvature ({N:,} pts)",
                     unit="chunk",
                     total=num_chunks,
                     bar_format=bar_fmt
@@ -815,10 +815,10 @@ class GPUChunkedFeatureComputer:
         chunk_iterator = range(num_chunks)
         if self.show_progress:
             bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
-                       '[{elapsed}<{remaining}]')
+                       '[{elapsed}<{remaining}, {rate_fmt}]')
             chunk_iterator = tqdm(
                 chunk_iterator,
-                desc="  GPU Curvature",
+                desc=f"  🎯 GPU Curvature ({N:,} pts)",
                 unit="chunk",
                 total=num_chunks,
                 bar_format=bar_fmt
@@ -1233,9 +1233,12 @@ class GPUChunkedFeatureComputer:
             geo_features: dict with geometric features
         """
         N = len(points)
+        num_chunks = (N + self.chunk_size - 1) // self.chunk_size
+        chunk_size_mb = (self.chunk_size * 12) / (1024 * 1024)
         gpu_status = "GPU-accelerated" if (self.use_gpu and cp is not None) else "CPU"
         logger.info(
-            f"Computing all features with chunking ({gpu_status}): {N:,} points"
+            f"Computing all features with chunking ({gpu_status}): "
+            f"{N:,} points → {num_chunks} chunks @ {chunk_size_mb:.1f}MB each"
         )
         
         # Initialize output arrays
@@ -1263,14 +1266,15 @@ class GPUChunkedFeatureComputer:
         overlap_size = int(self.chunk_size * overlap_ratio)
         num_chunks = (N + self.chunk_size - 1) // self.chunk_size
         
-        # Progress bar
+        # Progress bar with detailed context
         chunk_iterator = range(num_chunks)
         if self.show_progress:
+            chunk_size_mb = (self.chunk_size * 12) / (1024 * 1024)  # Approx memory per chunk
             bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
-                       '[{elapsed}<{remaining}]')
+                       '[{elapsed}<{remaining}, {rate_fmt}]')
             chunk_iterator = tqdm(
                 chunk_iterator,
-                desc="  All Features",
+                desc=f"  🚀 GPU Features ({N:,} pts, {num_chunks} chunks @ {chunk_size_mb:.1f}MB)",
                 unit="chunk",
                 total=num_chunks,
                 bar_format=bar_fmt
@@ -1430,7 +1434,12 @@ class GPUChunkedFeatureComputer:
             del eigenvalue_feats, architectural_feats, density_feats
             self._free_gpu_memory()
         
-        logger.info("✓ All features computed per-chunk successfully")
+        # Log completion statistics
+        total_features = len(geo_features) + 3  # +3 for normals, curvature, height
+        logger.info(
+            f"✓ All features computed successfully: "
+            f"{total_features} feature types, {N:,} points, {num_chunks} chunks processed"
+        )
         
         return normals, curvature, height, geo_features
 

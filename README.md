@@ -1,6 +1,25 @@
 <div align="center">
 
-# IGN LiDAR HD Processing Library
+# IGN LiDAR HD## ✨ What's New in v2.4.2+
+
+**Complete Feature Export & Enhanced Progress Tracking:**
+
+- 📊 **All Features Exported**: Fixed critical bug - all 35-45+ computed features now saved to disk
+- 📝 **Feature Metadata**: Added `metadata['feature_names']` and `metadata['num_features']` for tracking
+- 📈 **Enhanced Progress Bars**: Detailed GPU/CPU progress with point counts, chunk info, and processing rates
+- 🎯 **Complete Feature Sets**: LOD2 (12), LOD3 (38), Full (43+) - all computed features now accessible
+- ⚠️ **Breaking Change**: File sizes increase ~3-4x for full mode (complete feature export)
+- 🔄 **Recommendation**: Regenerate datasets created before v2.4.3 for complete features
+
+**v2.4.2 - Complete GPU Acceleration:**
+
+- 🚀 **Full GPU Implementation**: All advanced features in "full" mode now GPU-accelerated
+- ⚡ **5-10x Speedup**: Massive performance boost for large point clouds (>10M points)
+- 🎯 **GPU Eigenvalue Features**: Accelerated eigenvalue decomposition, entropy, omnivariance
+- 🏗️ **GPU Architectural Features**: Edge strength, corner likelihood, overhang detection
+- 📊 **GPU Density Features**: Accelerated density computation and neighborhood analysis
+- 🔄 **Seamless Fallback**: Automatic GPU/CPU switching with zero API changes
+- ✅ **Complete Compatibility**: Same output quality, same interface, better performance Library
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/ign-lidar-hd)](https://pypi.org/project/ign-lidar-hd/)
@@ -122,11 +141,12 @@ patches = processor.process_tile("data.laz", "output/")
 
 ### Core Processing
 
-- **🎯 Validated Features** - All 35+ geometric features guaranteed in valid ranges [0, 1]
-- **🏗️ Multi-level Classification** - LOD2 (11 features) and LOD3 (35 features) modes
-- **📊 Rich Geometry** - Normals, curvature, planarity, eigenvalues, density, building scores
-- **🎨 Optional Augmentation** - RGB from orthophotos, NIR for NDVI
+- **🎯 Complete Feature Export** - All 35-45 computed geometric features saved to disk (v2.4.2+)
+- **🏗️ Multi-level Classification** - LOD2 (12 features), LOD3 (38 features), Full (43+ features) modes
+- **📊 Rich Geometry** - Normals, curvature, eigenvalues, shape descriptors, architectural features, building scores
+- **🎨 Optional Augmentation** - RGB from orthophotos, NIR, NDVI for vegetation analysis
 - **⚙️ Auto-parameters** - Intelligent tile analysis for optimal settings
+- **📝 Feature Tracking** - Metadata includes feature names and counts for reproducibility
 
 ### Performance
 
@@ -233,9 +253,9 @@ dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 ---
 
-## 🎓 Feature Modes (LOD2 vs LOD3)
+## 🎓 Feature Modes (LOD2 vs LOD3 vs Full)
 
-### LOD2 Mode (11 features) - Fast Training
+### LOD2 Mode (12 features) - Fast Training
 
 **Best for:** Basic building classification, quick prototyping, baseline models
 
@@ -243,20 +263,29 @@ dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 **Performance:** ~15s per 1M points (CPU), fast convergence
 
-### LOD3 Mode (35 features) - Detailed Modeling
+### LOD3 Mode (38 features) - Detailed Modeling
 
 **Best for:** Architectural modeling, fine structure detection, research
 
-**Additional Features:** Complete normals, eigenvalues, curvature, density, building scores, architectural features (edges, corners, overhangs)
+**Additional Features:** Complete normals (3), eigenvalues (5), curvature (2), shape descriptors (6), height features (3), building scores (3), density features (5), architectural features (4)
 
 **Performance:** ~45s per 1M points (CPU), best accuracy
 
-**v2.4.0 Validation:** All features guaranteed in [0, 1] range with:
+### Full Mode (43+ features) - Complete Feature Set
 
-- Eigenvalue clamping (no negative values)
-- Density normalization (capped at 1000 pts/m³)
-- Complete boundary feature parity
-- Zero NaN/Inf values
+**Best for:** Research, feature analysis, maximum information extraction
+
+**All Features:** Everything from LOD3 plus additional height variants (z_absolute, z_from_ground, z_from_median), distance_to_center, local_roughness, horizontality
+
+**Performance:** ~50s per 1M points (CPU), complete geometric description
+
+**v2.4.2+ Guarantee:** All computed features now saved to disk (previously only 12/43 were exported)
+
+**Output Format:**
+
+- NPZ/HDF5/PyTorch: Full feature matrix with all 43+ features
+- LAZ: All features as extra dimensions for GIS tools
+- Metadata: `feature_names` and `num_features` for tracking
 
 📖 See [Feature Modes Documentation](docs/FEATURE_MODES_DOCUMENTATION.md) for complete details.
 
@@ -314,8 +343,9 @@ Each patch is saved as NPZ with:
 ### Examples & Workflows
 
 - `examples/` - Python usage examples and configuration templates
-- `examples/config_lod2_simplified_features.yaml` - Fast LOD2 training (11 features)
-- `examples/config_lod3_full_features.yaml` - Detailed LOD3 modeling (35 features)
+- `examples/config_lod2_simplified_features.yaml` - Fast LOD2 training (12 features)
+- `examples/config_lod3_full_features.yaml` - Detailed LOD3 modeling (38 features)
+- `examples/config_complete.yaml` - Full mode with all 43+ features
 - `examples/config_multiscale_hybrid.yaml` - Multi-scale adaptive features
 - [PyTorch Integration](examples/pytorch_dataloader.py)
 - [Parallel Processing](examples/parallel_processing_example.py)

@@ -6,13 +6,13 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.4.2** | Python 3.8+ | MIT License
+**Version 2.4.2+** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Transform French IGN LiDAR HD point clouds into ML-ready datasets for building classification. Features GPU acceleration, rich geometric features, RGB/NIR augmentation, intelligent skip system, and memory-optimized configurations for all system specs.
+Transform French IGN LiDAR HD point clouds into ML-ready datasets for building classification. Features GPU acceleration, rich geometric features (all 35-45+ computed features now exported), RGB/NIR augmentation, intelligent skip system, and memory-optimized configurations for all system specs.
 
 ---
 
@@ -37,8 +37,9 @@ For GPU acceleration (12-20x speedup), see the [GPU Setup Guide](/installation/g
 
 - **🗺️ IGN Integration** - Direct download from IGN WFS service
 - **🎨 Multi-modal Data** - Geometry + RGB + Infrared (NDVI-ready)
-- **🏗️ Building Classification** - LOD2/LOD3 schemas (15-30+ classes)
-- **📊 Rich Features** - 28+ geometric features (normals, curvature, planarity, etc.)
+- **🏗️ Building Classification** - LOD2/LOD3/Full schemas (12-43+ features)
+- **📊 Complete Features** - All 35-45+ computed geometric features now exported to disk
+- **📝 Feature Tracking** - Metadata includes feature names and counts for reproducibility
 - **🚀 GPU Acceleration** - 12-20x speedup with RAPIDS cuML
 - **⚡ Intelligent Skip** - ~1800x faster on re-runs, automatic recovery
 - **⚙️ YAML Configuration** - Reproducible workflows with example configs

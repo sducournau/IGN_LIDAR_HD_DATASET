@@ -292,10 +292,21 @@ def _add_standard_las_fields(las, arch_data: Dict, original_patch: Dict,
 
 
 def _add_geometric_features(las, original_patch: Dict) -> None:
-    """Add geometric features as extra dimensions."""
+    """Add ALL geometric features as extra dimensions (supports full mode with 40+ features)."""
+    # ALL geometric features in consistent order (matches base_formatter.py)
     geometric_features = [
-        'planarity', 'linearity', 'sphericity', 'anisotropy',
-        'roughness', 'density', 'curvature', 'verticality'
+        # Core shape descriptors (6)
+        'planarity', 'linearity', 'sphericity', 'anisotropy', 'roughness', 'omnivariance',
+        # Curvature features (2)
+        'curvature', 'change_curvature',
+        # Eigenvalue features (5)
+        'eigenvalue_1', 'eigenvalue_2', 'eigenvalue_3', 'sum_eigenvalues', 'eigenentropy',
+        # Building scores (4)
+        'verticality', 'horizontality', 'wall_score', 'roof_score',
+        # Density features (5)
+        'density', 'local_density', 'num_points_2m', 'neighborhood_extent', 'height_extent_ratio',
+        # Architectural features (5)
+        'edge_strength', 'corner_likelihood', 'overhang_indicator', 'surface_roughness', 'local_roughness',
     ]
     
     for feat_name in geometric_features:
@@ -328,9 +339,14 @@ def _add_geometric_features(las, original_patch: Dict) -> None:
 
 
 def _add_height_features(las, original_patch: Dict) -> None:
-    """Add height features as extra dimensions."""
+    """Add ALL height features as extra dimensions."""
     height_features = [
-        'height', 'z_normalized', 'z_from_ground', 'z_from_median'
+        # Core height features
+        'height', 'height_above_ground', 'vertical_std',
+        # Normalized height features
+        'z_normalized', 'z_absolute', 'z_from_ground', 'z_from_median',
+        # Distance features
+        'distance_to_center',
     ]
     
     for feat_name in height_features:

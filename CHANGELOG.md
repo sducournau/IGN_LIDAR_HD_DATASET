@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Feature Export Completeness**: All computed features now saved to disk in all formats
+  - Feature name tracking in metadata: `metadata['feature_names']` lists all features in the feature matrix
+  - Feature count in metadata: `metadata['num_features']` for quick verification
+  - Comprehensive feature ordering for reproducibility across runs
+- **Enhanced Progress Reporting**: Detailed progress bars for CPU/GPU chunked processing
+  - Shows point count, chunk count, memory per chunk, and processing rate
+  - GPU mode indicators: 🎯 (cuML), 🔧 (sklearn fallback), 💻 (CPU)
+  - Improved user feedback for long-running operations
+
+### Changed
+
+- **Complete Feature Export**: Previously only 12 features were exported; now all 35-45+ computed features saved
+  - NPZ/HDF5/PyTorch: Feature matrix size increased from 12 to 40+ features (depending on config)
+  - LAZ patches: Extra dimensions increased from 7 to 35+ (all computed features now saved as extra dims)
+  - File sizes will increase proportionally (~3-4x for patches with full mode)
+- **Feature Matrix Construction**: Updated to export ALL geometric features in consistent order
+  - Core shape descriptors (6): planarity, linearity, sphericity, anisotropy, roughness, omnivariance
+  - Curvature features (2): curvature, change_curvature
+  - Eigenvalue features (5): eigenvalue_1/2/3, sum_eigenvalues, eigenentropy
+  - Height features (3): height_above_ground, vertical_std, z_normalized
+  - Building scores (3): verticality, wall_score, roof_score
+  - Density features (5): density, local_density, num_points_2m, neighborhood_extent, height_extent_ratio
+  - Architectural features (5): edge_strength, corner_likelihood, overhang_indicator, surface_roughness, local_roughness
+  - Additional features (6): z_absolute, z_from_ground, z_from_median, distance_to_center, horizontality
+- **LAZ Export Enhancement**: All geometric, height, and radiometric features now exported as extra dimensions
+  - Consistent feature ordering across all output formats
+  - Better interoperability with GIS tools (QGIS, CloudCompare, etc.)
+
+### Fixed
+
+- **Feature Export Bug**: Resolved issue where `full` mode computed 40+ features but only saved 12
+  - Impact: Datasets generated before v2.4.3 may be missing critical features
+  - Recommendation: Regenerate training datasets to access complete feature sets
+- **Progress Bar Information**: Added missing context to chunk processing progress bars
+  - Now shows total points, chunk count, memory usage, and processing rate
+  - Helps users estimate remaining time and monitor performance
+
 ## [2.4.2] - 2025-10-12
 
 ### Performance

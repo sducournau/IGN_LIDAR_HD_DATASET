@@ -4,7 +4,7 @@ Base formatter for point cloud data.
 Provides common functionality for all architecture-specific formatters.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union, Tuple
 import numpy as np
 from pathlib import Path
 
@@ -141,26 +141,39 @@ class BaseFormatter:
         use_infrared: bool = True,
         use_geometric: bool = True,
         use_radiometric: bool = False,
-        use_contextual: bool = False
-    ) -> np.ndarray:
+        use_contextual: bool = False,
+        return_feature_names: bool = False
+    ) -> Union[np.ndarray, Tuple[np.ndarray, List[str]]]:
         """
         Build feature matrix from patch data with multi-modal features.
         
         Features included (configurable):
         - RGB (3): R, G, B colors from orthophotos
         - Infrared (2): NIR + NDVI for vegetation
-        - Geometric (13): normals, curvature, planarity, verticality, etc.
-        - Radiometric (5): intensity, return_number, etc.
-        - Contextual (6): local_density, height_stats, etc.
+        - Geometric (40+): ALL computed geometric features in full mode:
+          * Normals (3): normal_x, normal_y, normal_z
+          * Shape descriptors (6): planarity, linearity, sphericity, anisotropy, roughness, omnivariance
+          * Curvature (2): curvature, change_curvature
+          * Eigenvalues (5): eigenvalue_1/2/3, sum_eigenvalues, eigenentropy
+          * Heights (3): height_above_ground, vertical_std, z_normalized
+          * Building scores (3): verticality, wall_score, roof_score
+          * Density (5): density, local_density, num_points_2m, neighborhood_extent, height_extent_ratio
+          * Architectural (4): edge_strength, corner_likelihood, overhang_indicator, surface_roughness
+          * Additional (6): z_absolute, z_from_ground, z_from_median, distance_to_center, horizontality, local_roughness
+        - Radiometric (5): intensity, return_number, etc. (optional)
+        - Contextual (6): local_density, height_stats, etc. (optional)
         
         Args:
             patch: Dict with point cloud data
             use_*: Flags to enable/disable feature groups
+            return_feature_names: If True, return (features, feature_names) tuple
             
         Returns:
-            features: [N, C] array with concatenated features
+            features: [N, C] array with concatenated features (C varies based on mode: ~12-50+ features)
+            OR (features, feature_names) if return_feature_names=True
         """
         features = []
+        feature_names = []
         
         # 1. RGB features (3 channels) 🎨
         if use_rgb and 'rgb' in patch:
@@ -168,6 +181,7 @@ class BaseFormatter:
             # Normalize to [0, 1]
             rgb_norm = self._normalize_rgb(rgb, mode='minmax')
             features.append(rgb_norm)
+            feature_names.extend(['red', 'green', 'blue'])
         
         # 2. Infrared features (2 channels) 🌡️
         if use_infrared:
@@ -177,40 +191,67 @@ class BaseFormatter:
                     nir = nir[:, np.newaxis]  # Ensure [N, 1]
                 nir_norm = (nir.astype(np.float32) / 255.0)
                 features.append(nir_norm)
+                feature_names.append('nir')
             
             if 'ndvi' in patch:
                 ndvi = patch['ndvi']  # [N] or [N, 1] ∈ [-1, 1]
                 if ndvi.ndim == 1:
                     ndvi = ndvi[:, np.newaxis]  # Ensure [N, 1]
                 features.append(ndvi.astype(np.float32))
+                feature_names.append('ndvi')
         
-        # 3. Geometric features (13 channels) 📐
+        # 3. Geometric features (ALL computed features) 📐
         if use_geometric:
             geom_features = []
             
             # Normals (3)
             if 'normals' in patch:
                 geom_features.append(patch['normals'].astype(np.float32))
+                feature_names.extend(['normal_x', 'normal_y', 'normal_z'])
             
-            # Scalar geometric features
-            scalar_geom = [
-                'curvature',           # (1)
-                'planarity',           # (1)
-                'linearity',           # (1)
-                'sphericity',          # (1)
-                'verticality',         # (1)
-                'local_density',       # (1)
-                'height_above_ground'  # (1)
+            # ALL scalar geometric features (in consistent order for reproducibility)
+            # This ensures FULL mode includes all 35+ computed features
+            scalar_geom_ordered = [
+                # Core shape descriptors (6)
+                'planarity', 'linearity', 'sphericity',
+                'anisotropy', 'roughness', 'omnivariance',
+                
+                # Curvature features (2)
+                'curvature', 'change_curvature',
+                
+                # Eigenvalue features (5)
+                'eigenvalue_1', 'eigenvalue_2', 'eigenvalue_3',
+                'sum_eigenvalues', 'eigenentropy',
+                
+                # Height features (3)
+                'height_above_ground', 'vertical_std', 'z_normalized',
+                
+                # Building scores (3)
+                'verticality', 'wall_score', 'roof_score',
+                
+                # Density features (4)
+                'density', 'local_density', 'num_points_2m', 
+                'neighborhood_extent', 'height_extent_ratio',
+                
+                # Architectural features (4)
+                'edge_strength', 'corner_likelihood', 
+                'overhang_indicator', 'surface_roughness',
+                
+                # Additional height features (3)
+                'z_absolute', 'z_from_ground', 'z_from_median',
+                'distance_to_center', 'local_roughness',
+                'horizontality',
             ]
             
-            for feat_name in scalar_geom:
+            for feat_name in scalar_geom_ordered:
                 if feat_name in patch:
                     feat = patch[feat_name]
                     if feat.ndim == 1:
                         feat = feat[:, np.newaxis]  # [N] → [N, 1]
                     geom_features.append(feat.astype(np.float32))
+                    feature_names.append(feat_name)
             
-            # Eigenvalues (3)
+            # Eigenvalues (3) - if stored as separate array
             if 'eigenvalues' in patch:
                 geom_features.append(patch['eigenvalues'].astype(np.float32))
             
@@ -271,9 +312,15 @@ class BaseFormatter:
         # Concatenate all features
         if not features:
             # Fallback: use zeros if no features
-            return np.zeros((len(patch['points']), 1), dtype=np.float32)
+            fallback = np.zeros((len(patch['points']), 1), dtype=np.float32)
+            if return_feature_names:
+                return fallback, ['zero_placeholder']
+            return fallback
         
         feature_matrix = np.concatenate(features, axis=1)
+        
+        if return_feature_names:
+            return feature_matrix.astype(np.float32), feature_names
         return feature_matrix.astype(np.float32)
     
     def _extract_metadata(self, patch: Dict[str, np.ndarray]) -> Dict[str, Any]:
