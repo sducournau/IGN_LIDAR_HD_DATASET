@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 2.3.1** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 2.3.2** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -34,9 +34,25 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ---
 
-## ✨ What's New in v2.3.1
+## ✨ What's New in v2.3.2
 
-**Memory Optimization & System Compatibility:**
+**Input Data Preservation & RGB Bug Fix:**
+
+- 🎨 **Preserve RGB/NIR/NDVI from Input LAZ**: Automatically detects and preserves RGB, NIR, and NDVI from input files
+- 🐛 **CRITICAL RGB Bug Fix**: Fixed coordinate mismatch in augmented patches - RGB now applied at tile level before extraction
+- ⚡ **3x Faster RGB Processing**: Fetch RGB once per tile instead of per patch
+- 📊 **Patch Metadata**: Added `_patch_center` and `_patch_bounds` for debugging and validation
+- ✅ **Comprehensive Testing**: RGB consistency verified across all augmentation types
+
+**v2.3.1 - Memory Optimization & System Compatibility:**
+
+- 🧠 Memory-optimized configurations for 8GB-32GB+ systems
+- 📊 Automatic worker scaling based on memory pressure detection
+- ⚙️ Sequential processing mode for minimal memory footprint
+- 📖 Comprehensive memory optimization guide (`examples/MEMORY_OPTIMIZATION.md`)
+- 🔧 Three configuration profiles: Original (32GB+), Optimized (16-24GB), Sequential (8-16GB)
+
+**v2.3.0 - Processing Modes & Custom Configurations:**
 
 - 🧠 Memory-optimized configurations for 8GB-32GB+ systems
 - 📊 Automatic worker scaling based on memory pressure detection
