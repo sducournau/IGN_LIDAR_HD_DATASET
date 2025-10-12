@@ -34,8 +34,8 @@ processor:
   pin_memory: true
 
 features:
-  mode: lod3
-  k_neighbors: 20 # Smaller neighborhood for fine details
+  mode: full # Active TOUTES les features possibles (37+ features)
+  k_neighbors: 30 # Augmenté pour plus de robustesse et réduire le bruit
   include_extra: true
   use_rgb: true
   use_infrared: true
@@ -48,15 +48,15 @@ features:
 
 preprocess:
   enabled: true
-  sor_k: 10 # Plus tolérant pour conserver plus de points
-  sor_std: 2.5 # Seuil plus élevé = moins de points retirés
-  ror_radius: 0.75 # Rayon plus large pour la détection d'outliers
-  ror_neighbors: 2 # Moins de voisins requis = moins strict
+  sor_k: 15 # Augmenté pour plus de robustesse
+  sor_std: 3.0 # Très tolérant = conserve presque tous les points
+  ror_radius: 1.0 # Rayon plus large pour la détection d'outliers
+  ror_neighbors: 3 # Équilibré
   voxel_enabled: false
   voxel_size: 0.1
 
 stitching:
-  enabled: true
+  enabled: false # DÉSACTIVÉ: pas nécessaire pour patches ML (évite artifacts)
   buffer_size: 8.0 # Smaller buffer for 50m patches
   auto_detect_neighbors: true
   auto_download_neighbors: true

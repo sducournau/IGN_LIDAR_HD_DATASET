@@ -25,7 +25,7 @@ processor:
   lod_level: LOD3
   architecture: hybrid
   use_gpu: true
-  num_workers: 2
+  num_workers: 3 # Optimized for medium-sized patches
   patch_size: 100.0 # Medium patches for balanced detail/context
   patch_overlap: 0.12 # Balanced overlap
   num_points: 32768 # 32k points (balanced capacity)
@@ -48,10 +48,10 @@ features:
 
 preprocess:
   enabled: true
-  sor_k: 10 # Balanced outlier removal
-  sor_std: 2.0
-  ror_radius: 0.75
-  ror_neighbors: 4
+  sor_k: 10 # Balanced outlier removal for medium patches
+  sor_std: 2.0 # Standard threshold for facade features
+  ror_radius: 0.75 # Appropriate for 100m scale
+  ror_neighbors: 4 # Moderate filtering
   voxel_enabled: false
   voxel_size: 0.1
 

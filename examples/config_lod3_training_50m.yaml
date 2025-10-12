@@ -25,7 +25,7 @@ processor:
   lod_level: LOD3
   architecture: hybrid
   use_gpu: true
-  num_workers: 2
+  num_workers: 4 # Increased for faster processing (small patches process quickly)
   patch_size: 50.0 # Small patches for fine architectural details
   patch_overlap: 0.15 # Higher overlap for better boundary coverage
   num_points: 24576 # 24k points suitable for small patches
@@ -48,10 +48,10 @@ features:
 
 preprocess:
   enabled: true
-  sor_k: 10 # Plus tolérant pour conserver plus de points
-  sor_std: 2.5 # Seuil plus élevé = moins de points retirés
-  ror_radius: 0.75 # Rayon plus large pour la détection d'outliers
-  ror_neighbors: 2 # Moins de voisins requis = moins strict
+  sor_k: 8 # Gentler filtering for small patches (preserve fine details)
+  sor_std: 2.5 # High threshold to retain architectural features
+  ror_radius: 0.5 # Smaller radius appropriate for 50m patches
+  ror_neighbors: 2 # Lenient for fine details
   voxel_enabled: false
   voxel_size: 0.1
 
