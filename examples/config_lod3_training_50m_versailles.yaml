@@ -25,11 +25,11 @@ processor:
   lod_level: LOD3
   architecture: hybrid
   use_gpu: true
-  num_workers: 2
+  num_workers: 1
   patch_size: 50.0 # Small patches for fine architectural details
   patch_overlap: 0.15 # Higher overlap for better boundary coverage
   num_points: 24576 # 24k points suitable for small patches
-  augment: true
+  augment: false
   num_augmentations: 5 # More augmentation for training diversity
   pin_memory: true
 
