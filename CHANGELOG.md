@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.3] - 2025-10-12
+
 ### Added
 
 - **Feature Export Completeness**: All computed features now saved to disk in all formats

@@ -402,24 +402,43 @@ class LiDARProcessor:
             las.nir = nir
         
         # ===== Add computed features as extra dimensions =====
-        # Geometric features (planarity, linearity, sphericity, etc.)
-        geometric_features = [
-            'planarity', 'linearity', 'sphericity', 'anisotropy', 
-            'roughness', 'density', 'curvature', 'verticality'
-        ]
+        # Add ALL geometric/geometric features dynamically (not just a hardcoded subset)
+        # This ensures all computed features (including advanced ones like eigenvalues,
+        # architectural features, density features) are saved to LAZ
         
-        for feat_name in geometric_features:
-            if feat_name in original_patch:
-                try:
-                    # Add as float32 extra dimension
-                    las.add_extra_dim(laspy.ExtraBytesParams(
-                        name=feat_name,
-                        type=np.float32,
-                        description=f"Geom: {feat_name}"
-                    ))
-                    setattr(las, feat_name, original_patch[feat_name].astype(np.float32))
-                except Exception as e:
-                    logger.warning(f"  ⚠️  Could not add feature '{feat_name}' to LAZ: {e}")
+        # Define keys to skip (standard fields, special handling, or already processed)
+        skip_keys = {
+            'points', 'coords', 'labels', 'classification', 'intensity', 
+            'rgb', 'nir', 'ndvi', 'normals', 'return_number',
+            'metadata', 'features', 'knn_graph', 'voxel_coords', 
+            'voxel_features', 'voxel_labels', '_patch_center', '_patch_bounds',
+            '_version', '_patch_idx', '_spatial_idx'
+        }
+        
+        # Iterate through all features in original_patch and add as extra dimensions
+        for feat_name, feat_data in original_patch.items():
+            # Skip if in skip list or not a numpy array
+            if feat_name in skip_keys or not isinstance(feat_data, np.ndarray):
+                continue
+            
+            # Skip if already a standard LAS field
+            if hasattr(las, feat_name) and feat_name not in ['height', 'curvature']:
+                continue
+            
+            # Skip multi-dimensional arrays (except for specific known ones handled separately)
+            if feat_data.ndim > 1:
+                continue
+                
+            try:
+                # Add as float32 extra dimension
+                las.add_extra_dim(laspy.ExtraBytesParams(
+                    name=feat_name,
+                    type=np.float32,
+                    description=f"Feature: {feat_name}"
+                ))
+                setattr(las, feat_name, feat_data.astype(np.float32))
+            except Exception as e:
+                logger.debug(f"  ⚠️  Could not add feature '{feat_name}' to LAZ: {e}")
         
         # Normals (normal_x, normal_y, normal_z for consistency)
         if 'normals' in original_patch:
@@ -941,7 +960,12 @@ class LiDARProcessor:
             normals = feature_dict.get('normals')
             curvature = feature_dict.get('curvature')
             height = feature_dict.get('height')
-            geo_features = feature_dict.get('geo_features', {})
+            
+            # Extract geometric features from flat dictionary
+            # Feature computers return flat dict with all features at top level
+            # We need to extract all features except the main ones
+            main_features = {'normals', 'curvature', 'height'}
+            geo_features = {k: v for k, v in feature_dict.items() if k not in main_features}
             
             feature_time = time.time() - feature_start
             logger.info(f"  ⏱️  Features computed in {feature_time:.1f}s")
