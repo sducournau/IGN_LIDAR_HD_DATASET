@@ -39,7 +39,7 @@ from .skip_checker import PatchSkipChecker
 
 # Import refactored modules
 from .modules.memory import aggressive_memory_cleanup
-from .modules.serialization import save_patch_npz, save_patch_hdf5, save_patch_torch, save_patch_multi_format
+from .modules.serialization import save_patch_npz, save_patch_hdf5, save_patch_torch, save_patch_laz, save_patch_multi_format
 from .modules.loader import load_laz_file, LiDARData
 from .modules.enrichment import (
     EnrichmentConfig, 
@@ -681,6 +681,56 @@ class LiDARProcessor:
         return_number = np.array(las.return_number, dtype=np.float32)
         classification = np.array(las.classification, dtype=np.uint8)
         
+        # Extract RGB if present in input LAZ
+        input_rgb = None
+        if hasattr(las, 'red') and hasattr(las, 'green') and hasattr(las, 'blue'):
+            input_rgb = np.vstack([
+                np.array(las.red, dtype=np.float32) / 65535.0,
+                np.array(las.green, dtype=np.float32) / 65535.0,
+                np.array(las.blue, dtype=np.float32) / 65535.0
+            ]).T
+            logger.info(f"  🎨 RGB data found in input LAZ (will be preserved)")
+        
+        # Extract NIR/Infrared if present in input LAZ
+        input_nir = None
+        if hasattr(las, 'nir'):
+            input_nir = np.array(las.nir, dtype=np.float32)
+            # Normalize if it's in uint16 range
+            if input_nir.max() > 1.0:
+                input_nir = input_nir / 65535.0
+            logger.info(f"  🌿 NIR data found in input LAZ (will be preserved)")
+        elif hasattr(las, 'near_infrared'):
+            input_nir = np.array(las.near_infrared, dtype=np.float32)
+            if input_nir.max() > 1.0:
+                input_nir = input_nir / 65535.0
+            logger.info(f"  🌿 NIR data found in input LAZ as 'near_infrared' (will be preserved)")
+        
+        # Extract enriched features if present (from previously enriched LAZ files)
+        enriched_features = {}
+        feature_names = [
+            'planarity', 'linearity', 'sphericity', 'anisotropy',
+            'roughness', 'density', 'curvature', 'verticality',
+            'height', 'z_normalized', 'z_from_ground', 'z_from_median'
+        ]
+        
+        for feature_name in feature_names:
+            if hasattr(las, feature_name):
+                enriched_features[feature_name] = np.array(
+                    getattr(las, feature_name), dtype=np.float32
+                )
+        
+        # Extract normals if present (normal_x, normal_y, normal_z)
+        if hasattr(las, 'normal_x') and hasattr(las, 'normal_y') and hasattr(las, 'normal_z'):
+            enriched_features['normals'] = np.vstack([
+                np.array(las.normal_x, dtype=np.float32),
+                np.array(las.normal_y, dtype=np.float32),
+                np.array(las.normal_z, dtype=np.float32)
+            ]).T
+        
+        if enriched_features:
+            logger.info(f"  ✨ Enriched features found in input LAZ: {list(enriched_features.keys())}")
+            logger.info(f"     These will be preserved (geometric features will be recomputed if needed)")
+        
         logger.info(f"  📊 Loaded {len(points):,} points | "
                    f"Classes: {len(np.unique(classification))}")
         
@@ -695,6 +745,14 @@ class LiDARProcessor:
             intensity = intensity[mask]
             return_number = return_number[mask]
             classification = classification[mask]
+            # Also filter RGB and NIR if present
+            if input_rgb is not None:
+                input_rgb = input_rgb[mask]
+            if input_nir is not None:
+                input_nir = input_nir[mask]
+            # Filter enriched features if present
+            for feature_name in list(enriched_features.keys()):
+                enriched_features[feature_name] = enriched_features[feature_name][mask]
             logger.info(f"  After bbox filter: {len(points):,} points")
         
         # Store original data - used for ALL versions
@@ -702,7 +760,10 @@ class LiDARProcessor:
             'points': points,
             'intensity': intensity,
             'return_number': return_number,
-            'classification': classification
+            'classification': classification,
+            'input_rgb': input_rgb,  # Preserve input RGB if present
+            'input_nir': input_nir,  # Preserve input NIR if present
+            'enriched_features': enriched_features  # Preserve enriched features if present
         }
         
         # Process original data ONCE to extract patch locations
@@ -710,6 +771,11 @@ class LiDARProcessor:
         intensity_v = original_data['intensity']
         return_number_v = original_data['return_number']
         classification_v = original_data['classification']
+        # Initialize RGB and NIR from input if present (will be filtered by preprocessing if enabled)
+        input_rgb_v = input_rgb
+        input_nir_v = input_nir
+        # Initialize enriched features (will be filtered by preprocessing if enabled)
+        enriched_features_v = {k: v.copy() for k, v in enriched_features.items()} if enriched_features else {}
         
         # 1b. Apply preprocessing if enabled (before feature computation)
         if self.preprocess:
@@ -755,6 +821,12 @@ class LiDARProcessor:
                 intensity_v = intensity_v[cumulative_mask]
                 return_number_v = return_number_v[cumulative_mask]
                 classification_v = classification_v[cumulative_mask]
+                # Also filter input RGB and NIR if present
+                input_rgb_v = input_rgb[cumulative_mask] if input_rgb is not None else None
+                input_nir_v = input_nir[cumulative_mask] if input_nir is not None else None
+                # Filter enriched features if present
+                for feature_name in list(enriched_features_v.keys()):
+                    enriched_features_v[feature_name] = enriched_features_v[feature_name][cumulative_mask]
                 
                 # Apply voxel downsampling if enabled
                 if voxel_cfg.get('enable', False):
@@ -767,6 +839,18 @@ class LiDARProcessor:
                     intensity_v = intensity_v[voxel_indices]
                     return_number_v = return_number_v[voxel_indices]
                     classification_v = classification_v[voxel_indices]
+                    # Also filter input RGB and NIR
+                    if input_rgb_v is not None:
+                        input_rgb_v = input_rgb_v[voxel_indices]
+                    if input_nir_v is not None:
+                        input_nir_v = input_nir_v[voxel_indices]
+                    # Filter enriched features if present
+                    for feature_name in list(enriched_features_v.keys()):
+                        enriched_features_v[feature_name] = enriched_features_v[feature_name][voxel_indices]
+                else:
+                    # No voxel downsampling, use original filtered data
+                    input_rgb_v = input_rgb[cumulative_mask] if input_rgb is not None else None
+                    input_nir_v = input_nir[cumulative_mask] if input_nir is not None else None
                 
                 final_count = len(points_v)
                 reduction = 1 - final_count / original_count
@@ -778,49 +862,72 @@ class LiDARProcessor:
                 )
         
         # 2. Compute geometric features (optimized, single pass) on ORIGINAL data
-        feature_mode = ("FULL" if self.include_extra_features
-                       else "CORE")
-        k_display = self.k_neighbors if self.k_neighbors else "auto"
-        logger.info(
-            f"  🔧 Computing features | k={k_display} | "
-            f"mode={feature_mode}"
-        )
+        # Check if we should use enriched features from input or recompute
+        use_enriched_features = bool(enriched_features_v)
+        recompute_geometric = True  # Always recompute geometric features for patches
         
-        feature_start = time.time()
-        
-        # Compute patch center for distance_to_center feature
-        patch_center = (np.mean(points_v, axis=0)
-                       if self.include_extra_features else None)
-        
-        # Use manual k if specified, otherwise auto-estimate
-        use_auto_k = self.k_neighbors is None
-        k_value = (self.k_neighbors
-                  if self.k_neighbors is not None else 20)  # Default value
-        
-        # Create feature computer using factory pattern
-        computer = FeatureComputerFactory.create(
-            use_gpu=self.use_gpu,
-            use_chunked=self.use_gpu_chunked,
-            k_neighbors=k_value
-        )
-        
-        # Compute features
-        feature_dict = computer.compute_features(
-            points=points_v,
-            classification=classification_v,
-            auto_k=use_auto_k,
-            include_extra=self.include_extra_features,
-            patch_center=patch_center
-        )
-        
-        # Extract individual features
-        normals = feature_dict.get('normals')
-        curvature = feature_dict.get('curvature')
-        height = feature_dict.get('height')
-        geo_features = feature_dict.get('geo_features', {})
-        
-        feature_time = time.time() - feature_start
-        logger.info(f"  ⏱️  Features computed in {feature_time:.1f}s")
+        if use_enriched_features and not recompute_geometric:
+            logger.info(f"  ♻️  Using existing enriched features from input LAZ")
+            feature_start = time.time()
+            # Use existing features
+            normals = enriched_features_v.get('normals')
+            curvature = enriched_features_v.get('curvature')
+            height = enriched_features_v.get('height') or enriched_features_v.get('z_normalized')
+            # Build geo_features dict from enriched features
+            geo_features = {k: v for k, v in enriched_features_v.items() 
+                           if k not in ['normals', 'curvature', 'height']}
+            feature_time = time.time() - feature_start
+            logger.info(f"  ⏱️  Features loaded in {feature_time:.3f}s")
+        else:
+            # Compute features (always for patch generation to ensure consistency)
+            feature_mode = ("FULL" if self.include_extra_features else "CORE")
+            k_display = self.k_neighbors if self.k_neighbors else "auto"
+            
+            if use_enriched_features:
+                logger.info(
+                    f"  🔧 Recomputing geometric features for patches | k={k_display} | mode={feature_mode}"
+                )
+                logger.info(f"     (Enriched features from input will be preserved alongside)")
+            else:
+                logger.info(
+                    f"  🔧 Computing features | k={k_display} | mode={feature_mode}"
+                )
+            
+            feature_start = time.time()
+            
+            # Compute patch center for distance_to_center feature
+            patch_center = (np.mean(points_v, axis=0)
+                           if self.include_extra_features else None)
+            
+            # Use manual k if specified, otherwise auto-estimate
+            use_auto_k = self.k_neighbors is None
+            k_value = (self.k_neighbors
+                      if self.k_neighbors is not None else 20)  # Default value
+            
+            # Create feature computer using factory pattern
+            computer = FeatureComputerFactory.create(
+                use_gpu=self.use_gpu,
+                use_chunked=self.use_gpu_chunked,
+                k_neighbors=k_value
+            )
+            
+            # Compute features
+            feature_dict = computer.compute_features(
+                points=points_v,
+                classification=classification_v,
+                auto_k=use_auto_k,
+                include_extra=self.include_extra_features,
+                patch_center=patch_center
+            )
+            
+            # Extract individual features
+            normals = feature_dict.get('normals')
+            curvature = feature_dict.get('curvature')
+            height = feature_dict.get('height')
+            geo_features = feature_dict.get('geo_features', {})
+            
+            feature_time = time.time() - feature_start
+            logger.info(f"  ⏱️  Features computed in {feature_time:.1f}s")
         
         # 3. Remap labels
         labels_v = np.array([
@@ -837,6 +944,22 @@ class LiDARProcessor:
             'height': height,
             **(geo_features if isinstance(geo_features, dict) else {})
         }
+        
+        # 4b. Add input RGB and NIR if present in input LAZ file
+        if input_rgb_v is not None:
+            all_features_v['input_rgb'] = input_rgb_v
+            logger.info(f"  ✓ Preserving RGB from input LAZ ({input_rgb_v.shape})")
+        if input_nir_v is not None:
+            all_features_v['input_nir'] = input_nir_v
+            logger.info(f"  ✓ Preserving NIR from input LAZ ({input_nir_v.shape})")
+        
+        # 4c. Add enriched features if present (alongside recomputed geometric features)
+        if enriched_features_v:
+            for feat_name, feat_data in enriched_features_v.items():
+                # Use prefix to distinguish from recomputed features
+                enriched_key = f"enriched_{feat_name}" if feat_name in all_features_v else feat_name
+                all_features_v[enriched_key] = feat_data
+            logger.info(f"  ✓ Added {len(enriched_features_v)} enriched features from input LAZ")
         
         # Add architectural style if requested
         if self.include_architectural_style:
@@ -943,26 +1066,57 @@ class LiDARProcessor:
             base_idx = patch.pop('_patch_idx', 0)
             
             if version == 'original':
-                patch_name = f"{laz_file.stem}_patch_{base_idx:04d}.npz"
+                patch_name = f"{laz_file.stem}_patch_{base_idx:04d}"
             else:
                 patch_name = (
                     f"{laz_file.stem}_patch_{base_idx:04d}_"
-                    f"{version}.npz"
+                    f"{version}"
                 )
-            save_path = output_dir / patch_name
+            base_path = output_dir / patch_name
             
-            # Use serialization module based on output format
-            if self.output_format == 'npz':
-                save_patch_npz(save_path, patch, lod_level=self.lod_level)
-            elif self.output_format == 'hdf5':
-                save_patch_hdf5(save_path, patch)
-            elif self.output_format in ['pt', 'pth', 'pytorch', 'torch']:
-                save_patch_torch(save_path, patch)
+            # Check if multiple formats are requested
+            formats_list = [fmt.strip() for fmt in self.output_format.split(',')]
+            
+            if len(formats_list) > 1:
+                # Multi-format: use save_patch_multi_format
+                # Get the architecture-specific formatted data for LAZ
+                arch_formatted = format_patch_for_architecture(
+                    patch, 
+                    self.architecture, 
+                    num_points=None  # Keep original num_points
+                )
+                num_saved += save_patch_multi_format(
+                    base_path, 
+                    arch_formatted, 
+                    formats_list,
+                    original_patch=patch,
+                    lod_level=self.lod_level
+                )
             else:
-                # Fallback or multi-format
-                save_patch_npz(save_path, patch, lod_level=self.lod_level)
-            
-            num_saved += 1
+                # Single format: use format-specific save function
+                fmt = formats_list[0]
+                if fmt == 'npz':
+                    save_path = base_path.with_suffix('.npz')
+                    save_patch_npz(save_path, patch, lod_level=self.lod_level)
+                elif fmt == 'hdf5':
+                    save_path = base_path.with_suffix('.h5')
+                    save_patch_hdf5(save_path, patch)
+                elif fmt in ['pt', 'pth', 'pytorch', 'torch']:
+                    save_path = base_path.with_suffix('.pt')
+                    save_patch_torch(save_path, patch)
+                elif fmt == 'laz':
+                    save_path = base_path.with_suffix('.laz')
+                    arch_formatted = format_patch_for_architecture(
+                        patch, 
+                        self.architecture, 
+                        num_points=None  # Keep original num_points
+                    )
+                    save_patch_laz(save_path, arch_formatted, patch)
+                else:
+                    # Fallback
+                    save_path = base_path.with_suffix('.npz')
+                    save_patch_npz(save_path, patch, lod_level=self.lod_level)
+                num_saved += 1
         
         tile_time = time.time() - tile_start
         pts_processed = len(original_data['points'])
@@ -2179,7 +2333,8 @@ class LiDARProcessor:
                     # After preprocessing, points/intensity/etc are filtered arrays
                     # so we need to create a new LasData from scratch with the correct size
                     # Determine appropriate point format based on whether RGB is needed
-                    original_format_id = las.header.point_format.id
+                    # Use stored header info since las object was deleted earlier
+                    original_format_id = las_header_info['point_format_id']
                     
                     # If we have RGB, use a format that supports it
                     if rgb is not None:
@@ -2197,9 +2352,10 @@ class LiDARProcessor:
                         target_format = original_format_id
                     
                     # Create a fresh header with the appropriate point format
-                    new_header = laspy.LasHeader(version=las.header.version, point_format=target_format)
-                    new_header.offsets = las.header.offsets
-                    new_header.scales = las.header.scales
+                    # Use stored header info since las object was deleted earlier
+                    new_header = laspy.LasHeader(version=las_header_info['version'], point_format=target_format)
+                    new_header.offsets = las_header_info['offsets']
+                    new_header.scales = las_header_info['scales']
                     
                     # Create new LAS with the correct size
                     new_las = laspy.LasData(new_header)

@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 2.3.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 2.3.1** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -34,18 +34,21 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ---
 
-## ✨ What's New in v2.3.0
+## ✨ What's New in v2.3.1
 
-**Processing Modes & Custom Configurations:**
+**Memory Optimization & System Compatibility:**
+
+- 🧠 Memory-optimized configurations for 8GB-32GB+ systems
+- 📊 Automatic worker scaling based on memory pressure detection
+- ⚙️ Sequential processing mode for minimal memory footprint
+- 📖 Comprehensive memory optimization guide (`examples/MEMORY_OPTIMIZATION.md`)
+- 🔧 Three configuration profiles: Original (32GB+), Optimized (16-24GB), Sequential (8-16GB)
+
+**v2.3.0 - Processing Modes & Custom Configurations:**
 
 - Clear processing modes: `patches_only`, `both`, `enriched_only`
 - YAML config files in `examples/` directory for common workflows
 - CLI parameter overrides with `--config-file` and `--show-config`
-
-**v2.2.1 Critical Fix:**
-
-- Fixed spatial consistency in augmented patches
-- ⚠️ Regenerate datasets created before v2.2.1 with augmentation
 
 📖 [Full Release History](CHANGELOG.md)
 

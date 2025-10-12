@@ -7,7 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] - 2025-10-12
+
 ### Added
+
+- **Memory Optimization Configurations**
+  - Memory-optimized config for 16-24GB RAM systems (`config_lod3_training_memory_optimized.yaml`)
+  - Sequential processing config for 8-16GB RAM systems (`config_lod3_training_sequential.yaml`)
+  - Comprehensive memory optimization guide (`examples/MEMORY_OPTIMIZATION.md`)
+  - System recommendations and troubleshooting for different RAM configurations
+  - Performance comparison tables for different configurations
+
+### Changed
+
+- **Automatic Memory Management**
+  - System now detects swap usage and memory pressure
+  - Automatically scales down workers when memory constraints detected
+  - Better OOM (Out of Memory) prevention with intelligent worker reduction
+  - Improved garbage collection frequency for large tile processing
+
+### Documentation
+
+- Added detailed memory optimization guide with system requirements
+- Three configuration profiles: Original (32GB+), Optimized (16-24GB), Sequential (8-16GB)
+- Memory monitoring commands and troubleshooting tips
+- CUDA setup guidance for GPU acceleration
+
+### Added (Previously Unreleased)
 
 - **Phase 4 Refactoring Complete** (2025-10-12)
 

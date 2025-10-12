@@ -6,13 +6,13 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.3.0** | Python 3.8+ | MIT License
+**Version 2.3.1** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Transform French IGN LiDAR HD point clouds into ML-ready datasets for building classification. Features GPU acceleration, rich geometric features, RGB/NIR augmentation, and intelligent skip system.
+Transform French IGN LiDAR HD point clouds into ML-ready datasets for building classification. Features GPU acceleration, rich geometric features, RGB/NIR augmentation, intelligent skip system, and memory-optimized configurations for all system specs.
 
 ---
 

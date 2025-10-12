@@ -446,18 +446,40 @@ class TileStitcher:
             if hasattr(las, 'classification'):
                 features_list.append(np.array(las.classification).reshape(-1, 1))
             
-            # RGB (if available)
+            # RGB (if available) - preserve as separate fields
+            rgb_data = None
             if hasattr(las, 'red') and hasattr(las, 'green') and hasattr(las, 'blue'):
-                features_list.append(np.array(las.red).reshape(-1, 1))
-                features_list.append(np.array(las.green).reshape(-1, 1))
-                features_list.append(np.array(las.blue).reshape(-1, 1))
+                rgb_data = np.vstack([
+                    np.array(las.red, dtype=np.float32) / 65535.0,
+                    np.array(las.green, dtype=np.float32) / 65535.0,
+                    np.array(las.blue, dtype=np.float32) / 65535.0
+                ]).T
+                features_list.append(rgb_data)
+            
+            # NIR/Infrared (if available) - preserve as separate field
+            nir_data = None
+            if hasattr(las, 'nir'):
+                nir_data = np.array(las.nir, dtype=np.float32)
+                if nir_data.max() > 1.0:
+                    nir_data = nir_data / 65535.0
+                features_list.append(nir_data.reshape(-1, 1))
+            elif hasattr(las, 'near_infrared'):
+                nir_data = np.array(las.near_infrared, dtype=np.float32)
+                if nir_data.max() > 1.0:
+                    nir_data = nir_data / 65535.0
+                features_list.append(nir_data.reshape(-1, 1))
             
             features = np.hstack(features_list) if features_list else np.zeros((len(points), 1))
             
+            # Store RGB and NIR separately for easier access
             tile_data = {
                 'points': points,
                 'features': features
             }
+            if rgb_data is not None:
+                tile_data['input_rgb'] = rgb_data
+            if nir_data is not None:
+                tile_data['input_nir'] = nir_data
             
             # Cache if enabled
             if self.enable_caching and self._tile_cache is not None:

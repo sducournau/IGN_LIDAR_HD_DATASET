@@ -42,12 +42,16 @@ def aggressive_memory_cleanup() -> None:
     # Clear CuPy cache if available
     try:
         import cupy as cp
-        mempool = cp.get_default_memory_pool()
-        pinned_mempool = cp.get_default_pinned_memory_pool()
-        mempool.free_all_blocks()
-        pinned_mempool.free_all_blocks()
-        logger.debug("Cleared CuPy memory pools")
-    except (ImportError, AttributeError):
+        # Check if CUDA is actually available before trying to free memory
+        if cp.cuda.is_available():
+            mempool = cp.get_default_memory_pool()
+            pinned_mempool = cp.get_default_pinned_memory_pool()
+            mempool.free_all_blocks()
+            pinned_mempool.free_all_blocks()
+            logger.debug("Cleared CuPy memory pools")
+    except (ImportError, AttributeError, Exception) as e:
+        # Catch all exceptions including CUDA runtime errors
+        logger.debug(f"Could not clear CuPy memory pools: {e}")
         pass
     
     gc.collect()
@@ -76,13 +80,17 @@ def clear_gpu_cache() -> bool:
     # Clear CuPy cache
     try:
         import cupy as cp
-        mempool = cp.get_default_memory_pool()
-        pinned_mempool = cp.get_default_pinned_memory_pool()
-        mempool.free_all_blocks()
-        pinned_mempool.free_all_blocks()
-        cleared = True
-        logger.debug("Cleared CuPy memory pools")
-    except (ImportError, AttributeError):
+        # Check if CUDA is actually available before trying to free memory
+        if cp.cuda.is_available():
+            mempool = cp.get_default_memory_pool()
+            pinned_mempool = cp.get_default_pinned_memory_pool()
+            mempool.free_all_blocks()
+            pinned_mempool.free_all_blocks()
+            cleared = True
+            logger.debug("Cleared CuPy memory pools")
+    except (ImportError, AttributeError, Exception) as e:
+        # Catch all exceptions including CUDA runtime errors
+        logger.debug(f"Could not clear CuPy memory pools: {e}")
         pass
     
     return cleared

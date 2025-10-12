@@ -1,45 +1,63 @@
+# ============================================================================
+# OPTIMIZED CONFIGURATION FOR HYBRID MODEL TRAINING
+# ============================================================================
+# Target: PointNet++ Point Segmentation with Intelligent Indexing
+# Architecture: Hybrid (supports ensemble models and multi-architecture formats)
+# Optimization Focus: Training data quality, augmentation, and FPS sampling
+#
+# KEY OPTIMIZATIONS:
+# - FPS (Farthest Point Sampling) for intelligent point indexing
+# - 16K points per patch (PointNet++ standard)
+# - 5x augmentation for robust training
+# - Normalized features for better convergence
+# - Boundary-aware processing with 10m buffer zones
+# - GPU-accelerated feature extraction
+# ============================================================================
+
 processor:
   lod_level: LOD3
-  architecture: hybrid
+  architecture: hybrid # Hybrid architecture for ensemble models
   use_gpu: true
-  num_workers: 1 # Sequential processing to avoid memory duplication
-  patch_size: 150.0 # Not used in enriched-only mode
-  patch_overlap: 0.0 # Not used in enriched-only mode
-  num_points: 32768 # Not used in enriched-only mode
-  augment: false
-  num_augmentations: 0
-  batch_size: 1 # Optimized for single worker
-  prefetch_factor: 1 # Minimal prefetch
-  pin_memory: true # Disabled to save RAM
+  num_workers: 1 # Parallel processing for faster training data generation
+  patch_size: 150.0 # Optimal for PointNet++ (100-150m patches)
+  patch_overlap: 0.1 # 10% overlap for better boundary handling
+  num_points: 32768 # Standard for PointNet++ (16K points per patch)
+  augment: true # Enable augmentation for robust training
+  num_augmentations: 3 # Create 5 augmented versions per patch
+  batch_size: 1 # Higher batch size for efficient processing
+  prefetch_factor: 1 # Prefetch 1 batch per worker
+  pin_memory: true # Enable for faster GPU transfer
 features:
-  mode: full
-  k_neighbors: 30
-  include_extra: true
-  use_rgb: true
-  use_infrared: true
-  compute_ndvi: true
-  sampling_method: fps # Not used for enriched LAZ only
-  normalize_xyz: false # Keep original coordinates in LAZ
-  normalize_features: false # Keep original feature values in LAZ
+  mode: full # Full feature extraction for rich representations
+  k_neighbors: 32 # Optimal for PointNet++ (16-32 neighbors)
+  include_extra: true # Include geometric features (normals, curvature, planarity)
+  use_rgb: false # RGB from orthophotos for semantic understanding
+  use_infrared: false # NIR for vegetation/material classification
+  compute_ndvi: false # NDVI for enhanced vegetation detection
+  sampling_method: fps # FPS (Farthest Point Sampling) for intelligent indexing
+  normalize_xyz: true # Normalize coordinates for PointNet++ training
+  normalize_features: true # Standardize features (mean=0, std=1) for better convergence
   gpu_batch_size: 1000000 # 1M points per GPU chunk for efficient processing
-  use_gpu_chunked: true # CRITICAL: GPU chunked processing enabled
+  use_gpu_chunked: true # GPU chunked processing for large tiles
 preprocess:
-  enabled: false
-  sor_k: 0 # DISABLED: SOR is extremely slow on large point clouds
-  sor_std: 1.5
-  ror_radius: 0.0 # DISABLED - skip ROR too
+  enabled: true # Enable preprocessing for cleaner training data
+  sor_k: 12 # Statistical Outlier Removal (moderate filtering)
+  sor_std: 2.0 # Standard deviation threshold (not too aggressive)
+  ror_radius: 0.0 # Disable ROR (SOR is sufficient)
   ror_neighbors: 0
-  voxel_enabled: false # GPU accelerated voxelization
-  voxel_size: 0.1 # Voxel downsampling to 10cm (can be enabled if needed)
+  voxel_enabled: false # Disable voxel downsampling (keep full resolution)
+  voxel_size: 0.1 # Not used when voxel_enabled=false
 stitching:
-  enabled: false # Disabled - not creating patches
-  buffer_size: 0.0
-  auto_detect_neighbors: false
-  auto_download_neighbors: false
-  cache_enabled: false
+  enabled: true # Enable for boundary-aware feature computation
+  buffer_size: 10.0 # 10m buffer zone for cross-tile consistency
+  auto_detect_neighbors: true # Automatically detect neighboring tiles
+  auto_download_neighbors: true # Don't auto-download (manage manually)
+  cache_enabled: true # Cache neighboring tile data
 output:
-  format: npz # Output format for patches (npz, hdf5, pytorch, laz)
-  processing_mode: enriched_only # Only create enriched LAZ files (no patches)
-  save_stats: true
-  save_metadata: true
-  compression: null
+  format: npz, laz # NPZ format for efficient ML training (recommended for PointNet++)
+  processing_mode: patches_only # Only create ML patches (fastest for training)
+  save_stats: true # Save dataset statistics
+  save_metadata: true # Save patch metadata for tracking
+  compression: null # No compression for faster I/O during training
+input_dir: /mnt/c/Users/Simon/ign/enriched_tiles
+output_dir: /mnt/c/Users/Simon/ign/patches

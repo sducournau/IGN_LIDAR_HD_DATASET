@@ -174,10 +174,17 @@ class GPUChunkedFeatureComputer:
     def _free_gpu_memory(self):
         """Explicitly free GPU memory."""
         if self.use_gpu and cp is not None:
-            mempool = cp.get_default_memory_pool()
-            pinned_mempool = cp.get_default_pinned_memory_pool()
-            mempool.free_all_blocks()
-            pinned_mempool.free_all_blocks()
+            try:
+                # Check if CUDA is actually available before trying to free memory
+                if cp.cuda.is_available():
+                    mempool = cp.get_default_memory_pool()
+                    pinned_mempool = cp.get_default_pinned_memory_pool()
+                    mempool.free_all_blocks()
+                    pinned_mempool.free_all_blocks()
+            except Exception as e:
+                # Catch all exceptions including CUDA runtime errors
+                logger.debug(f"Could not free GPU memory: {e}")
+                pass
             gc.collect()
     
     def compute_normals_chunked(

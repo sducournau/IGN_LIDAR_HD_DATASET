@@ -1,0 +1,100 @@
+# ============================================================================
+# SEQUENTIAL CONFIGURATION FOR HYBRID MODEL TRAINING
+# ============================================================================
+# Ultra-safe configuration for systems with limited RAM:
+# 1. Single worker (num_workers: 1) - Process one tile at a time
+# 2. Minimal GPU batch size - Reduced memory footprint
+# 3. Disabled parallel features - Sequential processing only
+# 4. Aggressive memory management - Frequent GC, small cache
+# 5. Reduced buffer zones - Less neighbor data loaded
+#
+# Use this if the memory-optimized config still causes OOM errors
+# Trade-off: Slower processing but guaranteed completion
+# ============================================================================
+
+processor:
+  lod_level: LOD3
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 1 # SEQUENTIAL: Process one tile at a time
+  patch_size: 150.0
+  patch_overlap: 0.1
+  num_points: 32768
+  augment: true
+  num_augmentations: 3
+  batch_size: 1 # MINIMAL: One batch per worker
+  prefetch_factor: 0 # DISABLED: No prefetching
+  pin_memory: false
+
+features:
+  mode: full
+  k_neighbors: 32
+  include_extra: true
+  use_rgb: false
+  use_infrared: false
+  compute_ndvi: false
+  sampling_method: fps
+  normalize_xyz: true
+  normalize_features: true
+  gpu_batch_size: 250000 # MINIMAL: 250K points per GPU chunk
+  use_gpu_chunked: true
+
+preprocess:
+  enabled: true
+  sor_k: 12
+  sor_std: 2.0
+  ror_radius: 0.0
+  ror_neighbors: 0
+  voxel_enabled: false
+  voxel_size: 0.1
+
+stitching:
+  enabled: true
+  buffer_size: 5.0 # REDUCED: 10m -> 5m (less neighbor data)
+  adaptive_buffer: false # DISABLED: Fixed buffer size
+  min_buffer: 5.0
+  max_buffer: 25.0
+  auto_detect_neighbors: true
+  auto_download_neighbors: false
+  neighbor_search_radius: 50.0
+  max_neighbors: 4 # REDUCED: 8 -> 4 (fewer neighbors)
+  use_grid_pattern: true
+  cache_enabled: true
+  cache_size: 100 # MINIMAL: Very small cache
+  parallel_loading: false
+  prefetch_neighbors: false
+  overlap_threshold: 0.1
+  boundary_smoothing: true
+  edge_artifact_removal: true
+  seamless_blending: true
+  memory_limit: 2048 # MINIMAL: 2GB limit per tile
+  chunk_processing: true
+  gc_frequency: 1 # AGGRESSIVE: GC after every tile
+  compute_boundary_features: true
+  boundary_feature_radius: 5.0
+  cross_tile_neighborhoods: true
+  preserve_tile_metadata: true
+  verbose_logging: true
+  save_boundary_masks: false
+  save_stitching_stats: true
+  timing_analysis: false
+
+output:
+  format: npz, laz
+  processing_mode: patches_only
+  compression: null
+  save_stats: true
+  save_metadata: true
+
+input_dir: /mnt/c/Users/Simon/ign/enriched_tiles
+output_dir: /mnt/c/Users/Simon/ign/patches
+
+num_workers: 1 # Match processor.num_workers
+verbose: true
+log_level: INFO
+
+bbox:
+  xmin: null
+  ymin: null
+  xmax: null
+  ymax: null
