@@ -555,6 +555,219 @@ class GPUFeatureComputer:
             roof_score = horizontality * height_score * curvature_score
             return roof_score.astype(np.float32)
 
+    def compute_eigenvalue_features(
+        self,
+        points: np.ndarray,
+        normals: np.ndarray,
+        neighbors_indices: np.ndarray
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute eigenvalue-based features (GPU-accelerated).
+        
+        Features:
+        - eigenvalue_1, eigenvalue_2, eigenvalue_3: Individual eigenvalues (λ₀, λ₁, λ₂)
+        - sum_eigenvalues: Sum of eigenvalues (Σλ)
+        - eigenentropy: Shannon entropy of normalized eigenvalues
+        - omnivariance: Cubic root of product of eigenvalues
+        - change_curvature: Variance-based curvature change measure
+        
+        Args:
+            points: [N, 3] point coordinates
+            normals: [N, 3] surface normals
+            neighbors_indices: [N, k] indices of k-nearest neighbors
+            
+        Returns:
+            Dictionary of eigenvalue-based features
+        """
+        N = len(points)
+        k = neighbors_indices.shape[1]
+        
+        # Get neighbor coordinates: [N, k, 3]
+        neighbors = points[neighbors_indices]
+        
+        # Center neighbors
+        centroids = neighbors.mean(axis=1, keepdims=True)
+        centered = neighbors - centroids
+        
+        # Covariance matrices: [N, 3, 3]
+        cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
+        
+        # Compute eigenvalues: [N, 3]
+        eigenvalues = np.linalg.eigvalsh(cov_matrices)
+        eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
+        
+        # Clamp to non-negative
+        eigenvalues = np.maximum(eigenvalues, 1e-10)
+        
+        λ0 = eigenvalues[:, 0]
+        λ1 = eigenvalues[:, 1]
+        λ2 = eigenvalues[:, 2]
+        
+        # Sum of eigenvalues
+        sum_eigenvalues = λ0 + λ1 + λ2
+        
+        # Eigenentropy: Shannon entropy of normalized eigenvalues
+        # H = -Σ(p_i * log(p_i)) where p_i = λ_i / Σλ
+        p0 = λ0 / (sum_eigenvalues + 1e-10)
+        p1 = λ1 / (sum_eigenvalues + 1e-10)
+        p2 = λ2 / (sum_eigenvalues + 1e-10)
+        
+        eigenentropy = -(
+            p0 * np.log(p0 + 1e-10) +
+            p1 * np.log(p1 + 1e-10) +
+            p2 * np.log(p2 + 1e-10)
+        )
+        
+        # Omnivariance: cubic root of eigenvalue product
+        omnivariance = np.cbrt(λ0 * λ1 * λ2)
+        
+        # Change of curvature: variance of eigenvalues (measures local complexity)
+        eigenvalue_variance = np.var(eigenvalues, axis=1)
+        change_curvature = np.sqrt(eigenvalue_variance)
+        
+        return {
+            'eigenvalue_1': λ0.astype(np.float32),
+            'eigenvalue_2': λ1.astype(np.float32),
+            'eigenvalue_3': λ2.astype(np.float32),
+            'sum_eigenvalues': sum_eigenvalues.astype(np.float32),
+            'eigenentropy': eigenentropy.astype(np.float32),
+            'omnivariance': omnivariance.astype(np.float32),
+            'change_curvature': change_curvature.astype(np.float32),
+        }
+
+    def compute_architectural_features(
+        self,
+        points: np.ndarray,
+        normals: np.ndarray,
+        neighbors_indices: np.ndarray
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute architectural features for building detection (GPU-accelerated).
+        
+        Features:
+        - edge_strength: Strength of edges (high eigenvalue variance)
+        - corner_likelihood: Probability of corner point (3D structure)
+        - overhang_indicator: Overhang/protrusion detection
+        - surface_roughness: Fine-scale surface texture
+        
+        Args:
+            points: [N, 3] point coordinates
+            normals: [N, 3] surface normals
+            neighbors_indices: [N, k] indices of k-nearest neighbors
+            
+        Returns:
+            Dictionary of architectural features
+        """
+        N = len(points)
+        k = neighbors_indices.shape[1]
+        
+        # Get neighbor coordinates and normals
+        neighbors = points[neighbors_indices]
+        neighbor_normals = normals[neighbors_indices]
+        
+        # Center neighbors
+        centroids = neighbors.mean(axis=1, keepdims=True)
+        centered = neighbors - centroids
+        
+        # Covariance matrices
+        cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
+        eigenvalues = np.linalg.eigvalsh(cov_matrices)
+        eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]
+        eigenvalues = np.maximum(eigenvalues, 1e-10)
+        
+        λ0 = eigenvalues[:, 0]
+        λ1 = eigenvalues[:, 1]
+        λ2 = eigenvalues[:, 2]
+        
+        # Edge strength: High when eigenvalues are (large, medium, small)
+        # Normalized ratio (λ0 - λ2) / λ0
+        edge_strength = np.clip((λ0 - λ2) / (λ0 + 1e-8), 0.0, 1.0)
+        
+        # Corner likelihood: All eigenvalues similar (isotropic 3D structure)
+        # Measured as ratio of smallest to largest eigenvalue
+        corner_likelihood = np.clip(λ2 / (λ0 + 1e-8), 0.0, 1.0)
+        
+        # Normal variation (measures local surface complexity)
+        normal_diffs = neighbor_normals - normals[:, np.newaxis, :]
+        normal_variation = np.linalg.norm(normal_diffs, axis=2).mean(axis=1)
+        
+        # Overhang indicator: Large vertical normal variation
+        vertical_diffs = neighbor_normals[:, :, 2] - normals[:, 2:3]
+        overhang_indicator = np.abs(vertical_diffs).mean(axis=1)
+        
+        # Surface roughness: Standard deviation of distances to centroid
+        distances_to_centroid = np.linalg.norm(centered, axis=2)
+        surface_roughness = np.std(distances_to_centroid, axis=1)
+        
+        return {
+            'edge_strength': edge_strength.astype(np.float32),
+            'corner_likelihood': corner_likelihood.astype(np.float32),
+            'overhang_indicator': np.clip(overhang_indicator, 0.0, 1.0).astype(np.float32),
+            'surface_roughness': surface_roughness.astype(np.float32),
+        }
+
+    def compute_density_features(
+        self,
+        points: np.ndarray,
+        neighbors_indices: np.ndarray,
+        radius_2m: float = 2.0
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute density and neighborhood features (GPU-accelerated).
+        
+        Features:
+        - density: Local point density (1/mean_distance)
+        - num_points_2m: Number of points within 2m radius
+        - neighborhood_extent: Maximum distance to k-th neighbor
+        - height_extent_ratio: Ratio of vertical to spatial extent
+        
+        Args:
+            points: [N, 3] point coordinates
+            neighbors_indices: [N, k] indices of k-nearest neighbors
+            radius_2m: Radius for counting nearby points (default 2.0m)
+            
+        Returns:
+            Dictionary of density features
+        """
+        N = len(points)
+        k = neighbors_indices.shape[1]
+        
+        # Get neighbor coordinates
+        neighbors = points[neighbors_indices]
+        
+        # Compute distances to all neighbors
+        distances = np.linalg.norm(
+            neighbors - points[:, np.newaxis, :],
+            axis=2
+        )
+        
+        # Density: 1 / mean distance (excluding self at distance 0)
+        mean_distances = np.mean(distances[:, 1:], axis=1)
+        density = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0)
+        
+        # Number of points within 2m radius
+        # Build KDTree for radius search
+        from sklearn.neighbors import KDTree
+        tree = KDTree(points, metric='euclidean')
+        neighbors_2m = tree.query_radius(points, r=radius_2m)
+        num_points_2m = np.array([len(n) for n in neighbors_2m], dtype=np.float32)
+        
+        # Neighborhood extent: maximum distance to k-th neighbor
+        neighborhood_extent = np.max(distances, axis=1)
+        
+        # Height extent ratio: vertical std / spatial extent
+        z_coords = neighbors[:, :, 2]
+        z_std = np.std(z_coords, axis=1)
+        spatial_extent = neighborhood_extent + 1e-8
+        height_extent_ratio = z_std / spatial_extent
+        
+        return {
+            'density': density.astype(np.float32),
+            'num_points_2m': num_points_2m,
+            'neighborhood_extent': neighborhood_extent.astype(np.float32),
+            'height_extent_ratio': np.clip(height_extent_ratio, 0.0, 1.0).astype(np.float32),
+        }
+
     def compute_all_features(
         self,
         points: np.ndarray,
@@ -1006,3 +1219,76 @@ def compute_roof_score(
     return computer.compute_roof_score(
         normals, height_above_ground, curvature, min_height
     )
+
+
+def compute_eigenvalue_features(
+    points: np.ndarray,
+    normals: np.ndarray,
+    neighbors_indices: np.ndarray
+) -> Dict[str, np.ndarray]:
+    """
+    Wrapper for GPU-accelerated eigenvalue feature computation.
+    
+    Computes eigenvalue-based geometric features:
+    - eigenvalue_1, eigenvalue_2, eigenvalue_3
+    - sum_eigenvalues, eigenentropy, omnivariance
+    - change_curvature
+    
+    Args:
+        points: [N, 3] point coordinates
+        normals: [N, 3] surface normals
+        neighbors_indices: [N, k] indices of k-nearest neighbors
+        
+    Returns:
+        Dictionary of eigenvalue-based features
+    """
+    computer = get_gpu_computer()
+    return computer.compute_eigenvalue_features(points, normals, neighbors_indices)
+
+
+def compute_architectural_features(
+    points: np.ndarray,
+    normals: np.ndarray,
+    neighbors_indices: np.ndarray
+) -> Dict[str, np.ndarray]:
+    """
+    Wrapper for GPU-accelerated architectural feature computation.
+    
+    Computes architectural features for building detection:
+    - edge_strength, corner_likelihood
+    - overhang_indicator, surface_roughness
+    
+    Args:
+        points: [N, 3] point coordinates
+        normals: [N, 3] surface normals
+        neighbors_indices: [N, k] indices of k-nearest neighbors
+        
+    Returns:
+        Dictionary of architectural features
+    """
+    computer = get_gpu_computer()
+    return computer.compute_architectural_features(points, normals, neighbors_indices)
+
+
+def compute_density_features(
+    points: np.ndarray,
+    neighbors_indices: np.ndarray,
+    radius_2m: float = 2.0
+) -> Dict[str, np.ndarray]:
+    """
+    Wrapper for GPU-accelerated density feature computation.
+    
+    Computes density and neighborhood features:
+    - density, num_points_2m
+    - neighborhood_extent, height_extent_ratio
+    
+    Args:
+        points: [N, 3] point coordinates
+        neighbors_indices: [N, k] indices of k-nearest neighbors
+        radius_2m: Radius for counting nearby points (default 2.0m)
+        
+    Returns:
+        Dictionary of density features
+    """
+    computer = get_gpu_computer()
+    return computer.compute_density_features(points, neighbors_indices, radius_2m)

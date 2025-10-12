@@ -34,7 +34,7 @@ processor:
   pin_memory: true
 
 features:
-  mode: full
+  mode: lod3
   k_neighbors: 20 # Smaller neighborhood for fine details
   include_extra: true
   use_rgb: true
@@ -64,7 +64,7 @@ stitching:
 
 output:
   format: npz,laz
-  processing_mode: patches_only
+  processing_mode: both
   save_stats: true
   save_metadata: true
   compression: null

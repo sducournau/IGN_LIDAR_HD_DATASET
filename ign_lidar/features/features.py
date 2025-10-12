@@ -28,6 +28,9 @@ Removed redundant features:
 from typing import Dict, Tuple
 import numpy as np
 from sklearn.neighbors import KDTree
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def estimate_optimal_k(points: np.ndarray,
@@ -202,6 +205,265 @@ def compute_curvature(points: np.ndarray, normals: np.ndarray,
     curvature = np.std(distances_along_normal, axis=1).astype(np.float32)
     
     return curvature
+
+
+def compute_eigenvalue_features(
+    eigenvalues: np.ndarray,
+    epsilon: float = 1e-8
+) -> Dict[str, np.ndarray]:
+    """
+    Compute all eigenvalue-based features.
+    
+    Args:
+        eigenvalues: [N, 3] eigenvalues sorted descending (λ₀ >= λ₁ >= λ₂)
+        epsilon: Small constant to avoid division by zero
+    
+    Returns:
+        Dictionary of eigenvalue features:
+        - eigenvalue_1, eigenvalue_2, eigenvalue_3: Individual eigenvalues
+        - sum_eigenvalues: Σλ
+        - eigenentropy: Shannon entropy of normalized eigenvalues
+        - omnivariance: Cubic root of eigenvalue product (3D dispersion)
+        - change_curvature: Variance of eigenvalues (surface change rate)
+    """
+    λ0, λ1, λ2 = eigenvalues[:, 0], eigenvalues[:, 1], eigenvalues[:, 2]
+    
+    # Clamp to non-negative (handle numerical artifacts)
+    λ0 = np.maximum(λ0, 0.0)
+    λ1 = np.maximum(λ1, 0.0)
+    λ2 = np.maximum(λ2, 0.0)
+    
+    # Sum of eigenvalues
+    sum_λ = λ0 + λ1 + λ2 + epsilon
+    
+    # Shannon entropy: -Σ(pᵢ * log(pᵢ)) where pᵢ = λᵢ/Σλ
+    # Normalized eigenvalues as probability distribution
+    p0 = λ0 / sum_λ
+    p1 = λ1 / sum_λ
+    p2 = λ2 / sum_λ
+    
+    # Avoid log(0) by adding epsilon
+    with np.errstate(divide='ignore', invalid='ignore'):
+        log_p0 = np.log(p0 + epsilon)
+        log_p1 = np.log(p1 + epsilon)
+        log_p2 = np.log(p2 + epsilon)
+    
+    eigenentropy = -(p0 * log_p0 + p1 * log_p1 + p2 * log_p2)
+    eigenentropy = np.nan_to_num(eigenentropy, nan=0.0, posinf=0.0, neginf=0.0)
+    eigenentropy = np.clip(eigenentropy, 0.0, np.log(3.0))  # Max entropy = log(3)
+    
+    # Omnivariance: (λ₀ * λ₁ * λ₂)^(1/3) - measure of 3D dispersion
+    # Alternative formulation: geometric mean of eigenvalues
+    product = λ0 * λ1 * λ2 + epsilon
+    omnivariance = np.cbrt(product)  # Cubic root
+    
+    # Change of curvature: Variance of eigenvalues (rate of surface change)
+    # High variance indicates edges/corners, low variance indicates smooth surfaces
+    mean_λ = sum_λ / 3.0
+    change_curvature = np.sqrt(
+        ((λ0 - mean_λ)**2 + (λ1 - mean_λ)**2 + (λ2 - mean_λ)**2) / 3.0
+    )
+    
+    return {
+        'eigenvalue_1': λ0.astype(np.float32),
+        'eigenvalue_2': λ1.astype(np.float32),
+        'eigenvalue_3': λ2.astype(np.float32),
+        'sum_eigenvalues': sum_λ.astype(np.float32),
+        'eigenentropy': eigenentropy.astype(np.float32),
+        'omnivariance': omnivariance.astype(np.float32),
+        'change_curvature': change_curvature.astype(np.float32),
+    }
+
+
+def compute_architectural_features(
+    eigenvalues: np.ndarray,
+    normals: np.ndarray,
+    points: np.ndarray,
+    tree: KDTree,
+    k: int = 20,
+    epsilon: float = 1e-8
+) -> Dict[str, np.ndarray]:
+    """
+    Compute advanced architectural features for building detection.
+    
+    Features:
+    - edge_strength: High eigenvalue variance indicates edges/corners
+    - corner_likelihood: 3D structure indicator (all eigenvalues similar)
+    - overhang_indicator: Detects overhangs using normal consistency
+    - surface_roughness: Fine-scale texture measure
+    
+    Args:
+        eigenvalues: [N, 3] eigenvalues sorted descending
+        normals: [N, 3] surface normals
+        points: [N, 3] point coordinates
+        tree: KDTree for neighbor search
+        k: Number of neighbors
+        epsilon: Small constant
+    
+    Returns:
+        Dictionary of architectural features
+    """
+    n_points = len(points)
+    λ0, λ1, λ2 = eigenvalues[:, 0], eigenvalues[:, 1], eigenvalues[:, 2]
+    
+    # Edge Strength: Variance of eigenvalues (high at edges/corners)
+    # Same as change_curvature but can be normalized differently
+    sum_λ = λ0 + λ1 + λ2 + epsilon
+    mean_λ = sum_λ / 3.0
+    eigenvalue_variance = ((λ0 - mean_λ)**2 + (λ1 - mean_λ)**2 + (λ2 - mean_λ)**2) / 3.0
+    
+    # Normalize by sum of eigenvalues for scale-invariance
+    edge_strength = np.clip(eigenvalue_variance / (sum_λ + epsilon), 0.0, 1.0)
+    
+    # Corner Likelihood: Points where all 3 eigenvalues are similar
+    # Use coefficient of variation: std/mean (low = similar values = corner)
+    # Inverse so high values indicate corners
+    with np.errstate(divide='ignore', invalid='ignore'):
+        cv = np.sqrt(eigenvalue_variance) / (mean_λ + epsilon)
+        corner_likelihood = 1.0 / (1.0 + cv)  # Inverse sigmoid-like
+        corner_likelihood = np.nan_to_num(corner_likelihood, nan=0.0)
+        corner_likelihood = np.clip(corner_likelihood, 0.0, 1.0)
+    
+    # Overhang Indicator: Inconsistent normals in neighborhood (overhangs/protrusions)
+    # Query neighbors
+    _, indices = tree.query(points, k=min(k, n_points))
+    neighbors_normals = normals[indices]  # [N, k, 3]
+    
+    # Compute normal consistency: dot product with center normal
+    center_normals = normals[:, np.newaxis, :]  # [N, 1, 3]
+    dot_products = np.sum(neighbors_normals * center_normals, axis=2)  # [N, k]
+    
+    # Low consistency (low dot product) indicates overhang
+    # Use standard deviation of dot products
+    normal_consistency = np.mean(dot_products, axis=1)
+    overhang_indicator = 1.0 - normal_consistency  # High when normals inconsistent
+    overhang_indicator = np.clip(overhang_indicator, 0.0, 1.0)
+    
+    # Surface Roughness: Fine-scale texture using smallest eigenvalue
+    # High λ₂ relative to sum indicates rough surface
+    surface_roughness = np.clip(λ2 / (sum_λ + epsilon), 0.0, 1.0)
+    
+    return {
+        'edge_strength': edge_strength.astype(np.float32),
+        'corner_likelihood': corner_likelihood.astype(np.float32),
+        'overhang_indicator': overhang_indicator.astype(np.float32),
+        'surface_roughness': surface_roughness.astype(np.float32),
+    }
+
+
+def compute_density_features(
+    points: np.ndarray,
+    tree: KDTree,
+    k: int = 20,
+    radius_2m: float = 2.0,
+    epsilon: float = 1e-8
+) -> Dict[str, np.ndarray]:
+    """
+    Compute comprehensive density and neighborhood features.
+    
+    Features:
+    - density: Local point density (inverse of mean distance)
+    - num_points_2m: Number of points within 2m radius
+    - neighborhood_extent: Maximum distance to k-th neighbor
+    - height_extent_ratio: Ratio of vertical std to spatial extent
+    
+    Args:
+        points: [N, 3] point coordinates
+        tree: KDTree for neighbor search
+        k: Number of neighbors
+        radius_2m: Fixed radius for point counting (default 2m)
+        epsilon: Small constant
+    
+    Returns:
+        Dictionary of density features
+    """
+    n_points = len(points)
+    
+    # Query k-nearest neighbors
+    distances, indices = tree.query(points, k=min(k, n_points))
+    
+    # Density: Inverse of mean distance to neighbors
+    # Exclude self (first neighbor)
+    mean_distances = np.mean(distances[:, 1:], axis=1)
+    density = 1.0 / (mean_distances + epsilon)
+    density = np.clip(density, 0.0, 1000.0)  # Cap at 1000 points/m
+    
+    # Neighborhood extent: Maximum distance to k-th neighbor
+    neighborhood_extent = distances[:, -1]
+    
+    # Vertical standard deviation in neighborhood
+    neighbors_all = points[indices]  # [N, k, 3]
+    z_neighbors = neighbors_all[:, :, 2]  # [N, k]
+    vertical_std = np.std(z_neighbors, axis=1)
+    
+    # Height-extent ratio
+    with np.errstate(divide='ignore', invalid='ignore'):
+        height_extent_ratio = vertical_std / (neighborhood_extent + epsilon)
+        height_extent_ratio = np.nan_to_num(height_extent_ratio, nan=0.0)
+        height_extent_ratio = np.clip(height_extent_ratio, 0.0, 10.0)
+    
+    # Number of points within 2m radius
+    # Use radius search for this
+    neighbor_counts = tree.query_radius(points, r=radius_2m, count_only=True)
+    num_points_2m = neighbor_counts.astype(np.float32)
+    
+    return {
+        'density': density.astype(np.float32),
+        'num_points_2m': num_points_2m,
+        'neighborhood_extent': neighborhood_extent.astype(np.float32),
+        'height_extent_ratio': height_extent_ratio.astype(np.float32),
+        'vertical_std': vertical_std.astype(np.float32),
+    }
+
+
+def compute_verticality(normals: np.ndarray) -> np.ndarray:
+    """
+    Compute verticality score from normals.
+    
+    Verticality = 1 - |normal_z| (1 for vertical, 0 for horizontal)
+    
+    Args:
+        normals: [N, 3] surface normals
+    
+    Returns:
+        verticality: [N] verticality scores [0, 1]
+    """
+    return (1.0 - np.abs(normals[:, 2])).astype(np.float32)
+
+
+def compute_building_scores(
+    planarity: np.ndarray,
+    normals: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Compute building-specific classification scores.
+    
+    Args:
+        planarity: [N] planarity values [0, 1]
+        normals: [N, 3] surface normals
+    
+    Returns:
+        verticality: [N] vertical surface indicator
+        wall_score: [N] wall likelihood (planarity × verticality)
+        roof_score: [N] roof likelihood (planarity × horizontality)
+    """
+    # Verticality: 1 for vertical, 0 for horizontal
+    verticality = 1.0 - np.abs(normals[:, 2])
+    
+    # Horizontality: 1 for horizontal, 0 for vertical
+    horizontality = np.abs(normals[:, 2])
+    
+    # Wall score: High planarity + high verticality
+    wall_score = planarity * verticality
+    
+    # Roof score: High planarity + high horizontality
+    roof_score = planarity * horizontality
+    
+    return (
+        verticality.astype(np.float32),
+        wall_score.astype(np.float32),
+        roof_score.astype(np.float32)
+    )
 
 
 def compute_height_above_ground(points: np.ndarray,
@@ -1219,6 +1481,249 @@ def compute_all_features_with_gpu(
     if 'verticality' not in geo_features:
         verticality = compute_verticality(normals)
         geo_features['verticality'] = verticality
+    
+    return normals, curvature, height, geo_features
+
+
+def compute_features_by_mode(
+    points: np.ndarray,
+    classification: np.ndarray,
+    mode: str = "lod3",
+    k: int = 20,
+    auto_k: bool = True,
+    patch_center: np.ndarray = None,
+    use_radius: bool = True,
+    radius: float = None,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
+    """
+    Compute features based on processing mode (LOD2, LOD3, etc.).
+    
+    This is the main entry point for mode-based feature computation.
+    It computes the appropriate feature set based on the mode:
+    - 'minimal': Fast, essential features only (~8 features)
+    - 'lod2': LOD2 simplified features (~11 features)
+    - 'lod3': LOD3 complete features (~35 features)
+    - 'full': All available features
+    - 'custom': User-defined (via configuration)
+    
+    Args:
+        points: [N, 3] point coordinates
+        classification: [N] ASPRS classification codes
+        mode: Processing mode ('minimal', 'lod2', 'lod3', 'full')
+        k: Number of neighbors for feature computation
+        auto_k: Auto-estimate k based on point density
+        patch_center: [3] patch center for distance features
+        use_radius: Use radius-based search (recommended)
+        radius: Search radius in meters (auto-estimated if None)
+    
+    Returns:
+        normals: [N, 3] surface normals
+        curvature: [N] curvature values  
+        height: [N] height above ground
+        geo_features: Dictionary of all computed features
+        
+    Example:
+        >>> # LOD3 training with complete features
+        >>> normals, curv, height, features = compute_features_by_mode(
+        ...     points, classification, mode="lod3", k=30
+        ... )
+        >>> print(len(features))  # ~35 features
+        
+        >>> # LOD2 training with essential features
+        >>> normals, curv, height, features = compute_features_by_mode(
+        ...     points, classification, mode="lod2", k=20
+        ... )
+        >>> print(len(features))  # ~11 features
+    """
+    from .feature_modes import get_feature_config
+    # Functions now in this module:
+    # compute_eigenvalue_features, compute_architectural_features,
+    # compute_density_features, compute_building_scores
+    
+    # Get feature configuration for mode
+    feature_config = get_feature_config(
+        mode=mode,
+        k_neighbors=k,
+        use_radius=use_radius,
+        radius=radius
+    )
+    
+    # Estimate optimal k if requested
+    if auto_k and k is None:
+        k = estimate_optimal_k(points, target_radius=0.5)
+        logger.info(f"Auto-estimated k={k} neighbors")
+    elif k is None:
+        k = feature_config.k_neighbors
+    
+    # Build KDTree
+    tree = KDTree(points, metric='euclidean', leaf_size=30)
+    distances, indices = tree.query(points, k=k)
+    
+    # Get neighbors
+    neighbors_all = points[indices]
+    centroids = neighbors_all.mean(axis=1, keepdims=True)
+    centered = neighbors_all - centroids
+    
+    # Covariance matrices and eigendecomposition
+    cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
+    eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
+    
+    # Sort eigenvalues descending
+    eigenvalues_sorted = np.sort(eigenvalues, axis=1)[:, ::-1]
+    eigenvalues_sorted = np.maximum(eigenvalues_sorted, 0.0)
+    
+    λ0 = eigenvalues_sorted[:, 0]
+    λ1 = eigenvalues_sorted[:, 1]
+    λ2 = eigenvalues_sorted[:, 2]
+    λ0_safe = λ0 + 1e-8
+    sum_λ = λ0 + λ1 + λ2 + 1e-8
+    
+    # ============================================================
+    # COMPUTE CORE FEATURES (always needed)
+    # ============================================================
+    
+    # Normals
+    normals = eigenvectors[:, :, 0].copy()
+    norms = np.linalg.norm(normals, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-8)
+    normals = normals / norms
+    
+    flip_mask = normals[:, 2] < 0
+    normals[flip_mask] = -normals[flip_mask]
+    
+    degenerate = (eigenvalues[:, 0] < 1e-8) | np.isnan(normals).any(axis=1)
+    normals[degenerate] = np.array([0, 0, 1], dtype=np.float32)
+    normals = normals.astype(np.float32)
+    
+    # Curvature (using MAD for robustness)
+    centers = points[:, np.newaxis, :]
+    relative_pos = neighbors_all - centers
+    normals_expanded = normals[:, np.newaxis, :]
+    distances_along_normal = np.sum(relative_pos * normals_expanded, axis=2)
+    
+    median_dist = np.median(distances_along_normal, axis=1, keepdims=True)
+    mad = np.median(np.abs(distances_along_normal - median_dist), axis=1)
+    curvature = (mad * 1.4826).astype(np.float32)
+    
+    # Height above ground
+    ground_mask = (classification == 2)
+    if np.any(ground_mask):
+        ground_z = np.median(points[ground_mask, 2])
+    else:
+        ground_z = np.min(points[:, 2])
+    height = np.maximum(points[:, 2] - ground_z, 0).astype(np.float32)
+    
+    # ============================================================
+    # COMPUTE MODE-SPECIFIC FEATURES
+    # ============================================================
+    
+    geo_features = {}
+    feature_set = feature_config.features
+    
+    # Basic shape descriptors
+    if any(f in feature_set for f in ['planarity', 'linearity', 'sphericity', 
+                                       'anisotropy', 'roughness']):
+        planarity = np.clip((λ1 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
+        linearity = np.clip((λ0 - λ1) / λ0_safe, 0.0, 1.0).astype(np.float32)
+        sphericity = np.clip(λ2 / λ0_safe, 0.0, 1.0).astype(np.float32)
+        anisotropy = np.clip((λ0 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
+        roughness = np.clip(λ2 / sum_λ, 0.0, 1.0).astype(np.float32)
+        
+        # Validate features
+        valid_features = (
+            (λ0 >= 1e-6) &
+            (λ2 >= 1e-8) &
+            ~np.isnan(linearity) &
+            ~np.isinf(linearity)
+        )
+        
+        planarity[~valid_features] = 0.0
+        linearity[~valid_features] = 0.0
+        sphericity[~valid_features] = 0.0
+        anisotropy[~valid_features] = 0.0
+        roughness[~valid_features] = 0.0
+        
+        if 'planarity' in feature_set:
+            geo_features['planarity'] = planarity
+        if 'linearity' in feature_set:
+            geo_features['linearity'] = linearity
+        if 'sphericity' in feature_set:
+            geo_features['sphericity'] = sphericity
+        if 'anisotropy' in feature_set:
+            geo_features['anisotropy'] = anisotropy
+        if 'roughness' in feature_set:
+            geo_features['roughness'] = roughness
+    
+    # Density
+    if 'density' in feature_set:
+        mean_distances = np.mean(distances[:, 1:], axis=1)
+        density = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0)
+        geo_features['density'] = density.astype(np.float32)
+    
+    # Building scores and verticality
+    if any(f in feature_set for f in ['verticality', 'wall_score', 'roof_score']):
+        if 'planarity' not in locals():
+            planarity = np.clip((λ1 - λ2) / λ0_safe, 0.0, 1.0)
+        
+        verticality, wall_score, roof_score = compute_building_scores(
+            planarity, normals
+        )
+        
+        if 'verticality' in feature_set:
+            geo_features['verticality'] = verticality
+        if 'wall_score' in feature_set:
+            geo_features['wall_score'] = wall_score
+        if 'roof_score' in feature_set:
+            geo_features['roof_score'] = roof_score
+    
+    # Eigenvalue features
+    if any(f in feature_set for f in [
+        'eigenvalue_1', 'eigenvalue_2', 'eigenvalue_3',
+        'sum_eigenvalues', 'eigenentropy', 'omnivariance', 'change_curvature'
+    ]):
+        eigenvalue_feats = compute_eigenvalue_features(eigenvalues_sorted)
+        for feat_name, feat_values in eigenvalue_feats.items():
+            if feat_name in feature_set:
+                geo_features[feat_name] = feat_values
+    
+    # Architectural features
+    if any(f in feature_set for f in [
+        'edge_strength', 'corner_likelihood', 'overhang_indicator',
+        'surface_roughness'
+    ]):
+        arch_feats = compute_architectural_features(
+            eigenvalues_sorted, normals, points, tree, k
+        )
+        for feat_name, feat_values in arch_feats.items():
+            if feat_name in feature_set:
+                geo_features[feat_name] = feat_values
+    
+    # Density features
+    if any(f in feature_set for f in [
+        'num_points_2m', 'neighborhood_extent', 'height_extent_ratio',
+        'vertical_std', 'density'
+    ]):
+        density_feats = compute_density_features(points, tree, k)
+        for feat_name, feat_values in density_feats.items():
+            if feat_name in feature_set:
+                geo_features[feat_name] = feat_values
+    
+    # Height features
+    if 'height_above_ground' in feature_set:
+        geo_features['height_above_ground'] = height
+    
+    # Additional height features
+    if any(f in feature_set for f in [
+        'z_absolute', 'z_normalized', 'z_from_ground', 'z_from_median'
+    ]):
+        height_feats = compute_height_features(
+            points, classification, patch_center
+        )
+        for feat_name, feat_values in height_feats.items():
+            if feat_name in feature_set:
+                geo_features[feat_name] = feat_values
+    
+    logger.info(f"✓ Computed {len(geo_features)} features for mode '{mode}'")
     
     return normals, curvature, height, geo_features
 

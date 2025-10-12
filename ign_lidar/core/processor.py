@@ -2584,7 +2584,7 @@ class LiDARProcessor:
                                 logger.debug(f"  ✓ Added NDVI")
                         
                         # Verify extra dimensions were added
-                        extra_dims_added = new_las.point_format.extra_dimension_names
+                        extra_dims_added = list(new_las.point_format.extra_dimension_names)
                         logger.debug(f"  📊 Total extra dimensions added: {len(extra_dims_added)}")
                         logger.debug(f"     Extra dimensions: {extra_dims_added}")
                         
@@ -2596,7 +2596,7 @@ class LiDARProcessor:
                         if enriched_path.exists():
                             # Re-read to verify features were saved
                             verify_las = laspy.read(str(enriched_path))
-                            verify_extra_dims = verify_las.point_format.extra_dimension_names
+                            verify_extra_dims = list(verify_las.point_format.extra_dimension_names)
                             
                             if len(verify_extra_dims) == 0:
                                 logger.error(

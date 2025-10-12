@@ -1,0 +1,75 @@
+# ========================================================================
+# LOD3 Full Features Configuration - Complete Hybrid Training
+# ========================================================================
+# Purpose: Generate ML training patches with ALL 35 features for LOD3
+#
+# Feature Set (35 features total):
+# - Coordinates: xyz (3)
+# - Normals: normal_x, normal_y, normal_z (3)
+# - Curvature: curvature, change_curvature (2)
+# - Shape: planarity, linearity, sphericity, roughness, anisotropy, omnivariance (6)
+# - Eigenvalues: eigenvalue_1, eigenvalue_2, eigenvalue_3, sum_eigenvalues, eigenentropy (5)
+# - Height: height_above_ground, vertical_std (2)
+# - Building: verticality, wall_score, roof_score (3)
+# - Density: density, num_points_2m, neighborhood_extent, height_extent_ratio (4)
+# - Architectural: edge_strength, corner_likelihood, overhang_indicator, surface_roughness (4)
+# - Spectral: red, green, blue, nir, ndvi (5)
+#
+# Use Case: Detailed LOD3 architectural modeling with PointNet++/Transformer hybrid
+# ========================================================================
+
+processor:
+  lod_level: LOD3
+  architecture: hybrid_pointnet++_transformer
+  use_gpu: true
+  num_workers: 2
+  patch_size: 150.0 # Large patches for context
+  patch_overlap: 0.1
+  num_points: 32768 # 32k points for hybrid model
+  augment: true
+  num_augmentations: 3
+  pin_memory: true
+
+features:
+  mode: lod3 # LOD3 complete feature set
+  k_neighbors: 30 # More neighbors for accurate geometric features
+  include_extra: true # Enable all extra features
+
+  # Spectral features
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+
+  # Sampling and normalization
+  sampling_method: fps # Farthest Point Sampling for better coverage
+  normalize_xyz: true
+  normalize_features: true
+
+  # GPU optimization
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+
+preprocess:
+  enabled: true
+  sor_k: 12
+  sor_std: 2.0
+  ror_radius: 1.0
+  ror_neighbors: 4
+  voxel_enabled: false
+
+stitching:
+  enabled: true
+  buffer_size: 15.0
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+
+output:
+  format: npz,laz
+  processing_mode: patches_only
+  save_stats: true
+  save_metadata: true
+  compression: null
+
+input_dir: /mnt/c/Users/Simon/ign/enriched_tiles
+output_dir: /mnt/c/Users/Simon/ign/patches_lod3_full
