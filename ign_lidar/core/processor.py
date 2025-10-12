@@ -243,7 +243,7 @@ class LiDARProcessor:
                     rgb_cache_dir = Path(tempfile.gettempdir()) / "ign_lidar_cache" / "orthophotos"
                     rgb_cache_dir.mkdir(parents=True, exist_ok=True)
                 self.rgb_fetcher = IGNOrthophotoFetcher(cache_dir=rgb_cache_dir)
-                logger.info(f"RGB augmentation enabled (IGN orthophotos, cache: {rgb_cache_dir})")
+                logger.info(f"RGB enabled (will use from input LAZ if present, otherwise fetch from IGN orthophotos)")
             except ImportError as e:
                 logger.error(
                     f"RGB augmentation requires additional packages: {e}"
@@ -263,7 +263,7 @@ class LiDARProcessor:
                     infrared_cache_dir = Path(self.rgb_cache_dir).parent / "infrared"
                 infrared_cache_dir.mkdir(parents=True, exist_ok=True)
                 self.infrared_fetcher = IGNInfraredFetcher(cache_dir=infrared_cache_dir)
-                logger.info(f"Infrared augmentation enabled (IGN IRC orthophotos, cache: {infrared_cache_dir})")
+                logger.info(f"NIR enabled (will use from input LAZ if present, otherwise fetch from IGN IRC)")
             except ImportError as e:
                 logger.error(
                     f"Infrared augmentation requires additional packages: {e}"
@@ -1015,10 +1015,10 @@ class LiDARProcessor:
             if input_rgb_v is not None:
                 # Use RGB from input LAZ file (already preserved)
                 all_features_v['rgb'] = input_rgb_v
-                logger.info(f"  ✓ Using RGB from input LAZ ({input_rgb_v.shape})")
+                logger.info(f"  ✅ Using RGB from input LAZ ({input_rgb_v.shape[0]:,} points, preserved from file)")
             elif self.rgb_fetcher:
                 # Fetch RGB from IGN orthophotos
-                logger.info("  🎨 Fetching RGB from IGN orthophotos...")
+                logger.info("  🎨 Fetching RGB from IGN orthophotos (not present in input LAZ)...")
                 rgb_start = time.time()
                 
                 tile_bbox = (
@@ -1054,10 +1054,10 @@ class LiDARProcessor:
             if input_nir_v is not None:
                 # NIR already present in input LAZ
                 all_features_v['nir'] = input_nir_v
-                logger.info(f"  ✓ Using NIR from input LAZ ({input_nir_v.shape})")
+                logger.info(f"  ✅ Using NIR from input LAZ ({input_nir_v.shape[0]:,} points, preserved from file)")
             else:
                 # Would fetch from external source here if implemented
-                logger.warning("  ⚠️  NIR requested but not available in input")
+                logger.warning("  ⚠️  NIR requested but not available in input LAZ")
         
         # 4f. Compute or use NDVI if requested (BEFORE patch extraction)
         # Priority: Use NDVI from input LAZ if available, otherwise compute from RGB and NIR
@@ -1065,10 +1065,10 @@ class LiDARProcessor:
             if input_ndvi_v is not None:
                 # Use NDVI from input LAZ file (already preserved)
                 all_features_v['ndvi'] = input_ndvi_v
-                logger.info(f"  ✓ Using NDVI from input LAZ ({input_ndvi_v.shape})")
+                logger.info(f"  ✅ Using NDVI from input LAZ ({input_ndvi_v.shape[0]:,} points, preserved from file)")
             elif 'rgb' in all_features_v and 'nir' in all_features_v:
                 # Compute NDVI from RGB and NIR
-                logger.info("  🌱 Computing NDVI from RGB and NIR...")
+                logger.info("  🌱 Computing NDVI from RGB and NIR (not present in input LAZ)...")
                 
                 try:
                     rgb = all_features_v['rgb']
@@ -1079,7 +1079,7 @@ class LiDARProcessor:
                     ndvi = (nir - red) / (nir + red + 1e-8)  # Add epsilon to avoid division by zero
                     all_features_v['ndvi'] = ndvi
                     
-                    logger.info("  ✓ NDVI computed successfully")
+                    logger.info("  ✓ NDVI computed successfully from RGB+NIR")
                 except Exception as e:
                     logger.warning(f"  ⚠️  NDVI computation failed: {e}")
             else:
@@ -1128,11 +1128,12 @@ class LiDARProcessor:
             version = patch.pop('_version', 'original')
             base_idx = patch.pop('_patch_idx', 0)
             
+            # Include architecture suffix in patch name
             if version == 'original':
-                patch_name = f"{laz_file.stem}_patch_{base_idx:04d}"
+                patch_name = f"{laz_file.stem}_{self.architecture}_patch_{base_idx:04d}"
             else:
                 patch_name = (
-                    f"{laz_file.stem}_patch_{base_idx:04d}_"
+                    f"{laz_file.stem}_{self.architecture}_patch_{base_idx:04d}_"
                     f"{version}"
                 )
             base_path = output_dir / patch_name
@@ -1487,6 +1488,8 @@ class LiDARProcessor:
         intensity = None
         return_number = None
         classification = None
+        rgb = None
+        rgb_from_laz = False
         nir = None
         nir_from_laz = False
         las = None
@@ -1514,6 +1517,7 @@ class LiDARProcessor:
                         all_intensity = []
                         all_return_number = []
                         all_classification = []
+                        all_rgb = [] if self.include_rgb else None
                         all_nir = [] if self.include_infrared else None
                         
                         # Read in chunks
@@ -1526,6 +1530,19 @@ class LiDARProcessor:
                             all_intensity.append(np.array(points_chunk.intensity, dtype=np.float32) / 65535.0)
                             all_return_number.append(np.array(points_chunk.return_number, dtype=np.float32))
                             all_classification.append(np.array(points_chunk.classification, dtype=np.uint8))
+                            
+                            # Try to load RGB if available
+                            if self.include_rgb and all_rgb is not None:
+                                if hasattr(points_chunk, 'red') and hasattr(points_chunk, 'green') and hasattr(points_chunk, 'blue'):
+                                    try:
+                                        chunk_rgb = np.vstack([
+                                            np.array(points_chunk.red, dtype=np.float32) / 65535.0,
+                                            np.array(points_chunk.green, dtype=np.float32) / 65535.0,
+                                            np.array(points_chunk.blue, dtype=np.float32) / 65535.0
+                                        ]).T
+                                        all_rgb.append(chunk_rgb)
+                                    except:
+                                        all_rgb = None  # Disable RGB if any chunk fails
                             
                             # Try to load NIR if available
                             if self.include_infrared and all_nir is not None:
@@ -1547,14 +1564,19 @@ class LiDARProcessor:
                         intensity = np.concatenate(all_intensity)
                         return_number = np.concatenate(all_return_number)
                         classification = np.concatenate(all_classification)
+                        rgb = np.vstack(all_rgb) if all_rgb is not None and len(all_rgb) > 0 else None
+                        rgb_from_laz = rgb is not None
                         nir = np.concatenate(all_nir) if all_nir is not None and len(all_nir) > 0 else None
                         nir_from_laz = nir is not None
+                        
+                        if rgb_from_laz:
+                            logger.info(f"  ✓ RGB channels detected in LAZ file")
                         
                         if nir_from_laz:
                             logger.info(f"  ✓ NIR channel detected in LAZ file")
                         
                         # Clean up chunk lists
-                        del all_points, all_intensity, all_return_number, all_classification, all_nir
+                        del all_points, all_intensity, all_return_number, all_classification, all_rgb, all_nir
                         gc.collect()
                     
                     # Create a minimal las object for compatibility (after the context closes)
@@ -1579,6 +1601,22 @@ class LiDARProcessor:
                     intensity = np.array(las.intensity, dtype=np.float32) / 65535.0
                     return_number = np.array(las.return_number, dtype=np.float32)
                     classification = np.array(las.classification, dtype=np.uint8)
+                    
+                    # Try to load RGB if available and requested
+                    rgb = None
+                    rgb_from_laz = False
+                    if self.include_rgb:
+                        if hasattr(las, 'red') and hasattr(las, 'green') and hasattr(las, 'blue'):
+                            try:
+                                rgb = np.vstack([
+                                    np.array(las.red, dtype=np.float32) / 65535.0,
+                                    np.array(las.green, dtype=np.float32) / 65535.0,
+                                    np.array(las.blue, dtype=np.float32) / 65535.0
+                                ]).T
+                                rgb_from_laz = True
+                                logger.info(f"  ✓ RGB channels detected in LAZ file")
+                            except Exception as e:
+                                logger.warning(f"  ⚠️  RGB channels in LAZ but failed to load: {e}")
                     
                     # Try to load NIR if available and requested
                     nir = None
@@ -1652,6 +1690,8 @@ class LiDARProcessor:
             intensity = intensity[mask]
             return_number = return_number[mask]
             classification = classification[mask]
+            if rgb is not None:
+                rgb = rgb[mask]
             if nir is not None:
                 nir = nir[mask]
             logger.info(f"  After bbox filter: {len(points):,} points")
@@ -1698,6 +1738,8 @@ class LiDARProcessor:
                 intensity = intensity[keep_indices]
                 return_number = return_number[keep_indices]
                 classification = classification[keep_indices]
+                if rgb is not None:
+                    rgb = rgb[keep_indices]
                 if nir is not None:
                     nir = nir[keep_indices]
             
@@ -1734,6 +1776,8 @@ class LiDARProcessor:
             intensity = intensity[cumulative_mask]
             return_number = return_number[cumulative_mask]
             classification = classification[cumulative_mask]
+            if rgb is not None:
+                rgb = rgb[cumulative_mask]
             if nir is not None:
                 nir = nir[cumulative_mask]
             
@@ -1753,23 +1797,30 @@ class LiDARProcessor:
         # RGB and NIR are fetched from orthophotos based on point coordinates.
         # Since augmentation only changes geometry slightly (rotations, jitter),
         # we fetch RGB/NIR once and reuse for all augmented versions.
-        rgb = None
-        if self.include_rgb and self.rgb_fetcher:
-            logger.info("  🎨 Fetching RGB from IGN orthophotos...")
-            try:
-                tile_bbox = (
-                    points[:, 0].min(),
-                    points[:, 1].min(),
-                    points[:, 0].max(),
-                    points[:, 1].max()
-                )
-                rgb = self.rgb_fetcher.augment_points_with_rgb(
-                    points, bbox=tile_bbox
-                )
-                rgb = rgb.astype(np.float32) / 255.0
-                logger.info(f"  ✓ RGB added")
-            except Exception as e:
-                logger.warning(f"  ⚠️  RGB fetch failed: {e}")
+        # Priority: Use RGB from LAZ if available, otherwise fetch from orthophotos
+        if self.include_rgb:
+            if rgb_from_laz and rgb is not None:
+                # RGB already loaded from LAZ file
+                logger.info(f"  ✅ Using RGB from input LAZ ({len(rgb):,} points, preserved from file)")
+            elif self.rgb_fetcher:
+                # Fetch RGB from IGN orthophotos
+                logger.info("  🎨 Fetching RGB from IGN orthophotos (not present in input LAZ)...")
+                try:
+                    tile_bbox = (
+                        points[:, 0].min(),
+                        points[:, 1].min(),
+                        points[:, 0].max(),
+                        points[:, 1].max()
+                    )
+                    rgb = self.rgb_fetcher.augment_points_with_rgb(
+                        points, bbox=tile_bbox
+                    )
+                    rgb = rgb.astype(np.float32) / 255.0
+                    logger.info(f"  ✓ RGB fetched from orthophotos")
+                except Exception as e:
+                    logger.warning(f"  ⚠️  RGB fetch failed: {e}")
+            else:
+                logger.warning("  ⚠️  RGB requested but no source available (no input RGB, no fetcher)")
         
         # Fetch NIR (if requested and not already from LAZ)
         logger.debug(f"  🔍 NIR conditions: include_infrared={self.include_infrared}, "

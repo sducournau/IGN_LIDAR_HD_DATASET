@@ -1,0 +1,73 @@
+# ========================================================================
+# LOD3 Training Patches Configuration - 100m Scale (Balanced Context)
+# ========================================================================
+# Purpose: Generate ML training patches with balanced detail and context
+#
+# Key Features:
+# - Medium patch size (100m) for building facades and patterns
+# - Balanced point count (24k) for good detail/context trade-off
+# - Standard overlap (12%) for efficient coverage
+# - Moderate augmentations (4) for training diversity
+# - Medium k-neighbors (25) for balanced feature computation
+#
+# Use Case:
+# - Training on medium-sized commercial buildings
+# - Facade pattern recognition
+# - Balanced architectural analysis
+# - Part of multi-scale training strategy (Phase 2)
+#
+# Output Example:
+#   LHD_FXX_0649_6863_hybrid_patch_0001.npz (24,576 points)
+#   LHD_FXX_0649_6863_hybrid_patch_0001.laz
+# ========================================================================
+
+processor:
+  lod_level: LOD3
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 2
+  patch_size: 150.0 # Medium patches for balanced detail/context
+  patch_overlap: 0.1 # Balanced overlap
+  num_points: 32768 # 32k points (balanced capacity)
+  augment: true
+  num_augmentations: 3 # Moderate augmentation
+  pin_memory: true
+
+features:
+  mode: full
+  k_neighbors: 30 # Balanced neighborhood size
+  include_extra: true
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+  sampling_method: fps
+  normalize_xyz: true
+  normalize_features: true
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+
+preprocess:
+  enabled: true
+  sor_k: 10 # Balanced outlier removal
+  sor_std: 2.0
+  ror_radius: 1.0
+  ror_neighbors: 4
+  voxel_enabled: false
+  voxel_size: 0.1
+
+stitching:
+  enabled: true
+  buffer_size: 15.0 # Medium buffer for 150m patches
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+
+output:
+  format: npz,laz
+  processing_mode: patches_only
+  save_stats: true
+  save_metadata: true
+  compression: null
+
+input_dir: /mnt/c/Users/Simon/ign/enriched_tiles
+output_dir: /mnt/c/Users/Simon/ign/patches_150m

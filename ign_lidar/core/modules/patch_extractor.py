@@ -204,12 +204,18 @@ def resample_patch(
             replace=True
         )
     
-    # Apply resampling to all arrays in patch
+    # Apply resampling to point-wise arrays (not metadata)
+    # Metadata fields start with '_' and should not be resampled
     resampled_patch = {}
     for key, value in patch.items():
-        if isinstance(value, np.ndarray):
+        if key.startswith('_'):
+            # Metadata field - copy as-is
+            resampled_patch[key] = value
+        elif isinstance(value, np.ndarray) and len(value) == num_points_current:
+            # Point-wise feature array - resample
             resampled_patch[key] = value[indices]
         else:
+            # Other data - copy as-is
             resampled_patch[key] = value
     
     return resampled_patch

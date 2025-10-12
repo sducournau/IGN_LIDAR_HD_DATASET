@@ -122,22 +122,30 @@ def convert_npz_to_laz_with_coords(npz_path: Path, output_path: Optional[Path] =
     # Set intensity if available
     if 'intensity' in data:
         intensity = data['intensity']
-        if intensity.max() <= 1.0:
+        # Handle scalar None values stored in numpy arrays
+        if intensity.ndim == 0:
+            intensity = intensity.item()
+        if intensity is not None and hasattr(intensity, 'max') and intensity.max() <= 1.0:
             las.intensity = (intensity * 65535).astype(np.uint16)
-        else:
+        elif intensity is not None and hasattr(intensity, 'shape'):
             las.intensity = intensity.astype(np.uint16)
+        else:
+            las.intensity = np.zeros(num_points, dtype=np.uint16)
     else:
         las.intensity = np.zeros(num_points, dtype=np.uint16)
     
     # Set RGB if available
     if 'rgb' in data:
         rgb = data['rgb']
-        if rgb.max() <= 1.0:
+        # Handle scalar None values stored in numpy arrays
+        if rgb.ndim == 0:
+            rgb = rgb.item()
+        if rgb is not None and hasattr(rgb, 'max') and rgb.max() <= 1.0:
             # Normalized [0, 1] -> [0, 65535]
             las.red = (rgb[:, 0] * 65535).astype(np.uint16)
             las.green = (rgb[:, 1] * 65535).astype(np.uint16)
             las.blue = (rgb[:, 2] * 65535).astype(np.uint16)
-        else:
+        elif rgb is not None and hasattr(rgb, 'shape'):
             las.red = rgb[:, 0].astype(np.uint16)
             las.green = rgb[:, 1].astype(np.uint16)
             las.blue = rgb[:, 2].astype(np.uint16)
@@ -168,7 +176,10 @@ def convert_npz_to_laz_with_coords(npz_path: Path, output_path: Optional[Path] =
     # Normals (3 dimensions)
     if 'normals' in data:
         normals = data['normals']
-        if normals.shape[0] == num_points and normals.shape[1] == 3:
+        # Handle scalar None values stored in numpy arrays
+        if normals.ndim == 0:
+            normals = normals.item()
+        if normals is not None and hasattr(normals, 'shape') and normals.shape[0] == num_points and normals.shape[1] == 3:
             las.add_extra_dim(laspy.ExtraBytesParams(name="normal_x", type=np.float32))
             las.add_extra_dim(laspy.ExtraBytesParams(name="normal_y", type=np.float32))
             las.add_extra_dim(laspy.ExtraBytesParams(name="normal_z", type=np.float32))
@@ -190,7 +201,10 @@ def convert_npz_to_laz_with_coords(npz_path: Path, output_path: Optional[Path] =
     for npz_key, las_name in geometric_features.items():
         if npz_key in data:
             feature_data = data[npz_key]
-            if len(feature_data) == num_points:
+            # Handle scalar None values stored in numpy arrays
+            if feature_data.ndim == 0:
+                feature_data = feature_data.item()
+            if feature_data is not None and hasattr(feature_data, '__len__') and len(feature_data) == num_points:
                 las.add_extra_dim(laspy.ExtraBytesParams(name=las_name, type=np.float32))
                 setattr(las, las_name, feature_data.astype(np.float32))
                 extra_dims_added.append(las_name)
@@ -205,7 +219,10 @@ def convert_npz_to_laz_with_coords(npz_path: Path, output_path: Optional[Path] =
     for npz_key, las_name in radiometric_features.items():
         if npz_key in data:
             feature_data = data[npz_key]
-            if len(feature_data) == num_points:
+            # Handle scalar None values stored in numpy arrays
+            if feature_data.ndim == 0:
+                feature_data = feature_data.item()
+            if feature_data is not None and hasattr(feature_data, '__len__') and len(feature_data) == num_points:
                 las.add_extra_dim(laspy.ExtraBytesParams(name=las_name, type=np.float32))
                 setattr(las, las_name, feature_data.astype(np.float32))
                 extra_dims_added.append(las_name)

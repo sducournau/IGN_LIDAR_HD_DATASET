@@ -4,6 +4,33 @@ This directory contains example configuration files for common use cases with IG
 
 ---
 
+## 🎯 Multi-Scale Training (NEW!)
+
+**Train hybrid models on multiple patch sizes for robust LOD3 classification:**
+
+```bash
+# Option 1: Automated pipeline (recommended)
+./examples/run_multiscale_training.sh
+
+# Option 2: Generate scales individually
+ign-lidar-hd process --config-file examples/config_lod3_training_50m.yaml   # Fine details
+ign-lidar-hd process --config-file examples/config_lod3_training_100m.yaml  # Balanced
+ign-lidar-hd process --config-file examples/config_lod3_training_150m.yaml  # Full context
+
+# Option 3: Merge multi-scale datasets
+python examples/merge_multiscale_dataset.py --output patches_multiscale
+```
+
+📚 **See [MULTI_SCALE_TRAINING_STRATEGY.md](MULTI_SCALE_TRAINING_STRATEGY.md) for complete guide**
+
+### Available Multi-Scale Configs:
+
+- **`config_lod3_training_50m.yaml`** - 50m patches (24k points) for fine architectural details
+- **`config_lod3_training_100m.yaml`** - 100m patches (32k points) for balanced context
+- **`config_lod3_training_150m.yaml`** - 150m patches (32k points) for full building context
+
+---
+
 ## 📝 Available Examples
 
 ### 1. `config_gpu_processing.yaml` - GPU-Accelerated Processing

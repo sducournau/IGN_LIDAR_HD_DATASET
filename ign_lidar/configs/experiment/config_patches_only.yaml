@@ -4,14 +4,12 @@ processor:
   lod_level: LOD3
   architecture: hybrid
   use_gpu: true
-  num_workers: 4 # Parallel processing for faster patch extraction
+  num_workers: 1 # Parallel processing for faster patch extraction
   patch_size: 150.0
   patch_overlap: 0.1
   num_points: 32768
-  augment: true # Enable augmentation for training
-  num_augmentations: 3
-  batch_size: auto
-  prefetch_factor: 2
+  augment: false # Enable augmentation for training
+  num_augmentations: 0
   pin_memory: true
 
 features:
@@ -40,11 +38,11 @@ stitching:
   enabled: true # Enable stitching for better boundary features
   buffer_size: 15.0
   auto_detect_neighbors: true
-  auto_download_neighbors: false
+  auto_download_neighbors: true
   cache_enabled: true
 
 output:
-  format: npz # NPZ format for PyTorch training
+  format: npz,laz # NPZ format for PyTorch training
   processing_mode: patches_only # Only create training patches
   save_stats: true
   save_metadata: true

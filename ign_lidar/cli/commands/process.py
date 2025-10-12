@@ -318,6 +318,8 @@ def process_lidar(cfg: DictConfig) -> None:
         use_stitching=cfg.stitching.enabled,
         buffer_size=cfg.stitching.buffer_size,
         stitching_config=stitching_config,
+        architecture=OmegaConf.select(cfg, "processor.architecture", default="pointnet++"),
+        output_format=OmegaConf.select(cfg, "output.format", default="npz"),
     )
     
     # Process
