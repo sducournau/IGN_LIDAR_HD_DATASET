@@ -167,7 +167,7 @@ def process_lidar(cfg: DictConfig) -> None:
             input_dir=input_dir,
             output_dir=output_dir,
             num_workers=cfg.processor.num_workers,
-            skip_existing=True
+            skip_existing=cfg.output.skip_existing
         )
         
         elapsed_time = time.time() - start_time

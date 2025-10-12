@@ -351,6 +351,26 @@ def compute_architectural_features(
     }
 
 
+def compute_num_points_within_radius(
+    points: np.ndarray,
+    tree: KDTree,
+    radius: float = 2.0
+) -> np.ndarray:
+    """
+    Compute number of points within a given radius for each point.
+    
+    Args:
+        points: [N, 3] point coordinates
+        tree: KDTree for neighbor search
+        radius: Search radius in meters (default 2.0)
+    
+    Returns:
+        num_points: [N] number of neighbors within radius
+    """
+    neighbor_counts = tree.query_radius(points, r=radius, count_only=True)
+    return neighbor_counts.astype(np.float32)
+
+
 def compute_density_features(
     points: np.ndarray,
     tree: KDTree,
@@ -1375,6 +1395,23 @@ def compute_all_features_optimized(
             'height_extent_ratio': height_extent_ratio,
             'local_roughness': local_roughness,
         })
+        
+        # === EIGENVALUE FEATURES (full feature set) ===
+        # Compute all eigenvalue-based features for LOD3_FULL mode
+        eigenvalue_features = compute_eigenvalue_features(eigenvalues_sorted)
+        geo_features.update(eigenvalue_features)
+        
+        # === ARCHITECTURAL FEATURES (advanced building detection) ===
+        # Compute advanced architectural features for detailed analysis
+        architectural_features = compute_architectural_features(
+            eigenvalues_sorted, normals, points, tree, k
+        )
+        geo_features.update(architectural_features)
+        
+        # === DENSITY FEATURES (neighborhood analysis) ===
+        # Compute number of points within 2m radius
+        num_points_2m = compute_num_points_within_radius(points, tree, radius=2.0)
+        geo_features['num_points_2m'] = num_points_2m
     
     # Verticality and horizontality (IMPORTANT for walls/roofs)
     verticality = compute_verticality(normals)

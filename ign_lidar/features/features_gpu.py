@@ -440,6 +440,31 @@ class GPUFeatureComputer:
             'roof_score': roof_score
         }
         
+        # === ADDITIONAL FEATURES FOR FULL MODE ===
+        # Note: These are computed on CPU since GPU implementations
+        # would require significant additional complexity
+        # Import CPU functions for advanced features
+        from .features import (
+            compute_eigenvalue_features,
+            compute_architectural_features,
+            compute_num_points_within_radius
+        )
+        
+        # Compute eigenvalue-based features
+        eigenvalue_features = compute_eigenvalue_features(eigenvalues)
+        features.update(eigenvalue_features)
+        
+        # Compute architectural features (requires tree and more context)
+        tree = KDTree(points, metric='euclidean', leaf_size=30)
+        architectural_features = compute_architectural_features(
+            eigenvalues, normals, points, tree, k
+        )
+        features.update(architectural_features)
+        
+        # Compute density features
+        num_points_2m = compute_num_points_within_radius(points, tree, radius=2.0)
+        features['num_points_2m'] = num_points_2m
+        
         return features
 
     def compute_verticality(self, normals: np.ndarray) -> np.ndarray:
@@ -562,7 +587,7 @@ class GPUFeatureComputer:
         neighbors_indices: np.ndarray
     ) -> Dict[str, np.ndarray]:
         """
-        Compute eigenvalue-based features (GPU-accelerated).
+        Compute eigenvalue-based features (FULL GPU-accelerated).
         
         Features:
         - eigenvalue_1, eigenvalue_2, eigenvalue_3: Individual eigenvalues (λ₀, λ₁, λ₂)
@@ -582,22 +607,31 @@ class GPUFeatureComputer:
         N = len(points)
         k = neighbors_indices.shape[1]
         
-        # Get neighbor coordinates: [N, k, 3]
-        neighbors = points[neighbors_indices]
+        # Determine computation backend (GPU if available, else CPU)
+        use_gpu = self.use_gpu and cp is not None
+        xp = cp if use_gpu else np
         
-        # Center neighbors
-        centroids = neighbors.mean(axis=1, keepdims=True)
+        # Transfer to GPU if available
+        if use_gpu:
+            points_gpu = self._to_gpu(points)
+            neighbors_indices_gpu = cp.asarray(neighbors_indices)
+            neighbors = points_gpu[neighbors_indices_gpu]
+        else:
+            neighbors = points[neighbors_indices]
+        
+        # Center neighbors: [N, k, 3]
+        centroids = xp.mean(neighbors, axis=1, keepdims=True)
         centered = neighbors - centroids
         
         # Covariance matrices: [N, 3, 3]
-        cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
+        cov_matrices = xp.einsum('nki,nkj->nij', centered, centered) / (k - 1)
         
         # Compute eigenvalues: [N, 3]
-        eigenvalues = np.linalg.eigvalsh(cov_matrices)
-        eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
+        eigenvalues = xp.linalg.eigvalsh(cov_matrices)
+        eigenvalues = xp.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
         
         # Clamp to non-negative
-        eigenvalues = np.maximum(eigenvalues, 1e-10)
+        eigenvalues = xp.maximum(eigenvalues, 1e-10)
         
         λ0 = eigenvalues[:, 0]
         λ1 = eigenvalues[:, 1]
@@ -613,17 +647,27 @@ class GPUFeatureComputer:
         p2 = λ2 / (sum_eigenvalues + 1e-10)
         
         eigenentropy = -(
-            p0 * np.log(p0 + 1e-10) +
-            p1 * np.log(p1 + 1e-10) +
-            p2 * np.log(p2 + 1e-10)
+            p0 * xp.log(p0 + 1e-10) +
+            p1 * xp.log(p1 + 1e-10) +
+            p2 * xp.log(p2 + 1e-10)
         )
         
         # Omnivariance: cubic root of eigenvalue product
-        omnivariance = np.cbrt(λ0 * λ1 * λ2)
+        omnivariance = xp.cbrt(λ0 * λ1 * λ2)
         
         # Change of curvature: variance of eigenvalues (measures local complexity)
-        eigenvalue_variance = np.var(eigenvalues, axis=1)
-        change_curvature = np.sqrt(eigenvalue_variance)
+        eigenvalue_variance = xp.var(eigenvalues, axis=1)
+        change_curvature = xp.sqrt(eigenvalue_variance)
+        
+        # Transfer results back to CPU if on GPU
+        if use_gpu:
+            λ0 = self._to_cpu(λ0)
+            λ1 = self._to_cpu(λ1)
+            λ2 = self._to_cpu(λ2)
+            sum_eigenvalues = self._to_cpu(sum_eigenvalues)
+            eigenentropy = self._to_cpu(eigenentropy)
+            omnivariance = self._to_cpu(omnivariance)
+            change_curvature = self._to_cpu(change_curvature)
         
         return {
             'eigenvalue_1': λ0.astype(np.float32),
@@ -642,7 +686,7 @@ class GPUFeatureComputer:
         neighbors_indices: np.ndarray
     ) -> Dict[str, np.ndarray]:
         """
-        Compute architectural features for building detection (GPU-accelerated).
+        Compute architectural features for building detection (FULL GPU-accelerated).
         
         Features:
         - edge_strength: Strength of edges (high eigenvalue variance)
@@ -661,19 +705,30 @@ class GPUFeatureComputer:
         N = len(points)
         k = neighbors_indices.shape[1]
         
-        # Get neighbor coordinates and normals
-        neighbors = points[neighbors_indices]
-        neighbor_normals = normals[neighbors_indices]
+        # Determine computation backend (GPU if available, else CPU)
+        use_gpu = self.use_gpu and cp is not None
+        xp = cp if use_gpu else np
+        
+        # Transfer to GPU if available
+        if use_gpu:
+            points_gpu = self._to_gpu(points)
+            normals_gpu = self._to_gpu(normals)
+            neighbors_indices_gpu = cp.asarray(neighbors_indices)
+            neighbors = points_gpu[neighbors_indices_gpu]
+            neighbor_normals = normals_gpu[neighbors_indices_gpu]
+        else:
+            neighbors = points[neighbors_indices]
+            neighbor_normals = normals[neighbors_indices]
         
         # Center neighbors
-        centroids = neighbors.mean(axis=1, keepdims=True)
+        centroids = xp.mean(neighbors, axis=1, keepdims=True)
         centered = neighbors - centroids
         
         # Covariance matrices
-        cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
-        eigenvalues = np.linalg.eigvalsh(cov_matrices)
-        eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]
-        eigenvalues = np.maximum(eigenvalues, 1e-10)
+        cov_matrices = xp.einsum('nki,nkj->nij', centered, centered) / (k - 1)
+        eigenvalues = xp.linalg.eigvalsh(cov_matrices)
+        eigenvalues = xp.sort(eigenvalues, axis=1)[:, ::-1]
+        eigenvalues = xp.maximum(eigenvalues, 1e-10)
         
         λ0 = eigenvalues[:, 0]
         λ1 = eigenvalues[:, 1]
@@ -681,23 +736,36 @@ class GPUFeatureComputer:
         
         # Edge strength: High when eigenvalues are (large, medium, small)
         # Normalized ratio (λ0 - λ2) / λ0
-        edge_strength = np.clip((λ0 - λ2) / (λ0 + 1e-8), 0.0, 1.0)
+        edge_strength = xp.clip((λ0 - λ2) / (λ0 + 1e-8), 0.0, 1.0)
         
         # Corner likelihood: All eigenvalues similar (isotropic 3D structure)
         # Measured as ratio of smallest to largest eigenvalue
-        corner_likelihood = np.clip(λ2 / (λ0 + 1e-8), 0.0, 1.0)
+        corner_likelihood = xp.clip(λ2 / (λ0 + 1e-8), 0.0, 1.0)
         
         # Normal variation (measures local surface complexity)
-        normal_diffs = neighbor_normals - normals[:, np.newaxis, :]
-        normal_variation = np.linalg.norm(normal_diffs, axis=2).mean(axis=1)
+        if use_gpu:
+            normal_diffs = neighbor_normals - normals_gpu[:, cp.newaxis, :]
+        else:
+            normal_diffs = neighbor_normals - normals[:, np.newaxis, :]
+        normal_variation = xp.linalg.norm(normal_diffs, axis=2).mean(axis=1)
         
         # Overhang indicator: Large vertical normal variation
-        vertical_diffs = neighbor_normals[:, :, 2] - normals[:, 2:3]
-        overhang_indicator = np.abs(vertical_diffs).mean(axis=1)
+        if use_gpu:
+            vertical_diffs = neighbor_normals[:, :, 2] - normals_gpu[:, 2:3]
+        else:
+            vertical_diffs = neighbor_normals[:, :, 2] - normals[:, 2:3]
+        overhang_indicator = xp.abs(vertical_diffs).mean(axis=1)
         
         # Surface roughness: Standard deviation of distances to centroid
-        distances_to_centroid = np.linalg.norm(centered, axis=2)
-        surface_roughness = np.std(distances_to_centroid, axis=1)
+        distances_to_centroid = xp.linalg.norm(centered, axis=2)
+        surface_roughness = xp.std(distances_to_centroid, axis=1)
+        
+        # Transfer results back to CPU if on GPU
+        if use_gpu:
+            edge_strength = self._to_cpu(edge_strength)
+            corner_likelihood = self._to_cpu(corner_likelihood)
+            overhang_indicator = self._to_cpu(overhang_indicator)
+            surface_roughness = self._to_cpu(surface_roughness)
         
         return {
             'edge_strength': edge_strength.astype(np.float32),
@@ -713,7 +781,7 @@ class GPUFeatureComputer:
         radius_2m: float = 2.0
     ) -> Dict[str, np.ndarray]:
         """
-        Compute density and neighborhood features (GPU-accelerated).
+        Compute density and neighborhood features (FULL GPU-accelerated).
         
         Features:
         - density: Local point density (1/mean_distance)
@@ -732,38 +800,67 @@ class GPUFeatureComputer:
         N = len(points)
         k = neighbors_indices.shape[1]
         
-        # Get neighbor coordinates
-        neighbors = points[neighbors_indices]
+        # Determine computation backend (GPU if available, else CPU)
+        use_gpu = self.use_gpu and cp is not None
+        xp = cp if use_gpu else np
         
-        # Compute distances to all neighbors
-        distances = np.linalg.norm(
-            neighbors - points[:, np.newaxis, :],
-            axis=2
-        )
+        # Transfer to GPU if available
+        if use_gpu:
+            points_gpu = self._to_gpu(points)
+            neighbors_indices_gpu = cp.asarray(neighbors_indices)
+            neighbors = points_gpu[neighbors_indices_gpu]
+        else:
+            neighbors = points[neighbors_indices]
+        
+        # Compute distances to all neighbors: [N, k]
+        if use_gpu:
+            distances = xp.linalg.norm(
+                neighbors - points_gpu[:, cp.newaxis, :],
+                axis=2
+            )
+        else:
+            distances = xp.linalg.norm(
+                neighbors - points[:, np.newaxis, :],
+                axis=2
+            )
         
         # Density: 1 / mean distance (excluding self at distance 0)
-        mean_distances = np.mean(distances[:, 1:], axis=1)
-        density = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0)
-        
-        # Number of points within 2m radius
-        # Build KDTree for radius search
-        from sklearn.neighbors import KDTree
-        tree = KDTree(points, metric='euclidean')
-        neighbors_2m = tree.query_radius(points, r=radius_2m)
-        num_points_2m = np.array([len(n) for n in neighbors_2m], dtype=np.float32)
+        mean_distances = xp.mean(distances[:, 1:], axis=1)
+        density = xp.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0)
         
         # Neighborhood extent: maximum distance to k-th neighbor
-        neighborhood_extent = np.max(distances, axis=1)
+        neighborhood_extent = xp.max(distances, axis=1)
         
         # Height extent ratio: vertical std / spatial extent
         z_coords = neighbors[:, :, 2]
-        z_std = np.std(z_coords, axis=1)
+        z_std = xp.std(z_coords, axis=1)
         spatial_extent = neighborhood_extent + 1e-8
         height_extent_ratio = z_std / spatial_extent
         
+        # Number of points within 2m radius
+        # For GPU: use efficient radius counting with neighbor distances
+        # For CPU: use KDTree for accurate radius search
+        if use_gpu:
+            # GPU-accelerated approach: approximate using k-NN distances
+            # Count neighbors within radius from existing k-NN results
+            within_radius = xp.sum(distances <= radius_2m, axis=1)
+            num_points_2m = within_radius.astype(xp.float32)
+            
+            # Transfer results back to CPU
+            density = self._to_cpu(density)
+            num_points_2m = self._to_cpu(num_points_2m)
+            neighborhood_extent = self._to_cpu(neighborhood_extent)
+            height_extent_ratio = self._to_cpu(height_extent_ratio)
+        else:
+            # CPU fallback: use KDTree for accurate radius search
+            from sklearn.neighbors import KDTree
+            tree = KDTree(points, metric='euclidean')
+            neighbors_2m = tree.query_radius(points, r=radius_2m)
+            num_points_2m = np.array([len(n) for n in neighbors_2m], dtype=np.float32)
+        
         return {
             'density': density.astype(np.float32),
-            'num_points_2m': num_points_2m,
+            'num_points_2m': num_points_2m.astype(np.float32),
             'neighborhood_extent': neighborhood_extent.astype(np.float32),
             'height_extent_ratio': np.clip(height_extent_ratio, 0.0, 1.0).astype(np.float32),
         }

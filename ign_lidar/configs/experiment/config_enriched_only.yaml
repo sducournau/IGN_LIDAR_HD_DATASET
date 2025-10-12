@@ -40,6 +40,7 @@ output:
   save_stats: true
   save_metadata: true
   compression: null
+  skip_existing: true # Skip tiles that already have enriched LAZ
 
 input_dir: /mnt/c/Users/Simon/ign/unified_dataset
 output_dir: /mnt/c/Users/Simon/ign/enriched_tiles

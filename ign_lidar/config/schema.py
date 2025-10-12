@@ -142,12 +142,14 @@ class OutputConfig:
         save_stats: Save processing statistics
         save_metadata: Save patch metadata
         compression: Compression level (0-9, None for no compression)
+        skip_existing: Skip tiles that have already been processed (default True)
     """
     format: Literal["npz", "hdf5", "torch", "laz", "all"] = "npz"
     processing_mode: Literal["patches_only", "both", "enriched_only"] = "patches_only"
     save_stats: bool = True
     save_metadata: bool = True
     compression: Optional[int] = None
+    skip_existing: bool = True
 
 
 @dataclass

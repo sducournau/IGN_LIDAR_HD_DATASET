@@ -38,11 +38,42 @@ CORE_FEATURES = [
 ]
 
 # FULL MODE ADDITIONAL FEATURES - Building-specific features
-# Only computed in full mode (mode='full')
+# Only computed in full mode (mode='full' with include_extra=True)
 FULL_MODE_FEATURES = [
+    # Building scores
     'wall_score',        # Probability of being a wall (verticality + height)
     'roof_score',        # Probability of being a roof (horizontality + height + curvature)
+    
+    # Eigenvalue features (LOD3_FULL)
+    'eigenvalue_1',      # Largest eigenvalue (λ₀)
+    'eigenvalue_2',      # Medium eigenvalue (λ₁)
+    'eigenvalue_3',      # Smallest eigenvalue (λ₂)
+    'sum_eigenvalues',   # Sum of all eigenvalues (Σλ)
+    'eigenentropy',      # Shannon entropy of eigenvalues
+    'omnivariance',      # Cubic root of eigenvalue product
+    'change_curvature',  # Variance of eigenvalues (surface change rate)
+    
+    # Architectural features (LOD3_FULL)
+    'edge_strength',     # Edge detection strength
+    'corner_likelihood', # Corner probability
+    'overhang_indicator',# Overhang/protrusion detection
+    'surface_roughness', # Fine-scale surface texture
+    
+    # Density features
     'num_points_2m',     # Number of points within 2m radius
+    
+    # Height features (when include_extra=True)
+    'z_absolute',        # Absolute Z coordinate
+    'z_normalized',      # Z normalized to [0,1]
+    'z_from_ground',     # Height above ground
+    'z_from_median',     # Height relative to median
+    'distance_to_center',# Distance to patch center (optional)
+    
+    # Local statistics
+    'vertical_std',      # Vertical standard deviation in neighborhood
+    'neighborhood_extent',# Maximum distance to k-th neighbor
+    'height_extent_ratio',# Ratio of vertical std to spatial extent
+    'local_roughness',   # Local surface roughness
 ]
 
 # All expected geometric features (core + full mode)

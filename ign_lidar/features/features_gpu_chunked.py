@@ -881,10 +881,12 @@ class GPUChunkedFeatureComputer:
         self,
         points: np.ndarray,
         normals: np.ndarray,
-        neighbors_indices: np.ndarray
+        neighbors_indices: np.ndarray,
+        start_idx: int = None,
+        end_idx: int = None
     ) -> Dict[str, np.ndarray]:
         """
-        Compute eigenvalue-based features (GPU-accelerated with chunking support).
+        Compute eigenvalue-based features (FULL GPU-accelerated with chunking support).
         
         Features:
         - eigenvalue_1, eigenvalue_2, eigenvalue_3: Individual eigenvalues (λ₀, λ₁, λ₂)
@@ -894,32 +896,50 @@ class GPUChunkedFeatureComputer:
         - change_curvature: Variance-based curvature change measure
         
         Args:
-            points: [N, 3] point coordinates
-            normals: [N, 3] surface normals
-            neighbors_indices: [N, k] indices of k-nearest neighbors
+            points: [N_total, 3] point coordinates (full array for neighbor lookup)
+            normals: [N_total, 3] surface normals (full array for neighbor lookup)
+            neighbors_indices: [N_chunk, k] indices of k-nearest neighbors
+            start_idx: Start index of chunk in full array (optional)
+            end_idx: End index of chunk in full array (optional)
             
         Returns:
-            Dictionary of eigenvalue-based features
+            Dictionary of eigenvalue-based features for the chunk
         """
-        N = len(points)
+        # If start_idx/end_idx provided, we're processing a chunk
+        if start_idx is not None and end_idx is not None:
+            N = end_idx - start_idx
+        else:
+            N = len(neighbors_indices)
+            start_idx = 0
+            end_idx = N
+        
         k = neighbors_indices.shape[1]
         
-        # Get neighbor coordinates: [N, k, 3]
-        neighbors = points[neighbors_indices]
+        # Determine computation backend (GPU if available, else CPU)
+        use_gpu = self.use_gpu and cp is not None
+        xp = cp if use_gpu else np
         
-        # Center neighbors
-        centroids = neighbors.mean(axis=1, keepdims=True)
+        # Transfer to GPU if available
+        if use_gpu:
+            points_gpu = self._to_gpu(points)
+            neighbors_indices_gpu = cp.asarray(neighbors_indices)
+            neighbors = points_gpu[neighbors_indices_gpu]
+        else:
+            neighbors = points[neighbors_indices]
+        
+        # Center neighbors: [N, k, 3]
+        centroids = xp.mean(neighbors, axis=1, keepdims=True)
         centered = neighbors - centroids
         
         # Covariance matrices: [N, 3, 3]
-        cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
+        cov_matrices = xp.einsum('nki,nkj->nij', centered, centered) / (k - 1)
         
         # Compute eigenvalues: [N, 3]
-        eigenvalues = np.linalg.eigvalsh(cov_matrices)
-        eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
+        eigenvalues = xp.linalg.eigvalsh(cov_matrices)
+        eigenvalues = xp.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
         
         # Clamp to non-negative
-        eigenvalues = np.maximum(eigenvalues, 1e-10)
+        eigenvalues = xp.maximum(eigenvalues, 1e-10)
         
         λ0 = eigenvalues[:, 0]
         λ1 = eigenvalues[:, 1]
@@ -935,17 +955,27 @@ class GPUChunkedFeatureComputer:
         p2 = λ2 / (sum_eigenvalues + 1e-10)
         
         eigenentropy = -(
-            p0 * np.log(p0 + 1e-10) +
-            p1 * np.log(p1 + 1e-10) +
-            p2 * np.log(p2 + 1e-10)
+            p0 * xp.log(p0 + 1e-10) +
+            p1 * xp.log(p1 + 1e-10) +
+            p2 * xp.log(p2 + 1e-10)
         )
         
         # Omnivariance: cubic root of eigenvalue product
-        omnivariance = np.cbrt(λ0 * λ1 * λ2)
+        omnivariance = xp.cbrt(λ0 * λ1 * λ2)
         
         # Change of curvature: variance of eigenvalues (measures local complexity)
-        eigenvalue_variance = np.var(eigenvalues, axis=1)
-        change_curvature = np.sqrt(eigenvalue_variance)
+        eigenvalue_variance = xp.var(eigenvalues, axis=1)
+        change_curvature = xp.sqrt(eigenvalue_variance)
+        
+        # Transfer results back to CPU if on GPU
+        if use_gpu:
+            λ0 = self._to_cpu(λ0)
+            λ1 = self._to_cpu(λ1)
+            λ2 = self._to_cpu(λ2)
+            sum_eigenvalues = self._to_cpu(sum_eigenvalues)
+            eigenentropy = self._to_cpu(eigenentropy)
+            omnivariance = self._to_cpu(omnivariance)
+            change_curvature = self._to_cpu(change_curvature)
         
         return {
             'eigenvalue_1': λ0.astype(np.float32),
@@ -961,10 +991,12 @@ class GPUChunkedFeatureComputer:
         self,
         points: np.ndarray,
         normals: np.ndarray,
-        neighbors_indices: np.ndarray
+        neighbors_indices: np.ndarray,
+        start_idx: int = None,
+        end_idx: int = None
     ) -> Dict[str, np.ndarray]:
         """
-        Compute architectural features for building detection (GPU-accelerated with chunking).
+        Compute architectural features for building detection (FULL GPU-accelerated with chunking).
         
         Features:
         - edge_strength: Strength of edges (high eigenvalue variance)
@@ -973,29 +1005,55 @@ class GPUChunkedFeatureComputer:
         - surface_roughness: Fine-scale surface texture
         
         Args:
-            points: [N, 3] point coordinates
-            normals: [N, 3] surface normals
-            neighbors_indices: [N, k] indices of k-nearest neighbors
+            points: [N_total, 3] point coordinates (full array for neighbor lookup)
+            normals: [N_total, 3] surface normals (full array for neighbor lookup)
+            neighbors_indices: [N_chunk, k] indices of k-nearest neighbors
+            start_idx: Start index of chunk in full array (optional)
+            end_idx: End index of chunk in full array (optional)
             
         Returns:
-            Dictionary of architectural features
+            Dictionary of architectural features for the chunk
         """
-        N = len(points)
+        # If start_idx/end_idx provided, we're processing a chunk
+        if start_idx is not None and end_idx is not None:
+            N = end_idx - start_idx
+            chunk_points = points[start_idx:end_idx]
+            chunk_normals = normals[start_idx:end_idx]
+        else:
+            N = len(neighbors_indices)
+            start_idx = 0
+            end_idx = N
+            chunk_points = points
+            chunk_normals = normals
+        
         k = neighbors_indices.shape[1]
         
-        # Get neighbor coordinates and normals
-        neighbors = points[neighbors_indices]
-        neighbor_normals = normals[neighbors_indices]
+        # Determine computation backend (GPU if available, else CPU)
+        use_gpu = self.use_gpu and cp is not None
+        xp = cp if use_gpu else np
+        
+        # Transfer to GPU if available
+        if use_gpu:
+            points_gpu = self._to_gpu(points)  # Full array for neighbor lookup
+            normals_gpu = self._to_gpu(normals)  # Full array for neighbor lookup
+            chunk_points_gpu = self._to_gpu(chunk_points)  # Chunk for center point computations
+            chunk_normals_gpu = self._to_gpu(chunk_normals)  # Chunk for center normal computations
+            neighbors_indices_gpu = cp.asarray(neighbors_indices)
+            neighbors = points_gpu[neighbors_indices_gpu]
+            neighbor_normals = normals_gpu[neighbors_indices_gpu]
+        else:
+            neighbors = points[neighbors_indices]
+            neighbor_normals = normals[neighbors_indices]
         
         # Center neighbors
-        centroids = neighbors.mean(axis=1, keepdims=True)
+        centroids = xp.mean(neighbors, axis=1, keepdims=True)
         centered = neighbors - centroids
         
         # Covariance matrices
-        cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
-        eigenvalues = np.linalg.eigvalsh(cov_matrices)
-        eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]
-        eigenvalues = np.maximum(eigenvalues, 1e-10)
+        cov_matrices = xp.einsum('nki,nkj->nij', centered, centered) / (k - 1)
+        eigenvalues = xp.linalg.eigvalsh(cov_matrices)
+        eigenvalues = xp.sort(eigenvalues, axis=1)[:, ::-1]
+        eigenvalues = xp.maximum(eigenvalues, 1e-10)
         
         λ0 = eigenvalues[:, 0]
         λ1 = eigenvalues[:, 1]
@@ -1003,23 +1061,36 @@ class GPUChunkedFeatureComputer:
         
         # Edge strength: High when eigenvalues are (large, medium, small)
         # Normalized ratio (λ0 - λ2) / λ0
-        edge_strength = np.clip((λ0 - λ2) / (λ0 + 1e-8), 0.0, 1.0)
+        edge_strength = xp.clip((λ0 - λ2) / (λ0 + 1e-8), 0.0, 1.0)
         
         # Corner likelihood: All eigenvalues similar (isotropic 3D structure)
         # Measured as ratio of smallest to largest eigenvalue
-        corner_likelihood = np.clip(λ2 / (λ0 + 1e-8), 0.0, 1.0)
+        corner_likelihood = xp.clip(λ2 / (λ0 + 1e-8), 0.0, 1.0)
         
         # Normal variation (measures local surface complexity)
-        normal_diffs = neighbor_normals - normals[:, np.newaxis, :]
-        normal_variation = np.linalg.norm(normal_diffs, axis=2).mean(axis=1)
+        if use_gpu:
+            normal_diffs = neighbor_normals - chunk_normals_gpu[:, cp.newaxis, :]
+        else:
+            normal_diffs = neighbor_normals - chunk_normals[:, np.newaxis, :]
+        normal_variation = xp.linalg.norm(normal_diffs, axis=2).mean(axis=1)
         
         # Overhang indicator: Large vertical normal variation
-        vertical_diffs = neighbor_normals[:, :, 2] - normals[:, 2:3]
-        overhang_indicator = np.abs(vertical_diffs).mean(axis=1)
+        if use_gpu:
+            vertical_diffs = neighbor_normals[:, :, 2] - chunk_normals_gpu[:, 2:3]
+        else:
+            vertical_diffs = neighbor_normals[:, :, 2] - chunk_normals[:, 2:3]
+        overhang_indicator = xp.abs(vertical_diffs).mean(axis=1)
         
         # Surface roughness: Standard deviation of distances to centroid
-        distances_to_centroid = np.linalg.norm(centered, axis=2)
-        surface_roughness = np.std(distances_to_centroid, axis=1)
+        distances_to_centroid = xp.linalg.norm(centered, axis=2)
+        surface_roughness = xp.std(distances_to_centroid, axis=1)
+        
+        # Transfer results back to CPU if on GPU
+        if use_gpu:
+            edge_strength = self._to_cpu(edge_strength)
+            corner_likelihood = self._to_cpu(corner_likelihood)
+            overhang_indicator = self._to_cpu(overhang_indicator)
+            surface_roughness = self._to_cpu(surface_roughness)
         
         return {
             'edge_strength': edge_strength.astype(np.float32),
@@ -1032,10 +1103,12 @@ class GPUChunkedFeatureComputer:
         self,
         points: np.ndarray,
         neighbors_indices: np.ndarray,
-        radius_2m: float = 2.0
+        radius_2m: float = 2.0,
+        start_idx: int = None,
+        end_idx: int = None
     ) -> Dict[str, np.ndarray]:
         """
-        Compute density and neighborhood features (GPU-accelerated with chunking).
+        Compute density and neighborhood features (FULL GPU-accelerated with chunking).
         
         Features:
         - density: Local point density (1/mean_distance)
@@ -1044,48 +1117,89 @@ class GPUChunkedFeatureComputer:
         - height_extent_ratio: Ratio of vertical to spatial extent
         
         Args:
-            points: [N, 3] point coordinates
-            neighbors_indices: [N, k] indices of k-nearest neighbors
+            points: [N_total, 3] point coordinates (full array for neighbor lookup)
+            neighbors_indices: [N_chunk, k] indices of k-nearest neighbors
             radius_2m: Radius for counting nearby points (default 2.0m)
+            start_idx: Start index of chunk in full array (optional)
+            end_idx: End index of chunk in full array (optional)
             
         Returns:
-            Dictionary of density features
+            Dictionary of density features for the chunk
         """
-        N = len(points)
+        # If start_idx/end_idx provided, we're processing a chunk
+        if start_idx is not None and end_idx is not None:
+            N = end_idx - start_idx
+            chunk_points = points[start_idx:end_idx]
+        else:
+            N = len(neighbors_indices)
+            start_idx = 0
+            end_idx = N
+            chunk_points = points
+        
         k = neighbors_indices.shape[1]
         
-        # Get neighbor coordinates
-        neighbors = points[neighbors_indices]
+        # Determine computation backend (GPU if available, else CPU)
+        use_gpu = self.use_gpu and cp is not None
+        xp = cp if use_gpu else np
         
-        # Compute distances to all neighbors
-        distances = np.linalg.norm(
-            neighbors - points[:, np.newaxis, :],
-            axis=2
-        )
+        # Transfer to GPU if available
+        if use_gpu:
+            points_gpu = self._to_gpu(points)  # Full array for neighbor lookup
+            chunk_points_gpu = self._to_gpu(chunk_points)  # Chunk for center point computations
+            neighbors_indices_gpu = cp.asarray(neighbors_indices)
+            neighbors = points_gpu[neighbors_indices_gpu]
+        else:
+            neighbors = points[neighbors_indices]
+        
+        # Compute distances to all neighbors: [N, k]
+        if use_gpu:
+            distances = xp.linalg.norm(
+                neighbors - chunk_points_gpu[:, cp.newaxis, :],
+                axis=2
+            )
+        else:
+            distances = xp.linalg.norm(
+                neighbors - chunk_points[:, np.newaxis, :],
+                axis=2
+            )
         
         # Density: 1 / mean distance (excluding self at distance 0)
-        mean_distances = np.mean(distances[:, 1:], axis=1)
-        density = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0)
-        
-        # Number of points within 2m radius
-        # Build KDTree for radius search
-        from sklearn.neighbors import KDTree
-        tree = KDTree(points, metric='euclidean')
-        neighbors_2m = tree.query_radius(points, r=radius_2m)
-        num_points_2m = np.array([len(n) for n in neighbors_2m], dtype=np.float32)
+        mean_distances = xp.mean(distances[:, 1:], axis=1)
+        density = xp.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0)
         
         # Neighborhood extent: maximum distance to k-th neighbor
-        neighborhood_extent = np.max(distances, axis=1)
+        neighborhood_extent = xp.max(distances, axis=1)
         
         # Height extent ratio: vertical std / spatial extent
         z_coords = neighbors[:, :, 2]
-        z_std = np.std(z_coords, axis=1)
+        z_std = xp.std(z_coords, axis=1)
         spatial_extent = neighborhood_extent + 1e-8
         height_extent_ratio = z_std / spatial_extent
         
+        # Number of points within 2m radius
+        # For GPU: use efficient radius counting with neighbor distances
+        # For CPU: use KDTree for accurate radius search
+        if use_gpu:
+            # GPU-accelerated approach: approximate using k-NN distances
+            # Count neighbors within radius from existing k-NN results
+            within_radius = xp.sum(distances <= radius_2m, axis=1)
+            num_points_2m = within_radius.astype(xp.float32)
+            
+            # Transfer results back to CPU
+            density = self._to_cpu(density)
+            num_points_2m = self._to_cpu(num_points_2m)
+            neighborhood_extent = self._to_cpu(neighborhood_extent)
+            height_extent_ratio = self._to_cpu(height_extent_ratio)
+        else:
+            # CPU fallback: use KDTree for accurate radius search
+            from sklearn.neighbors import KDTree
+            tree = KDTree(points, metric='euclidean')
+            neighbors_2m = tree.query_radius(points, r=radius_2m)
+            num_points_2m = np.array([len(n) for n in neighbors_2m], dtype=np.float32)
+        
         return {
             'density': density.astype(np.float32),
-            'num_points_2m': num_points_2m,
+            'num_points_2m': num_points_2m.astype(np.float32),
             'neighborhood_extent': neighborhood_extent.astype(np.float32),
             'height_extent_ratio': np.clip(height_extent_ratio, 0.0, 1.0).astype(np.float32),
         }
@@ -1103,6 +1217,9 @@ class GPUChunkedFeatureComputer:
         OPTIMIZED: Computes normals, curvature, height, and geometric
         features within each chunk to minimize memory footprint.
         
+        FULL GPU SUPPORT: Advanced features (eigenvalue, architectural, density)
+        are computed using GPU acceleration when available.
+        
         Args:
             points: [N, 3] point coordinates
             classification: [N] ASPRS classification codes
@@ -1116,8 +1233,9 @@ class GPUChunkedFeatureComputer:
             geo_features: dict with geometric features
         """
         N = len(points)
+        gpu_status = "GPU-accelerated" if (self.use_gpu and cp is not None) else "CPU"
         logger.info(
-            f"Computing all features with GPU chunking: {N:,} points"
+            f"Computing all features with chunking ({gpu_status}): {N:,} points"
         )
         
         # Initialize output arrays
@@ -1274,10 +1392,42 @@ class GPUChunkedFeatureComputer:
             geo_features['wall_score'][start_idx:end_idx] = wall_score_chunk
             geo_features['roof_score'][start_idx:end_idx] = roof_score_chunk
             
+            # === ADVANCED FEATURES FOR FULL MODE (GPU-ACCELERATED) ===
+            # Compute eigenvalue features using GPU-accelerated helper method
+            # Pass full arrays for neighbor lookup, but only compute for chunk
+            eigenvalue_feats = self.compute_eigenvalue_features(
+                points, normals, global_indices, start_idx, end_idx
+            )
+            for key, values in eigenvalue_feats.items():
+                if key not in geo_features:
+                    geo_features[key] = np.zeros(N, dtype=np.float32)
+                geo_features[key][start_idx:end_idx] = values
+            
+            # Compute architectural features using GPU-accelerated helper method
+            # Pass full arrays for neighbor lookup, but only compute for chunk
+            architectural_feats = self.compute_architectural_features(
+                points, normals, global_indices, start_idx, end_idx
+            )
+            for key, values in architectural_feats.items():
+                if key not in geo_features:
+                    geo_features[key] = np.zeros(N, dtype=np.float32)
+                geo_features[key][start_idx:end_idx] = values
+            
+            # Compute density features using GPU-accelerated helper method
+            # Pass full arrays for neighbor lookup, but only compute for chunk
+            density_feats = self.compute_density_features(
+                points, global_indices, radius_2m=2.0, start_idx=start_idx, end_idx=end_idx
+            )
+            for key, values in density_feats.items():
+                if key not in geo_features:
+                    geo_features[key] = np.zeros(N, dtype=np.float32)
+                geo_features[key][start_idx:end_idx] = values
+            
             # Cleanup
             del chunk_points, chunk_classification, chunk_normals
             del global_indices_gpu, local_indices, chunk_geo
             del verticality_chunk, horizontality_chunk, wall_score_chunk, roof_score_chunk
+            del eigenvalue_feats, architectural_feats, density_feats
             self._free_gpu_memory()
         
         logger.info("✓ All features computed per-chunk successfully")
