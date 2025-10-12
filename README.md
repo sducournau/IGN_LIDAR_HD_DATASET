@@ -1,22 +1,6 @@
 <div align="center">
 
-# IGN LiDAR HD## ✨ What's New in v2.4.4
-
-### LAZ Data Quality Tools & Validation
-
-- 🛠️ **Post-Processing Tools**: New `fix_enriched_laz.py` script for automated LAZ file correction
-- 🔍 **Data Quality Detection**: Identifies NDVI calculation errors, eigenvalue outliers, and derived feature corruption
-- 📊 **Diagnostic Reports**: Comprehensive analysis with root cause identification and impact assessment
-- ✅ **Automated Fixes**: Caps eigenvalues, recomputes derived features, validates results
-- 📈 **Enhanced Validation**: Improved NIR data checks and error handling in enrichment pipeline
-
-### Key Fixes
-
-- 🐛 **NDVI Calculation**: Fixed all values = -1.0 when NIR data is missing/corrupted
-- 🔢 **Eigenvalue Outliers**: Addressed extreme values (>10,000) causing ML training instability
-- 📉 **Derived Features**: Corrected cascading corruption in change_curvature, omnivariance, etc.
-- 🏷️ **Duplicate LAZ Fields**: Fixed duplicate field warnings when processing pre-enriched LAZ files
-- ⚡ **Production Ready**: Robust validation and error handling for real-world data quality issuesary
+# IGN LiDAR HD Processing Library
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/ign-lidar-hd)](https://pypi.org/project/ign-lidar-hd/)
@@ -54,7 +38,7 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ### LAZ Data Quality Tools & Validation
 
-- � **Post-Processing Tools**: New `fix_enriched_laz.py` script for automated LAZ file correction
+- 🛠️ **Post-Processing Tools**: New `fix_enriched_laz.py` script for automated LAZ file correction
 - 🔍 **Data Quality Detection**: Identifies NDVI calculation errors, eigenvalue outliers, and derived feature corruption
 - 📊 **Diagnostic Reports**: Comprehensive analysis with root cause identification and impact assessment
 - ✅ **Automated Fixes**: Caps eigenvalues, recomputes derived features, validates results
@@ -64,7 +48,8 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 - 🐛 **NDVI Calculation**: Fixed all values = -1.0 when NIR data is missing/corrupted
 - 🔢 **Eigenvalue Outliers**: Addressed extreme values (>10,000) causing ML training instability
-- � **Derived Features**: Corrected cascading corruption in change_curvature, omnivariance, etc.
+- 📉 **Derived Features**: Corrected cascading corruption in change_curvature, omnivariance, etc.
+- 🏷️ **Duplicate LAZ Fields**: Fixed duplicate field warnings when processing pre-enriched LAZ files
 - ⚡ **Production Ready**: Robust validation and error handling for real-world data quality issues
 
 ### Recent Highlights (v2.3.x)
@@ -409,7 +394,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {ImagoData},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {2.4.2}
+  version      = {2.4.4}
 }
 ```
 
