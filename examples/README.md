@@ -213,4 +213,4 @@ ign-lidar-hd process \
 
 ---
 
-*Example configuration files for IGN LiDAR HD v2.4.2*
+_Example configuration files for IGN LiDAR HD v2.4.2_

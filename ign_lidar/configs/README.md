@@ -361,4 +361,4 @@ save_stitching_stats: bool # Save statistics
 
 ---
 
-*Configuration guide for IGN LiDAR HD v2.4.2*
+_Configuration guide for IGN LiDAR HD v2.4.2_

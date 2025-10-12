@@ -67,7 +67,7 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 - 🧠 Support for 8GB-32GB+ systems with optimized configurations
 - 📊 Automatic worker scaling based on memory pressure
 - ⚙️ Sequential processing mode for minimal footprint
--  Three configuration profiles for different system specs
+- Three configuration profiles for different system specs
 
 **Processing Modes:**
 

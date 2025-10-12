@@ -139,4 +139,4 @@ For complete documentation, visit:
 
 ---
 
-*Conda installation guide for IGN LiDAR HD v2.4.2*
+_Conda installation guide for IGN LiDAR HD v2.4.2_
