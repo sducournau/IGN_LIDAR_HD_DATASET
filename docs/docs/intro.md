@@ -1,48 +1,141 @@
 ---
 slug: /
-sidebar_position: 1
-title: IGN LiDAR HD Processing Library
+sidebar_p### v2.4.4 (2025-10-12) - Latest Release
+### LAZ Data Quality Tools & Validation
+
+- 🛠️ **Post-Processing Tools**: New `fix_enriched_laz.py` script for automated LAZ file correction
+- 🔍 **Data Quality Detection**: Identifies NDVI calculation errors, eigenvalue outliers, and derived feature corruption
+- 📊 **Diagnostic Reports**: Comprehensive analysis with root cause identification and impact assessment
+- ✅ **Automated Fixes**: Caps eigenvalues, recomputes derived features, validates results
+- 📈 **Enhanced Validation**: Improved NIR data checks and error handling in enrichment pipeline
+
+### Key Fixes
+
+- 🐛 **NDVI Calculation**: Fixed all values = -1.0 when NIR data is missing/corrupted
+- 🔢 **Eigenvalue Outliers**: Addressed extreme values (>10,000) causing ML training instability
+- 📉 **Derived Features**: Corrected cascading corruption in change_curvature, omnivariance, etc.
+- 🏷️ **Duplicate LAZ Fields**: Fixed duplicate field warnings when processing pre-enriched LAZ files
+- ⚡ **Production Ready**: Robust validation and error handling for real-world data quality issuese: IGN LiDAR HD Processing Library
 ---
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.4.2+** | Python 3.8+ | MIT License
+**Version 2.4.4** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Transform French IGN LiDAR HD point clouds into ML-ready datasets for building classification. Features GPU acceleration, rich geometric features (all 35-45+ computed features now exported), RGB/NIR augmentation, intelligent skip system, and memory-optimized configurations for all system specs.
+Transform French IGN LiDAR HD point clouds into ML-ready datasets for building classification. Features GPU acceleration (6-20x speedup), rich geometric features (all 35-45+ computed features exported), RGB/NIR augmentation, LAZ data quality tools, and memory-optimized configurations for all system specs.
+
+---
+
+## 🎯 What's New
+
+### v2.4.4 (2025-10-12) - Latest Release
+
+### LAZ Data Quality Tools & Validation
+
+- � **Post-Processing Tools**: New `fix_enriched_laz.py` script for automated LAZ file correction
+- 🔍 **Data Quality Detection**: Identifies NDVI calculation errors, eigenvalue outliers, and derived feature corruption
+- 📊 **Diagnostic Reports**: Comprehensive analysis with root cause identification and impact assessment
+- ✅ **Automated Fixes**: Caps eigenvalues, recomputes derived features, validates results
+- 📈 **Enhanced Validation**: Improved NIR data checks and error handling in enrichment pipeline
+
+### Key Fixes
+
+- 🐛 **NDVI Calculation**: Fixed all values = -1.0 when NIR data is missing/corrupted
+- 🔢 **Eigenvalue Outliers**: Addressed extreme values (>10,000) causing ML training instability
+- � **Derived Features**: Corrected cascading corruption in change_curvature, omnivariance, etc.
+- ⚡ **Production Ready**: Robust validation and error handling for real-world data quality issues
+
+### Recent Highlights (v2.3.x)
+
+**Input Data Preservation & RGB Enhancement:**
+
+- 🎨 Preserve RGB/NIR/NDVI from input LAZ files automatically
+- 🐛 Fixed critical RGB coordinate mismatch in augmented patches
+- ⚡ 3x faster RGB processing (tile-level fetching)
+- 📊 Added patch metadata for debugging and validation
+
+**Memory Optimization:**
+
+- 🧠 Support for 8GB-32GB+ systems with optimized configurations
+- 📊 Automatic worker scaling based on memory pressure
+- ⚙️ Sequential processing mode for minimal footprint
+- Three configuration profiles for different system specs
+
+**Processing Modes:**
+
+- Clear modes: `patches_only`, `both`, `enriched_only`
+- YAML configuration files with example templates
+- CLI parameter overrides with `--config-file`
+
+📖 [Full Release History](CHANGELOG.md)
 
 ---
 
 ## 🚀 Quick Start
 
+### Installation
+
 ```bash
-# Install
+# Standard installation (CPU)
 pip install ign-lidar-hd
 
+# Optional: GPU acceleration (6-20x speedup)
+./install_cuml.sh  # or follow GPU_SETUP.md
+```
+
+### Basic Usage
+
+```bash
 # Download sample data
 ign-lidar-hd download --bbox 2.3,48.8,2.4,48.9 --output data/ --max-tiles 5
 
-# Process with default settings
-ign-lidar-hd process input_dir=data/ output_dir=patches/
+# Enrich with features (GPU accelerated if available)
+ign-lidar-hd enrich --input-dir data/ --output enriched/ --use-gpu
+
+# Create training patches
+ign-lidar-hd patch --input-dir enriched/ --output patches/ --lod-level LOD2
 ```
 
-For GPU acceleration (12-20x speedup), see the [GPU Setup Guide](/installation/gpu-setup).
+### Python API
+
+```python
+from ign_lidar import LiDARProcessor
+
+# Initialize and process
+processor = LiDARProcessor(lod_level="LOD2")
+patches = processor.process_tile("data.laz", "output/")
+```
 
 ---
 
 ## ✨ Key Features
 
-- **🗺️ IGN Integration** - Direct download from IGN WFS service
-- **🎨 Multi-modal Data** - Geometry + RGB + Infrared (NDVI-ready)
-- **🏗️ Building Classification** - LOD2/LOD3/Full schemas (12-43+ features)
-- **📊 Complete Features** - All 35-45+ computed geometric features now exported to disk
+### Core Processing
+
+- **🎯 Complete Feature Export** - All 35-45 computed geometric features saved to disk (v2.4.2+)
+- **🏗️ Multi-level Classification** - LOD2 (12 features), LOD3 (38 features), Full (43+ features) modes
+- **📊 Rich Geometry** - Normals, curvature, eigenvalues, shape descriptors, architectural features, building scores
+- **🎨 Optional Augmentation** - RGB from orthophotos, NIR, NDVI for vegetation analysis
+- **⚙️ Auto-parameters** - Intelligent tile analysis for optimal settings
 - **📝 Feature Tracking** - Metadata includes feature names and counts for reproducibility
-- **🚀 GPU Acceleration** - 12-20x speedup with RAPIDS cuML
-- **⚡ Intelligent Skip** - ~1800x faster on re-runs, automatic recovery
-- **⚙️ YAML Configuration** - Reproducible workflows with example configs
+
+### Performance
+
+- **🚀 GPU Acceleration** - RAPIDS cuML support (6-20x faster)
+- **⚡ Parallel Processing** - Multi-worker with automatic CPU detection
+- **🧠 Memory Optimized** - Chunked processing, 50-60% reduction
+- **💾 Smart Skip** - Resume interrupted workflows automatically (~1800x faster)
+
+### Flexibility
+
+- **📁 Processing Modes** - Three clear modes: patches only, both, or LAZ only
+- **📋 YAML Configs** - Declarative workflows with example templates
+- **📦 Multiple Formats** - NPZ, HDF5, PyTorch, LAZ (single or multi-format)
+- **🔧 CLI & API** - Command-line tool and Python library
 
 ---
 
@@ -71,14 +164,15 @@ ign-lidar-hd process input_dir=data/ output_dir=both/ output.processing_mode=bot
 Fast GIS workflow:
 
 ```bash
-ign-lidar-hd process input_dir=data/ output_dir=enriched/ output.processing_mode=enriched_only
+ign-lidar-hd process input_dir=data/ output_dir=patches/ processor.use_gpu=true
+
+# Validate and fix LAZ data quality (new in v2.4.4)
+python scripts/fix_enriched_laz.py enriched/tile.laz --fix
 ```
 
 :::tip
 For ML applications, patches provide cleaner geometric features than LAZ tiles (no boundary artifacts).
 :::
-
----
 
 ## 📁 Configuration Examples
 
@@ -111,100 +205,7 @@ See [example configs directory](/examples/config-files) for complete workflows.
 
 ---
 
-## 🎯 What's New
-
-### v2.4.2 (2025-10-12) - Latest Release
-
-- **� Full GPU Acceleration**: Complete GPU implementation for all advanced features in "full" mode
-- **⚡ 5-10x Speedup**: Massive performance boost for large point clouds (>10M points) with GPU
-- **🎯 GPU-Accelerated Features**: Eigenvalue, architectural, and density features now on GPU
-- **🔄 Seamless Fallback**: Automatic GPU/CPU switching with zero API changes
-- **✅ Same Quality**: Identical output quality, same interface, better performance
-
-[Read the full release notes →](/release-notes/v2.4.2)
-
-### Previous Releases
-
-**v2.4.1** - Full feature mode fix (all 30 features)  
-**v2.4.0** - Enhanced feature validation, production-ready ML stability  
-**v2.3.0** - Processing modes, YAML configs, intelligent skip system  
-**v2.0.0** - Modular architecture, boundary-aware features
-
----
-
-## � Common Workflows
-
-### Download and Process
-
-```bash
-# Download tiles for a region
-ign-lidar-hd download --bbox 2.3,48.8,2.4,48.9 --output data/ --max-tiles 10
-
-# Process with GPU acceleration
-ign-lidar-hd process input_dir=data/ output_dir=patches/ processor.use_gpu=true
-```
-
-### LOD3 with RGB and NDVI
-
-```bash
-ign-lidar-hd process \
-  input_dir=data/ \
-  output_dir=patches/ \
-  processor.lod_level=LOD3 \
-  features.use_rgb=true \
-  features.compute_ndvi=true
-```
-
-### Python API
-
-```python
-from ign_lidar import LiDARProcessor, IGNLiDARDownloader
-
-# Download tiles
-downloader = IGNLiDARDownloader("downloads/")
-tiles = downloader.download_by_bbox(bbox=(2.3, 48.8, 2.4, 48.9), max_tiles=5)
-
-# Process with custom settings
-processor = LiDARProcessor(lod_level="LOD3", use_gpu=True)
-patches = processor.process_directory("data/", "patches/", num_workers=4)
-
-# PyTorch integration
-from torch.utils.data import DataLoader
-from ign_lidar import LiDARPatchDataset
-
-dataset = LiDARPatchDataset("patches/")
-dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
-```
-
----
-
-## 📦 Output Structure
-
-**NPZ File Contents:**
-
-```python
-{
-    'points': np.ndarray,        # [N, 3] XYZ coordinates
-    'normals': np.ndarray,       # [N, 3] surface normals
-    'curvature': np.ndarray,     # [N] principal curvature
-    'labels': np.ndarray,        # [N] building class labels
-    # Optional: RGB, infrared, geometric features
-}
-```
-
-**Directory Structure:**
-
-```txt
-output_dir/
-├── tile1_patch_0001.npz
-├── tile1_patch_0002.npz
-├── tile1_enriched.laz          # if processing_mode="both"
-└── metadata.json
-```
-
----
-
-## � Learn More
+## 📚 Learn More
 
 ### Getting Started
 
@@ -227,14 +228,43 @@ output_dir/
 
 ---
 
-## 🤝 Support
+## 📄 License
 
-- 🐛 [Report Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)
-- 💡 [Feature Requests](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/discussions)
-- 📖 [Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET)
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-## 📄 License
+## 🤝 Support & Contributing
 
-MIT License - See [LICENSE](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/LICENSE) for details.
+- 🐛 [Report Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)
+- 💡 [Feature Requests](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)
+- 📖 [Contributing Guide](CONTRIBUTING.md)
+
+---
+
+## 📝 Cite Me
+
+If you use this library in your research or projects, please cite:
+
+```bibtex
+@software{ign_lidar_hd_dataset,
+  author       = {Simon Ducournau},
+  title        = {IGN LiDAR HD Processing Library},
+  year         = {2025},
+  publisher    = {ImagoData},
+  url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
+  version      = {2.4.2}
+}
+```
+
+**Project maintained by:** [ImagoData](https://github.com/sducournau)
+
+---
+
+<div align="center">
+
+**Made with ❤️ for the LiDAR and Machine Learning communities**
+
+[⬆ Back to top](#ign-lidar-hd-processing-library)
+
+</div>

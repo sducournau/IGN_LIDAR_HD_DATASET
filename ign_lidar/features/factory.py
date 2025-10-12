@@ -142,12 +142,16 @@ class GPUFeatureComputer(BaseFeatureComputer):
         # Create GPU computer
         computer = Impl(use_gpu=True, batch_size=250000)
         
-        # Compute all features
+        # Check if mode parameter is provided (new feature mode system)
+        mode = kwargs.get('mode', None)
+        
+        # Compute all features with mode support
         normals, curvature, height, geo_features = computer.compute_all_features(
             points=points,
             classification=classification,
             k=self.k_neighbors,
-            include_building_features=kwargs.get('include_building_features', False)
+            include_building_features=kwargs.get('include_building_features', False) or kwargs.get('include_extra', False),
+            mode=mode  # Pass mode to GPU implementation
         )
         
         # Return in dict format
@@ -211,12 +215,16 @@ class GPUChunkedFeatureComputer(BaseFeatureComputer):
             auto_optimize=True
         )
         
-        # Compute features with k parameter
+        # Get mode parameter (new feature mode system)
+        mode = kwargs.get('mode', None)
+        
+        # Compute features with k parameter and mode support
         normals, curvature, height, geo_features = computer.compute_all_features_chunked(
             points=points,
             classification=classification,
             k=self.k_neighbors,
-            radius=kwargs.get('radius', None)
+            radius=kwargs.get('radius', None),
+            mode=mode  # Pass mode to GPU chunked implementation
         )
         
         # Return in expected dict format

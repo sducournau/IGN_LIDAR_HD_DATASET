@@ -6,78 +6,62 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 # Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Version 1.7.6** | Python 3.8+ | Licence MIT
+**Version 2.4.4** | Python 3.8+ | Licence MIT
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 📺 Vidéo de Démonstration
-
-<div align="center">
-  <a href="https://www.youtube.com/watch?v=ksBWEhkVqQI" target="_blank">
-    <img src="https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/v1.6.3/website/static/img/aerial.png?raw=true" alt="Démonstration du Traitement IGN LiDAR HD" width="800" />
-  </a>
-  <p><em>Apprenez à traiter les données LiDAR pour les applications d'apprentissage automatique</em></p>
-</div>
+Transformez les nuages de points LiDAR HD de l'IGN en jeux de données prêts pour l'apprentissage automatique pour la classification des bâtiments. Avec accélération GPU (6-20x plus rapide), caractéristiques géométriques riches (35-45+ caractéristiques exportées), augmentation RGB/NIR, outils de qualité des données LAZ, et configurations optimisées en mémoire pour toutes les spécifications système.
 
 ---
 
-## 🎉 Dernière Version : v1.7.6
+## � Nouveautés
 
-### 🚀 OPTIMISATION MASSIVE des Performances - Accélération 100-200x
+### v2.4.4 (2025-10-12) - Dernière Version
 
-La dernière version élimine un goulot d'étranglement critique grâce au **calcul vectorisé des caractéristiques** :
+### Outils de Qualité des Données LAZ et Validation
 
-**Améliorations Clés :**
+- 🛠️ **Outils Post-Traitement** : Nouveau script `fix_enriched_laz.py` pour la correction automatisée des fichiers LAZ
+- 🔍 **Détection Qualité Données** : Identifie les erreurs de calcul NDVI, valeurs propres aberrantes, corruption des caractéristiques dérivées
+- 📊 **Rapports Diagnostiques** : Analyse complète avec identification des causes racines et évaluation d'impact
+- ✅ **Corrections Automatisées** : Limite les valeurs propres, recalcule les caractéristiques dérivées, valide les résultats
+- � **Validation Améliorée** : Vérifications NIR améliorées et gestion des erreurs dans le pipeline d'enrichissement
 
-- ⚡ **Opérations Vectorisées** : Remplacement des boucles PCA par point par calcul de covariance par batch avec `einsum`
-- 💯 **Utilisation GPU à 100%** : GPU pleinement utilisé (était bloqué à 0-5% avant)
-- 🎯 **Tous les Modes Optimisés** : CPU, GPU sans cuML, et GPU avec cuML tous optimisés
-- ⏱️ **Impact Réel** : 17M points en ~30 secondes (était bloqué à 0% pendant des heures !)
-- 🔧 **Correction Stabilité GPU** : Correction des erreurs `CUSOLVER_STATUS_INVALID_VALUE` avec application de la symétrie matricielle et régularisation
+### Corrections Clés
 
-:::tip Aucune Configuration Nécessaire
+- 🐛 **Calcul NDVI** : Correction des valeurs = -1.0 quand les données NIR sont manquantes/corrompues
+- 🔢 **Valeurs Propres Aberrantes** : Traite les valeurs extrêmes (>10,000) causant l'instabilité de l'entraînement ML
+- � **Caractéristiques Dérivées** : Correction de la corruption en cascade dans change_curvature, omnivariance, etc.
+- 🏷️ **Champs LAZ Dupliqués** : Correction des avertissements de champs dupliqués lors du traitement de fichiers LAZ pré-enrichis
+- ⚡ **Prêt Production** : Validation robuste et gestion des erreurs pour les problèmes de qualité des données du monde réel
 
-Vos commandes existantes bénéficient automatiquement de l'accélération 100-200x :
+### Faits Marquants Récents (v2.3.x)
 
-```bash
-# Même commande, drastiquement plus rapide !
-ign-lidar-hd enrich --input-dir data/ --output output/ \
-  --auto-params --preprocess --use-gpu
-```
+**Préservation des Données d'Entrée et Amélioration RGB :**
 
-:::
+- 🎨 Préserve automatiquement RGB/NIR/NDVI des fichiers LAZ d'entrée
+- 🐛 Correction du décalage critique des coordonnées RGB dans les patchs augmentés
+- ⚡ Traitement RGB 3x plus rapide (récupération au niveau dalle)
+- � Métadonnées de patch ajoutées pour le débogage et la validation
 
-**Performance Vérifiée :**
+**Optimisation Mémoire :**
 
-- ✅ CPU : 90k-110k points/sec (test 50k points)
-- ✅ GPU : Utilisation 100%, 40% VRAM
-- ✅ Pipeline complet : 17M points en 3-4 minutes
+- 🧠 Support pour systèmes 8GB-32GB+ avec configurations optimisées
+- 📊 Mise à l'échelle automatique des workers selon la pression mémoire
+- ⚙️ Mode traitement séquentiel pour empreinte minimale
+- Trois profils de configuration pour différentes spécifications système
 
-📖 [Détails Optimisation](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/VECTORIZED_OPTIMIZATION.md) | [Guide GPU](/gpu/overview)
+**Modes de Traitement :**
+
+- Modes clairs : `patches_only`, `both`, `enriched_only`
+- Fichiers de configuration YAML avec modèles d'exemples
+- Surcharges paramètres CLI avec `--config-file`
+
+📖 [Historique Complet des Versions](CHANGELOG.md)
 
 ---
 
-## Mises à Jour Précédentes
-
-### v1.7.4 - Accélération GPU
-
-- 🚀 **Support RAPIDS cuML** : Accélération 12-20x avec GPU complet
-- ⚡ **Mode GPU Hybride** : Accélération 6-8x avec CuPy (cuML non requis)
-- 🔧 **Trois Niveaux de Performance** : CPU (60 min), Hybride (7-10 min), GPU complet (3-5 min)
-- 📚 **Documentation Améliorée** : Guides complets de configuration GPU en anglais et français
-
-### v1.7.3 - Augmentation Infrarouge
-
-- 🌿 **Valeurs NIR** : Proche infrarouge depuis orthophotos IRC IGN
-- 📊 **Prêt pour NDVI** : Permet le calcul d'indices de végétation
-- 🎨 **Multi-Modal** : Géométrie + RGB + NIR pour ML
-- 💾 **Cache Intelligent** : Mise en cache efficace disque/GPU
-
-### v1.7.1 - Analyse Auto-Paramètres
-
-- 🤖 **Analyse Automatique de Dalle** : Détermine les paramètres de traitement optimaux
 - 🎯 **Traitement Adaptatif** : Paramètres personnalisés par dalle selon caractéristiques
 - ⚡ **Zéro Ajustement Manuel** : Élimine les conjectures pour dalles urbaines/rurales/mixtes
 

@@ -1204,7 +1204,8 @@ def compute_all_features_optimized(
     include_extra: bool = False,
     patch_center: np.ndarray = None,
     chunk_size: int = None,
-    radius: float = None
+    radius: float = None,
+    mode: str = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
     """
     Compute ALL features in a single pass for maximum speed.
@@ -1236,6 +1237,8 @@ def compute_all_features_optimized(
         chunk_size: if specified, process in chunks to reduce memory
         radius: search radius in meters (None=auto, >0=use radius,
                 0=use k-NN)
+        mode: Feature computation mode ('minimal', 'lod2', 'lod3', 'full').
+              If specified, uses the new feature mode system (overrides include_extra)
         
     Returns:
         normals: [N, 3] surface normals
@@ -1243,6 +1246,18 @@ def compute_all_features_optimized(
         height: [N] height above ground
         geo_features: dict with all geometric features
     """
+    # If mode parameter is provided, use the new feature mode system
+    if mode is not None:
+        return compute_features_by_mode(
+            points=points,
+            classification=classification,
+            mode=mode,
+            k=k,
+            auto_k=auto_k,
+            patch_center=patch_center,
+            use_radius=(radius is not None and radius > 0),
+            radius=radius
+        )
     # If chunk_size specified and data is large, use chunked processing
     if chunk_size is not None and len(points) > chunk_size:
         return _compute_all_features_chunked(

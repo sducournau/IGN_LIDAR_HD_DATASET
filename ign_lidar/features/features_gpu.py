@@ -835,6 +835,7 @@ class GPUFeatureComputer:
         # Height extent ratio: vertical std / spatial extent
         z_coords = neighbors[:, :, 2]
         z_std = xp.std(z_coords, axis=1)
+        vertical_std = z_std  # Store vertical_std as a separate feature
         spatial_extent = neighborhood_extent + 1e-8
         height_extent_ratio = z_std / spatial_extent
         
@@ -852,6 +853,7 @@ class GPUFeatureComputer:
             num_points_2m = self._to_cpu(num_points_2m)
             neighborhood_extent = self._to_cpu(neighborhood_extent)
             height_extent_ratio = self._to_cpu(height_extent_ratio)
+            vertical_std = self._to_cpu(vertical_std)
         else:
             # CPU fallback: use KDTree for accurate radius search
             from sklearn.neighbors import KDTree
@@ -864,6 +866,7 @@ class GPUFeatureComputer:
             'num_points_2m': num_points_2m.astype(np.float32),
             'neighborhood_extent': neighborhood_extent.astype(np.float32),
             'height_extent_ratio': np.clip(height_extent_ratio, 0.0, 1.0).astype(np.float32),
+            'vertical_std': vertical_std.astype(np.float32),
         }
 
     def compute_all_features(
@@ -871,7 +874,8 @@ class GPUFeatureComputer:
         points: np.ndarray,
         classification: np.ndarray,
         k: int = 10,
-        include_building_features: bool = False
+        include_building_features: bool = False,
+        mode: str = None
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
         """
         Compute all features in one pass (GPU-accelerated).
@@ -885,7 +889,9 @@ class GPUFeatureComputer:
             classification: [N] ASPRS classification codes
             k: number of neighbors for feature computation
             include_building_features: if True, compute verticality,
-                                      wall_score, and roof_score
+                                      wall_score, and roof_score (legacy parameter)
+            mode: Feature mode ('minimal', 'lod2', 'lod3', 'full') - 
+                  if specified, uses the new feature mode system
 
         Returns:
             normals: [N, 3] surface normals
@@ -894,7 +900,88 @@ class GPUFeatureComputer:
             geo_features: dict with all geometric features
                          (includes building features if requested)
         """
-        # Compute all features
+        # If mode is specified, use the new feature mode system
+        if mode is not None:
+            from ..features.feature_modes import get_feature_config
+            
+            # Get feature configuration for the mode
+            feature_config = get_feature_config(mode=mode, k_neighbors=k)
+            feature_set = feature_config.features
+            
+            # Compute base features (always needed)
+            normals = self.compute_normals(points, k=k)
+            curvature = self.compute_curvature(points, normals, k=k)
+            height = self.compute_height_above_ground(points, classification)
+            
+            # Get base geometric features from extract_geometric_features
+            # Note: This includes eigenvalue-based features and architectural features
+            geo_features = self.extract_geometric_features(points, normals, k=k)
+            
+            # Get neighbors_indices for additional feature computations
+            tree = KDTree(points, metric='euclidean', leaf_size=30)
+            _, neighbors_indices = tree.query(points, k=k)
+            
+            # Compute density features (includes neighborhood_extent, height_extent_ratio, vertical_std)
+            density_features = self.compute_density_features(
+                points=points,
+                neighbors_indices=neighbors_indices,
+                radius_2m=2.0
+            )
+            geo_features.update(density_features)
+            
+            # Compute additional architectural features
+            architectural_features = self.compute_architectural_features(
+                points=points,
+                neighbors_indices=neighbors_indices,
+                normals=normals
+            )
+            geo_features.update(architectural_features)
+            
+            # Filter features based on mode
+            filtered_features = {}
+            for feat_name in feature_set:
+                if feat_name in geo_features:
+                    filtered_features[feat_name] = geo_features[feat_name]
+            
+            # Add normal components if requested
+            if 'normal_x' in feature_set:
+                filtered_features['normal_x'] = normals[:, 0].astype(np.float32)
+            if 'normal_y' in feature_set:
+                filtered_features['normal_y'] = normals[:, 1].astype(np.float32)
+            if 'normal_z' in feature_set:
+                filtered_features['normal_z'] = normals[:, 2].astype(np.float32)
+            
+            # Add curvature if requested
+            if 'curvature' in feature_set and 'curvature' not in filtered_features:
+                filtered_features['curvature'] = curvature
+            
+            # Add height if requested
+            if 'height_above_ground' in feature_set:
+                filtered_features['height_above_ground'] = height
+            
+            # Add xyz coordinates if requested
+            if 'xyz' in feature_set:
+                filtered_features['xyz'] = points.astype(np.float32)
+            
+            # Add building-specific features if in feature set
+            if any(f in feature_set for f in ['verticality', 'wall_score', 'roof_score']):
+                if 'verticality' in feature_set:
+                    verticality = self.compute_verticality(normals)
+                    filtered_features['verticality'] = verticality
+                else:
+                    verticality = self.compute_verticality(normals)
+                
+                if 'wall_score' in feature_set:
+                    wall_score = self.compute_wall_score(normals, height, min_height=1.5)
+                    filtered_features['wall_score'] = wall_score
+                
+                if 'roof_score' in feature_set:
+                    roof_score = self.compute_roof_score(normals, height, curvature, min_height=3.0)
+                    filtered_features['roof_score'] = roof_score
+            
+            return normals, curvature, height, filtered_features
+        
+        # Legacy mode: compute all features (backward compatibility)
         normals = self.compute_normals(points, k=k)
         curvature = self.compute_curvature(points, normals, k=k)
         height = self.compute_height_above_ground(points, classification)

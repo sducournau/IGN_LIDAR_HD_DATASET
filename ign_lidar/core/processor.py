@@ -85,6 +85,7 @@ class LiDARProcessor:
                  patch_overlap: float = 0.1,
                  num_points: int = 16384,
                  include_extra_features: bool = False,
+                 feature_mode: str = None,
                  k_neighbors: int = None,
                  include_architectural_style: bool = False,
                  style_encoding: str = 'constant',
@@ -166,6 +167,7 @@ class LiDARProcessor:
         self.patch_overlap = patch_overlap
         self.num_points = num_points
         self.include_extra_features = include_extra_features
+        self.feature_mode = feature_mode  # New feature mode system ('minimal', 'lod2', 'lod3', 'full')
         self.k_neighbors = k_neighbors
         self.include_architectural_style = include_architectural_style
         self.style_encoding = style_encoding
@@ -969,7 +971,8 @@ class LiDARProcessor:
                 classification=classification_v,
                 auto_k=use_auto_k,
                 include_extra=self.include_extra_features,
-                patch_center=patch_center
+                patch_center=patch_center,
+                mode=self.feature_mode  # Pass feature mode to enable full feature set
             )
             
             # Extract individual features

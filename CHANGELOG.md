@@ -40,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Affected: change_curvature (max 24,531 vs expected <1), omnivariance (max 3,742 vs expected <10)
     - Impact: ~9,000 points with unrealistic feature values, visual artifacts in visualizations
     - Fix: Recompute all derived features from corrected eigenvalues
+- **Duplicate Field Warnings in LAZ Patch Export**: Fixed hundreds of duplicate field warnings when saving patches
+  - **Root cause**: When processing already-enriched LAZ files, extra dimensions (height, ndvi, etc.) were loaded into patches, then code attempted to add them again during export
+  - **Impact**: Generated warnings "Could not add feature 'X' to LAZ: field 'X' occurs more than once" for every patch, cluttering logs
+  - **Solution**: Added dimension tracking system with `added_dimensions` set to prevent duplicate additions in both `serialization.py` and `processor.py`
+  - **Files modified**: `ign_lidar/core/modules/serialization.py`, `ign_lidar/core/processor.py`
+  - Now handles both fresh and already-enriched LAZ files correctly without duplicate warnings
 
 ### Changed
 
@@ -48,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added warnings when NIR max value < 0.001 indicates missing/corrupted data
   - Improved error messages to help diagnose data quality issues
   - Added expected feature value range documentation for validation
+- **LAZ Export Reliability**: Improved handling of pre-enriched input files
+  - Duplicate dimension checking prevents redundant field additions
+  - Cleaner processing logs without spurious warnings
+  - Better support for iterative processing workflows
 
 ### Documentation
 

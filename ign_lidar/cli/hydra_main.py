@@ -142,6 +142,7 @@ def process_lidar(cfg: DictConfig) -> None:
         patch_overlap=cfg.processor.patch_overlap,
         num_points=cfg.processor.num_points,
         include_extra_features=cfg.features.include_extra,
+        feature_mode=cfg.features.mode,  # Pass feature mode from config
         k_neighbors=cfg.features.k_neighbors,
         include_rgb=cfg.features.use_rgb,
         rgb_cache_dir=rgb_cache_dir,  # Add cache directory

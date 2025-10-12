@@ -1173,6 +1173,7 @@ class GPUChunkedFeatureComputer:
         # Height extent ratio: vertical std / spatial extent
         z_coords = neighbors[:, :, 2]
         z_std = xp.std(z_coords, axis=1)
+        vertical_std = z_std  # Store vertical_std as a separate feature
         spatial_extent = neighborhood_extent + 1e-8
         height_extent_ratio = z_std / spatial_extent
         
@@ -1190,6 +1191,7 @@ class GPUChunkedFeatureComputer:
             num_points_2m = self._to_cpu(num_points_2m)
             neighborhood_extent = self._to_cpu(neighborhood_extent)
             height_extent_ratio = self._to_cpu(height_extent_ratio)
+            vertical_std = self._to_cpu(vertical_std)
         else:
             # CPU fallback: use KDTree for accurate radius search
             from sklearn.neighbors import KDTree
@@ -1202,6 +1204,7 @@ class GPUChunkedFeatureComputer:
             'num_points_2m': num_points_2m.astype(np.float32),
             'neighborhood_extent': neighborhood_extent.astype(np.float32),
             'height_extent_ratio': np.clip(height_extent_ratio, 0.0, 1.0).astype(np.float32),
+            'vertical_std': vertical_std.astype(np.float32),
         }
     
     def compute_all_features_chunked(
@@ -1209,7 +1212,8 @@ class GPUChunkedFeatureComputer:
         points: np.ndarray,
         classification: np.ndarray,
         k: int = 10,
-        radius: Optional[float] = None
+        radius: Optional[float] = None,
+        mode: str = None
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
         """
         Compute ALL features per-chunk for maximum memory efficiency.
@@ -1225,6 +1229,8 @@ class GPUChunkedFeatureComputer:
             classification: [N] ASPRS classification codes
             k: number of neighbors
             radius: search radius in meters (optional)
+            mode: Feature mode ('minimal', 'lod2', 'lod3', 'full') - 
+                  if specified, uses the new feature mode system to filter features
             
         Returns:
             normals: [N, 3] surface normals
@@ -1232,6 +1238,12 @@ class GPUChunkedFeatureComputer:
             height: [N] height above ground
             geo_features: dict with geometric features
         """
+        # Get feature configuration if mode is specified
+        feature_set = None
+        if mode is not None:
+            from ..features.feature_modes import get_feature_config
+            feature_config = get_feature_config(mode=mode, k_neighbors=k)
+            feature_set = feature_config.features
         N = len(points)
         num_chunks = (N + self.chunk_size - 1) // self.chunk_size
         chunk_size_mb = (self.chunk_size * 12) / (1024 * 1024)
@@ -1434,12 +1446,47 @@ class GPUChunkedFeatureComputer:
             del eigenvalue_feats, architectural_feats, density_feats
             self._free_gpu_memory()
         
-        # Log completion statistics
-        total_features = len(geo_features) + 3  # +3 for normals, curvature, height
-        logger.info(
-            f"✓ All features computed successfully: "
-            f"{total_features} feature types, {N:,} points, {num_chunks} chunks processed"
-        )
+        # Filter features based on mode if specified
+        if feature_set is not None:
+            filtered_features = {}
+            
+            # Add features that are in the feature set
+            for feat_name in geo_features.keys():
+                if feat_name in feature_set:
+                    filtered_features[feat_name] = geo_features[feat_name]
+            
+            # Add normal components if requested
+            if 'normal_x' in feature_set:
+                filtered_features['normal_x'] = normals[:, 0].astype(np.float32)
+            if 'normal_y' in feature_set:
+                filtered_features['normal_y'] = normals[:, 1].astype(np.float32)
+            if 'normal_z' in feature_set:
+                filtered_features['normal_z'] = normals[:, 2].astype(np.float32)
+            
+            # Add curvature if requested
+            if 'curvature' in feature_set and 'curvature' not in filtered_features:
+                filtered_features['curvature'] = curvature
+            
+            # Add height if requested
+            if 'height_above_ground' in feature_set:
+                filtered_features['height_above_ground'] = height
+            
+            # Add xyz coordinates if requested
+            if 'xyz' in feature_set:
+                filtered_features['xyz'] = points.astype(np.float32)
+            
+            geo_features = filtered_features
+            logger.info(
+                f"✓ Features computed and filtered for mode '{mode}': "
+                f"{len(geo_features)} features selected, {N:,} points, {num_chunks} chunks processed"
+            )
+        else:
+            # Log completion statistics (full mode)
+            total_features = len(geo_features) + 3  # +3 for normals, curvature, height
+            logger.info(
+                f"✓ All features computed successfully: "
+                f"{total_features} feature types, {N:,} points, {num_chunks} chunks processed"
+            )
         
         return normals, curvature, height, geo_features
 
