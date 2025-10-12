@@ -207,11 +207,14 @@ def save_patch_laz(save_path: Path,
     # Add standard LAS fields
     _add_standard_las_fields(las, arch_data, original_patch, point_format)
     
+    # Track added extra dimensions to avoid duplicates
+    added_dimensions = set()
+    
     # Add computed features as extra dimensions
-    _add_geometric_features(las, original_patch)
-    _add_height_features(las, original_patch)
-    _add_radiometric_features(las, original_patch, point_format)
-    _add_return_number(las, original_patch)
+    _add_geometric_features(las, original_patch, added_dimensions)
+    _add_height_features(las, original_patch, added_dimensions)
+    _add_radiometric_features(las, original_patch, point_format, added_dimensions)
+    _add_return_number(las, original_patch, added_dimensions)
     
     # Write LAZ file
     las.write(str(save_path))
@@ -291,7 +294,7 @@ def _add_standard_las_fields(las, arch_data: Dict, original_patch: Dict,
         las.nir = nir
 
 
-def _add_geometric_features(las, original_patch: Dict) -> None:
+def _add_geometric_features(las, original_patch: Dict, added_dimensions: set) -> None:
     """Add ALL geometric features as extra dimensions (supports full mode with 40+ features)."""
     # ALL geometric features in consistent order (matches base_formatter.py)
     geometric_features = [
@@ -310,7 +313,7 @@ def _add_geometric_features(las, original_patch: Dict) -> None:
     ]
     
     for feat_name in geometric_features:
-        if feat_name in original_patch:
+        if feat_name in original_patch and feat_name not in added_dimensions:
             try:
                 las.add_extra_dim(laspy.ExtraBytesParams(
                     name=feat_name,
@@ -318,6 +321,7 @@ def _add_geometric_features(las, original_patch: Dict) -> None:
                     description=f"Geom: {feat_name}"
                 ))
                 setattr(las, feat_name, original_patch[feat_name].astype(np.float32))
+                added_dimensions.add(feat_name)
             except Exception as e:
                 logger.warning(
                     f"Could not add feature '{feat_name}' to LAZ: {e}"
@@ -328,17 +332,19 @@ def _add_geometric_features(las, original_patch: Dict) -> None:
         try:
             normals = original_patch['normals']
             for i, comp in enumerate(['normal_x', 'normal_y', 'normal_z']):
-                las.add_extra_dim(laspy.ExtraBytesParams(
-                    name=comp,
-                    type=np.float32,
-                    description=f"Normal {comp[-1]}"
-                ))
-                setattr(las, comp, normals[:, i].astype(np.float32))
+                if comp not in added_dimensions:
+                    las.add_extra_dim(laspy.ExtraBytesParams(
+                        name=comp,
+                        type=np.float32,
+                        description=f"Normal {comp[-1]}"
+                    ))
+                    setattr(las, comp, normals[:, i].astype(np.float32))
+                    added_dimensions.add(comp)
         except Exception as e:
             logger.warning(f"Could not add normals to LAZ: {e}")
 
 
-def _add_height_features(las, original_patch: Dict) -> None:
+def _add_height_features(las, original_patch: Dict, added_dimensions: set) -> None:
     """Add ALL height features as extra dimensions."""
     height_features = [
         # Core height features
@@ -350,7 +356,7 @@ def _add_height_features(las, original_patch: Dict) -> None:
     ]
     
     for feat_name in height_features:
-        if feat_name in original_patch:
+        if feat_name in original_patch and feat_name not in added_dimensions:
             try:
                 las.add_extra_dim(laspy.ExtraBytesParams(
                     name=feat_name,
@@ -358,6 +364,7 @@ def _add_height_features(las, original_patch: Dict) -> None:
                     description=f"Height feature: {feat_name}"
                 ))
                 setattr(las, feat_name, original_patch[feat_name].astype(np.float32))
+                added_dimensions.add(feat_name)
             except Exception as e:
                 logger.warning(
                     f"Could not add feature '{feat_name}' to LAZ: {e}"
@@ -365,35 +372,39 @@ def _add_height_features(las, original_patch: Dict) -> None:
 
 
 def _add_radiometric_features(las, original_patch: Dict, 
-                              point_format: int) -> None:
+                              point_format: int, added_dimensions: set) -> None:
     """Add radiometric features (NIR, NDVI) as extra dimensions."""
     # Add NIR as extra dimension if not already included in point format
     if point_format != 8 and 'nir' in original_patch and original_patch['nir'] is not None:
-        try:
-            las.add_extra_dim(laspy.ExtraBytesParams(
-                name='nir',
-                type=np.float32,
-                description="NIR reflectance (norm 0-1)"
-            ))
-            las.nir = original_patch['nir'].astype(np.float32)
-        except Exception as e:
-            logger.warning(f"Could not add NIR to LAZ: {e}")
+        if 'nir' not in added_dimensions:
+            try:
+                las.add_extra_dim(laspy.ExtraBytesParams(
+                    name='nir',
+                    type=np.float32,
+                    description="NIR reflectance (norm 0-1)"
+                ))
+                las.nir = original_patch['nir'].astype(np.float32)
+                added_dimensions.add('nir')
+            except Exception as e:
+                logger.warning(f"Could not add NIR to LAZ: {e}")
     
     if 'ndvi' in original_patch and original_patch['ndvi'] is not None:
-        try:
-            las.add_extra_dim(laspy.ExtraBytesParams(
-                name='ndvi',
-                type=np.float32,
-                description="NDVI (vegetation index)"
-            ))
-            las.ndvi = original_patch['ndvi'].astype(np.float32)
-        except Exception as e:
-            logger.warning(f"Could not add NDVI to LAZ: {e}")
+        if 'ndvi' not in added_dimensions:
+            try:
+                las.add_extra_dim(laspy.ExtraBytesParams(
+                    name='ndvi',
+                    type=np.float32,
+                    description="NDVI (vegetation index)"
+                ))
+                las.ndvi = original_patch['ndvi'].astype(np.float32)
+                added_dimensions.add('ndvi')
+            except Exception as e:
+                logger.warning(f"Could not add NDVI to LAZ: {e}")
 
 
-def _add_return_number(las, original_patch: Dict) -> None:
+def _add_return_number(las, original_patch: Dict, added_dimensions: set) -> None:
     """Add return number if available."""
-    if 'return_number' in original_patch:
+    if 'return_number' in original_patch and 'return_number' not in added_dimensions:
         try:
             # Return number might already be a standard field
             if not hasattr(las, 'return_number'):
@@ -403,6 +414,7 @@ def _add_return_number(las, original_patch: Dict) -> None:
                     description="Return number"
                 ))
                 las.return_number = original_patch['return_number'].astype(np.uint8)
+                added_dimensions.add('return_number')
         except Exception as e:
             logger.warning(f"Could not add return_number to LAZ: {e}")
 

@@ -406,6 +406,9 @@ class LiDARProcessor:
         # This ensures all computed features (including advanced ones like eigenvalues,
         # architectural features, density features) are saved to LAZ
         
+        # Track added dimensions to avoid duplicates
+        added_dimensions = set()
+        
         # Define keys to skip (standard fields, special handling, or already processed)
         skip_keys = {
             'points', 'coords', 'labels', 'classification', 'intensity', 
@@ -419,6 +422,10 @@ class LiDARProcessor:
         for feat_name, feat_data in original_patch.items():
             # Skip if in skip list or not a numpy array
             if feat_name in skip_keys or not isinstance(feat_data, np.ndarray):
+                continue
+            
+            # Skip if already added
+            if feat_name in added_dimensions:
                 continue
             
             # Skip if already a standard LAS field
@@ -437,6 +444,7 @@ class LiDARProcessor:
                     description=f"Feature: {feat_name}"
                 ))
                 setattr(las, feat_name, feat_data.astype(np.float32))
+                added_dimensions.add(feat_name)
             except Exception as e:
                 logger.debug(f"  ⚠️  Could not add feature '{feat_name}' to LAZ: {e}")
         
@@ -445,19 +453,21 @@ class LiDARProcessor:
             try:
                 normals = original_patch['normals']
                 for i, comp in enumerate(['normal_x', 'normal_y', 'normal_z']):
-                    las.add_extra_dim(laspy.ExtraBytesParams(
-                        name=comp,
-                        type=np.float32,
-                        description=f"Normal {comp[-1]}"
-                    ))
-                    setattr(las, comp, normals[:, i].astype(np.float32))
+                    if comp not in added_dimensions:
+                        las.add_extra_dim(laspy.ExtraBytesParams(
+                            name=comp,
+                            type=np.float32,
+                            description=f"Normal {comp[-1]}"
+                        ))
+                        setattr(las, comp, normals[:, i].astype(np.float32))
+                        added_dimensions.add(comp)
             except Exception as e:
                 logger.warning(f"  ⚠️  Could not add normals to LAZ: {e}")
         
         # Height features
         height_features = ['height', 'z_normalized', 'z_from_ground', 'z_from_median']
         for feat_name in height_features:
-            if feat_name in original_patch:
+            if feat_name in original_patch and feat_name not in added_dimensions:
                 try:
                     las.add_extra_dim(laspy.ExtraBytesParams(
                         name=feat_name,
@@ -465,35 +475,40 @@ class LiDARProcessor:
                         description=f"Height feature: {feat_name}"
                     ))
                     setattr(las, feat_name, original_patch[feat_name].astype(np.float32))
+                    added_dimensions.add(feat_name)
                 except Exception as e:
                     logger.warning(f"  ⚠️  Could not add feature '{feat_name}' to LAZ: {e}")
         
         # Radiometric features (NIR, NDVI, etc.)
         # Add NIR as extra dimension if not already included in point format
         if point_format != 8 and 'nir' in original_patch and original_patch['nir'] is not None:
-            try:
-                las.add_extra_dim(laspy.ExtraBytesParams(
-                    name='nir',
-                    type=np.float32,
-                    description="NIR reflectance (norm 0-1)"
-                ))
-                las.nir = original_patch['nir'].astype(np.float32)
-            except Exception as e:
-                logger.warning(f"  ⚠️  Could not add NIR to LAZ: {e}")
+            if 'nir' not in added_dimensions:
+                try:
+                    las.add_extra_dim(laspy.ExtraBytesParams(
+                        name='nir',
+                        type=np.float32,
+                        description="NIR reflectance (norm 0-1)"
+                    ))
+                    las.nir = original_patch['nir'].astype(np.float32)
+                    added_dimensions.add('nir')
+                except Exception as e:
+                    logger.warning(f"  ⚠️  Could not add NIR to LAZ: {e}")
         
         if 'ndvi' in original_patch and original_patch['ndvi'] is not None:
-            try:
-                las.add_extra_dim(laspy.ExtraBytesParams(
-                    name='ndvi',
-                    type=np.float32,
-                    description="NDVI (vegetation index)"
-                ))
-                las.ndvi = original_patch['ndvi'].astype(np.float32)
-            except Exception as e:
-                logger.warning(f"  ⚠️  Could not add NDVI to LAZ: {e}")
+            if 'ndvi' not in added_dimensions:
+                try:
+                    las.add_extra_dim(laspy.ExtraBytesParams(
+                        name='ndvi',
+                        type=np.float32,
+                        description="NDVI (vegetation index)"
+                    ))
+                    las.ndvi = original_patch['ndvi'].astype(np.float32)
+                    added_dimensions.add('ndvi')
+                except Exception as e:
+                    logger.warning(f"  ⚠️  Could not add NDVI to LAZ: {e}")
         
         # Return number (if not already in standard fields)
-        if 'return_number' in original_patch:
+        if 'return_number' in original_patch and 'return_number' not in added_dimensions:
             try:
                 # Return number might already be a standard field
                 if not hasattr(las, 'return_number'):
@@ -503,6 +518,7 @@ class LiDARProcessor:
                         description="Return number"
                     ))
                     las.return_number = original_patch['return_number'].astype(np.uint8)
+                    added_dimensions.add('return_number')
             except Exception as e:
                 logger.warning(f"  ⚠️  Could not add return_number to LAZ: {e}")
         
