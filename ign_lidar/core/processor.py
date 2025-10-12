@@ -705,6 +705,15 @@ class LiDARProcessor:
                 input_nir = input_nir / 65535.0
             logger.info(f"  🌿 NIR data found in input LAZ as 'near_infrared' (will be preserved)")
         
+        # Extract NDVI if present in input LAZ
+        input_ndvi = None
+        if hasattr(las, 'ndvi'):
+            input_ndvi = np.array(las.ndvi, dtype=np.float32)
+            # NDVI should be in range [-1, 1], but normalize if needed
+            if input_ndvi.max() > 1.0:
+                input_ndvi = input_ndvi / 65535.0 * 2.0 - 1.0  # Convert uint16 to [-1, 1]
+            logger.info(f"  🌱 NDVI data found in input LAZ (will be preserved)")
+        
         # Extract enriched features if present (from previously enriched LAZ files)
         enriched_features = {}
         feature_names = [
@@ -745,11 +754,13 @@ class LiDARProcessor:
             intensity = intensity[mask]
             return_number = return_number[mask]
             classification = classification[mask]
-            # Also filter RGB and NIR if present
+            # Also filter RGB, NIR, and NDVI if present
             if input_rgb is not None:
                 input_rgb = input_rgb[mask]
             if input_nir is not None:
                 input_nir = input_nir[mask]
+            if input_ndvi is not None:
+                input_ndvi = input_ndvi[mask]
             # Filter enriched features if present
             for feature_name in list(enriched_features.keys()):
                 enriched_features[feature_name] = enriched_features[feature_name][mask]
@@ -763,6 +774,7 @@ class LiDARProcessor:
             'classification': classification,
             'input_rgb': input_rgb,  # Preserve input RGB if present
             'input_nir': input_nir,  # Preserve input NIR if present
+            'input_ndvi': input_ndvi,  # Preserve input NDVI if present
             'enriched_features': enriched_features  # Preserve enriched features if present
         }
         
@@ -771,9 +783,10 @@ class LiDARProcessor:
         intensity_v = original_data['intensity']
         return_number_v = original_data['return_number']
         classification_v = original_data['classification']
-        # Initialize RGB and NIR from input if present (will be filtered by preprocessing if enabled)
+        # Initialize RGB, NIR, and NDVI from input if present (will be filtered by preprocessing if enabled)
         input_rgb_v = input_rgb
         input_nir_v = input_nir
+        input_ndvi_v = input_ndvi
         # Initialize enriched features (will be filtered by preprocessing if enabled)
         enriched_features_v = {k: v.copy() for k, v in enriched_features.items()} if enriched_features else {}
         
@@ -821,9 +834,10 @@ class LiDARProcessor:
                 intensity_v = intensity_v[cumulative_mask]
                 return_number_v = return_number_v[cumulative_mask]
                 classification_v = classification_v[cumulative_mask]
-                # Also filter input RGB and NIR if present
+                # Also filter input RGB, NIR, and NDVI if present
                 input_rgb_v = input_rgb[cumulative_mask] if input_rgb is not None else None
                 input_nir_v = input_nir[cumulative_mask] if input_nir is not None else None
+                input_ndvi_v = input_ndvi[cumulative_mask] if input_ndvi is not None else None
                 # Filter enriched features if present
                 for feature_name in list(enriched_features_v.keys()):
                     enriched_features_v[feature_name] = enriched_features_v[feature_name][cumulative_mask]
@@ -839,11 +853,13 @@ class LiDARProcessor:
                     intensity_v = intensity_v[voxel_indices]
                     return_number_v = return_number_v[voxel_indices]
                     classification_v = classification_v[voxel_indices]
-                    # Also filter input RGB and NIR
+                    # Also filter input RGB, NIR, and NDVI
                     if input_rgb_v is not None:
                         input_rgb_v = input_rgb_v[voxel_indices]
                     if input_nir_v is not None:
                         input_nir_v = input_nir_v[voxel_indices]
+                    if input_ndvi_v is not None:
+                        input_ndvi_v = input_ndvi_v[voxel_indices]
                     # Filter enriched features if present
                     for feature_name in list(enriched_features_v.keys()):
                         enriched_features_v[feature_name] = enriched_features_v[feature_name][voxel_indices]
@@ -851,6 +867,7 @@ class LiDARProcessor:
                     # No voxel downsampling, use original filtered data
                     input_rgb_v = input_rgb[cumulative_mask] if input_rgb is not None else None
                     input_nir_v = input_nir[cumulative_mask] if input_nir is not None else None
+                    input_ndvi_v = input_ndvi[cumulative_mask] if input_ndvi is not None else None
                 
                 final_count = len(points_v)
                 reduction = 1 - final_count / original_count
@@ -982,6 +999,92 @@ class LiDARProcessor:
                 )
             all_features_v['architectural_style'] = architectural_style
         
+        # 4d. Add RGB to tile features if requested (BEFORE patch extraction)
+        #
+        # IMPORTANT: RGB must be added BEFORE patch extraction and augmentation to ensure
+        # spatial correspondence. If we add RGB after augmentation, the augmented patches
+        # will have RGB fetched from incorrect spatial locations (because patch coordinates
+        # have been transformed by rotation, jitter, scale).
+        #
+        # By adding RGB to the full tile first, the RGB values are extracted along with
+        # other features during patch extraction, and augmentation applies the same
+        # transformations (rotation, dropout) to RGB as it does to geometry.
+        #
+        # Priority: Use RGB from input LAZ if available, otherwise fetch from orthophotos
+        if self.include_rgb:
+            if input_rgb_v is not None:
+                # Use RGB from input LAZ file (already preserved)
+                all_features_v['rgb'] = input_rgb_v
+                logger.info(f"  ✓ Using RGB from input LAZ ({input_rgb_v.shape})")
+            elif self.rgb_fetcher:
+                # Fetch RGB from IGN orthophotos
+                logger.info("  🎨 Fetching RGB from IGN orthophotos...")
+                rgb_start = time.time()
+                
+                tile_bbox = (
+                    points_v[:, 0].min(),
+                    points_v[:, 1].min(),
+                    points_v[:, 0].max(),
+                    points_v[:, 0].max()
+                )
+                
+                try:
+                    rgb_tile = self.rgb_fetcher.augment_points_with_rgb(
+                        points_v,
+                        bbox=tile_bbox
+                    )
+                    all_features_v['rgb'] = rgb_tile.astype(np.float32) / 255.0
+                    
+                    rgb_time = time.time() - rgb_start
+                    logger.info(f"  ✓ RGB augmentation completed in {rgb_time:.2f}s")
+                except Exception as e:
+                    logger.warning(f"  ⚠️  RGB augmentation failed: {e}")
+                    # Add default gray color
+                    all_features_v['rgb'] = np.full(
+                        (len(points_v), 3),
+                        0.5,
+                        dtype=np.float32
+                    )
+            else:
+                logger.warning("  ⚠️  RGB requested but no source available (no input RGB, no fetcher)")
+        
+        # 4e. Add NIR to tile features if requested (BEFORE patch extraction)
+        # Priority: Use NIR from input LAZ if available, otherwise would fetch from external source
+        if self.include_infrared:
+            if input_nir_v is not None:
+                # NIR already present in input LAZ
+                all_features_v['nir'] = input_nir_v
+                logger.info(f"  ✓ Using NIR from input LAZ ({input_nir_v.shape})")
+            else:
+                # Would fetch from external source here if implemented
+                logger.warning("  ⚠️  NIR requested but not available in input")
+        
+        # 4f. Compute or use NDVI if requested (BEFORE patch extraction)
+        # Priority: Use NDVI from input LAZ if available, otherwise compute from RGB and NIR
+        if self.compute_ndvi:
+            if input_ndvi_v is not None:
+                # Use NDVI from input LAZ file (already preserved)
+                all_features_v['ndvi'] = input_ndvi_v
+                logger.info(f"  ✓ Using NDVI from input LAZ ({input_ndvi_v.shape})")
+            elif 'rgb' in all_features_v and 'nir' in all_features_v:
+                # Compute NDVI from RGB and NIR
+                logger.info("  🌱 Computing NDVI from RGB and NIR...")
+                
+                try:
+                    rgb = all_features_v['rgb']
+                    nir = all_features_v['nir']
+                    
+                    # NDVI = (NIR - Red) / (NIR + Red)
+                    red = rgb[:, 0]
+                    ndvi = (nir - red) / (nir + red + 1e-8)  # Add epsilon to avoid division by zero
+                    all_features_v['ndvi'] = ndvi
+                    
+                    logger.info("  ✓ NDVI computed successfully")
+                except Exception as e:
+                    logger.warning(f"  ⚠️  NDVI computation failed: {e}")
+            else:
+                logger.warning("  ⚠️  NDVI requested but cannot compute (missing RGB or NIR)")
+        
         # 5. Extract patches and create augmented versions using patch_extractor module
         patch_config = PatchConfig(
             patch_size=self.patch_size,
@@ -995,6 +1098,8 @@ class LiDARProcessor:
         aug_config = AugmentationConfig() if self.augment else None
         
         # Extract all patches (base + augmented versions)
+        # RGB, NIR, and NDVI are now included in all_features_v and will be
+        # extracted along with other features, ensuring spatial correspondence
         all_patches_collected = extract_and_augment_patches(
             points=points_v,
             features=all_features_v,
@@ -1004,48 +1109,6 @@ class LiDARProcessor:
             architecture=self.architecture,
             logger_instance=logger
         )
-        
-        # 5b. Add RGB if requested (to all patch versions)
-        if self.include_rgb and self.rgb_fetcher:
-            logger.info(
-                "  🎨 Augmenting patches with RGB "
-                "from IGN orthophotos..."
-            )
-            # Get tile bounding box for orthophoto fetch
-            tile_bbox = (
-                points_v[:, 0].min(),
-                points_v[:, 1].min(),
-                points_v[:, 0].max(),
-                points_v[:, 1].max()
-            )
-            
-            for patch in all_patches_collected:
-                try:
-                    # Get absolute coordinates for this patch
-                    patch_points_abs = patch['points'].copy()
-                    patch_center_xy = np.array([
-                        (tile_bbox[0] + tile_bbox[2]) / 2,
-                        (tile_bbox[1] + tile_bbox[3]) / 2,
-                        0
-                    ])
-                    patch_points_abs[:, :2] += patch_center_xy[:2]
-                    
-                    # Fetch RGB
-                    rgb = self.rgb_fetcher.augment_points_with_rgb(
-                        patch_points_abs,
-                        bbox=tile_bbox
-                    )
-                    patch['rgb'] = rgb.astype(np.float32) / 255.0
-                except Exception as e:
-                    logger.warning(
-                        f"  ⚠️  RGB augmentation failed: {e}"
-                    )
-                    # Add default gray color
-                    patch['rgb'] = np.full(
-                        (len(patch['points']), 3),
-                        0.5,
-                        dtype=np.float32
-                    )
         
         # 7. Save all collected patches
         output_dir.mkdir(parents=True, exist_ok=True)

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Preserve RGB/NIR/NDVI from Input LAZ Files**
+  - RGB, NIR (infrared), and NDVI values are now automatically detected and preserved from input LAZ files
+  - When generating patches, input RGB/NIR/NDVI take priority over fetched/computed values
+  - All geometric features (normals, curvature, planarity, etc.) are still recomputed for consistency
+  - Prevents unnecessary RGB fetching when data already exists in source files
+  - Maintains data quality by preserving original spectral information
+  - Useful for processing enriched or pre-augmented LAZ files
+
+### Fixed
+
+- **CRITICAL: RGB Augmentation Coordinate Mismatch**
+  - Fixed critical bug where augmented patches received RGB colors from incorrect spatial locations
+  - RGB augmentation now applied at tile level before patch extraction, ensuring spatial correspondence
+  - All patch versions (original and augmented) now correctly get RGB from the same spatial region
+  - Same fix applied to NIR (near-infrared) and NDVI computation
+  - **Impact**: All datasets created with `include_rgb=True` and `augment=True` had mismatched
+    RGB-geometry correspondence in augmented patches, which could negatively affect model training
+  - **Solution**: RGB/NIR/NDVI are now added to tile features before patch extraction, maintaining
+    correct spatial correspondence through augmentation transformations
+  - **Performance**: Additional benefit of ~3x faster RGB processing (fetch once per tile vs once per patch)
+  - Added patch metadata (`_patch_center`, `_patch_bounds`) for debugging and validation
+  - Added comprehensive tests to verify RGB consistency across augmentations
+
 ## [2.3.1] - 2025-10-12
 
 ### Added

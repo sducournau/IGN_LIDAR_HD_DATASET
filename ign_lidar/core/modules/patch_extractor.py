@@ -96,6 +96,8 @@ def extract_patches(
         List of patch dictionaries, each containing:
         - 'points': Centered point coordinates [M, 3]
         - 'labels': Point labels [M]
+        - '_patch_center': Original center coordinates in tile space [3]
+        - '_patch_bounds': Patch bounds (x_start, y_start, x_end, y_end)
         - Additional features from features dict
     """
     log = logger_instance or logger
@@ -143,10 +145,12 @@ def extract_patches(
             ])
             patch_points = patch_points - patch_center
             
-            # Build patch dictionary
+            # Build patch dictionary with metadata
             patch = {
                 'points': patch_points,
-                'labels': patch_labels
+                'labels': patch_labels,
+                '_patch_center': patch_center,  # Store for debugging/validation
+                '_patch_bounds': (x_start, y_start, x_end, y_end),  # Store bounds
             }
             
             # Add features
@@ -365,6 +369,10 @@ def augment_patch(
     # Apply dropout to all other features
     for key, value in patch.items():
         if key == 'points':
+            continue
+        # Skip metadata fields (start with _)
+        if key.startswith('_'):
+            aug_patch[key] = value
             continue
         if isinstance(value, np.ndarray):
             aug_patch[key] = value[keep_mask]
