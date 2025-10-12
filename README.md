@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 2.4.3** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 2.4.4** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -34,24 +34,22 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ---
 
-## ✨ What's New in v2.4.2
+## ✨ What's New in v2.4.4
 
-### Complete GPU Acceleration
+### LAZ Data Quality Tools & Validation
 
-- 🚀 **Full GPU Implementation**: All advanced features in "full" mode now GPU-accelerated
-- ⚡ **5-10x Speedup**: Massive performance boost for large point clouds (>10M points)
-- 🎯 **GPU Eigenvalue Features**: Accelerated eigenvalue decomposition, entropy, omnivariance
-- 🏗️ **GPU Architectural Features**: Edge strength, corner likelihood, overhang detection
-- 📊 **GPU Density Features**: Accelerated density computation and neighborhood analysis
-- 🔄 **Seamless Fallback**: Automatic GPU/CPU switching with zero API changes
-- ✅ **Complete Compatibility**: Same output quality, same interface, better performance
+- � **Post-Processing Tools**: New `fix_enriched_laz.py` script for automated LAZ file correction
+- 🔍 **Data Quality Detection**: Identifies NDVI calculation errors, eigenvalue outliers, and derived feature corruption
+- 📊 **Diagnostic Reports**: Comprehensive analysis with root cause identification and impact assessment
+- ✅ **Automated Fixes**: Caps eigenvalues, recomputes derived features, validates results
+- 📈 **Enhanced Validation**: Improved NIR data checks and error handling in enrichment pipeline
 
-### Key Benefits
+### Key Fixes
 
-- 🎯 **ML Model Stability**: No more NaN/Inf values, improved convergence
-- ⚡ **Zero Breaking Changes**: Drop-in upgrade from v2.3.x
-- 📊 **Consistent Features**: Same results across CPU/GPU/boundary processing
-- 🚀 **Production Ready**: Enterprise-grade reliability and deterministic behavior
+- 🐛 **NDVI Calculation**: Fixed all values = -1.0 when NIR data is missing/corrupted
+- 🔢 **Eigenvalue Outliers**: Addressed extreme values (>10,000) causing ML training instability
+- � **Derived Features**: Corrected cascading corruption in change_curvature, omnivariance, etc.
+- ⚡ **Production Ready**: Robust validation and error handling for real-world data quality issues
 
 ### Recent Highlights (v2.3.x)
 
