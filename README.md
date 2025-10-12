@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 2.4.1** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 2.4.2** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -34,17 +34,17 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ---
 
-## ✨ What's New in v2.4.1
+## ✨ What's New in v2.4.2
 
-**Enhanced Geometric Feature Validation:**
+**Complete GPU Acceleration for Advanced Features:**
 
-- 🔧 **Feature Robustness**: All geometric features now guaranteed within valid ranges [0, 1]
-- 🎯 **Eigenvalue Clamping**: Prevents negative eigenvalues from numerical artifacts
-- 📊 **Density Normalization**: Capped at 1000 points/m³ for ML stability
-- ✅ **Boundary Feature Parity**: Complete feature set across all computation paths
-- 🔄 **Formula Standardization**: Consistent λ0 normalization (Weinmann et al.)
-- 📈 **Zero Overhead**: Less than 1% performance impact from validation
-- 🛡️ **Production Ready**: Eliminates out-of-range warnings in all scenarios
+- � **Full GPU Implementation**: All advanced features in "full" mode now GPU-accelerated
+- ⚡ **5-10x Speedup**: Massive performance boost for large point clouds (>10M points)
+- 🎯 **GPU Eigenvalue Features**: Accelerated eigenvalue decomposition, entropy, omnivariance
+- 🏗️ **GPU Architectural Features**: Edge strength, corner likelihood, overhang detection
+- 📊 **GPU Density Features**: Accelerated density computation and neighborhood analysis
+- � **Seamless Fallback**: Automatic GPU/CPU switching with zero API changes
+- ✅ **Complete Compatibility**: Same output quality, same interface, better performance
 
 **Key Benefits:**
 

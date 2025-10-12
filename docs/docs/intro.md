@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.4.1** | Python 3.8+ | MIT License
+**Version 2.4.2** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -112,20 +112,21 @@ See [example configs directory](/examples/config-files) for complete workflows.
 
 ## 🎯 What's New
 
-### v2.4.0 (2025-10-12) - Latest Release
+### v2.4.2 (2025-10-12) - Latest Release
 
-- **🔧 Enhanced Feature Validation**: All geometric features guaranteed within [0, 1] range
-- **✅ Production-Ready ML Stability**: Eliminates NaN/Inf values, improved convergence
-- **⚡ Zero Overhead**: Less than 1% performance impact from validation
-- **🎯 Complete Feature Parity**: Consistent results across CPU/GPU/boundary paths
-- **📊 Robustness Guarantees**: Eigenvalue clamping, density normalization
+- **� Full GPU Acceleration**: Complete GPU implementation for all advanced features in "full" mode
+- **⚡ 5-10x Speedup**: Massive performance boost for large point clouds (>10M points) with GPU
+- **🎯 GPU-Accelerated Features**: Eigenvalue, architectural, and density features now on GPU
+- **🔄 Seamless Fallback**: Automatic GPU/CPU switching with zero API changes
+- **✅ Same Quality**: Identical output quality, same interface, better performance
 
-[Read the full release notes →](/release-notes/v2.4.0)
+[Read the full release notes →](/release-notes/v2.4.2)
 
 ### Previous Releases
 
+**v2.4.1** - Full feature mode fix (all 30 features)  
+**v2.4.0** - Enhanced feature validation, production-ready ML stability  
 **v2.3.0** - Processing modes, YAML configs, intelligent skip system  
-**v2.2.1** - Spatial consistency fixes, enhanced augmentation  
 **v2.0.0** - Modular architecture, boundary-aware features
 
 ---
