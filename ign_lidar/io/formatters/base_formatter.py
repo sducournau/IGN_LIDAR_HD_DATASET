@@ -172,6 +172,13 @@ class BaseFormatter:
             features: [N, C] array with concatenated features (C varies based on mode: ~12-50+ features)
             OR (features, feature_names) if return_feature_names=True
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # DEBUG: Log what's in the patch
+        patch_keys = [k for k in patch.keys() if not k.startswith('_')]
+        logger.debug(f"  📊 DEBUG _build_feature_matrix: Building features from {len(patch_keys)} arrays in patch")
+        
         features = []
         feature_names = []
         

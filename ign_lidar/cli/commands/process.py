@@ -7,23 +7,11 @@ from typing import Optional
 
 import click
 from omegaconf import DictConfig, OmegaConf
-from hydra import compose, initialize_config_dir
-from hydra.core.global_hydra import GlobalHydra
 
 from ...core.processor import LiDARProcessor
+from ..hydra_runner import HydraRunner
 
 logger = logging.getLogger(__name__)
-
-
-def get_config_dir() -> str:
-    """Get absolute path to configs directory."""
-    package_dir = Path(__file__).parent.parent.parent
-    config_dir = package_dir / "configs"
-    
-    if not config_dir.exists():
-        raise FileNotFoundError(f"Config directory not found at: {config_dir}")
-    
-    return str(config_dir.absolute())
 
 
 def setup_logging(cfg: DictConfig) -> None:
@@ -63,178 +51,6 @@ def print_config_summary(cfg: DictConfig) -> None:
         logger.info(f"Auto-download neighbors: {cfg.stitching.auto_download_neighbors}")
     
     logger.info("="*70)
-
-
-def load_hydra_config(overrides: Optional[list] = None) -> DictConfig:
-    """Load Hydra configuration with overrides."""
-    config_dir = get_config_dir()
-    
-    # Clear any existing Hydra instance
-    GlobalHydra.instance().clear()
-    
-    # Initialize Hydra with config directory
-    with initialize_config_dir(config_dir=config_dir, version_base=None):
-        cfg = compose(config_name="config", overrides=overrides or [])
-        
-        # Handle output shorthand immediately after loading
-        # This ensures cfg.output is always a dict, never a string
-        if hasattr(cfg, 'output') and isinstance(cfg.output, str):
-            output_mode = cfg.output
-            cfg.output = OmegaConf.create({
-                "format": "npz",
-                "processing_mode": output_mode,
-                "save_stats": True,
-                "save_metadata": output_mode != 'enriched_only',
-                "compression": None
-            })
-        
-        return cfg
-
-
-def load_config_from_file(
-    config_file: str,
-    overrides: Optional[list] = None
-) -> DictConfig:
-    """
-    Load Hydra configuration from a custom YAML file.
-    
-    This allows users to provide their own config files instead of
-    using only the built-in presets.
-    
-    Args:
-        config_file: Path to custom YAML config file (absolute or relative)
-        overrides: List of CLI overrides to apply on top
-        
-    Returns:
-        Composed Hydra configuration
-        
-    Example:
-        >>> cfg = load_config_from_file(
-        ...     'my_config.yaml',
-        ...     ['processor.use_gpu=true']
-        ... )
-    """
-    import yaml
-    
-    config_path = Path(config_file)
-    
-    # Resolve to absolute path
-    if not config_path.is_absolute():
-        config_path = Path.cwd() / config_path
-    
-    if not config_path.exists():
-        raise FileNotFoundError(f"Config file not found: {config_path}")
-    
-    logger.info(f"Loading custom config from: {config_path}")
-    
-    # Load the custom config
-    with open(config_path, 'r') as f:
-        custom_config = yaml.safe_load(f)
-    
-    # Get the package config directory for defaults
-    package_config_dir = get_config_dir()
-    
-    # Clear any existing Hydra instance
-    GlobalHydra.instance().clear()
-    
-    # Initialize Hydra with package config directory
-    with initialize_config_dir(config_dir=package_config_dir, version_base=None):
-        # Start with base config
-        cfg = compose(config_name="config", overrides=[])
-        
-        # Set struct mode to False to allow new keys
-        OmegaConf.set_struct(cfg, False)
-        
-        # Merge custom config on top
-        custom_omega = OmegaConf.create(custom_config)
-        cfg = OmegaConf.merge(cfg, custom_omega)
-        
-        # Apply CLI overrides (highest priority)
-        if overrides:
-            override_omega = OmegaConf.from_dotlist(overrides)
-            cfg = OmegaConf.merge(cfg, override_omega)
-        
-        # Re-enable struct mode
-        OmegaConf.set_struct(cfg, True)
-        
-        # Handle output shorthand
-        if hasattr(cfg, 'output') and isinstance(cfg.output, str):
-            output_mode = cfg.output
-            cfg.output = OmegaConf.create({
-                "format": "npz",
-                "processing_mode": output_mode,
-                "save_stats": True,
-                "save_metadata": output_mode != 'enriched_only',
-                "compression": None
-            })
-        
-        logger.info("✅ Custom config loaded successfully")
-        return cfg
-
-
-def create_default_config():
-    """Create a default configuration when config files are not available."""
-    return OmegaConf.create({
-        "processor": {
-            "lod_level": "LOD2",
-            "use_gpu": False,
-            "num_workers": 4,
-            "patch_size": 150.0,
-            "patch_overlap": 0.1,
-            "num_points": 16384,
-            "augment": False,
-            "num_augmentations": 3,
-            "batch_size": "auto",
-            "prefetch_factor": 2,
-            "pin_memory": False
-        },
-        "features": {
-            "mode": "full",
-            "k_neighbors": 20,
-            "include_extra": True,
-            "use_rgb": True,
-            "use_infrared": False,
-            "compute_ndvi": False,
-            "sampling_method": "random",
-            "normalize_xyz": False,
-            "normalize_features": False,
-            "gpu_batch_size": 1000000,
-            "use_gpu_chunked": True
-        },
-        "preprocess": {
-            "enabled": True,
-            "sor_k": 12,
-            "sor_std": 2.0,
-            "ror_radius": 1.0,
-            "ror_neighbors": 4,
-            "voxel_enabled": False,
-            "voxel_size": 0.1
-        },
-        "stitching": {
-            "enabled": False,
-            "buffer_size": 10.0,
-            "auto_detect_neighbors": False,
-            "cache_enabled": False
-        },
-        "output": {
-            "format": "npz",
-            "processing_mode": "patches_only",
-            "save_stats": True,
-            "save_metadata": True,
-            "compression": None
-        },
-        "input_dir": "???",
-        "output_dir": "???",
-        "num_workers": 4,
-        "verbose": True,
-        "log_level": "INFO",
-        "bbox": {
-            "xmin": None,
-            "ymin": None,
-            "xmax": None,
-            "ymax": None
-        }
-    })
 
 
 def process_lidar(cfg: DictConfig) -> None:
@@ -388,11 +204,31 @@ def process_command(config_file, show_config, overrides):
         # Preview config without processing
         ign-lidar-hd process -c my_config.yaml --show-config
     """
-    # Load configuration
-    if config_file:
-        cfg = load_config_from_file(config_file, list(overrides))
-    else:
-        cfg = load_hydra_config(list(overrides))
+    # Initialize HydraRunner
+    runner = HydraRunner()
+    
+    # Load configuration using HydraRunner
+    try:
+        cfg = runner.load_config(
+            config_name="config",
+            overrides=list(overrides),
+            config_file=config_file
+        )
+    except Exception as e:
+        logger.error(f"Failed to load configuration: {e}")
+        raise click.ClickException(str(e))
+    
+    # Handle output shorthand immediately after loading
+    # This ensures cfg.output is always a dict, never a string
+    if hasattr(cfg, 'output') and isinstance(cfg.output, str):
+        output_mode = cfg.output
+        cfg.output = OmegaConf.create({
+            "format": "npz",
+            "processing_mode": output_mode,
+            "save_stats": True,
+            "save_metadata": output_mode != 'enriched_only',
+            "compression": None
+        })
     
     # Show config and exit if requested
     if show_config:

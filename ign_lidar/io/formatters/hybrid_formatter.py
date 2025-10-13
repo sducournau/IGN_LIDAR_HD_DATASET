@@ -94,6 +94,13 @@ class HybridFormatter(BaseFormatter):
             - knn_graph: [N, K, 2] KNN graph (if spatial index available)
             - metadata: comprehensive metadata
         """
+        # DEBUG: Log features received in patch
+        import logging
+        logger = logging.getLogger(__name__)
+        feature_keys = [k for k in patch.keys() if not k.startswith('_')]
+        logger.debug(f"  📊 DEBUG HybridFormatter: Received patch with {len(feature_keys)} feature arrays")
+        logger.debug(f"      Keys: {', '.join(sorted(feature_keys)[:15])}...")
+        
         points = patch['points']
         features, feature_names = self._build_feature_matrix(
             patch,

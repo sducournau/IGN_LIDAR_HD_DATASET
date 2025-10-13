@@ -94,34 +94,10 @@ except ImportError as e:
         click.echo("For full functionality, install dependencies with: pip install -e .")
 
 
-# Hydra entry points for backward compatibility
-def hydra_process_entry():
-    """Entry point for pure Hydra processing (backward compatibility)."""
-    try:
-        import hydra
-        from omegaconf import DictConfig
-        from .hydra_main import process_lidar
-        
-        @hydra.main(version_base=None, config_path="../configs", config_name="config")
-        def hydra_main(cfg: DictConfig) -> None:
-            process_lidar(cfg)
-        
-        hydra_main()
-        
-    except ImportError:
-        logger.error("Hydra functionality not available. Install with: pip install hydra-core omegaconf")
-        sys.exit(1)
-
-
 def main():
     """Main entry point for console scripts."""
     try:
-        # Detect if running as pure Hydra (legacy mode)
-        if '--config-path' in sys.argv or '--config-name' in sys.argv:
-            hydra_process_entry()
-        else:
-            # Use Click CLI
-            cli()
+        cli()
     except KeyboardInterrupt:
         logger.info("Operation cancelled by user")
         sys.exit(130)

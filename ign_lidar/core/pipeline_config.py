@@ -3,8 +3,14 @@ Pipeline configuration loader for YAML-based workflows.
 
 This module provides utilities to load and validate pipeline configurations
 from YAML files, enabling complete workflow automation.
+
+.. deprecated:: 2.4.4
+    PipelineConfig is deprecated in favor of Hydra-based configuration.
+    It will be removed in version 2.5.0. Please migrate to using Hydra
+    configuration format. See MIGRATION_GUIDE.md for migration instructions.
 """
 
+import warnings
 import yaml
 import logging
 from pathlib import Path
@@ -18,6 +24,10 @@ class PipelineConfig:
     Load and validate pipeline configuration from YAML files.
     
     Supports complete workflows: download → enrich → patch
+    
+    .. deprecated:: 2.4.4
+        This class is deprecated and will be removed in v2.5.0.
+        Use Hydra configuration instead. See MIGRATION_GUIDE.md for details.
     """
     
     def __init__(self, config_path: Path):
@@ -26,7 +36,21 @@ class PipelineConfig:
         
         Args:
             config_path: Path to YAML configuration file
+            
+        .. deprecated:: 2.4.4
+            PipelineConfig is deprecated. Use Hydra configuration format instead.
+            This class will be removed in version 2.5.0.
         """
+        # Issue deprecation warning
+        warnings.warn(
+            "PipelineConfig is deprecated and will be removed in v2.5.0. "
+            "Please migrate to Hydra configuration format. "
+            "See MIGRATION_GUIDE.md for migration instructions. "
+            "For now, this class continues to work but may not receive updates.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         self.config_path = Path(config_path)
         self.config = self._load_config()
         self._validate_config()

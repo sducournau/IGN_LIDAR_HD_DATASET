@@ -1,10 +1,19 @@
 """
 Hydra-based CLI for IGN LiDAR HD v2.0.
 
+.. deprecated:: 2.4.4
+    Direct use of hydra_main is deprecated. Use the main CLI instead:
+    `ign-lidar-hd process` with Hydra overrides.
+    This module will be removed in v2.5.0.
+
+DEPRECATED - Use the main CLI instead:
+    # Instead of: python -m ign_lidar.cli.hydra_main input_dir=...
+    # Use:        ign-lidar-hd process input_dir=...
+
 Modern command-line interface using Hydra for configuration management.
 Provides composable, type-safe configuration with powerful override system.
 
-Usage:
+Usage (DEPRECATED):
     # Basic processing
     python -m ign_lidar.cli.hydra_main input_dir=data/raw output_dir=data/patches
     
@@ -22,10 +31,17 @@ Usage:
     # Multi-run (parameter sweep)
     python -m ign_lidar.cli.hydra_main -m processor.num_points=4096,8192,16384 \\
         input_dir=data/raw output_dir=data/patches
+
+Recommended Usage (NEW):
+    # Use the main CLI with same Hydra overrides
+    ign-lidar-hd process input_dir=data/raw output_dir=data/patches
+    ign-lidar-hd process experiment=buildings_lod2 input_dir=...
+    ign-lidar-hd process processor.use_gpu=true input_dir=...
 """
 
 import logging
 import os
+import warnings
 from pathlib import Path
 import tempfile
 import time
@@ -38,6 +54,17 @@ from ..core.processor import LiDARProcessor
 from ..config.schema import IGNLiDARConfig
 
 logger = logging.getLogger(__name__)
+
+# Show deprecation warning when module is imported
+warnings.warn(
+    "Direct use of 'python -m ign_lidar.cli.hydra_main' is deprecated "
+    "and will be removed in v2.5.0. "
+    "Please use 'ign-lidar-hd process' instead. "
+    "All Hydra overrides work the same way. "
+    "See MIGRATION_GUIDE.md for details.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 
 def setup_logging(cfg: DictConfig) -> None:
