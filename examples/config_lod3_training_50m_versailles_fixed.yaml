@@ -1,14 +1,20 @@
 # ========================================================================
-# LOD3 Training Patches Configuration - 50m Scale (Fine Details)
+# LOD3 Training Patches Configuration - 50m Scale (FIXED - No Artifacts)
 # ========================================================================
 # Purpose: Generate ML training patches focusing on fine architectural details
+#          WITHOUT scan line artifacts in geometric features
 #
 # Key Features:
 # - Small patch size (50m) for local features: windows, balconies, ornaments
 # - Point count (24k) suitable for detailed geometric analysis
 # - Higher overlap (15%) to capture boundary features
 # - More augmentations (5) for increased training diversity
-# - Smaller k-neighbors (20) for fine-grained feature computation
+# - **RADIUS-based search (1.5m)** instead of k-neighbors to eliminate artifacts
+#
+# FIXES APPLIED:
+# ✓ search_radius: 1.5  # Uses spatial radius instead of k-neighbors
+#   This eliminates dash-line artifacts in planarity, linearity, roof_score
+#   by capturing true surface geometry instead of scan line patterns
 #
 # Use Case:
 # - Training on small residential buildings
@@ -25,18 +31,23 @@ processor:
   lod_level: LOD3
   architecture: hybrid
   use_gpu: true
-  num_workers: 4 # Increased for faster processing (small patches process quickly)
+  num_workers: 1
   patch_size: 50.0 # Small patches for fine architectural details
   patch_overlap: 0.15 # Higher overlap for better boundary coverage
   num_points: 24576 # 24k points suitable for small patches
-  augment: true
+  augment: false
   num_augmentations: 5 # More augmentation for training diversity
   pin_memory: true
 
 features:
-  mode: full
-  k_neighbors: 20 # Smaller neighborhood for fine details
-  search_radius: 1.2 # Smaller radius for fine 50m patches (higher point density)
+  mode: full # Active TOUTES les features possibles (37+ features)
+  # ARTIFACT FIX: Use radius-based search instead of k_neighbors
+  k_neighbors: 30 # Fallback only if search_radius=0
+  search_radius:
+    1.5 # Spatial radius in meters - ELIMINATES scan line artifacts!
+    # Recommended: 1.0-2.0m for IGN LIDAR HD (10-20 pts/m²)
+    # Set to null for auto-estimation
+    # Set to 0 to use k_neighbors instead (NOT recommended)
   include_extra: true
   use_rgb: true
   use_infrared: true
@@ -49,15 +60,15 @@ features:
 
 preprocess:
   enabled: true
-  sor_k: 8 # Gentler filtering for small patches (preserve fine details)
-  sor_std: 2.5 # High threshold to retain architectural features
-  ror_radius: 0.5 # Smaller radius appropriate for 50m patches
-  ror_neighbors: 2 # Lenient for fine details
+  sor_k: 15 # Augmenté pour plus de robustesse
+  sor_std: 3.0 # Très tolérant = conserve presque tous les points
+  ror_radius: 1.0 # Rayon plus large pour la détection d'outliers
+  ror_neighbors: 3 # Équilibré
   voxel_enabled: false
   voxel_size: 0.1
 
 stitching:
-  enabled: true
+  enabled: false # DÉSACTIVÉ: pas nécessaire pour patches ML (évite artifacts)
   buffer_size: 8.0 # Smaller buffer for 50m patches
   auto_detect_neighbors: true
   auto_download_neighbors: true
@@ -65,10 +76,10 @@ stitching:
 
 output:
   format: npz,laz
-  processing_mode: patches_only
+  processing_mode: both
   save_stats: true
   save_metadata: true
   compression: null
 
-input_dir: /mnt/c/Users/Simon/ign/enriched_tiles
-output_dir: /mnt/c/Users/Simon/ign/patches_50m
+input_dir: /mnt/c/Users/Simon/ign/versailles/input
+output_dir: /mnt/c/Users/Simon/ign/versailles/output

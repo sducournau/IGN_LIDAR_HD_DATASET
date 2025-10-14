@@ -3,6 +3,7 @@
 # Speed-optimized CPU processing (reduced quality)
 
 lod_level: LOD2
+architecture: pointnet++ # pointnet++, octree, transformer, sparse_conv, hybrid, multi
 
 use_gpu: false
 num_workers: -1 # Use all available CPU cores

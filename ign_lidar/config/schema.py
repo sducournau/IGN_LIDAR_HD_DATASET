@@ -17,6 +17,7 @@ class ProcessorConfig:
     
     Attributes:
         lod_level: Level of Detail classification target ('LOD2' or 'LOD3')
+        architecture: Neural network architecture ('pointnet++', 'hybrid', 'octree', 'transformer', 'sparse_conv', 'multi')
         use_gpu: Enable GPU acceleration (requires CuPy)
         num_workers: Number of parallel workers for processing
         patch_size: Size of patches in meters
@@ -29,6 +30,7 @@ class ProcessorConfig:
         pin_memory: Pin memory for faster GPU transfer
     """
     lod_level: Literal["LOD2", "LOD3"] = "LOD2"
+    architecture: Literal["pointnet++", "hybrid", "octree", "transformer", "sparse_conv", "multi"] = "pointnet++"
     use_gpu: bool = False
     num_workers: int = 4
     
@@ -55,6 +57,8 @@ class FeaturesConfig:
     Attributes:
         mode: Feature computation mode ('minimal', 'full', 'custom')
         k_neighbors: Number of neighbors for geometric features
+        search_radius: Search radius in meters for geometric features (recommended to avoid scan line artifacts)
+                       Set to None or 0 to use k_neighbors instead. Recommended: 1.0-2.0m for IGN LIDAR HD
         include_extra: Include extra features (height stats, verticality, etc.)
         use_rgb: Include RGB from IGN orthophotos
         use_infrared: Include near-infrared from IRC
@@ -65,6 +69,7 @@ class FeaturesConfig:
     """
     mode: Literal["minimal", "full", "custom"] = "full"
     k_neighbors: int = 20
+    search_radius: Optional[float] = None  # Auto-estimate if None, use k_neighbors if 0
     
     # Feature flags
     include_extra: bool = False
@@ -120,11 +125,13 @@ class StitchingConfig:
         enabled: Enable tile stitching
         buffer_size: Buffer zone size in meters
         auto_detect_neighbors: Automatically detect neighbor tiles
+        auto_download_neighbors: Automatically download missing neighbor tiles from IGN WFS
         cache_enabled: Cache loaded tiles to avoid re-reading
     """
     enabled: bool = False
     buffer_size: float = 10.0
     auto_detect_neighbors: bool = True
+    auto_download_neighbors: bool = False
     cache_enabled: bool = True
 
 

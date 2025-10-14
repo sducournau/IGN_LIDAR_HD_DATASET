@@ -28,6 +28,7 @@ processor:
 features:
   mode: full
   k_neighbors: 32
+  search_radius: 1.5 # Radius search eliminates scan line artifacts
   include_extra: true
   use_rgb: false
   use_infrared: false

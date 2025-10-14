@@ -3,6 +3,7 @@
 # For systems with limited RAM (<16GB)
 
 lod_level: LOD2
+architecture: pointnet++ # pointnet++, octree, transformer, sparse_conv, hybrid, multi
 
 use_gpu: false
 num_workers: 2 # Fewer workers to reduce memory pressure

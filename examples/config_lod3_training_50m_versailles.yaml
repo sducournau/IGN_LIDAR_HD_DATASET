@@ -35,7 +35,11 @@ processor:
 
 features:
   mode: full # Active TOUTES les features possibles (37+ features)
-  k_neighbors: 30 # Augmenté pour plus de robustesse et réduire le bruit
+  k_neighbors: 30 # Fallback only if search_radius=0
+  search_radius:
+    1.5 # ← FIX FOR ARTIFACTS: Uses radius search to eliminate dash lines!
+    # Recommended for IGN LIDAR HD (10 pts/m²)
+    # This captures true surface geometry instead of scan line patterns
   include_extra: true
   use_rgb: true
   use_infrared: true

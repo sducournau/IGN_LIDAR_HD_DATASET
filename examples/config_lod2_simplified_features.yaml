@@ -33,6 +33,7 @@ processor:
 features:
   mode: lod2 # LOD2 simplified feature set
   k_neighbors: 20 # Standard k for LOD2
+  search_radius: 1.5 # Radius search eliminates scan line artifacts
   include_extra: false # No extra features for LOD2
 
   # Spectral features

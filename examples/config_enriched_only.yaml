@@ -18,6 +18,7 @@ processor:
 features:
   mode: full
   k_neighbors: 30
+  search_radius: 1.5 # Radius search eliminates scan line artifacts
   include_extra: true
   use_rgb: true
   use_infrared: true
@@ -33,13 +34,15 @@ preprocess:
 
 stitching:
   enabled: false # Disable stitching for faster processing
+  auto_download_neighbors: false
 
 output:
   processing_mode: enriched_only # Only create enriched LAZ (fastest)
   format: laz # Not used in enriched-only mode
   save_stats: true
-  save_metadata: true
+  save_metadata: false # No patches, so no patch metadata
   compression: null
+  skip_existing: true
 
 input_dir: /mnt/c/Users/Simon/ign/unified_dataset
 output_dir: /mnt/c/Users/Simon/ign/enriched_tiles

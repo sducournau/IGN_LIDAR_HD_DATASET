@@ -175,7 +175,7 @@ class FeatureOrchestrator:
             IGNOrthophotoFetcher instance or None if initialization fails
         """
         try:
-            from ...preprocessing.rgb_augmentation import IGNOrthophotoFetcher
+            from ..preprocessing.rgb_augmentation import IGNOrthophotoFetcher
             
             # Determine cache directory
             rgb_cache_dir = self.config.features.get('rgb_cache_dir')
@@ -208,7 +208,7 @@ class FeatureOrchestrator:
             IGNInfraredFetcher instance or None if initialization fails
         """
         try:
-            from ...preprocessing.infrared_augmentation import IGNInfraredFetcher
+            from ..preprocessing.infrared_augmentation import IGNInfraredFetcher
             
             # Determine cache directory
             rgb_cache_dir = self.config.features.get('rgb_cache_dir')
@@ -584,12 +584,17 @@ class FeatureOrchestrator:
         processor_cfg = self.config.get('processor', {})
         
         k_neighbors = features_cfg.get('k_neighbors')
+        search_radius = features_cfg.get('search_radius', None)
         include_extra = processor_cfg.get('include_extra_features', True)
         
         feature_mode = "FULL" if include_extra else "CORE"
         k_display = k_neighbors if k_neighbors else "auto"
         
-        logger.info(f"  🔧 Computing features | k={k_display} | mode={feature_mode}")
+        # Log search strategy
+        if search_radius is not None and search_radius > 0:
+            logger.info(f"  🔧 Computing features | radius={search_radius:.2f}m (avoids scan line artifacts) | mode={feature_mode}")
+        else:
+            logger.info(f"  🔧 Computing features | k={k_display} | mode={feature_mode}")
         
         feature_start = time.time()
         
@@ -609,7 +614,8 @@ class FeatureOrchestrator:
             auto_k=use_auto_k,
             include_extra=include_extra,
             patch_center=patch_center,
-            mode=self.feature_mode.value
+            mode=self.feature_mode.value,
+            radius=search_radius  # Pass radius parameter
         )
         
         # Extract main features
@@ -732,8 +738,10 @@ class FeatureOrchestrator:
             rgb_added: Whether RGB was successfully added
             nir_added: Whether NIR was successfully added
         """
+        # Check both processor and features sections for compute_ndvi flag
         processor_cfg = self.config.get('processor', {})
-        compute_ndvi = processor_cfg.get('compute_ndvi', False)
+        features_cfg = self.config.get('features', {})
+        compute_ndvi = features_cfg.get('compute_ndvi', processor_cfg.get('compute_ndvi', False))
         
         if not compute_ndvi:
             return

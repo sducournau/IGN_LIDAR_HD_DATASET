@@ -8,7 +8,7 @@ defaults:
   - processor: default
   - features: full
   - preprocess: default
-  - stitching: enhanced
+  - stitching: enabled
   - output: default
   - _self_
   - optional experiment: null # Optional experiment presets (override config defaults)

@@ -36,6 +36,7 @@ processor:
 features:
   mode: full
   k_neighbors: 25 # Balanced neighborhood size
+  search_radius: 1.5 # Balanced radius for 100m patches
   include_extra: true
   use_rgb: true
   use_infrared: true

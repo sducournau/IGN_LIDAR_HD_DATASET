@@ -3,6 +3,7 @@
 
 processor:
   lod_level: LOD2
+  architecture: pointnet++
   use_gpu: false
   num_workers: 4
   patch_size: 150.0
@@ -12,6 +13,7 @@ processor:
 features:
   mode: full
   k_neighbors: 30
+  search_radius: 1.5 # Radius search eliminates scan line artifacts
   include_extra: true
   use_rgb: true
   use_infrared: true
@@ -26,6 +28,7 @@ stitching:
   enabled: true
   buffer_size: 10.0
   auto_detect_neighbors: true
+  auto_download_neighbors: false
 
 output:
   processing_mode: both # Create both patches AND enriched LAZ

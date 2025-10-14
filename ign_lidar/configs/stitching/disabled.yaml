@@ -5,4 +5,5 @@
 enabled: false
 buffer_size: 10.0
 auto_detect_neighbors: false
+auto_download_neighbors: false
 cache_enabled: false

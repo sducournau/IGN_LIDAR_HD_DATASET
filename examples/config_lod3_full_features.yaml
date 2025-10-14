@@ -33,6 +33,7 @@ processor:
 features:
   mode: lod3 # LOD3 complete feature set
   k_neighbors: 30 # More neighbors for accurate geometric features
+  search_radius: 1.5 # Radius search eliminates scan line artifacts
   include_extra: true # Enable all extra features
 
   # Spectral features

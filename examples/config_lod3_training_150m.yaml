@@ -36,6 +36,7 @@ processor:
 features:
   mode: full
   k_neighbors: 30 # Larger neighborhood for contextual features
+  search_radius: 1.8 # Larger radius for 150m patches (wider context)
   include_extra: true
   use_rgb: true
   use_infrared: true

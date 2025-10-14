@@ -43,6 +43,7 @@ features:
   # Default to LOD3 (can be overridden per patch size)
   mode: lod3
   k_neighbors: 30
+  search_radius: 1.5 # Radius search eliminates scan line artifacts
   include_extra: true
 
   # Spectral features

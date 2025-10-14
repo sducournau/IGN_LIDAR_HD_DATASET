@@ -19,6 +19,7 @@ processor:
 
 features:
   k_neighbors: 20
+  search_radius: 1.5 # Radius search eliminates scan line artifacts
   use_infrared: true
   compute_ndvi: true
   sampling_method: fps # Best quality

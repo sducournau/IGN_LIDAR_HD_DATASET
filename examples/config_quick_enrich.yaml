@@ -3,12 +3,14 @@
 
 processor:
   lod_level: LOD2
+  architecture: pointnet++
   use_gpu: false # Can set to true if GPU available
   num_workers: 4
 
 features:
   mode: minimal # Fast minimal features
   k_neighbors: 20
+  search_radius: 1.5 # Radius search eliminates scan line artifacts
   use_rgb: true
   use_infrared: false
   compute_ndvi: false
@@ -18,12 +20,14 @@ preprocess:
 
 stitching:
   enabled: false # Skip for speed
+  auto_download_neighbors: false
 
 output:
   processing_mode: enriched_only # Only LAZ files
   format: laz
   save_stats: false # Skip for speed
   save_metadata: false # Skip for speed
+  skip_existing: true
 
 # REQUIRED: Set these when running
 input_dir: ??? # Set with: input_dir=/path/to/raw/data
