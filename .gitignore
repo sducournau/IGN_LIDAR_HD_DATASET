@@ -48,6 +48,9 @@ test_env/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+
+# Archive directory
+.archive/
 Thumbs.db
 
 # Project specific

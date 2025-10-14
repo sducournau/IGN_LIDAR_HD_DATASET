@@ -194,18 +194,23 @@ class BaseFormatter:
         if use_infrared:
             if 'nir' in patch:
                 nir = patch['nir']  # [N] or [N, 1]
-                if nir.ndim == 1:
-                    nir = nir[:, np.newaxis]  # Ensure [N, 1]
-                nir_norm = (nir.astype(np.float32) / 255.0)
-                features.append(nir_norm)
-                feature_names.append('nir')
+                if nir is not None and isinstance(nir, np.ndarray) and nir.size > 0:
+                    if nir.ndim == 1:
+                        nir = nir[:, np.newaxis]  # Ensure [N, 1]
+                    nir_norm = (nir.astype(np.float32) / 255.0)
+                    features.append(nir_norm)
+                    feature_names.append('nir')
             
             if 'ndvi' in patch:
                 ndvi = patch['ndvi']  # [N] or [N, 1] ∈ [-1, 1]
-                if ndvi.ndim == 1:
-                    ndvi = ndvi[:, np.newaxis]  # Ensure [N, 1]
-                features.append(ndvi.astype(np.float32))
-                feature_names.append('ndvi')
+                # Validate NDVI is not None and is a proper array
+                if ndvi is not None and isinstance(ndvi, np.ndarray) and ndvi.size > 0:
+                    if ndvi.ndim == 1:
+                        ndvi = ndvi[:, np.newaxis]  # Ensure [N, 1]
+                    # Clean any remaining NaN/Inf values
+                    ndvi = np.nan_to_num(ndvi, nan=0.0, posinf=1.0, neginf=-1.0)
+                    features.append(ndvi.astype(np.float32))
+                    feature_names.append('ndvi')
         
         # 3. Geometric features (ALL computed features) 📐
         if use_geometric:

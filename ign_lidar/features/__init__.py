@@ -29,6 +29,9 @@ from .factory import (
     FeatureComputerFactory,
     BaseFeatureComputer,
 )
+from .orchestrator import (
+    FeatureOrchestrator,
+)
 from .architectural_styles import (
     ARCHITECTURAL_STYLES,
     STYLE_NAME_TO_ID,
@@ -60,6 +63,8 @@ __all__ = [
     # Factory
     'FeatureComputerFactory',
     'BaseFeatureComputer',
+    # Orchestrator (Phase 4)
+    'FeatureOrchestrator',
     # Architectural styles
     'ARCHITECTURAL_STYLES',
     'STYLE_NAME_TO_ID',

@@ -281,6 +281,9 @@ def get_feature_config(
     k_neighbors: int = 20,
     use_radius: bool = True,
     radius: Optional[float] = None,
+    has_rgb: Optional[bool] = None,
+    has_nir: Optional[bool] = None,
+    log_config: bool = True,
 ) -> FeatureSet:
     """
     Get feature configuration for a specific mode.
@@ -291,6 +294,9 @@ def get_feature_config(
         k_neighbors: Number of neighbors for feature computation
         use_radius: Use radius-based search (recommended)
         radius: Search radius in meters (auto-estimated if None)
+        has_rgb: Whether RGB data is available (None = unknown, don't log)
+        has_nir: Whether NIR data is available (None = unknown, don't log)
+        log_config: Whether to log the configuration (default True)
     
     Returns:
         FeatureSet configuration
@@ -340,12 +346,33 @@ def get_feature_config(
         radius=radius,
     )
     
-    logger.info(f"📊 Feature Configuration: {feature_set.get_description()}")
-    logger.info(f"   Features: {', '.join(feature_set.feature_names)}")
-    if feature_set.requires_rgb:
-        logger.info("   ⚠️  Requires RGB data")
-    if feature_set.requires_nir:
-        logger.info("   ⚠️  Requires NIR data for NDVI")
+    # Log configuration if requested
+    if log_config:
+        logger.info(f"📊 Feature Configuration: {feature_set.get_description()}")
+        logger.info(f"   Features: {', '.join(feature_set.feature_names)}")
+        
+        # Log RGB/NIR requirements with data availability context
+        if feature_set.requires_rgb:
+            if has_rgb is None:
+                # Unknown availability - just state the requirement
+                logger.info("   ℹ️  Feature set includes RGB channels")
+            elif has_rgb:
+                # Data is available - confirmation
+                logger.info("   ✓ RGB channels available")
+            else:
+                # Data is NOT available - warning
+                logger.warning("   ⚠️  RGB channels required but not available in input data")
+        
+        if feature_set.requires_nir:
+            if has_nir is None:
+                # Unknown availability - just state the requirement
+                logger.info("   ℹ️  Feature set includes NIR channel for NDVI")
+            elif has_nir:
+                # Data is available - confirmation
+                logger.info("   ✓ NIR channel available for NDVI")
+            else:
+                # Data is NOT available - warning
+                logger.warning("   ⚠️  NIR channel required for NDVI but not available in input data")
     
     return feature_set
 

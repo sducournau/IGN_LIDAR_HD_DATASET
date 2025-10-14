@@ -1,7 +1,7 @@
 """
-Enhanced Error Handling for IGN LiDAR HD Processing
+Error Handling for IGN LiDAR HD Processing
 Provides detailed, actionable error messages with recovery suggestions.
-Version: 1.7.4
+Version: 2.0.0
 """
 
 import logging

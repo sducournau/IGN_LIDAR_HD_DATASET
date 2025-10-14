@@ -1,12 +1,300 @@
-# Migration Guide: v2.4 → v2.5
+# Migration Guide
+
+**Last Updated:** October 14, 2025  
+**Current Version:** v2.0.0
+
+---
+
+## 📖 Table of Contents
+
+- [Migrating to v2.0](#migrating-to-v20) - System Consolidation (Current Release) ⭐
+- [Migrating to v2.5](#migrating-to-v25) - Configuration System (Future Release)
+
+---
+
+## Migrating to v2.0
+
+**Target Audience:** All users  
+**Date:** October 14, 2025  
+**Breaking Changes:** ✅ **NONE** - 100% Backward Compatible!
+
+### 🎉 Overview
+
+Version 2.0 represents a major internal modernization with **zero breaking changes**. All your existing code continues to work while you gain access to a cleaner, more maintainable architecture.
+
+**What Changed:**
+
+- Internal consolidation (3 classes → 1 unified FeatureOrchestrator)
+- Improved code organization and error messages
+- Enhanced type hints and documentation
+- Modular architecture for easier extension
+
+**What Didn't Change:**
+
+- Public APIs remain identical
+- All existing code works without modification
+- Same performance characteristics
+- Same configuration files
+
+### Why Upgrade?
+
+✅ **Future-proof** - Prepare for v3.0 features  
+✅ **Better errors** - Clearer validation and debugging messages  
+✅ **Type safety** - Full IDE autocomplete support  
+✅ **Maintainable** - Cleaner codebase easier to extend
+
+### Migration Strategy
+
+**TL;DR**: Upgrade immediately, no changes required, gradually adopt new APIs over time.
+
+#### Phase 1: Upgrade (5 minutes)
+
+```bash
+pip install --upgrade ign-lidar-hd
+```
+
+Your existing code continues to work! That's it.
+
+#### Phase 2: Test (Optional but Recommended)
+
+```bash
+# Run your existing tests/scripts
+python your_script.py
+
+# You may see deprecation warnings like:
+# DeprecationWarning: feature_manager is deprecated, use feature_orchestrator instead
+```
+
+These warnings don't affect functionality - they just guide you toward the new API.
+
+#### Phase 3: Modernize (At Your Pace)
+
+Update your code to use new APIs when convenient. This is optional through v2.x series.
+
+---
+
+### API Changes
+
+#### FeatureOrchestrator (NEW - Recommended)
+
+**Old Way (v1.x)** - Still works with deprecation warnings:
+
+```python
+from ign_lidar import LiDARProcessor
+
+processor = LiDARProcessor(config_path="config.yaml")
+
+# Access separate classes (DEPRECATED)
+manager = processor.feature_manager
+computer = processor.feature_computer
+
+# Check capabilities
+has_rgb = manager.has_rgb
+has_nir = manager.has_infrared
+
+# Compute features
+features = computer.compute_features(data)
+```
+
+**New Way (v2.0)** - Unified interface:
+
+```python
+from ign_lidar import LiDARProcessor
+
+processor = LiDARProcessor(config_path="config.yaml")
+
+# Access unified orchestrator (RECOMMENDED)
+orchestrator = processor.feature_orchestrator
+
+# Same capabilities, cleaner API
+has_rgb = orchestrator.has_rgb
+has_nir = orchestrator.has_infrared
+has_gpu = orchestrator.has_gpu
+
+# Same feature computation
+features = orchestrator.compute_features(data)
+
+# NEW: Query feature lists
+lod3_features = orchestrator.get_feature_list('lod3')
+print(f"LOD3 includes {len(lod3_features)} features: {lod3_features}")
+
+# NEW: Validate modes
+is_valid = orchestrator.validate_mode('lod2')  # Returns True
+```
+
+#### Direct Orchestrator Usage (Advanced)
+
+You can now use FeatureOrchestrator directly without LiDARProcessor:
+
+```python
+from ign_lidar.features.orchestrator import FeatureOrchestrator
+
+# Create orchestrator with config
+config = {
+    'feature_mode': 'lod3',
+    'use_gpu': True,
+    'rgb_config': {'enabled': True},
+    'nir_config': {'enabled': True}
+}
+
+orchestrator = FeatureOrchestrator(config)
+
+# Strategy selection is automatic
+print(f"Using strategy: {type(orchestrator.select_strategy()).__name__}")
+
+# Compute features directly
+enriched_data = orchestrator.compute_features(point_cloud_data)
+
+# Query capabilities
+print(f"RGB enabled: {orchestrator.has_rgb}")
+print(f"NIR enabled: {orchestrator.has_infrared}")
+print(f"GPU available: {orchestrator.has_gpu}")
+```
+
+---
+
+### Backward Compatibility Details
+
+#### Properties Still Work
+
+All old property access patterns continue to function:
+
+```python
+processor = LiDARProcessor(config_path="config.yaml")
+
+# These all work (with deprecation warnings):
+manager = processor.feature_manager  # Returns orchestrator with compat layer
+computer = processor.feature_computer  # Returns orchestrator with compat layer
+
+# Legacy initialization kwargs still work:
+processor = LiDARProcessor(
+    config_path="config.yaml",
+    use_gpu=True,  # Still supported
+    rgb_enabled=True,  # Still supported
+    nir_enabled=True  # Still supported
+)
+```
+
+#### Deprecation Timeline
+
+| API                    | Status         | v2.0-v2.9          | v3.0+     |
+| ---------------------- | -------------- | ------------------ | --------- |
+| `feature_orchestrator` | ✅ Recommended | Supported          | Supported |
+| `feature_manager`      | ⚠️ Deprecated  | Works with warning | Removed   |
+| `feature_computer`     | ⚠️ Deprecated  | Works with warning | Removed   |
+| Legacy kwargs          | ⚠️ Deprecated  | Works with warning | Removed   |
+
+**Timeline:**
+
+- **v2.0-v2.9** (Now - ~6-12 months): All APIs work, deprecation warnings guide migration
+- **v3.0** (2026+): Deprecated APIs removed, clean codebase
+
+**You have at least 6-12 months** to migrate at your convenience.
+
+---
+
+### Configuration Files
+
+✅ **No changes required** - All existing YAML configs work identically.
+
+```yaml
+# config.yaml - Works in both v1.x and v2.0
+processor:
+  use_gpu: true
+
+features:
+  feature_mode: lod3
+  k_neighbors: 30
+
+rgb_config:
+  enabled: true
+
+nir_config:
+  enabled: true
+```
+
+Feature modes (`minimal`, `lod2`, `lod3`, `full`) remain unchanged.
+
+---
+
+### Examples
+
+See the new example files for modern patterns:
+
+- `examples/feature_orchestrator_example.py` - Comprehensive examples
+- `examples/FEATURE_ORCHESTRATOR_GUIDE.md` - Detailed guide
+- `docs/consolidation/ORCHESTRATOR_MIGRATION_GUIDE.md` - Technical details
+
+---
+
+### Troubleshooting
+
+#### Seeing Deprecation Warnings?
+
+**This is normal and expected!** Warnings inform you about future changes but don't affect functionality.
+
+```python
+# Warning example:
+DeprecationWarning: feature_manager is deprecated in v2.0 and will be
+removed in v3.0. Use feature_orchestrator instead.
+```
+
+**To fix:**
+
+```python
+# Old (causes warning):
+manager = processor.feature_manager
+
+# New (no warning):
+orchestrator = processor.feature_orchestrator
+```
+
+**To suppress warnings** (not recommended, but possible):
+
+```python
+import warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+```
+
+#### Import Errors?
+
+If you see import errors after upgrading:
+
+```bash
+# Ensure clean installation
+pip uninstall ign-lidar-hd
+pip install ign-lidar-hd
+
+# Or reinstall from source
+pip install -e .
+```
+
+#### Feature Computation Differences?
+
+There should be **zero differences** in computed features. If you notice any:
+
+1. Check your Python/NumPy/CUDA versions are compatible
+2. Verify random seeds if using stochastic features
+3. Report an issue if results genuinely differ
+
+---
+
+### Getting Help
+
+- 📖 **Full Documentation**: [https://sducournau.github.io/IGN_LIDAR_HD_DATASET/](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+- 📝 **Technical Details**: `docs/consolidation/ORCHESTRATOR_MIGRATION_GUIDE.md`
+- 💬 **Issues**: [GitHub Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)
+- 📧 **Contact**: Create a GitHub issue for support
+
+---
+
+## Migrating to v2.5
 
 **Target Audience:** Users upgrading from v2.4.x to v2.5.0+  
 **Date:** October 13, 2025  
 **Breaking Changes:** Yes (configuration system)
 
----
-
-## 📋 Overview
+### 📋 Overview
 
 Version 2.5.0 introduces significant improvements to the configuration system and internal architecture. This guide helps you migrate your existing code and configurations.
 

@@ -28,7 +28,8 @@ class TileLoader:
             config: Configuration object containing tile loading settings
         """
         self.config = config
-        self.bbox = config.get('processor', {}).get('bbox')
+        # bbox is at root level, not in processor section
+        self.bbox = config.get('bbox')
         self.preprocess = config.get('processor', {}).get('preprocess', False)
         self.preprocess_config = config.get('preprocess')
         self.chunk_size_mb = config.get('processor', {}).get('chunk_size_mb', 500)

@@ -129,7 +129,29 @@ class HydraRunner:
                 raise FileNotFoundError(f"Config file not found: {config_file}")
             
             logger.debug(f"Loading config from file: {config_file}")
-            cfg = OmegaConf.load(config_file)
+            
+            # First load the base config to get defaults
+            base_config_path = self.config_dir / f"{config_name}.yaml"
+            if base_config_path.exists():
+                logger.debug(f"Loading base config from: {base_config_path}")
+                base_cfg = OmegaConf.load(base_config_path)
+            else:
+                # If base config doesn't exist, create minimal defaults
+                logger.debug("No base config found, using minimal defaults")
+                base_cfg = OmegaConf.create({
+                    'bbox': {
+                        'xmin': None,
+                        'ymin': None,
+                        'xmax': None,
+                        'ymax': None
+                    }
+                })
+            
+            # Load user config
+            user_cfg = OmegaConf.load(config_file)
+            
+            # Merge: base config < user config < overrides
+            cfg = OmegaConf.merge(base_cfg, user_cfg)
             
             # Apply overrides
             if overrides:

@@ -1242,7 +1242,8 @@ class GPUChunkedFeatureComputer:
         feature_set = None
         if mode is not None:
             from ..features.feature_modes import get_feature_config
-            feature_config = get_feature_config(mode=mode, k_neighbors=k)
+            # Suppress logging here - it's already logged at the orchestrator level
+            feature_config = get_feature_config(mode=mode, k_neighbors=k, log_config=False)
             feature_set = feature_config.features
         N = len(points)
         num_chunks = (N + self.chunk_size - 1) // self.chunk_size
@@ -1403,8 +1404,17 @@ class GPUChunkedFeatureComputer:
             # Wall score: High planarity + Vertical surface
             # Roof score: High planarity + Horizontal surface
             chunk_planarity = geo_features['planarity'][start_idx:end_idx]
+            
+            # Clean planarity and verticality/horizontality from NaN/Inf before computing scores
+            chunk_planarity = np.nan_to_num(chunk_planarity, nan=0.0, posinf=1.0, neginf=0.0)
+            verticality_chunk = np.nan_to_num(verticality_chunk, nan=0.0, posinf=1.0, neginf=0.0)
+            horizontality_chunk = np.nan_to_num(horizontality_chunk, nan=0.0, posinf=1.0, neginf=0.0)
+            
             wall_score_chunk = (chunk_planarity * verticality_chunk).astype(np.float32)
             roof_score_chunk = (chunk_planarity * horizontality_chunk).astype(np.float32)
+            
+            # Store cleaned values back
+            geo_features['planarity'][start_idx:end_idx] = chunk_planarity
             geo_features['wall_score'][start_idx:end_idx] = wall_score_chunk
             geo_features['roof_score'][start_idx:end_idx] = roof_score_chunk
             
@@ -1445,6 +1455,27 @@ class GPUChunkedFeatureComputer:
             del verticality_chunk, horizontality_chunk, wall_score_chunk, roof_score_chunk
             del eigenvalue_feats, architectural_feats, density_feats
             self._free_gpu_memory()
+        
+        # === FINAL VALIDATION: Clean all geometric features from NaN/Inf artifacts ===
+        # This fixes line/dash artifacts in planarity, linearity, and derived features
+        features_to_clean = ['planarity', 'linearity', 'sphericity', 'anisotropy', 
+                             'roughness', 'omnivariance', 'curvature', 'change_curvature',
+                             'verticality', 'horizontality', 'wall_score', 'roof_score',
+                             'edge_strength', 'corner_likelihood', 'surface_roughness']
+        
+        for feat_name in features_to_clean:
+            if feat_name in geo_features:
+                geo_features[feat_name] = np.nan_to_num(
+                    geo_features[feat_name], 
+                    nan=0.0, 
+                    posinf=1.0, 
+                    neginf=0.0
+                ).astype(np.float32)
+        
+        # Clean normals and curvature
+        normals = np.nan_to_num(normals, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+        curvature = np.nan_to_num(curvature, nan=0.0, posinf=1.0, neginf=0.0).astype(np.float32)
+        height = np.nan_to_num(height, nan=0.0).astype(np.float32)
         
         # Filter features based on mode if specified
         if feature_set is not None:

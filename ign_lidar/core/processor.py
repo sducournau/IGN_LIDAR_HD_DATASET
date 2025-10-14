@@ -29,7 +29,7 @@ from ..features.architectural_styles import (
 from .skip_checker import PatchSkipChecker
 
 # Import refactored modules
-from .modules.feature_manager import FeatureManager
+# Note: FeatureManager has been replaced by FeatureOrchestrator in Phase 4.3
 from .modules.config_validator import ConfigValidator
 from .modules.serialization import save_patch_npz, save_patch_hdf5, save_patch_torch, save_patch_laz, save_patch_multi_format
 from .modules.patch_extractor import (
@@ -40,7 +40,10 @@ from .modules.patch_extractor import (
 )
 # Phase 3.4: Tile processing modules
 from .modules.tile_loader import TileLoader
-from .modules.feature_computer import FeatureComputer
+# Note: FeatureComputer has been replaced by FeatureOrchestrator in Phase 4.3
+
+# Phase 4.3: New unified orchestrator
+from ..features.orchestrator import FeatureOrchestrator
 
 # Import from modules (refactored in Phase 3.2)
 
@@ -143,8 +146,11 @@ class LiDARProcessor:
         # Validate processing mode
         ConfigValidator.validate_processing_mode(self.processing_mode)
         
-        # Initialize feature manager (handles RGB, NIR, GPU)
-        self.feature_manager = FeatureManager(config)
+        # Phase 4.3: Initialize unified feature orchestrator (replaces FeatureManager + FeatureComputer)
+        self.feature_orchestrator = FeatureOrchestrator(config)
+        
+        # Keep backward-compatible references for legacy code
+        self.feature_manager = self.feature_orchestrator  # Backward compatibility alias
         
         # Setup stitching configuration and initialize stitcher if needed
         stitching_config = ConfigValidator.setup_stitching_config(
@@ -173,9 +179,8 @@ class LiDARProcessor:
             only_enriched_laz=self.only_enriched_laz,
         )
         
-        # Phase 3.4: Initialize tile processing modules
+        # Phase 4.3: Initialize tile processing modules
         self.tile_loader = TileLoader(self.config)
-        self.feature_computer = FeatureComputer(self.config, feature_manager=self.feature_manager)
     
     def _validate_config(self, config: DictConfig) -> None:
         """Validate configuration object has required fields."""
@@ -266,17 +271,17 @@ class LiDARProcessor:
     @property
     def rgb_fetcher(self):
         """Access RGB fetcher (backward compatibility)."""
-        return self.feature_manager.rgb_fetcher
+        return self.feature_orchestrator.rgb_fetcher
     
     @property
     def infrared_fetcher(self):
         """Access infrared fetcher (backward compatibility)."""
-        return self.feature_manager.infrared_fetcher
+        return self.feature_orchestrator.infrared_fetcher
     
     @property
     def use_gpu(self):
         """Check if GPU is enabled (backward compatibility)."""
-        return self.feature_manager.use_gpu
+        return self.feature_orchestrator.use_gpu
     
     @property
     def include_rgb(self):
@@ -331,7 +336,8 @@ class LiDARProcessor:
     @property
     def bbox(self):
         """Get bounding box (backward compatibility)."""
-        return self.config.processor.bbox
+        # bbox is at root level, not in processor section
+        return self.config.get('bbox')
     
     @property
     def patch_overlap(self):
@@ -497,11 +503,12 @@ class LiDARProcessor:
                 continue
                 
             try:
-                # Add as float32 extra dimension
+                # Add as float32 extra dimension (truncate description to 32 chars)
+                desc = f"Feature: {feat_name}"[:32]
                 las.add_extra_dim(laspy.ExtraBytesParams(
                     name=feat_name,
                     type=np.float32,
-                    description=f"Feature: {feat_name}"
+                    description=desc
                 ))
                 setattr(las, feat_name, feat_data.astype(np.float32))
                 added_dimensions.add(feat_name)
@@ -529,10 +536,12 @@ class LiDARProcessor:
         for feat_name in height_features:
             if feat_name in original_patch and feat_name not in added_dimensions:
                 try:
+                    # Truncate description to 32 chars max (LAZ limit)
+                    desc = f"Height: {feat_name}"[:32]
                     las.add_extra_dim(laspy.ExtraBytesParams(
                         name=feat_name,
                         type=np.float32,
-                        description=f"Height feature: {feat_name}"
+                        description=desc
                     ))
                     setattr(las, feat_name, original_patch[feat_name].astype(np.float32))
                     added_dimensions.add(feat_name)
@@ -780,12 +789,12 @@ class LiDARProcessor:
         input_ndvi_v = input_ndvi
         enriched_features_v = enriched_features
         
-        # 2. Compute all features using FeatureComputer module (Phase 3.4)
-        all_features = self.feature_computer.compute_features(tile_data=tile_data)
+        # 2. Compute all features using FeatureOrchestrator (Phase 4.3)
+        # Store tile metadata in tile_data for orchestrator to use
+        if tile_metadata:
+            tile_data['tile_metadata'] = tile_metadata
         
-        # Add architectural style if requested
-        if self.include_architectural_style:
-            self.feature_computer.add_architectural_style(all_features, tile_metadata)
+        all_features = self.feature_orchestrator.compute_features(tile_data=tile_data)
         
         # Extract feature arrays for patch creation
         normals = all_features.get('normals')
@@ -1027,10 +1036,6 @@ class LiDARProcessor:
             process_func = partial(
                 self.process_tile,
                 output_dir=output_dir,
-                architecture=self.architecture,
-                save_enriched=self.save_enriched_laz,
-                only_enriched=self.only_enriched_laz,
-                output_format=self.output_format,
                 total_tiles=total_tiles,
                 skip_existing=skip_existing
             )
@@ -1062,10 +1067,6 @@ class LiDARProcessor:
             for idx, laz_file in enumerate(laz_files, 1):
                 result = self.process_tile(
                     laz_file, output_dir,
-                    architecture=self.architecture,
-                    save_enriched=self.save_enriched_laz,
-                    only_enriched=self.only_enriched_laz,
-                    output_format=self.output_format,
                     tile_idx=idx, total_tiles=total_tiles,
                     skip_existing=skip_existing
                 )

@@ -315,10 +315,12 @@ def _add_geometric_features(las, original_patch: Dict, added_dimensions: set) ->
     for feat_name in geometric_features:
         if feat_name in original_patch and feat_name not in added_dimensions:
             try:
+                # Truncate description to 32 chars max (LAZ limit)
+                desc = f"Geom: {feat_name}"[:32]
                 las.add_extra_dim(laspy.ExtraBytesParams(
                     name=feat_name,
                     type=np.float32,
-                    description=f"Geom: {feat_name}"
+                    description=desc
                 ))
                 setattr(las, feat_name, original_patch[feat_name].astype(np.float32))
                 added_dimensions.add(feat_name)
@@ -358,10 +360,12 @@ def _add_height_features(las, original_patch: Dict, added_dimensions: set) -> No
     for feat_name in height_features:
         if feat_name in original_patch and feat_name not in added_dimensions:
             try:
+                # Truncate description to 32 chars max (LAZ limit)
+                desc = f"Height: {feat_name}"[:32]
                 las.add_extra_dim(laspy.ExtraBytesParams(
                     name=feat_name,
                     type=np.float32,
-                    description=f"Height feature: {feat_name}"
+                    description=desc
                 ))
                 setattr(las, feat_name, original_patch[feat_name].astype(np.float32))
                 added_dimensions.add(feat_name)

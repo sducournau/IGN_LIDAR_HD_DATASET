@@ -1606,11 +1606,13 @@ def compute_features_by_mode(
     # compute_density_features, compute_building_scores
     
     # Get feature configuration for mode
+    # Suppress logging here - it's already logged at the orchestrator level
     feature_config = get_feature_config(
         mode=mode,
         k_neighbors=k,
         use_radius=use_radius,
-        radius=radius
+        radius=radius,
+        log_config=False
     )
     
     # Estimate optimal k if requested

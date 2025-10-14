@@ -4,6 +4,11 @@ Factory for creating feature computers based on configuration.
 Simplifies feature computer selection and initialization, providing a clean
 interface for choosing between CPU, GPU, chunked, and boundary-aware processing.
 
+.. deprecated:: 2.0
+    FeatureComputerFactory is deprecated and will be removed in version 3.0.
+    Use :class:`~ign_lidar.features.orchestrator.FeatureOrchestrator` instead,
+    which internally handles strategy selection.
+
 Example:
     >>> from ign_lidar.features.factory import FeatureComputerFactory
     >>> computer = FeatureComputerFactory.create(use_gpu=True, use_chunked=True)
@@ -15,6 +20,7 @@ from typing import Optional, Dict, Any, Tuple
 import numpy as np
 from numpy.typing import NDArray
 import logging
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -280,6 +286,11 @@ class FeatureComputerFactory:
     """
     Factory for creating feature computers.
     
+    .. deprecated:: 2.0
+        FeatureComputerFactory is deprecated and will be removed in version 3.0.
+        Use :class:`~ign_lidar.features.orchestrator.FeatureOrchestrator` instead,
+        which internally handles strategy selection automatically.
+    
     Provides a clean interface for selecting the appropriate feature computation
     strategy based on configuration.
     
@@ -312,6 +323,9 @@ class FeatureComputerFactory:
     ) -> BaseFeatureComputer:
         """
         Create appropriate feature computer based on configuration.
+        
+        .. deprecated:: 2.0
+            FeatureComputerFactory.create() is deprecated. Use FeatureOrchestrator instead.
 
         Args:
             use_gpu: Enable GPU acceleration (requires CuPy)
@@ -331,6 +345,14 @@ class FeatureComputerFactory:
             >>> computer = factory.create(use_gpu=True, k_neighbors=20)
             >>> features = computer.compute_features(points, classification)
         """
+        warnings.warn(
+            "FeatureComputerFactory.create() is deprecated and will be removed in version 3.0. "
+            "Use ign_lidar.features.orchestrator.FeatureOrchestrator instead, which automatically "
+            "selects the appropriate strategy.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         # Boundary-aware takes precedence (used for tile stitching)
         if use_boundary_aware:
             logger.info(f"Creating boundary-aware feature computer (buffer={buffer_size}m)")

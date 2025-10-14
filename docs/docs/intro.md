@@ -20,7 +20,7 @@ sidebar_p### v2.4.4 (2025-10-12) - Latest Release
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.4.4** | Python 3.8+ | MIT License
+**Version 2.5.0** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -32,22 +32,24 @@ Transform French IGN LiDAR HD point clouds into ML-ready datasets for building c
 
 ## 🎯 What's New
 
-### v2.4.4 (2025-10-12) - Latest Release
+### v2.5.0 (2025-10-14) - Latest Release
 
-### LAZ Data Quality Tools & Validation
+### System Consolidation & Modernization
 
-- � **Post-Processing Tools**: New `fix_enriched_laz.py` script for automated LAZ file correction
-- 🔍 **Data Quality Detection**: Identifies NDVI calculation errors, eigenvalue outliers, and derived feature corruption
-- 📊 **Diagnostic Reports**: Comprehensive analysis with root cause identification and impact assessment
-- ✅ **Automated Fixes**: Caps eigenvalues, recomputes derived features, validates results
-- 📈 **Enhanced Validation**: Improved NIR data checks and error handling in enrichment pipeline
+- 🎯 **Unified Feature System**: New `FeatureOrchestrator` replaces `FeatureManager` + `FeatureComputer`
+- 🏗️ **Strategy Pattern Architecture**: Clean separation of CPU/GPU/Chunked/Boundary-aware processing
+- � **Enhanced Type Hints**: Complete type annotations throughout codebase for better IDE support
+- 📊 **Improved Error Messages**: Clear, actionable error messages with validation details
+- � **Better Documentation**: Updated API reference with comprehensive examples
+- ✅ **100% Backward Compatible**: All existing code works without modification
 
-### Key Fixes
+### Key Improvements
 
-- 🐛 **NDVI Calculation**: Fixed all values = -1.0 when NIR data is missing/corrupted
-- 🔢 **Eigenvalue Outliers**: Addressed extreme values (>10,000) causing ML training instability
-- � **Derived Features**: Corrected cascading corruption in change_curvature, omnivariance, etc.
-- ⚡ **Production Ready**: Robust validation and error handling for real-world data quality issues
+- � **Automatic Strategy Selection**: Intelligent selection based on configuration and data
+- 🧩 **Modular Design**: Better separation of concerns across modules
+- 📈 **Enhanced Validation**: Improved configuration parameter checking
+- 🔧 **Resource Management**: Proper initialization and cleanup
+- ⚡ **Production Ready**: Robust error handling and validation
 
 ### Recent Highlights (v2.3.x)
 
@@ -253,7 +255,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {ImagoData},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {2.4.2}
+  version      = {2.5.0}
 }
 ```
 

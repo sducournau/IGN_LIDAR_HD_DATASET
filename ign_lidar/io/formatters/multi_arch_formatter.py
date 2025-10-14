@@ -119,6 +119,7 @@ class MultiArchitectureFormatter(BaseFormatter):
         )
 
         # Sample points if needed
+        indices = None
         if len(points) > self.num_points:
             indices = self._fps_sampling(points, self.num_points)
             points = points[indices]
@@ -140,16 +141,27 @@ class MultiArchitectureFormatter(BaseFormatter):
         else:
             features_norm = features
 
-        return {
+        result = {
             'points': points_norm,      # [N, 3]
             'features': features_norm,  # [N, C] - Includes RGB/NIR/Geometric/etc
             'labels': labels if labels is not None else np.zeros(len(points), dtype=np.int32),  # [N]
             'sampling_method': 'fps',
-            # Optional individual feature access
-            'rgb': patch.get('rgb'),           # [N, 3] if available
-            'nir': patch.get('nir'),           # [N, 1] if available
-            'ndvi': patch.get('ndvi')          # [N, 1] if available
         }
+        
+        # Optional individual feature access - only add if valid arrays exist
+        rgb = patch.get('rgb')
+        if rgb is not None and isinstance(rgb, np.ndarray) and rgb.size > 0:
+            result['rgb'] = rgb[indices] if indices is not None else rgb
+        
+        nir = patch.get('nir')
+        if nir is not None and isinstance(nir, np.ndarray) and nir.size > 0:
+            result['nir'] = nir[indices] if indices is not None else nir
+        
+        ndvi = patch.get('ndvi')
+        if ndvi is not None and isinstance(ndvi, np.ndarray) and ndvi.size > 0:
+            result['ndvi'] = ndvi[indices] if indices is not None else ndvi
+        
+        return result
     
     def _fps_sampling(self, points: np.ndarray, num_samples: int) -> np.ndarray:
         """

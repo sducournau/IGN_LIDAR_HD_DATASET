@@ -4,10 +4,9 @@ Core processing modules for IGN LiDAR HD.
 This package contains the main processing logic:
 - processor: Main LiDAR processor  
 - tile_stitcher: Tile stitching with boundary handling
-- pipeline_config: Pipeline configuration (legacy, migrating to Hydra)
 - memory_manager: Adaptive memory management for processing
 - performance_monitor: Real-time performance tracking
-- error_handler: Enhanced error handling and recovery
+- error_handler: Error handling and recovery
 - verification: Feature and data verification utilities
 """
 

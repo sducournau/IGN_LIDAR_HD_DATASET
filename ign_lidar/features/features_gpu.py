@@ -905,7 +905,8 @@ class GPUFeatureComputer:
             from ..features.feature_modes import get_feature_config
             
             # Get feature configuration for the mode
-            feature_config = get_feature_config(mode=mode, k_neighbors=k)
+            # Suppress logging here - it's already logged at the orchestrator level
+            feature_config = get_feature_config(mode=mode, k_neighbors=k, log_config=False)
             feature_set = feature_config.features
             
             # Compute base features (always needed)

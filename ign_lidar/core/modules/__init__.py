@@ -11,17 +11,18 @@ Modules:
     enrichment: Feature computation and enrichment
     patch_extractor: Patch extraction and augmentation
     stitching: Tile stitching and boundary processing
-    feature_manager: Feature computation resource management
     config_validator: Configuration validation and normalization
     tile_loader: Tile loading and I/O operations (Phase 3.4)
-    feature_computer: Feature computation orchestration (Phase 3.4)
+    
+Note: FeatureManager and FeatureComputer have been consolidated into 
+      FeatureOrchestrator in ign_lidar.features.orchestrator (Phase 4.3)
 """
 
 from .memory import aggressive_memory_cleanup, clear_gpu_cache
-from .feature_manager import FeatureManager
+# Note: FeatureManager and FeatureComputer have been consolidated into FeatureOrchestrator
+# in ign_lidar.features.orchestrator (Phase 4.3)
 from .config_validator import ConfigValidator, ProcessingMode
 from .tile_loader import TileLoader
-from .feature_computer import FeatureComputer
 from .serialization import (
     save_patch_npz,
     save_patch_hdf5,
@@ -76,13 +77,10 @@ __all__ = [
     'aggressive_memory_cleanup',
     'clear_gpu_cache',
     # Configuration and management (Phase 3.3)
-    'FeatureManager',
     'ConfigValidator',
     'ProcessingMode',
     # Tile loading (Phase 3.4)
     'TileLoader',
-    # Feature computation (Phase 3.4)
-    'FeatureComputer',
     # Serialization
     'save_patch_npz',
     'save_patch_hdf5',
