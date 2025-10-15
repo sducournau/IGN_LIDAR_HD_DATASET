@@ -695,7 +695,8 @@ class FeatureOrchestrator:
                 points = tile_data['points']
                 rgb = self.rgb_fetcher.augment_points_with_rgb(points)
                 if rgb is not None:
-                    all_features['rgb'] = rgb
+                    # Normalize RGB from [0, 255] to [0, 1] for consistency
+                    all_features['rgb'] = rgb.astype(np.float32) / 255.0
                     logger.info("  ✓ Fetched RGB from IGN orthophotos")
                     return True
             except Exception as e:
@@ -734,7 +735,8 @@ class FeatureOrchestrator:
                 points = tile_data['points']
                 nir = self.infrared_fetcher.augment_points_with_infrared(points)
                 if nir is not None:
-                    all_features['nir'] = nir
+                    # Normalize NIR from [0, 255] to [0, 1] for consistency
+                    all_features['nir'] = nir.astype(np.float32) / 255.0
                     logger.info("  ✓ Fetched NIR from IGN IRC")
                     return True
             except Exception as e:

@@ -65,6 +65,10 @@ class PatchSkipChecker:
         include_infrared: bool = False,
         compute_ndvi: bool = False,
         include_extra_features: bool = False,
+        include_classification: bool = False,
+        include_forest: bool = False,
+        include_agriculture: bool = False,
+        include_cadastre: bool = False,
     ) -> Tuple[bool, Dict[str, any]]:
         """
         Check if a tile should be skipped based on existing patches or enriched LAZ.
@@ -78,6 +82,10 @@ class PatchSkipChecker:
             include_infrared: Whether infrared enrichment is enabled
             compute_ndvi: Whether NDVI computation is enabled
             include_extra_features: Whether extra geometric features are enabled
+            include_classification: Whether ASPRS classification is enabled
+            include_forest: Whether BD Forêt forest types are enabled
+            include_agriculture: Whether RPG agriculture data is enabled
+            include_cadastre: Whether cadastral parcel data is enabled
         
         Returns:
             Tuple of (should_skip, info_dict)
@@ -114,13 +122,18 @@ class PatchSkipChecker:
             
             # Check enriched LAZ
             enriched_exists = False
+            validation_info = {}
             if enriched_path.exists() and enriched_path.stat().st_size > self.min_file_size:
                 is_valid, validation_info = self._validate_enriched_laz(
                     enriched_path,
                     include_rgb=include_rgb,
                     include_infrared=include_infrared,
                     compute_ndvi=compute_ndvi,
-                    include_extra_features=include_extra_features
+                    include_extra_features=include_extra_features,
+                    include_classification=include_classification,
+                    include_forest=include_forest,
+                    include_agriculture=include_agriculture,
+                    include_cadastre=include_cadastre
                 )
                 enriched_exists = is_valid
             
@@ -457,6 +470,10 @@ class PatchSkipChecker:
         include_infrared: bool = False,
         compute_ndvi: bool = False,
         include_extra_features: bool = False,
+        include_classification: bool = False,
+        include_forest: bool = False,
+        include_agriculture: bool = False,
+        include_cadastre: bool = False,
     ) -> Tuple[bool, Dict[str, any]]:
         """
         Validate enriched LAZ file has expected features.
@@ -467,6 +484,10 @@ class PatchSkipChecker:
             include_infrared: Whether NIR should be present
             compute_ndvi: Whether NDVI should be present
             include_extra_features: Whether extra geometric features should be present
+            include_classification: Whether ASPRS classification should be present
+            include_forest: Whether BD Forêt forest type attributes should be present
+            include_agriculture: Whether RPG agriculture attributes should be present
+            include_cadastre: Whether cadastral parcel ID should be present
         
         Returns:
             Tuple of (is_valid, info_dict)
@@ -523,6 +544,33 @@ class PatchSkipChecker:
                 missing_geo = [f for f in geo_features if f not in extra_dims]
                 if missing_geo:
                     missing_optional.extend(missing_geo)
+            
+            # Check for classification (ASPRS codes)
+            if include_classification:
+                # Classification should be in the standard 'classification' field
+                has_classification = hasattr(las, 'classification') and len(las.classification) > 0
+                if not has_classification:
+                    missing_optional.append('classification')
+            
+            # Check for forest attributes
+            if include_forest:
+                forest_attrs = ['forest_type', 'primary_species']
+                missing_forest = [f for f in forest_attrs if f not in extra_dims]
+                if missing_forest:
+                    missing_optional.extend(missing_forest)
+            
+            # Check for agriculture attributes
+            if include_agriculture:
+                agri_attrs = ['crop_code', 'crop_category']
+                missing_agri = [f for f in agri_attrs if f not in extra_dims]
+                if missing_agri:
+                    missing_optional.extend(missing_agri)
+            
+            # Check for cadastre parcel ID
+            if include_cadastre:
+                has_parcel = 'parcel_id' in extra_dims
+                if not has_parcel:
+                    missing_optional.append('parcel_id')
             
             # If critical optional features are missing, consider invalid
             if missing_optional:

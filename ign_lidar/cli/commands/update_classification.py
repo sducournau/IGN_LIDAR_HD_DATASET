@@ -196,10 +196,16 @@ def update_classification_command(
                     # Fetch RGB
                     rgb_fetcher = IGNOrthophotoFetcher(cache_dir=cache_dir)
                     rgb = rgb_fetcher.augment_points_with_rgb(points, resolution=0.2)
+                    if rgb is not None:
+                        # Normalize RGB from [0, 255] to [0, 1]
+                        rgb = rgb.astype(np.float32) / 255.0
                     
                     # Fetch NIR
                     nir_fetcher = IGNInfraredFetcher(cache_dir=cache_dir)
                     nir = nir_fetcher.augment_points_with_infrared(points, resolution=0.2)
+                    if nir is not None:
+                        # Normalize NIR from [0, 255] to [0, 1]
+                        nir = nir.astype(np.float32) / 255.0
                     
                     # Compute NDVI
                     if rgb is not None and nir is not None:

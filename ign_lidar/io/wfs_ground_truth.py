@@ -47,13 +47,21 @@ class IGNWFSConfig:
     # BD TOPO® WFS Service
     WFS_URL = "https://data.geopf.fr/wfs"
     
-    # Layer names for BD TOPO®
+    # Layer names for BD TOPO® V3
     BUILDINGS_LAYER = "BDTOPO_V3:batiment"  # Building footprints
     ROADS_LAYER = "BDTOPO_V3:troncon_de_route"  # Road segments with width
     RAILWAYS_LAYER = "BDTOPO_V3:troncon_de_voie_ferree"  # Railway tracks
     WATER_LAYER = "BDTOPO_V3:surface_hydrographique"  # Water surfaces
     VEGETATION_LAYER = "BDTOPO_V3:zone_de_vegetation"  # Vegetation zones
     TERRAIN_LAYER = "BDTOPO_V3:terrain_de_sport"  # Sports grounds
+    
+    # Additional BD TOPO® layers
+    BRIDGE_LAYER = "BDTOPO_V3:pont"  # Bridges
+    PARKING_LAYER = "BDTOPO_V3:parking"  # Parking areas
+    CEMETERY_LAYER = "BDTOPO_V3:cimetiere"  # Cemeteries
+    POWER_LINE_LAYER = "BDTOPO_V3:ligne_electrique"  # Power lines
+    CONSTRUCTION_LAYER = "BDTOPO_V3:construction_surfacique"  # Surface constructions
+    RESERVOIR_LAYER = "BDTOPO_V3:reservoir"  # Water reservoirs/tanks
     
     # Default CRS
     CRS = "EPSG:2154"  # Lambert 93
@@ -248,6 +256,96 @@ class IGNGroundTruthFetcher:
             logger.error(f"Failed to fetch/process roads: {e}")
             return None
     
+    def fetch_railways_with_polygons(
+        self,
+        bbox: Tuple[float, float, float, float],
+        use_cache: bool = True,
+        default_width: float = 3.5
+    ) -> Optional[gpd.GeoDataFrame]:
+        """
+        Fetch railway tracks and generate polygons using width attribute.
+        
+        Similar to roads, railway tracks in BD TOPO® are represented as
+        centerlines. This method generates railway polygons by buffering.
+        
+        Args:
+            bbox: Bounding box (xmin, ymin, xmax, ymax) in Lambert 93
+            use_cache: Whether to use cached data if available
+            default_width: Default railway width in meters (default: 3.5m for single track)
+            
+        Returns:
+            GeoDataFrame with railway polygons and attributes
+        """
+        cache_key = f"railways_{bbox}"
+        
+        if use_cache and cache_key in self._cache:
+            logger.debug(f"Using cached railways for {bbox}")
+            return self._cache[cache_key]
+        
+        logger.info(f"Fetching railways from WFS for bbox {bbox}")
+        
+        try:
+            gdf = self._fetch_wfs_layer(
+                layer_name=self.config.RAILWAYS_LAYER,
+                bbox=bbox
+            )
+            
+            if gdf is None or len(gdf) == 0:
+                return None
+            
+            # Generate railway polygons from centerlines
+            logger.info("Generating railway polygons from centerlines...")
+            
+            railway_polygons = []
+            for idx, row in gdf.iterrows():
+                geometry = row['geometry']
+                
+                # Get railway width (or use default)
+                width = default_width
+                
+                # Check for number of tracks to estimate width
+                if 'nombre_voies' in gdf.columns and row['nombre_voies'] is not None:
+                    try:
+                        n_tracks = int(row['nombre_voies'])
+                        if n_tracks > 1:
+                            width = default_width * n_tracks  # Multiple tracks
+                    except (ValueError, TypeError):
+                        pass
+                
+                # Buffer centerline by half width on each side
+                buffer_distance = width / 2.0
+                
+                try:
+                    if isinstance(geometry, LineString):
+                        railway_polygon = geometry.buffer(buffer_distance, cap_style=2)  # Flat cap
+                        
+                        railway_polygons.append({
+                            'geometry': railway_polygon,
+                            'width_m': width,
+                            'nature': row.get('nature', 'voie_ferree'),
+                            'importance': row.get('importance', 'unknown'),
+                            'n_tracks': row.get('nombre_voies', 1),
+                            'electrified': row.get('electrifie', 'unknown'),
+                            'railway_type': row.get('nature', 'railway'),
+                            'original_geometry': geometry  # Keep centerline
+                        })
+                except Exception as e:
+                    logger.warning(f"Failed to buffer railway geometry: {e}")
+                    continue
+            
+            if railway_polygons:
+                result_gdf = gpd.GeoDataFrame(railway_polygons, crs=self.config.CRS)
+                logger.info(f"Generated {len(result_gdf)} railway polygons")
+                self._cache[cache_key] = result_gdf
+                return result_gdf
+            else:
+                logger.warning("No valid railway polygons generated")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Failed to fetch/process railways: {e}")
+            return None
+    
     def fetch_water_surfaces(
         self,
         bbox: Tuple[float, float, float, float],
@@ -324,15 +422,235 @@ class IGNGroundTruthFetcher:
             logger.error(f"Failed to fetch vegetation zones: {e}")
             return None
     
+    def fetch_bridges(
+        self,
+        bbox: Tuple[float, float, float, float],
+        use_cache: bool = True
+    ) -> Optional[gpd.GeoDataFrame]:
+        """
+        Fetch bridge polygons from BD TOPO®.
+        
+        Bridges are important structural elements that may appear as elevated
+        surfaces in LiDAR data.
+        
+        Args:
+            bbox: Bounding box (xmin, ymin, xmax, ymax) in Lambert 93
+            use_cache: Whether to use cached data if available
+            
+        Returns:
+            GeoDataFrame with bridge polygons
+        """
+        cache_key = f"bridges_{bbox}"
+        
+        if use_cache and cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        logger.info(f"Fetching bridges from WFS for bbox {bbox}")
+        
+        try:
+            gdf = self._fetch_wfs_layer(
+                layer_name=self.config.BRIDGE_LAYER,
+                bbox=bbox
+            )
+            
+            if gdf is not None:
+                logger.info(f"Retrieved {len(gdf)} bridges")
+                self._cache[cache_key] = gdf
+            
+            return gdf
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch bridges: {e}")
+            return None
+    
+    def fetch_parking(
+        self,
+        bbox: Tuple[float, float, float, float],
+        use_cache: bool = True
+    ) -> Optional[gpd.GeoDataFrame]:
+        """
+        Fetch parking area polygons from BD TOPO®.
+        
+        Parking areas are typically flat, paved surfaces.
+        
+        Args:
+            bbox: Bounding box (xmin, ymin, xmax, ymax) in Lambert 93
+            use_cache: Whether to use cached data if available
+            
+        Returns:
+            GeoDataFrame with parking polygons
+        """
+        cache_key = f"parking_{bbox}"
+        
+        if use_cache and cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        logger.info(f"Fetching parking areas from WFS for bbox {bbox}")
+        
+        try:
+            gdf = self._fetch_wfs_layer(
+                layer_name=self.config.PARKING_LAYER,
+                bbox=bbox
+            )
+            
+            if gdf is not None:
+                logger.info(f"Retrieved {len(gdf)} parking areas")
+                self._cache[cache_key] = gdf
+            
+            return gdf
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch parking areas: {e}")
+            return None
+    
+    def fetch_cemeteries(
+        self,
+        bbox: Tuple[float, float, float, float],
+        use_cache: bool = True
+    ) -> Optional[gpd.GeoDataFrame]:
+        """
+        Fetch cemetery polygons from BD TOPO®.
+        
+        Cemeteries are vegetated areas with monuments/headstones.
+        
+        Args:
+            bbox: Bounding box (xmin, ymin, xmax, ymax) in Lambert 93
+            use_cache: Whether to use cached data if available
+            
+        Returns:
+            GeoDataFrame with cemetery polygons
+        """
+        cache_key = f"cemeteries_{bbox}"
+        
+        if use_cache and cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        logger.info(f"Fetching cemeteries from WFS for bbox {bbox}")
+        
+        try:
+            gdf = self._fetch_wfs_layer(
+                layer_name=self.config.CEMETERY_LAYER,
+                bbox=bbox
+            )
+            
+            if gdf is not None:
+                logger.info(f"Retrieved {len(gdf)} cemeteries")
+                self._cache[cache_key] = gdf
+            
+            return gdf
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch cemeteries: {e}")
+            return None
+    
+    def fetch_power_lines(
+        self,
+        bbox: Tuple[float, float, float, float],
+        use_cache: bool = True,
+        buffer_width: float = 2.0
+    ) -> Optional[gpd.GeoDataFrame]:
+        """
+        Fetch power lines from BD TOPO® and convert to polygons.
+        
+        Power lines are linear features that we buffer to create polygons.
+        Useful for detecting power line corridors and pylons in LiDAR.
+        
+        Args:
+            bbox: Bounding box (xmin, ymin, xmax, ymax) in Lambert 93
+            use_cache: Whether to use cached data if available
+            buffer_width: Buffer width in meters (default: 2.0m)
+            
+        Returns:
+            GeoDataFrame with power line corridor polygons
+        """
+        cache_key = f"power_lines_{bbox}_{buffer_width}"
+        
+        if use_cache and cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        logger.info(f"Fetching power lines from WFS for bbox {bbox}")
+        
+        try:
+            gdf = self._fetch_wfs_layer(
+                layer_name=self.config.POWER_LINE_LAYER,
+                bbox=bbox
+            )
+            
+            if gdf is None or len(gdf) == 0:
+                logger.info("No power lines found in this area")
+                return None
+            
+            logger.info(f"Retrieved {len(gdf)} power lines, buffering by {buffer_width}m")
+            
+            # Buffer lines to create polygons
+            gdf_buffered = gdf.copy()
+            gdf_buffered['geometry'] = gdf['geometry'].buffer(buffer_width)
+            gdf_buffered['buffer_width'] = buffer_width
+            
+            self._cache[cache_key] = gdf_buffered
+            return gdf_buffered
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch power lines: {e}")
+            return None
+    
+    def fetch_sports_facilities(
+        self,
+        bbox: Tuple[float, float, float, float],
+        use_cache: bool = True
+    ) -> Optional[gpd.GeoDataFrame]:
+        """
+        Fetch sports facility polygons from BD TOPO®.
+        
+        Sports facilities include stadiums, playing fields, courts, etc.
+        
+        Args:
+            bbox: Bounding box (xmin, ymin, xmax, ymax) in Lambert 93
+            use_cache: Whether to use cached data if available
+            
+        Returns:
+            GeoDataFrame with sports facility polygons
+        """
+        cache_key = f"sports_{bbox}"
+        
+        if use_cache and cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        logger.info(f"Fetching sports facilities from WFS for bbox {bbox}")
+        
+        try:
+            gdf = self._fetch_wfs_layer(
+                layer_name=self.config.TERRAIN_LAYER,
+                bbox=bbox
+            )
+            
+            if gdf is not None:
+                logger.info(f"Retrieved {len(gdf)} sports facilities")
+                self._cache[cache_key] = gdf
+            
+            return gdf
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch sports facilities: {e}")
+            return None
+    
     def fetch_all_features(
         self,
         bbox: Tuple[float, float, float, float],
         use_cache: bool = True,
         include_roads: bool = True,
+        include_railways: bool = True,
         include_buildings: bool = True,
         include_water: bool = True,
         include_vegetation: bool = True,
-        road_width_fallback: float = 4.0
+        include_bridges: bool = False,
+        include_parking: bool = False,
+        include_cemeteries: bool = False,
+        include_power_lines: bool = False,
+        include_sports: bool = False,
+        road_width_fallback: float = 4.0,
+        railway_width_fallback: float = 3.5,
+        power_line_buffer: float = 2.0
     ) -> Dict[str, gpd.GeoDataFrame]:
         """
         Fetch all available ground truth features for a bounding box.
@@ -341,10 +659,18 @@ class IGNGroundTruthFetcher:
             bbox: Bounding box (xmin, ymin, xmax, ymax) in Lambert 93
             use_cache: Whether to use cached data
             include_roads: Include road polygons
+            include_railways: Include railway polygons
             include_buildings: Include building footprints
             include_water: Include water surfaces
             include_vegetation: Include vegetation zones
+            include_bridges: Include bridge structures
+            include_parking: Include parking areas
+            include_cemeteries: Include cemetery zones
+            include_power_lines: Include power line corridors
+            include_sports: Include sports facilities
             road_width_fallback: Default road width in meters when 'largeur' field is missing or invalid
+            railway_width_fallback: Default railway width in meters (single track)
+            power_line_buffer: Buffer width for power lines in meters
             
         Returns:
             Dictionary mapping feature types to GeoDataFrames
@@ -361,6 +687,11 @@ class IGNGroundTruthFetcher:
             if roads is not None:
                 features['roads'] = roads
         
+        if include_railways:
+            railways = self.fetch_railways_with_polygons(bbox, use_cache, default_width=railway_width_fallback)
+            if railways is not None:
+                features['railways'] = railways
+        
         if include_water:
             water = self.fetch_water_surfaces(bbox, use_cache)
             if water is not None:
@@ -370,6 +701,31 @@ class IGNGroundTruthFetcher:
             vegetation = self.fetch_vegetation_zones(bbox, use_cache)
             if vegetation is not None:
                 features['vegetation'] = vegetation
+        
+        if include_bridges:
+            bridges = self.fetch_bridges(bbox, use_cache)
+            if bridges is not None:
+                features['bridges'] = bridges
+        
+        if include_parking:
+            parking = self.fetch_parking(bbox, use_cache)
+            if parking is not None:
+                features['parking'] = parking
+        
+        if include_cemeteries:
+            cemeteries = self.fetch_cemeteries(bbox, use_cache)
+            if cemeteries is not None:
+                features['cemeteries'] = cemeteries
+        
+        if include_power_lines:
+            power_lines = self.fetch_power_lines(bbox, use_cache, buffer_width=power_line_buffer)
+            if power_lines is not None:
+                features['power_lines'] = power_lines
+        
+        if include_sports:
+            sports = self.fetch_sports_facilities(bbox, use_cache)
+            if sports is not None:
+                features['sports'] = sports
         
         logger.info(f"Fetched {len(features)} feature types: {list(features.keys())}")
         return features
