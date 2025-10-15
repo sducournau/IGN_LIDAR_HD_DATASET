@@ -1,12 +1,14 @@
 """
-Feature Computation Modes for LOD2/LOD3 Training
+Feature Computation Modes for LOD2/LOD3/ASPRS Training
 
 This module defines feature sets and computation modes optimized for different
 levels of detail and training objectives:
 
-- LOD2_SIMPLIFIED: Essential features for basic building detection (~12 features)
-- LOD3_FULL: Complete feature set for detailed architectural modeling (~37 features)
-- MINIMAL: Ultra-fast minimal features for quick processing
+- MINIMAL: Ultra-fast minimal features for quick processing (~8 features)
+- LOD2_SIMPLIFIED: Essential features for basic building detection (~17 features)
+- LOD3_FULL: Complete feature set for detailed architectural modeling (~43 features)
+- ASPRS_CLASSES: Optimized features for ASPRS classification (~30 features)
+- FULL: All available features (~45 features)
 - CUSTOM: User-defined feature selection
 
 Feature Categories:
@@ -19,6 +21,7 @@ Feature Categories:
 References:
 - Weinmann et al. (2015) - Geometric feature formulas
 - Demantké et al. (2011) - Eigenvalue-based descriptors
+- ASPRS LAS 1.4 Specification - Classification codes
 """
 
 from dataclasses import dataclass, field
@@ -35,6 +38,7 @@ __all__ = [
     'FEATURE_DESCRIPTIONS',
     'LOD2_FEATURES',
     'LOD3_FEATURES',
+    'ASPRS_FEATURES',
 ]
 
 
@@ -43,6 +47,7 @@ class FeatureMode(Enum):
     MINIMAL = "minimal"              # Ultra-fast: ~8 features
     LOD2_SIMPLIFIED = "lod2"        # Essential: ~11 features for LOD2
     LOD3_FULL = "lod3"              # Complete: ~35 features for LOD3
+    ASPRS_CLASSES = "asprs_classes" # ASPRS classification: ~25 features
     FULL = "full"                   # All available features
     CUSTOM = "custom"               # User-defined selection
 
@@ -225,6 +230,50 @@ LOD3_FEATURES = {
     'ndvi',
 }  # Total: ~43 features (was 35, added 8 new building features)
 
+# ASPRS_CLASSES: Features optimized for ASPRS classification (~30 features)
+ASPRS_FEATURES = {
+    # Coordinates
+    'xyz',                # 3 features
+    
+    # Essential normals for surface orientation
+    'normal_x',
+    'normal_y',
+    'normal_z',           # Critical for ground/vegetation/building separation
+    
+    # Core shape descriptors (essential for classification)
+    'planarity',          # Flat surfaces (ground, roads, roofs)
+    'linearity',          # Linear features (wires, edges)
+    'sphericity',         # Vegetation detection
+    'roughness',          # Surface texture
+    'anisotropy',         # Structure detection
+    
+    # Eigenvalues for advanced classification
+    'eigenvalue_1',
+    'eigenvalue_2',
+    'eigenvalue_3',
+    'sum_eigenvalues',
+    'eigenentropy',
+    
+    # Height features (critical for multi-class separation)
+    'height_above_ground',# Essential for vegetation height classes
+    'vertical_std',       # Local height variation
+    
+    # Building detection
+    'verticality',        # Walls vs ground
+    'wall_score',
+    'roof_score',
+    'horizontality',      # Ground and flat roofs
+    
+    # Density features for classification
+    'density',            # Point density varies by class
+    'num_points_2m',
+    
+    # Spectral features (if available)
+    'red', 'green', 'blue',  # RGB for better classification
+    'nir',                   # NIR for vegetation
+    'ndvi',                  # Vegetation index
+}  # Total: ~30 features (optimized for ASPRS multi-class classification)
+
 
 @dataclass
 class FeatureSet:
@@ -293,6 +342,7 @@ class FeatureSet:
             FeatureMode.MINIMAL: "Minimal features for fast processing",
             FeatureMode.LOD2_SIMPLIFIED: "Essential features for LOD2 building classification",
             FeatureMode.LOD3_FULL: "Complete features for LOD3 architectural modeling",
+            FeatureMode.ASPRS_CLASSES: "Optimized features for ASPRS classification",
             FeatureMode.FULL: "All available features",
             FeatureMode.CUSTOM: "Custom user-defined features",
         }
@@ -357,6 +407,8 @@ def get_feature_config(
         features = LOD2_FEATURES.copy()
     elif mode_enum == FeatureMode.LOD3_FULL:
         features = LOD3_FEATURES.copy()
+    elif mode_enum == FeatureMode.ASPRS_CLASSES:
+        features = ASPRS_FEATURES.copy()
     elif mode_enum == FeatureMode.FULL:
         features = set(FEATURE_DESCRIPTIONS.keys())
     elif mode_enum == FeatureMode.CUSTOM:

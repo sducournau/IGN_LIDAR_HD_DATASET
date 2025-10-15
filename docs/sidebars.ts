@@ -22,7 +22,9 @@ const sidebars: SidebarsConfig = {
       label: "📦 Getting Started",
       items: [
         "installation/quick-start",
+        "installation/gpu-setup",
         "guides/quick-start",
+        "guides/getting-started",
         "guides/basic-usage",
       ],
     },
@@ -31,7 +33,12 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "📖 Core Concepts",
-      items: ["architecture", "workflows"],
+      items: [
+        "architecture",
+        "workflows",
+        "guides/configuration-system",
+        "guides/processing-modes",
+      ],
     },
 
     // User Guides
@@ -40,8 +47,15 @@ const sidebars: SidebarsConfig = {
       label: "🔧 User Guides",
       items: [
         "guides/cli-commands",
+        "guides/hydra-cli",
         "guides/auto-params",
         "guides/preprocessing",
+        "guides/complete-workflow",
+        "guides/unified-pipeline",
+        "guides/regional-processing",
+        "guides/performance",
+        "guides/troubleshooting",
+        "guides/migration-v1-to-v2",
       ],
     },
 
@@ -49,7 +63,12 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "⚡ GPU Acceleration",
-      items: ["gpu/overview", "gpu/features", "gpu/rgb-augmentation"],
+      items: [
+        "gpu/overview",
+        "gpu/features",
+        "gpu/rgb-augmentation",
+        "guides/gpu-acceleration",
+      ],
     },
 
     // Features
@@ -61,15 +80,50 @@ const sidebars: SidebarsConfig = {
         "features/format-preferences",
         "features/lod3-classification",
         "features/rgb-augmentation",
+        "features/infrared-augmentation",
         "features/pipeline-configuration",
+        "features/enriched-laz-only",
+        "features/geometric-features",
+        "features/feature-modes",
+        "features/boundary-aware",
+        "features/tile-stitching",
+        "features/ground-truth-fetching",
+        "features/ground-truth-ndvi-refinement",
+        "features/axonometry",
+        "features/multi-architecture",
+        "features/architectural-styles",
       ],
     },
 
     // QGIS Integration
     {
       type: "category",
-      label: "🗺️ QGIS Integration",
-      items: ["guides/qgis-integration", "guides/qgis-troubleshooting"],
+      label: "🗺️ QGIS & Visualization",
+      items: [
+        "guides/qgis-integration",
+        "guides/qgis-troubleshooting",
+        "guides/visualization",
+      ],
+    },
+
+    // Tutorials
+    {
+      type: "category",
+      label: "📖 Tutorials",
+      items: ["tutorials/custom-features"],
+    },
+
+    // CLI Reference
+    {
+      type: "category",
+      label: "💻 CLI Reference",
+      items: [
+        "reference/cli-download",
+        "reference/cli-enrich",
+        "reference/cli-patch",
+        "reference/cli-qgis",
+        "reference/cli-verify",
+      ],
     },
 
     // Technical Reference
@@ -80,8 +134,27 @@ const sidebars: SidebarsConfig = {
         "reference/config-examples",
         "reference/workflow-diagrams",
         "reference/memory-optimization",
+        "reference/classification-taxonomy",
+        "reference/architectural-styles",
+        "reference/historical-analysis",
         "mermaid-reference",
+      ],
+    },
+
+    // API Reference
+    {
+      type: "category",
+      label: "🔌 API Reference",
+      items: [
         "api/processor",
+        "api/cli",
+        "api/configuration",
+        "api/core-module",
+        "api/features",
+        "api/gpu-api",
+        "api/rgb-augmentation",
+        "api/architectural-style-api",
+        "api/auto-params",
       ],
     },
 
