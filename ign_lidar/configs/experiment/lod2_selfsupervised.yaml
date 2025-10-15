@@ -1,0 +1,145 @@
+# @package _global_
+
+# LOD2 Self-Supervised Training Configuration with Ground Truth
+# Purpose: Generate ML-ready dataset for LOD2 classification with self-supervised pretraining
+# Architecture: Hybrid PointNet++ + Point Transformer
+#
+# Features:
+# - Ground truth classification update from IGN BD TOPO®
+# - NDVI refinement for building/vegetation separation
+# - Multi-scale patches (50m, 100m, 150m)
+# - Automatic train/val/test splits
+
+defaults:
+  - override /processor: default
+  - override /features: full
+  - override /preprocess: default
+  - override /ground_truth: update_classification
+  - override /stitching: enhanced
+  - override /output: patches_only
+
+# Dataset creation settings for LOD2 classification
+dataset:
+  enabled: true
+  train_ratio: 0.7 # 70% for pretraining (self-supervised)
+  val_ratio: 0.15 # 15% for validation
+  test_ratio: 0.15 # 15% for final testing
+  random_seed: 42
+  split_by_tile: true
+  create_split_dirs: true
+  patch_sizes: [50, 100, 150] # Multi-scale patches for robust LOD2 classification
+  balance_across_sizes: true # Balance samples across patch sizes
+
+# Ground Truth Configuration (improved classification before training)
+ground_truth:
+  enabled: true # Enable ground truth fetching and classification update
+  update_classification: true # Update tile classification with BD TOPO® data
+
+  # Feature selection from IGN BD TOPO®
+  include_buildings: true # Building footprints for accurate labeling
+  include_roads: true # Road polygons (helps distinguish building boundaries)
+  include_water: true # Water surfaces (exclude from building classification)
+  include_vegetation: true # Vegetation zones (refine with NDVI)
+
+  # NDVI refinement for building/vegetation separation
+  use_ndvi: true # Use NDVI to refine labels
+  fetch_rgb_nir: true # Fetch RGB+NIR from IGN orthophotos
+  ndvi_vegetation_threshold: 0.3 # NDVI >= 0.3 -> vegetation
+  ndvi_building_threshold: 0.15 # NDVI <= 0.15 -> building
+
+  # Caching and output
+  cache_dir: data/cache/ground_truth_lod2
+  save_ground_truth_vectors: true # Save BD TOPO® vectors to GeoPackage
+  save_updated_tiles: true # Save enriched tiles with updated classification
+
+# Processor configuration optimized for LOD2 classification
+processor:
+  lod_level: LOD2 # Focus on LOD2-level detail
+  architecture: hybrid # Hybrid PointNet++ + Transformer
+  use_gpu: true
+  num_workers: 1
+  patch_size: 50.0 # 50m patches - captures individual buildings
+  patch_overlap: 0.15 # 15% overlap for boundary consistency
+  num_points: 24576 # 24k points for detailed geometry (2^14 * 1.5)
+  augment: true
+  num_augmentations: 5 # Heavy augmentation for self-supervised learning
+  pin_memory: true
+  processing_mode: patches_only
+  skip_existing: true
+
+# Feature configuration for hybrid architecture
+features:
+  mode: full
+  k_neighbors: 20 # Fine-grained local features
+  search_radius: 1.2 # Appropriate for 50m patches
+  include_extra: true
+
+  # RGB and infrared for material/texture features
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+
+  # Geometric features critical for LOD2 classification
+  compute_normals: true
+  compute_curvature: true
+  compute_eigenfeatures: true
+
+  # Sampling and normalization
+  sampling_method: fps # Farthest Point Sampling for uniform coverage
+  normalize_xyz: true # Essential for transformer position encoding
+  normalize_features: true
+
+  # GPU acceleration
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+
+# Preprocessing for clean training data
+preprocess:
+  enabled: true
+  sor_k: 8 # Statistical Outlier Removal
+  sor_std: 1.5 # Moderate filtering
+  ror_radius: 0.5 # Radius Outlier Removal
+  ror_neighbors: 3
+  voxel_enabled: false # Keep full resolution for LOD2 detail
+
+# Stitching for boundary consistency
+stitching:
+  enabled: true
+  buffer_size: 8.0 # 8m buffer for 50m patches
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+
+# Output configuration
+output:
+  format: npz,laz # NPZ for training, LAZ for visualization
+  processing_mode: patches_only
+  save_stats: true
+  save_metadata: true
+  compression: null # No compression for faster loading
+
+# Logging
+log_level: INFO
+verbose: true
+# Expected output structure:
+# output_dir/
+#   train/      (~70% of tiles → ~70,000 patches with augmentation)
+#     LHD_FXX_0649_6863_hybrid_patch_0001_scale50m.npz
+#     LHD_FXX_0649_6863_hybrid_patch_0001_aug_0_scale50m.npz
+#     LHD_FXX_0649_6863_hybrid_patch_0001_aug_1_scale50m.npz
+#     ...
+#   val/        (~15% of tiles → ~15,000 patches)
+#   test/       (~15% of tiles → ~15,000 patches)
+#   dataset_metadata.json
+#
+# Self-supervised pretraining tasks:
+#   1. Masked Point Modeling (MPM) - reconstruct masked points
+#   2. Normal Prediction - predict surface normals
+#   3. Contrastive Learning - differentiate augmentations
+#   4. Rotation Prediction - predict applied rotation angle
+#   5. Spatial Context - predict relative patch positions
+#
+# Fine-tuning for LOD2 classification:
+#   6 classes: LOD2.0 (simple), LOD2.1 (1-2 roof planes),
+#              LOD2.2 (3-4 planes), LOD2.3 (5+ planes),
+#              LOD2.4 (special structures), LOD2.5 (industrial)

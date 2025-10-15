@@ -10,6 +10,7 @@ defaults:
   - preprocess: default
   - stitching: enabled
   - output: default
+  - ground_truth: disabled
   - _self_
   - optional experiment: null # Optional experiment presets (override config defaults)
 

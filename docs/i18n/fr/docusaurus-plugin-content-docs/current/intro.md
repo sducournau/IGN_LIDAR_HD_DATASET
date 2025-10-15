@@ -6,7 +6,7 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 # Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Version 2.4.4** | Python 3.8+ | Licence MIT
+**Version 2.5.1** | Python 3.8+ | Licence MIT
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -16,9 +16,28 @@ Transformez les nuages de points LiDAR HD de l'IGN en jeux de données prêts po
 
 ---
 
-## � Nouveautés
+## 🎯 Nouveautés
 
-### v2.4.4 (2025-10-12) - Dernière Version
+### v2.5.1 (2025-10-15) - Dernière Version
+
+### Maintenance et Mise à Jour de la Documentation
+
+- 📦 **Mise à Jour Version** : Version de maintenance avec améliorations et harmonisation de la documentation
+- 📚 **Documentation** : Références de version mises à jour dans tous les fichiers de documentation (README, pages intro docusaurus)
+- 🔧 **Configuration** : Version mise à jour dans les fichiers de configuration conda et package
+- ⚠️ **Avis de Dépréciation** : Mise à jour des calendriers de dépréciation pour cohérence
+
+### v2.5.0 (2025-10-14)
+
+### Consolidation du Système et Modernisation
+
+- 🎯 **Système de Caractéristiques Unifié** : Nouveau `FeatureOrchestrator` remplace `FeatureManager` + `FeatureComputer`
+- 🏗️ **Architecture de Stratégie** : Séparation claire du traitement CPU/GPU/Chunked/Boundary-aware
+- ✨ **Indices de Type Améliorés** : Annotations de type complètes dans toute la base de code
+- 📊 **Messages d'Erreur Améliorés** : Messages d'erreur clairs et exploitables avec détails de validation
+- ✅ **100% Rétrocompatible** : Tout le code existant fonctionne sans modification
+
+### v2.4.4 (2025-10-12)
 
 ### Outils de Qualité des Données LAZ et Validation
 

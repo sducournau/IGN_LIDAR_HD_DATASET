@@ -1,0 +1,25 @@
+# Ground Truth Configuration - Enabled
+#
+# Enable ground truth labeling from IGN BD TOPO®
+
+# Ground truth processing
+enabled: true # Enable ground truth fetching and labeling
+update_classification: false # Update classification in input tiles before processing (creates new files)
+
+# WFS Feature Selection
+include_buildings: true # Include building footprints
+include_roads: true # Include road polygons (with width buffer)
+include_water: true # Include water surfaces
+include_vegetation: true # Include vegetation zones
+
+# NDVI Refinement
+use_ndvi: true # Use NDVI to refine building/vegetation labels
+fetch_rgb_nir: false # Fetch RGB and NIR from IGN orthophotos (requires internet + time)
+ndvi_vegetation_threshold: 0.3 # NDVI >= value -> vegetation
+ndvi_building_threshold: 0.15 # NDVI <= value -> building
+
+# Caching
+cache_dir: null # Cache directory for WFS data and orthophotos (null = "data/cache/ground_truth")
+
+# Output
+save_ground_truth_vectors: true # Save fetched ground truth vectors to GeoPackage files

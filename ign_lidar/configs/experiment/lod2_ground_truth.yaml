@@ -1,0 +1,110 @@
+# @package _global_
+
+# LOD2 Ground Truth Training Dataset
+# Purpose: Create LOD2 patches with automatic ground truth labels from IGN BD TOPO®
+# Use Case: Training LOD2 classifiers with accurate building/road/vegetation labels
+#
+# This config supports multiple patch sizes via command-line override:
+#   experiment=lod2_ground_truth processor.patch_size=50   # Fine details
+#   experiment=lod2_ground_truth processor.patch_size=100  # Balanced (default)
+#   experiment=lod2_ground_truth processor.patch_size=150  # Full context
+#
+# Usage:
+#   ign-lidar-hd process experiment=lod2_ground_truth \
+#     input_dir=data/raw \
+#     output_dir=data/lod2_gt \
+#     processor.patch_size=100
+
+defaults:
+  - _base/ground_truth_common # Inherit ground truth settings
+  - _base/buildings_common # Inherit building settings
+  - _self_ # Apply LOD2-specific overrides
+
+# Dataset configuration
+dataset:
+  enabled: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  random_seed: 42
+  split_by_tile: true
+  create_split_dirs: true
+  patch_sizes: [100] # Default 100m, override via CLI
+  balance_across_sizes: false
+
+# LOD2-specific processor settings
+processor:
+  lod_level: LOD2
+  architecture: hybrid
+  num_workers: 4
+  patch_size: 100.0 # Default 100m, override via: processor.patch_size=50
+  patch_overlap: 0.12
+  num_points: 16384 # 16k points for LOD2
+  augment: true
+  num_augmentations: 3
+
+# LOD2-specific features (less complex than LOD3)
+features:
+  mode: lod2 # Simplified feature set for LOD2
+  k_neighbors: 20
+  search_radius: 1.5
+
+# Ground truth settings (inherited from base, customized here)
+ground_truth:
+  enabled: true
+  update_classification: true
+
+  # IGN BD TOPO® features
+  include_buildings: true
+  include_roads: true
+  include_water: true
+  include_vegetation: true
+
+  # NDVI refinement (critical for accurate classification)
+  use_ndvi: true
+  fetch_rgb_nir: true
+  ndvi_vegetation_threshold: 0.3
+  ndvi_building_threshold: 0.15
+
+  # Caching
+  cache_dir: data/cache/ground_truth
+  save_ground_truth_vectors: true
+  save_updated_tiles: true
+
+# Preprocessing
+preprocess:
+  enabled: true
+  sor_k: 10
+  sor_std: 2.0
+  ror_radius: 0.75
+  ror_neighbors: 4
+
+# Stitching
+stitching:
+  enabled: true
+  buffer_size: 12.0
+
+# Output
+output:
+  format: npz,laz
+  processing_mode: patches_only
+  save_stats: true
+  save_metadata: true
+# Override examples:
+#
+# # 50m patches for fine details:
+# ign-lidar-hd process experiment=lod2_ground_truth \
+#   processor.patch_size=50 \
+#   processor.num_points=12288 \
+#   features.k_neighbors=15 \
+#   stitching.buffer_size=8.0 \
+#   input_dir=data/raw output_dir=data/lod2_gt_50m
+#
+# # 150m patches for full context:
+# ign-lidar-hd process experiment=lod2_ground_truth \
+#   processor.patch_size=150 \
+#   processor.num_points=24576 \
+#   features.k_neighbors=25 \
+#   stitching.buffer_size=15.0 \
+#   input_dir=data/raw output_dir=data/lod2_gt_150m
+

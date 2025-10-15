@@ -21,6 +21,10 @@ num_points: 16384 # Points per patch (4096, 8192, 16384, 32768)
 augment: false
 num_augmentations: 3
 
+# Architectural style features
+include_architectural_style: false # Include architectural style as a feature
+style_encoding: constant # constant, onehot, multihot
+
 # Performance tuning
 batch_size: auto # 'auto' or specific int
 prefetch_factor: 2

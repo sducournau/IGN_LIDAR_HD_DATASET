@@ -315,8 +315,8 @@ def _add_geometric_features(las, original_patch: Dict, added_dimensions: set) ->
     for feat_name in geometric_features:
         if feat_name in original_patch and feat_name not in added_dimensions:
             try:
-                # Truncate description to 32 chars max (LAZ limit)
-                desc = f"Geom: {feat_name}"[:32]
+                # Truncate description to 31 chars max (LAZ limit - needs null terminator)
+                desc = f"Geom: {feat_name}"[:31]
                 las.add_extra_dim(laspy.ExtraBytesParams(
                     name=feat_name,
                     type=np.float32,
@@ -360,8 +360,8 @@ def _add_height_features(las, original_patch: Dict, added_dimensions: set) -> No
     for feat_name in height_features:
         if feat_name in original_patch and feat_name not in added_dimensions:
             try:
-                # Truncate description to 32 chars max (LAZ limit)
-                desc = f"Height: {feat_name}"[:32]
+                # Truncate description to 31 chars max (LAZ limit - needs null terminator)
+                desc = f"Height: {feat_name}"[:31]
                 las.add_extra_dim(laspy.ExtraBytesParams(
                     name=feat_name,
                     type=np.float32,
@@ -478,6 +478,219 @@ def save_patch_multi_format(base_path: Path,
             logger.warning(f"Unknown format '{fmt}', skipping")
     
     return num_saved
+
+
+def save_enriched_tile_laz(save_path: Path,
+                          points: np.ndarray,
+                          classification: np.ndarray,
+                          intensity: np.ndarray,
+                          return_number: np.ndarray,
+                          features: Dict[str, np.ndarray],
+                          original_las: Optional[laspy.LasData] = None,
+                          header: Optional[laspy.LasHeader] = None,
+                          input_rgb: Optional[np.ndarray] = None,
+                          input_nir: Optional[np.ndarray] = None) -> None:
+    """
+    Save a full enriched tile as LAZ with all computed features.
+    
+    This function preserves the original LAZ structure while adding computed
+    features as extra dimensions.
+    
+    Args:
+        save_path: Output LAZ file path
+        points: (N, 3) XYZ coordinates in original projection
+        classification: (N,) classification codes (potentially updated)
+        intensity: (N,) intensity values [0-1]
+        return_number: (N,) return numbers
+        features: Dictionary of computed features to add as extra dimensions
+        original_las: Original laspy.LasData object for header info (optional, for standard loading)
+        header: Original header (optional, for chunked loading)
+        input_rgb: RGB data if available (optional, for chunked loading)
+        input_nir: NIR data if available (optional, for chunked loading)
+        
+    Raises:
+        ImportError: If laspy is not installed
+    """
+    if not LASPY_AVAILABLE:
+        raise ImportError(
+            "laspy is required for LAZ format. "
+            "Install with: pip install laspy"
+        )
+    
+    # Determine appropriate point format based on available data
+    has_rgb = (original_las is not None and hasattr(original_las, 'red')) or input_rgb is not None
+    has_nir = (original_las is not None and hasattr(original_las, 'nir')) or input_nir is not None
+    
+    # Point format selection:
+    # - Format 6: basic (no RGB, no NIR)
+    # - Format 7: RGB but no NIR
+    # - Format 8: RGB and NIR
+    if has_rgb and has_nir:
+        point_format = 8  # RGB + NIR
+    elif has_rgb:
+        point_format = 7  # RGB only
+    else:
+        point_format = 6  # Basic
+    
+    # Create new LAZ header
+    if original_las is not None:
+        # Use original LAS object's header
+        new_header = laspy.LasHeader(
+            version=original_las.header.version,
+            point_format=point_format
+        )
+        new_header.offsets = original_las.header.offsets
+        new_header.scales = original_las.header.scales
+    elif header is not None:
+        # Use provided header (from chunked loading)
+        new_header = laspy.LasHeader(
+            version=header.version,
+            point_format=point_format
+        )
+        new_header.offsets = header.offsets
+        new_header.scales = header.scales
+    else:
+        # Fallback: create a new header with default values
+        new_header = laspy.LasHeader(version="1.4", point_format=point_format)
+        new_header.offsets = [np.floor(points[:, 0].min()), np.floor(points[:, 1].min()), np.floor(points[:, 2].min())]
+        new_header.scales = [0.001, 0.001, 0.001]
+    
+    # Create new LasData
+    las = laspy.LasData(new_header)
+    
+    # Set coordinates
+    las.x = points[:, 0]
+    las.y = points[:, 1]
+    las.z = points[:, 2]
+    
+    # Set standard fields
+    las.intensity = (intensity * 65535.0).astype(np.uint16)
+    las.return_number = return_number.astype(np.uint8)
+    las.classification = classification.astype(np.uint8)
+    
+    # Set RGB if available
+    if original_las is not None and hasattr(original_las, 'red'):
+        # Copy RGB from original LAS object
+        las.red = original_las.red
+        las.green = original_las.green
+        las.blue = original_las.blue
+    elif input_rgb is not None:
+        # Use RGB from chunked loading
+        las.red = (input_rgb[:, 0] * 65535.0).astype(np.uint16)
+        las.green = (input_rgb[:, 1] * 65535.0).astype(np.uint16)
+        las.blue = (input_rgb[:, 2] * 65535.0).astype(np.uint16)
+    
+    # Set NIR if available
+    if original_las is not None and hasattr(original_las, 'nir'):
+        # Copy NIR from original LAS object
+        las.nir = original_las.nir
+    elif input_nir is not None:
+        # Use NIR from chunked loading
+        las.nir = (input_nir * 65535.0).astype(np.uint16)
+    
+    # Add computed features as extra dimensions
+    # Initialize with existing extra dimensions to avoid duplicates
+    added_dimensions = set()
+    if original_las is not None and hasattr(original_las.point_format, 'extra_dimension_names'):
+        # Get existing extra dimensions from original file
+        added_dimensions = set(original_las.point_format.extra_dimension_names)
+    elif header is not None and hasattr(header.point_format, 'extra_dimension_names'):
+        # Get existing extra dimensions from provided header
+        added_dimensions = set(header.point_format.extra_dimension_names)
+    
+    # Helper function to truncate feature names to 32 characters (LAS/LAZ limit)
+    def truncate_name(name: str, max_len: int = 32) -> str:
+        """Truncate feature name to fit LAS extra dimension name limit."""
+        if len(name) <= max_len:
+            return name
+        # Try to abbreviate common long words
+        abbreviations = {
+            'eigenvalues': 'eigval',
+            'eigenvalue': 'eigval',
+            'neighborhood': 'neigh',
+            'likelihood': 'like',
+            'indicator': 'ind',
+            'roughness': 'rough',
+            'extent': 'ext',
+            'vertical': 'vert',
+            'height': 'h',
+            'above': 'abv',
+            'ground': 'gnd',
+            'points': 'pts',
+            'corner': 'corn',
+            'overhang': 'ovhng',
+            'surface': 'surf',
+        }
+        truncated = name
+        for long_word, short_word in abbreviations.items():
+            truncated = truncated.replace(long_word, short_word)
+        # If still too long, just cut it
+        if len(truncated) > max_len:
+            truncated = truncated[:max_len]
+        return truncated
+    
+    for feat_name, feat_data in features.items():
+        if feat_name in ['points', 'classification', 'intensity', 'return_number']:
+            continue  # Skip standard fields already set
+        
+        if feat_name in added_dimensions:
+            continue  # Skip duplicates
+        
+        try:
+            # Handle normals specially - they need to be split into 3 dimensions
+            if feat_name == 'normals' and feat_data.ndim == 2 and feat_data.shape[1] == 3:
+                for i, axis in enumerate(['x', 'y', 'z']):
+                    dim_name = f'normal_{axis}'
+                    if dim_name not in added_dimensions:
+                        las.add_extra_dim(laspy.ExtraBytesParams(
+                            name=dim_name,
+                            type=np.float32,
+                            description=f"Normal vector {axis} component"
+                        ))
+                        setattr(las, dim_name, feat_data[:, i].astype(np.float32))
+                        added_dimensions.add(dim_name)
+                continue
+            
+            # Skip multi-dimensional features that aren't normals
+            if feat_data.ndim > 1:
+                logger.debug(f"Skipping multi-dimensional feature '{feat_name}' (shape: {feat_data.shape})")
+                continue
+            
+            # Truncate feature name if needed
+            truncated_name = truncate_name(feat_name)
+            if truncated_name != feat_name:
+                logger.debug(f"Truncated feature name: '{feat_name}' -> '{truncated_name}'")
+            
+            # Skip if already added (after truncation)
+            if truncated_name in added_dimensions:
+                continue
+            
+            # Determine appropriate data type
+            if feat_data.dtype in [np.float32, np.float64]:
+                dtype = np.float32
+            elif feat_data.dtype == np.int32:
+                dtype = np.int32
+            elif feat_data.dtype == np.uint8:
+                dtype = np.uint8
+            else:
+                dtype = np.float32  # Default
+            
+            # Add extra dimension (description has 31-byte limit - needs null terminator)
+            description = feat_name[:31] if len(feat_name) <= 31 else truncated_name[:31]
+            las.add_extra_dim(laspy.ExtraBytesParams(
+                name=truncated_name,
+                type=dtype,
+                description=description
+            ))
+            setattr(las, truncated_name, feat_data.astype(dtype))
+            added_dimensions.add(truncated_name)
+            
+        except Exception as e:
+            logger.warning(f"Could not add feature '{feat_name}' to LAZ: {e}")
+    
+    # Write LAZ file
+    las.write(str(save_path))
+    logger.info(f"  ✓ Saved enriched tile: {save_path.name} ({len(points):,} points, {len(added_dimensions)} extra features)")
 
 
 def validate_format_support(formats: List[str]) -> Dict[str, bool]:

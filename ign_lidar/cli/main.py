@@ -65,7 +65,9 @@ try:
         download_command, 
         verify_command,
         batch_convert_command,
-        info_command
+        info_command,
+        ground_truth_command,
+        update_classification_command
     )
     
     # Register commands with the CLI group
@@ -74,6 +76,8 @@ try:
     cli.add_command(verify_command, name='verify')
     cli.add_command(batch_convert_command, name='batch-convert')
     cli.add_command(info_command, name='info')
+    cli.add_command(ground_truth_command, name='ground-truth')
+    cli.add_command(update_classification_command, name='update-classification')
     
 except ImportError as e:
     logger.warning(f"Some commands may not be available due to missing dependencies: {e}")

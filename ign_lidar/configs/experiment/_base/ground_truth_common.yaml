@@ -1,0 +1,62 @@
+# Base Configuration for Ground Truth Experiments
+#
+# Common settings shared by all ground truth generation experiments
+# (ground_truth_patches, ground_truth_training, lod2_gt_*)
+#
+# This file defines sensible defaults for generating patches with
+# automatic ground truth labels from IGN BD TOPO® WFS service.
+
+# @package _global_
+
+# Ground truth configuration
+defaults:
+  - override /ground_truth: enabled
+
+# Common processor settings
+processor:
+  use_gpu: true
+  augment: true
+  pin_memory: true
+  processing_mode: patches_only
+  skip_existing: true
+
+# Common feature settings
+features:
+  mode: full
+  include_extra: true
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+  sampling_method: fps
+  normalize_xyz: true
+  normalize_features: true
+  use_gpu_chunked: true
+
+# Preprocessing enabled
+preprocess:
+  enabled: true
+  sor_std: 1.5
+
+# Stitching for consistency
+stitching:
+  enabled: true
+  auto_detect_neighbors: true
+  cache_enabled: true
+
+# Output configuration
+output:
+  format: npz,laz
+  processing_mode: patches_only
+  save_stats: true
+  save_metadata: true
+
+# Ground truth settings will be inherited from /ground_truth: enabled
+# which includes:
+# - WFS service configuration
+# - Building/road/vegetation classification rules
+# - NDVI-based refinement settings
+# - Road buffer creation parameters
+
+# Logging
+log_level: INFO
+verbose: true

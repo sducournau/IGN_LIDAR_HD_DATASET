@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ign-lidar-hd"
-version = "2.5.0"
+version = "2.5.1"
 description = "IGN LiDAR HD Dataset Processing Library for Building LOD Classification"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -147,5 +147,17 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "unit: marks tests as unit tests",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "gpu: marks tests requiring GPU",
+]
+# Paths for test data
+# Note: Integration tests can use data/test_integration/ for test files
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

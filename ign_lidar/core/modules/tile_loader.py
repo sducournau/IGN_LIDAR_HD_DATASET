@@ -211,6 +211,7 @@ class TileLoader:
                     
                     logger.info(f"  📊 Loaded {len(points):,} points total")
                     
+                    # Store header info for later use (e.g., when saving enriched tiles)
                     return {
                         'points': points,
                         'intensity': intensity,
@@ -220,7 +221,8 @@ class TileLoader:
                         'input_nir': input_nir,
                         'input_ndvi': None,  # Not loaded in chunked mode
                         'enriched_features': {},
-                        'las': None  # No LAS object in chunked mode
+                        'las': None,  # No full LAS object in chunked mode
+                        'header': header  # Store header for recreating LAZ files
                     }
                     
             except Exception as e:

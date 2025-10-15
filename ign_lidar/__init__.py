@@ -4,7 +4,7 @@ IGN LiDAR HD Dataset Processing Library
 A Python library for processing IGN LiDAR HD data into machine learning-ready datasets
 with building LOD (Level of Detail) classification support.
 
-Version 2.5.0 includes system consolidation and modernization:
+Version 2.5.1 includes maintenance and improvements:
 - Unified FeatureOrchestrator replaces FeatureManager + FeatureComputer
 - Strategy pattern architecture for CPU/GPU/Chunked/Boundary-aware processing
 - Enhanced type hints and error messages throughout codebase
@@ -14,7 +14,7 @@ Version 2.5.0 includes system consolidation and modernization:
 Backward compatibility is maintained for existing imports.
 """
 
-__version__ = "2.5.0"
+__version__ = "2.5.1"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 
@@ -46,6 +46,21 @@ from .preprocessing import (
     augment_tile_with_infrared,
 )
 
+# Ground Truth (WFS) - Import on demand to avoid dependency issues
+try:
+    from .io.wfs_ground_truth import (
+        IGNWFSConfig,
+        IGNGroundTruthFetcher,
+        fetch_ground_truth_for_tile,
+        generate_patches_with_ground_truth,
+    )
+except ImportError:
+    # shapely/geopandas not installed
+    IGNWFSConfig = None
+    IGNGroundTruthFetcher = None
+    fetch_ground_truth_for_tile = None
+    generate_patches_with_ground_truth = None
+
 # Configuration (Hydra) - Import on demand to avoid dependency issues
 try:
     from .config.schema import (
@@ -72,6 +87,17 @@ except ImportError:
 # Root level modules (unchanged location)
 from .downloader import IGNLiDARDownloader
 from .classes import LOD2_CLASSES, LOD3_CLASSES
+from .asprs_classes import (
+    ASPRSClass,
+    ASPRS_CLASS_NAMES,
+    ClassificationMode,
+    get_classification_for_building,
+    get_classification_for_road,
+    get_classification_for_vegetation,
+    get_classification_for_water,
+    get_class_name,
+    get_class_color,
+)
 
 # Reorganized modules - backward compatibility imports
 # Core utilities (moved to core/)
@@ -79,7 +105,13 @@ from .core import AdaptiveMemoryManager, MemoryConfig, PerformanceMonitor
 from .core import ProcessingError, GPUMemoryError, MemoryPressureError
 
 # Feature utilities (moved to features/)
-from .features import ARCHITECTURAL_STYLES, STYLE_NAME_TO_ID
+from .features import (
+    ARCHITECTURAL_STYLES,
+    STYLE_NAME_TO_ID,
+    get_tile_architectural_style,
+    get_patch_architectural_style,
+    compute_architectural_style_features,
+)
 
 # Dataset utilities (moved to datasets/)
 from .datasets import STRATEGIC_LOCATIONS, WORKING_TILES
@@ -153,6 +185,12 @@ __all__ = [
     "add_infrared_to_patch",
     "augment_tile_with_infrared",
     
+    # Ground Truth (WFS)
+    "IGNWFSConfig",
+    "IGNGroundTruthFetcher",
+    "fetch_ground_truth_for_tile",
+    "generate_patches_with_ground_truth",
+    
     # Configuration
     "IGNLiDARConfig",
     "ProcessorConfig",
@@ -168,6 +206,15 @@ __all__ = [
     # Classification
     "LOD2_CLASSES",
     "LOD3_CLASSES",
+    "ASPRSClass",
+    "ASPRS_CLASS_NAMES",
+    "ClassificationMode",
+    "get_classification_for_building",
+    "get_classification_for_road",
+    "get_classification_for_vegetation",
+    "get_classification_for_water",
+    "get_class_name",
+    "get_class_color",
     
     # ========== Reorganized Modules (Backward Compatibility) ==========
     # Core utilities
@@ -182,6 +229,9 @@ __all__ = [
     # Feature utilities
     "ARCHITECTURAL_STYLES",
     "STYLE_NAME_TO_ID",
+    "get_tile_architectural_style",
+    "get_patch_architectural_style",
+    "compute_architectural_style_features",
     
     # Dataset utilities
     "STRATEGIC_LOCATIONS",

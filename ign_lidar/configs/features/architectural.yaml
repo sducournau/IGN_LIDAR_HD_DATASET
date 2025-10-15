@@ -1,0 +1,25 @@
+# Architectural Style Features Configuration
+#
+# Optimized for processing with architectural style detection
+
+# @package _global_
+
+# Inherits from full features
+defaults:
+  - full
+  - _self_
+
+# Override architectural style settings
+include_architectural_style: true
+style_encoding: constant # Memory-efficient constant encoding (one style ID per point)
+style_from_building_features: false # Set to true to infer from building geometry
+
+# Keep RGB for better feature quality
+use_rgb: true
+use_infrared: false # Not needed for style detection
+compute_ndvi: false
+
+# Good defaults for architectural analysis
+k_neighbors: 30
+search_radius: 1.5 # Use radius search to avoid scan line artifacts
+include_extra: true

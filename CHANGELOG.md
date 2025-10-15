@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1] - 2025-10-15
+
+### Changed
+
+- 📦 **Version Update**: Maintenance release with documentation improvements and harmonization
+- 📚 **Documentation**: Updated version references across all documentation files (README, docusaurus intro pages)
+- 🔧 **Configuration**: Updated version in conda recipe and package configuration files
+- ⚠️ **Deprecation Notices**: Updated hydra_main deprecation timeline from v2.5.0 to v3.0.0 for consistency
+
 ## [2.5.0] - 2025-10-14
 
 ### 🎉 Major Release: System Consolidation & Modernization

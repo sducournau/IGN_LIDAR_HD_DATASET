@@ -25,7 +25,7 @@ Removed redundant features:
 - Verticality/Horizontality: Already in normals (use normal_z)
 """
 
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 import numpy as np
 from sklearn.neighbors import KDTree
 from tqdm import tqdm
@@ -485,6 +485,239 @@ def compute_building_scores(
         wall_score.astype(np.float32),
         roof_score.astype(np.float32)
     )
+
+
+def compute_horizontality(normals: np.ndarray) -> np.ndarray:
+    """
+    Compute horizontality score from normals.
+    
+    Horizontality = |normal_z| (1 for horizontal, 0 for vertical)
+    Useful for roof detection and horizontal surface identification.
+    
+    Args:
+        normals: [N, 3] surface normals
+    
+    Returns:
+        horizontality: [N] horizontality scores [0, 1]
+    """
+    return np.abs(normals[:, 2]).astype(np.float32)
+
+
+def compute_edge_strength(eigenvalues: np.ndarray) -> np.ndarray:
+    """
+    Compute edge strength from eigenvalues.
+    
+    Edge strength measures how much the geometry resembles an edge
+    (high variance between eigenvalues). Useful for detecting building
+    corners, roof edges, and structural transitions.
+    
+    Formula: edge_strength = (λ1 - λ2) / (λ1 + ε)
+    where λ1 > λ2 > λ3 are ordered eigenvalues
+    
+    Args:
+        eigenvalues: [N, 3] eigenvalues (ordered descending)
+    
+    Returns:
+        edge_strength: [N] edge strength values [0, 1]
+    """
+    eps = 1e-8
+    # eigenvalues should be ordered: λ1 >= λ2 >= λ3
+    lambda1 = eigenvalues[:, 0]
+    lambda2 = eigenvalues[:, 1]
+    
+    edge_strength = (lambda1 - lambda2) / (lambda1 + eps)
+    edge_strength = np.clip(edge_strength, 0, 1)
+    
+    return edge_strength.astype(np.float32)
+
+
+def compute_facade_score(
+    normals: np.ndarray,
+    planarity: np.ndarray,
+    verticality: np.ndarray,
+    height: np.ndarray,
+    min_height: float = 2.5
+) -> np.ndarray:
+    """
+    Compute facade likelihood score for building wall detection.
+    
+    Combines multiple geometric attributes to identify building facades:
+    - Verticality (walls are vertical)
+    - Planarity (walls are planar)
+    - Height (facades are elevated)
+    - Consistent normal orientation (facades face outward)
+    
+    Args:
+        normals: [N, 3] surface normals
+        planarity: [N] planarity values [0, 1]
+        verticality: [N] verticality values [0, 1]
+        height: [N] height above ground in meters
+        min_height: minimum height for facades (default 2.5m)
+    
+    Returns:
+        facade_score: [N] facade likelihood [0, 1]
+    """
+    # Facade components:
+    # 1. High verticality (walls are vertical)
+    vert_component = np.clip(verticality / 0.7, 0, 1)  # Normalize to [0,1] with threshold
+    
+    # 2. High planarity (walls are flat)
+    plan_component = np.clip(planarity / 0.5, 0, 1)  # Normalize to [0,1] with threshold
+    
+    # 3. Elevated height (facades are above ground)
+    height_component = np.clip((height - min_height) / 5.0, 0, 1)  # Fade in from min_height
+    
+    # 4. Combined facade score (multiplicative - all must be present)
+    facade_score = vert_component * plan_component * height_component
+    
+    return facade_score.astype(np.float32)
+
+
+def compute_roof_plane_score(
+    normals: np.ndarray,
+    planarity: np.ndarray,
+    height: np.ndarray,
+    min_roof_height: float = 3.0
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Compute roof plane scores for different roof types.
+    
+    Distinguishes between:
+    - Flat roofs (horizontal, slope < 15°)
+    - Sloped roofs (moderate tilt, 15° - 45°)
+    - Steep roofs (steep tilt, 45° - 70°)
+    
+    Args:
+        normals: [N, 3] surface normals
+        planarity: [N] planarity values [0, 1]
+        height: [N] height above ground in meters
+        min_roof_height: minimum height for roof elements (default 3.0m)
+    
+    Returns:
+        Tuple of (flat_roof_score, sloped_roof_score, steep_roof_score)
+    """
+    # Compute tilt angle from vertical (using normal_z)
+    horizontality = np.abs(normals[:, 2])
+    
+    # Flat roofs: horizontal (slope < 15°), cos(15°) ≈ 0.966
+    flat_roof_mask = (horizontality > 0.966) & (planarity > 0.7) & (height > min_roof_height)
+    flat_roof_score = flat_roof_mask.astype(np.float32) * planarity
+    
+    # Sloped roofs: moderate tilt (15° - 45°), cos(45°) ≈ 0.707
+    sloped_roof_mask = (
+        (horizontality <= 0.966) & 
+        (horizontality > 0.707) & 
+        (planarity > 0.6) & 
+        (height > min_roof_height)
+    )
+    sloped_roof_score = sloped_roof_mask.astype(np.float32) * planarity
+    
+    # Steep roofs: steep tilt (45° - 70°), cos(70°) ≈ 0.342
+    steep_roof_mask = (
+        (horizontality <= 0.707) & 
+        (horizontality > 0.342) & 
+        (planarity > 0.5) & 
+        (height > min_roof_height)
+    )
+    steep_roof_score = steep_roof_mask.astype(np.float32) * planarity
+    
+    return (
+        flat_roof_score.astype(np.float32),
+        sloped_roof_score.astype(np.float32),
+        steep_roof_score.astype(np.float32)
+    )
+
+
+def compute_opening_likelihood(
+    planarity: np.ndarray,
+    linearity: np.ndarray,
+    verticality: np.ndarray,
+    intensity: Optional[np.ndarray] = None
+) -> np.ndarray:
+    """
+    Compute likelihood of architectural openings (windows, doors).
+    
+    Openings are characterized by:
+    - Low planarity (not solid surface)
+    - High linearity (rectangular edges)
+    - Vertical orientation (on walls)
+    - Often lower intensity (glass, shadows)
+    
+    Args:
+        planarity: [N] planarity values [0, 1]
+        linearity: [N] linearity values [0, 1]
+        verticality: [N] verticality values [0, 1]
+        intensity: [N] optional intensity values [0, 1]
+    
+    Returns:
+        opening_score: [N] opening likelihood [0, 1]
+    """
+    # Low planarity (openings are not solid surfaces)
+    low_planarity = 1.0 - planarity  # Invert: high score for low planarity
+    
+    # High linearity (rectangular frames)
+    high_linearity = linearity
+    
+    # On vertical surfaces (walls)
+    on_wall = verticality > 0.6
+    
+    # Combine signals
+    opening_score = low_planarity * high_linearity * on_wall.astype(np.float32)
+    
+    # Optional: use intensity to enhance detection
+    if intensity is not None:
+        # Windows often have lower intensity (glass reflects less)
+        low_intensity = 1.0 - intensity
+        opening_score = opening_score * (0.7 + 0.3 * low_intensity)
+    
+    return opening_score.astype(np.float32)
+
+
+def compute_structural_element_score(
+    linearity: np.ndarray,
+    verticality: np.ndarray,
+    anisotropy: np.ndarray,
+    height: np.ndarray
+) -> np.ndarray:
+    """
+    Compute score for structural elements (pillars, columns, beams).
+    
+    Structural elements are characterized by:
+    - High linearity (linear/cylindrical shape)
+    - Often vertical (pillars, columns)
+    - High anisotropy (organized structure)
+    - Significant height (load-bearing elements)
+    
+    Args:
+        linearity: [N] linearity values [0, 1]
+        verticality: [N] verticality values [0, 1]
+        anisotropy: [N] anisotropy values [0, 1]
+        height: [N] height above ground in meters
+    
+    Returns:
+        structural_score: [N] structural element likelihood [0, 1]
+    """
+    # High linearity (columns, beams)
+    linear_component = linearity
+    
+    # Vertical orientation (most structural elements)
+    vertical_component = verticality
+    
+    # Organized structure (not random)
+    structure_component = anisotropy
+    
+    # Elevated (not ground level)
+    height_component = np.clip(height / 5.0, 0, 1)
+    
+    # Combine (multiplicative)
+    structural_score = (
+        linear_component * 
+        vertical_component * 
+        structure_component * 
+        height_component
+    )
+    
+    return structural_score.astype(np.float32)
 
 
 def compute_height_above_ground(points: np.ndarray,

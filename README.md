@@ -8,13 +8,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 2.5.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 2.5.1** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
 **Transform IGN LiDAR HD point clouds into ML-ready datasets for building classification**
 
-[Quick Start](#-quick-start) • [What's New](#-whats-new-in-v250) • [Features](#-key-features) • [Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) • [Examples](#-usage-examples)
+[Quick Start](#-quick-start) • [What's New](#-whats-new-in-v251) • [Features](#-key-features) • [Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) • [Examples](#-usage-examples)
 
 </div>
 
@@ -34,11 +34,15 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ---
 
-## ✨ What's New in v2.5.0
+## ✨ What's New in v2.5.1
 
-### 🎉 Major Release: System Consolidation & Modernization
+### 📦 Maintenance Release
 
-**v2.5.0 represents a complete internal modernization while maintaining 100% backward compatibility!**
+**v2.5.1 is a maintenance release with documentation improvements and updates.**
+
+#### Recent Updates (v2.5.0)
+
+**v2.5.0 represented a complete internal modernization while maintaining 100% backward compatibility!**
 
 #### Unified Feature System ✨
 
@@ -244,31 +248,49 @@ dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 ---
 
-## 🎓 Feature Modes (LOD2 vs LOD3 vs Full)
+## 🎓 Feature Modes
+
+IGN LiDAR HD supports multiple feature computation modes optimized for different use cases:
+
+### Minimal Mode (4 features) - Ultra-Fast
+
+**Best for:** Quick processing, classification updates, minimal computation
+
+**Features:** normal_z, planarity, height_above_ground, density
+
+**Performance:** ⚡⚡⚡⚡⚡ Fastest (~5s per 1M points)
 
 ### LOD2 Mode (12 features) - Fast Training
 
 **Best for:** Basic building classification, quick prototyping, baseline models
 
-**Features:** XYZ, normal_z, planarity, linearity, height, verticality, RGB, NDVI
+**Features:** XYZ (3), normal_z, planarity, linearity, height, verticality, RGB (3), NDVI
 
 **Performance:** ~15s per 1M points (CPU), fast convergence
 
-### LOD3 Mode (38 features) - Detailed Modeling
+### LOD3 Mode (37 features) - Detailed Modeling
 
 **Best for:** Architectural modeling, fine structure detection, research
 
-**Additional Features:** Complete normals (3), eigenvalues (5), curvature (2), shape descriptors (6), height features (3), building scores (3), density features (5), architectural features (4)
+**Features:** Complete normals (3), eigenvalues (5), curvature (2), shape descriptors (6), height features (2), building scores (3), density features (4), architectural features (4), spectral (5)
 
 **Performance:** ~45s per 1M points (CPU), best accuracy
 
-### Full Mode (43+ features) - Complete Feature Set
+### Full Mode (37+ features) - Complete Feature Set
 
 **Best for:** Research, feature analysis, maximum information extraction
 
-**All Features:** Everything from LOD3 plus additional height variants (z_absolute, z_from_ground, z_from_median), distance_to_center, local_roughness, horizontality
+**All Features:** All LOD3 features plus any additional computed features
 
 **Performance:** ~50s per 1M points (CPU), complete geometric description
+
+**Usage:**
+
+```yaml
+features:
+  mode: minimal # or lod2, lod3, full, custom
+  k_neighbors: 10
+```
 
 **Output Format:**
 
@@ -323,25 +345,32 @@ Each patch is saved as NPZ with:
 
 ### Quick Links
 
-- [📖 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+- **[📖 Complete Documentation Index](DOCUMENTATION.md)** - Full documentation navigation
+- [📖 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) - Online documentation site
 - [🚀 Installation Guide](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/installation/quick-start)
-- [⚡ GPU Setup](GPU_SETUP.md)
-- [🎯 Quick Reference](QUICK_REFERENCE.md)
-- [🗺️ QGIS Integration](docs/guides/QUICK_START_QGIS.md)
+- [📋 Testing Guide](TESTING.md) - Test suite and development testing
+- [📝 Changelog](CHANGELOG.md) - Version history and release notes
 
-### Examples & Workflows
+### User Guides
 
-- `examples/` - Python usage examples and configuration templates
-- `examples/config_lod2_simplified_features.yaml` - Fast LOD2 training (12 features)
-- `examples/config_lod3_full_features.yaml` - Detailed LOD3 modeling (38 features)
-- `examples/config_complete.yaml` - Full mode with all 43+ features
-- `examples/config_multiscale_hybrid.yaml` - Multi-scale adaptive features
-- [PyTorch Integration](examples/pytorch_dataloader.py)
-- [Parallel Processing](examples/parallel_processing_example.py)
+Located in **[docs/guides/](docs/guides/)**:
+
+- [ASPRS Classification Guide](docs/guides/ASPRS_CLASSIFICATION_GUIDE.md) - Complete ASPRS standards
+- [Building Classification Guide](docs/guides/BUILDING_CLASSIFICATION_QUICK_REFERENCE.md) - Building class reference
+- [Vegetation Classification Guide](docs/guides/VEGETATION_CLASSIFICATION_GUIDE.md) - Vegetation analysis
+
+### Examples & Configuration
+
+Located in **[examples/](examples/)**:
+
+- [Example Configurations](examples/) - YAML configuration templates
+- [Versailles Configs](examples/) - LOD2, LOD3, and ASPRS examples
+- [Architectural Analysis](examples/ARCHITECTURAL_STYLES_README.md) - Style detection
+- [Multi-scale Training](examples/MULTI_SCALE_TRAINING_STRATEGY.md) - Advanced training
 
 ### Architecture & API
 
-- [System Architecture](docs/FEATURE_SYSTEM_ARCHITECTURE.md)
+- [System Architecture](docs/architecture/) - Design documentation
 - [Geometric Features Reference](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/features/geometric-features)
 - [Feature Modes Guide](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/features/feature-modes)
 - [CLI Reference](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/api/cli)
@@ -406,10 +435,10 @@ If you use this library in your research or projects, please cite:
 @software{ign_lidar_hd,
   author       = {Ducournau, Simon},
   title        = {IGN LiDAR HD Processing Library},
-  year         = {2024},
+  year         = {2025},
   publisher    = {GitHub},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {2.5.0}
+  version      = {2.5.1}
 }
 ```
 

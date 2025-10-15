@@ -108,6 +108,20 @@ def process_lidar(cfg: DictConfig) -> None:
     if cfg.stitching.enabled:
         stitching_config = OmegaConf.to_container(cfg.stitching, resolve=True)
     
+    # Extract ground truth config
+    ground_truth_config = None
+    if hasattr(cfg, 'ground_truth') and cfg.ground_truth.enabled:
+        ground_truth_config = OmegaConf.to_container(cfg.ground_truth, resolve=True)
+        logger.info("Ground truth processing: ENABLED")
+        if ground_truth_config.get('update_classification', False):
+            logger.info("  Classification update: ENABLED")
+            logger.info("  Updated tiles will be saved to: enriched/")
+        if ground_truth_config.get('use_ndvi', False):
+            logger.info("  NDVI refinement: ENABLED")
+            if ground_truth_config.get('fetch_rgb_nir', False):
+                logger.info("  RGB/NIR fetching: ENABLED (from IGN orthophotos)")
+        logger.info(f"  Cache directory: {ground_truth_config.get('cache_dir', 'data/cache/ground_truth')}")
+    
     # Initialize processor
     logger.info("Initializing LiDAR processor...")
     
@@ -124,10 +138,13 @@ def process_lidar(cfg: DictConfig) -> None:
         patch_overlap=cfg.processor.patch_overlap,
         num_points=cfg.processor.num_points,
         include_extra_features=cfg.features.include_extra,
+        feature_mode=cfg.features.mode,  # Pass feature mode from config
         k_neighbors=cfg.features.k_neighbors,
         include_rgb=cfg.features.use_rgb,
         include_infrared=cfg.features.use_infrared,
         compute_ndvi=cfg.features.compute_ndvi,
+        include_architectural_style=OmegaConf.select(cfg, "features.include_architectural_style", default=False),
+        style_encoding=OmegaConf.select(cfg, "features.style_encoding", default="constant"),
         use_gpu=cfg.processor.use_gpu,
         preprocess=cfg.preprocess.enabled,
         preprocess_config=preprocess_config,
@@ -136,6 +153,7 @@ def process_lidar(cfg: DictConfig) -> None:
         stitching_config=stitching_config,
         architecture=OmegaConf.select(cfg, "processor.architecture", default="pointnet++"),
         output_format=OmegaConf.select(cfg, "output.format", default="npz"),
+        ground_truth_config=ground_truth_config,
     )
     
     # Process

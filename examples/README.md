@@ -1,216 +1,109 @@
-# Example Configuration Files
+# Configuration Examples
 
-This directory contains example configuration files for common use cases with IGN LiDAR HD.
+**Last Updated:** October 15, 2025
 
-## 🎯 Multi-Scale Training
+This directory contains example configurations and helper scripts for the IGN LiDAR HD processing library.
 
-**Train hybrid models on multiple patch sizes for robust LOD3 classification:**
+## 🚀 Quick Start
 
-```bash
-# Option 1: Automated pipeline (recommended)
-./examples/run_multiscale_training.sh
-
-# Option 2: Generate scales individually
-ign-lidar-hd process --config-file examples/config_lod3_training_50m.yaml   # Fine details
-ign-lidar-hd process --config-file examples/config_lod3_training_100m.yaml  # Balanced
-ign-lidar-hd process --config-file examples/config_lod3_training_150m.yaml  # Full context
-
-# Option 3: Merge multi-scale datasets
-python examples/merge_multiscale_dataset.py --output patches_multiscale
-```
-
-📚 **See [MULTI_SCALE_TRAINING_STRATEGY.md](MULTI_SCALE_TRAINING_STRATEGY.md) for complete guide**
-
-### Available Multi-Scale Configs
-
-- **`config_lod3_training_50m.yaml`** - 50m patches (24k points) for fine architectural details
-- **`config_lod3_training_100m.yaml`** - 100m patches (32k points) for balanced context
-- **`config_lod3_training_150m.yaml`** - 150m patches (32k points) for full building context
-
----
-
-## 📝 Available Examples
-
-### 1. `config_gpu_processing.yaml` - GPU-Accelerated Processing
-
-Fast processing with GPU acceleration for enriched LAZ creation.
-
-**Use case:** GIS analysis with GPU hardware
-
-**Features:**
-
-- GPU acceleration enabled
-- Enriched LAZ output only (no patches)
-- Full feature computation including RGB and NDVI
-
-**Usage:**
+All configurations use Hydra. Run commands from the repository root:
 
 ```bash
-ign-lidar-hd process \
-  --config-file examples/config_gpu_processing.yaml \
-  input_dir=/path/to/raw \
-  output_dir=/path/to/enriched
+ign-lidar-hd process experiment=EXPERIMENT_NAME input_dir=... output_dir=...
 ```
 
----
-
-### 2. `config_training_dataset.yaml` - ML Training Dataset
-
-Create ML-ready patches with augmentation for training deep learning models.
-
-**Use case:** Training PointNet++, transformers, etc.
-
-**Features:**
-
-- Data augmentation (5x per patch)
-- Preprocessing enabled (outlier removal)
-- Tile stitching for boundary consistency
-- Normalized features for deep learning
-
-**Usage:**
+**See available experiments:**
 
 ```bash
-ign-lidar-hd process \
-  --config-file examples/config_training_dataset.yaml \
-  input_dir=/path/to/raw \
-  output_dir=/path/to/training
+ign-lidar-hd info
 ```
 
----
+## 📂 Directory Contents
 
-### 3. `config_quick_enrich.yaml` - Quick LAZ Enrichment
+### ✅ Active Example Configs
+- `config_architectural_analysis.yaml` - Architectural style analysis example
+- `config_architectural_training.yaml` - Training with architectural features
 
-Fastest option for adding features to LAZ files (GIS workflows).
+### 📜 Python Examples  
+- `example_architectural_styles.py` - Architectural style detection API demo
+- `test_ground_truth_module.py` - Ground truth integration example
 
-**Use case:** Quick feature enrichment for QGIS/CloudCompare
+### 🔧 Utilities
+- `merge_multiscale_dataset.py` - Merge multi-scale patches
+- `run_multiscale_training.sh` - Multi-scale training workflow
 
-**Features:**
+### 📚 Documentation
+- `ARCHITECTURAL_CONFIG_REFERENCE.md`
+- `ARCHITECTURAL_STYLES_README.md`  
+- `MULTISCALE_QUICK_REFERENCE.md`
+- `MULTI_SCALE_TRAINING_STRATEGY.md`
 
-- Minimal features (fastest)
-- No preprocessing or stitching
-- Enriched LAZ output only
+### 🗄️ Archive
+- `archive/` - Legacy configs (see [archive/README.md](archive/README.md))
+- `archive/OLD_README.md` - Previous version of this file
 
-**Usage:**
+## 🎯 Common Experiments
+
+### Building Classification
 
 ```bash
-ign-lidar-hd process \
-  --config-file examples/config_quick_enrich.yaml \
-  input_dir=/path/to/raw \
-  output_dir=/path/to/enriched
+# LOD2 (simple)
+ign-lidar-hd process experiment=buildings_lod2 input_dir=data/raw output_dir=data/lod2
+
+# LOD3 (detailed)
+ign-lidar-hd process experiment=buildings_lod3 input_dir=data/raw output_dir=data/lod3
 ```
 
----
-
-### 4. `config_complete.yaml` - Complete Workflow
-
-Create both ML patches AND enriched LAZ files.
-
-**Use case:** Research projects needing both outputs
-
-**Features:**
-
-- Both patches and enriched LAZ
-- Full preprocessing and stitching
-- RGB, NIR, and NDVI computation
-
-**Usage:**
+### Multi-Scale Datasets
 
 ```bash
-# Edit paths in the file first, then:
-ign-lidar-hd process --config-file examples/config_complete.yaml
+# 50m patches (fine details)
+ign-lidar-hd process experiment=dataset_50m input_dir=data/raw output_dir=data/50m
 
-# Or override paths:
-ign-lidar-hd process \
-  --config-file examples/config_complete.yaml \
-  input_dir=/path/to/raw \
-  output_dir=/path/to/output
+# 100m patches (balanced)
+ign-lidar-hd process experiment=dataset_100m input_dir=data/raw output_dir=data/100m
+
+# 150m patches (full context)  
+ign-lidar-hd process experiment=dataset_150m input_dir=data/raw output_dir=data/150m
 ```
 
----
-
-## 🛠️ Customizing Configurations
-
-### Preview Before Running
-
-Always preview your config before processing:
+### Special Cases
 
 ```bash
-ign-lidar-hd process \
-  --config-file examples/config_training_dataset.yaml \
-  --show-config
+# Fast testing
+ign-lidar-hd process experiment=fast input_dir=data/test output_dir=data/output
+
+# With ground truth
+ign-lidar-hd process experiment=ground_truth_patches input_dir=data/enriched output_dir=data/gt
+
+# Classify enriched tiles
+ign-lidar-hd process experiment=classify_enriched_tiles input_dir=data/enriched output_dir=data/classified
 ```
 
-### Override Any Parameter
-
-CLI overrides have the highest priority:
+## 🎨 Overriding Parameters
 
 ```bash
-ign-lidar-hd process \
-  --config-file examples/config_training_dataset.yaml \
-  processor.use_gpu=true \
-  processor.num_workers=8 \
-  output.processing_mode=both
+# Change patch size
+ign-lidar-hd process experiment=buildings_lod3 processor.patch_size=75 input_dir=... output_dir=...
+
+# Enable GPU
+ign-lidar-hd process experiment=buildings_lod2 processor.use_gpu=true input_dir=... output_dir=...
+
+# Multiple overrides
+ign-lidar-hd process experiment=buildings_lod3 \
+  processor.patch_size=80 \
+  processor.num_points=32768 \
+  features.k_neighbors=25 \
+  input_dir=... output_dir=...
 ```
-
-### Create Your Own
-
-Copy an example and modify it:
-
-```bash
-cp examples/config_training_dataset.yaml my_project_config.yaml
-vim my_project_config.yaml
-
-# Then use it:
-ign-lidar-hd process --config-file my_project_config.yaml
-```
-
----
-
-## 📊 Configuration Precedence
-
-Settings are applied in this order (highest priority last):
-
-1. **Package defaults** - Built-in defaults from `ign_lidar/configs/`
-2. **Custom config file** - Your file specified with `--config-file`
-3. **CLI overrides** - Command-line `key=value` arguments
-
-Example:
-
-```bash
-# Custom file sets num_workers=4, override to 8
-ign-lidar-hd process \
-  -c examples/config_training_dataset.yaml \
-  processor.num_workers=8  # This wins!
-```
-
----
-
-## 🎯 Quick Reference
-
-| Config File                    | Mode          | GPU | Augment | Best For    |
-| ------------------------------ | ------------- | --- | ------- | ----------- |
-| `config_gpu_processing.yaml`   | enriched_only | ✅  | ❌      | GIS + GPU   |
-| `config_training_dataset.yaml` | patches_only  | ❌  | ✅      | ML training |
-| `config_quick_enrich.yaml`     | enriched_only | ❌  | ❌      | Fast GIS    |
-| `config_complete.yaml`         | both          | ❌  | ❌      | Everything  |
-
----
-
-## 💡 Tips
-
-1. **Start with an example** - Copy and modify rather than creating from scratch
-2. **Preview first** - Always use `--show-config` before processing
-3. **Use overrides** - Keep configs generic, set paths via CLI
-4. **Version control** - Commit your custom configs to track experiments
-
----
 
 ## 🔗 See Also
 
-- [Main Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
-- [Feature Modes Guide](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/features/feature-modes)
-- [CLI Reference](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/api/cli)
+- **Full docs:** https://sducournau.github.io/IGN_LIDAR_HD_DATASET/
+- **Config reference:** ../ign_lidar/configs/README.md
+- **Archived configs:** [archive/README.md](archive/README.md)
+- **Consolidation plan:** [../CONFIG_CONSOLIDATION_PLAN.md](../CONFIG_CONSOLIDATION_PLAN.md)
 
 ---
 
-_Example configuration files for IGN LiDAR HD v2.4.2_
+**📖 For detailed examples and full documentation, see the comprehensive guide in ign_lidar/configs/README.md**

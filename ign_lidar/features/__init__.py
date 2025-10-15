@@ -24,6 +24,13 @@ from .features import (
     compute_density_features,
     compute_verticality,
     compute_building_scores,
+    # NEW: Enhanced geometric features for building classification
+    compute_horizontality,
+    compute_edge_strength,
+    compute_facade_score,
+    compute_roof_plane_score,
+    compute_opening_likelihood,
+    compute_structural_element_score,
 )
 from .factory import (
     FeatureComputerFactory,
@@ -36,6 +43,12 @@ from .architectural_styles import (
     ARCHITECTURAL_STYLES,
     STYLE_NAME_TO_ID,
     CHARACTERISTIC_TO_STYLE,
+    get_tile_architectural_style,
+    get_patch_architectural_style,
+    compute_architectural_style_features,
+    get_architectural_style_id,
+    get_style_name,
+    infer_multi_styles_from_characteristics,
 )
 from .feature_modes import (
     FeatureMode,
@@ -60,6 +73,13 @@ __all__ = [
     'compute_density_features',
     'compute_verticality',
     'compute_building_scores',
+    # NEW: Enhanced geometric features for building classification
+    'compute_horizontality',
+    'compute_edge_strength',
+    'compute_facade_score',
+    'compute_roof_plane_score',
+    'compute_opening_likelihood',
+    'compute_structural_element_score',
     # Factory
     'FeatureComputerFactory',
     'BaseFeatureComputer',
@@ -69,6 +89,12 @@ __all__ = [
     'ARCHITECTURAL_STYLES',
     'STYLE_NAME_TO_ID',
     'CHARACTERISTIC_TO_STYLE',
+    'get_tile_architectural_style',
+    'get_patch_architectural_style',
+    'compute_architectural_style_features',
+    'get_architectural_style_id',
+    'get_style_name',
+    'infer_multi_styles_from_characteristics',
     # Feature modes
     'FeatureMode',
     'FeatureSet',

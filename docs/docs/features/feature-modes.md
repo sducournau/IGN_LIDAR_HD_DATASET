@@ -11,13 +11,17 @@ Choose the right feature set for your machine learning application. IGN LiDAR HD
 
 ## 🎯 Feature Modes Overview
 
-| Mode        | Features | Speed    | Use Case                        | v2.4.3+ Export |
-| ----------- | -------- | -------- | ------------------------------- | -------------- |
-| **minimal** | ~8       | ⚡⚡⚡⚡ | Quick prototyping               | ✅ Complete    |
-| **lod2**    | ~12      | ⚡⚡⚡   | Basic building classification   | ✅ Complete    |
-| **lod3**    | ~38      | ⚡⚡     | Detailed architectural modeling | ✅ Complete    |
-| **full**    | ~43      | ⚡       | Research, complete analysis     | ✅ Complete    |
-| **custom**  | Variable | Variable | User-defined selection          | ✅ Complete    |
+| Mode        | Features | Speed      | Use Case                        | Valid Mode |
+| ----------- | -------- | ---------- | ------------------------------- | ---------- |
+| **minimal** | 4        | ⚡⚡⚡⚡⚡ | Quick updates, classification   | ✅ Yes     |
+| **lod2**    | ~12      | ⚡⚡⚡⚡   | Basic building classification   | ✅ Yes     |
+| **lod3**    | ~37      | ⚡⚡       | Detailed architectural modeling | ✅ Yes     |
+| **full**    | ~37+     | ⚡         | Research, complete analysis     | ✅ Yes     |
+| **custom**  | Variable | Variable   | User-defined selection          | ✅ Yes     |
+
+:::warning Invalid Mode Values
+**Only use the mode values listed above!** Invalid values like `core` will cause the system to default to `lod3` mode (37 features), which may be slower than intended.
+:::
 
 :::info v2.4.3 Feature Export Fix
 **All computed features are now saved to disk!** Previous versions (< 2.4.3) only exported 12 features even when computing 35+. Regenerate datasets for complete feature sets.
@@ -26,6 +30,38 @@ Choose the right feature set for your machine learning application. IGN LiDAR HD
 ---
 
 ## 📊 Feature Set Details
+
+### Minimal Mode (4 features)
+
+**Ultra-fast processing with essential features only:**
+
+```yaml
+features:
+  mode: minimal
+  k_neighbors: 10
+```
+
+**Feature List:**
+
+- **Normals (1)**: `normal_z` - verticality indicator
+- **Shape (1)**: `planarity` - main shape descriptor
+- **Height (1)**: `height_above_ground` - essential for building detection
+- **Density (1)**: `density` - local point density
+
+**Performance:**
+
+- Processing: ~5s per 1M points (CPU)
+- Training: Extremely fast
+- Memory: ~50 MB per 1M points
+
+**Best For:**
+
+- Classification updates only
+- Quick tile processing
+- When you don't need detailed features
+- Rapid prototyping
+
+---
 
 ### LOD2 Mode (12 features)
 
@@ -39,13 +75,12 @@ features:
 
 **Feature List:**
 
-- **Normals (3)**: `normal_x`, `normal_y`, `normal_z`
-- **Shape (3)**: `planarity`, `linearity`, `sphericity`
+- **Coordinates (3)**: `xyz` - point coordinates
+- **Normals (1)**: `normal_z` - verticality indicator
+- **Shape (2)**: `planarity`, `linearity`
 - **Height (1)**: `height_above_ground`
-- **Building (2)**: `verticality`, `wall_score`
-- **Density (1)**: `density`
-- **Curvature (1)**: `curvature`
-- **Radiometric (Optional)**: RGB (3), NIR (1), NDVI (1)
+- **Building (1)**: `verticality`
+- **Radiometric (5)**: RGB (3), NDVI (1)
 
 **Performance:**
 
@@ -62,7 +97,7 @@ features:
 
 ---
 
-### LOD3 Mode (38 features)
+### LOD3 Mode (37 features)
 
 **Complete feature set for detailed architectural modeling:**
 
@@ -70,10 +105,13 @@ features:
 features:
   mode: lod3
   k_neighbors: 30
-  include_extra: true
 ```
 
 **Complete Feature List:**
+
+**Coordinates (3):**
+
+- `xyz` - X, Y, Z point coordinates
 
 **Normals (3):**
 
@@ -93,17 +131,17 @@ features:
 - `eigenvalue_1`, `eigenvalue_2`, `eigenvalue_3`
 - `sum_eigenvalues`, `eigenentropy`
 
-**Height Features (3):**
+**Height Features (2):**
 
-- `height_above_ground`, `vertical_std`, `z_normalized`
+- `height_above_ground`, `vertical_std`
 
 **Building Scores (3):**
 
 - `verticality`, `wall_score`, `roof_score`
 
-**Density Features (5):**
+**Density Features (4):**
 
-- `density`, `local_density`, `num_points_2m`
+- `density`, `num_points_2m`
 - `neighborhood_extent`, `height_extent_ratio`
 
 **Architectural Features (4):**
@@ -111,7 +149,7 @@ features:
 - `edge_strength`, `corner_likelihood`
 - `overhang_indicator`, `surface_roughness`
 
-**Radiometric (Optional):**
+**Radiometric (5):**
 
 - RGB (3): `red`, `green`, `blue`
 - Infrared (2): `nir`, `ndvi`
@@ -131,41 +169,31 @@ features:
 
 ---
 
-### Full Mode (43+ features)
+### Full Mode (37+ features)
 
-**Complete feature set for research and analysis:**
+**Complete feature set for research and analysis (same as LOD3 plus any additional features):**
 
 ```yaml
 features:
   mode: full
-  include_extra: true
-  compute_all: true
 ```
 
-**All Features (beyond LOD3):**
+**All Features:**
 
-**Additional Height Variants (3):**
+Same as LOD3 mode (37 features), with all available features computed. This mode ensures you get every feature the system can compute, including any future additions.
 
-- `z_absolute`, `z_from_ground`, `z_from_median` - multiple height normalizations
+**Output Format:**
 
-**Additional Geometric (2):**
-
-- `distance_to_center` - radial distance from patch center
-- `local_roughness` - fine-scale surface variation
-- `horizontality` - complement to verticality
-
-**Output Format (v2.4.2+):**
-
-- **NPZ/HDF5/PyTorch**: Full 43+ feature matrix
-- **LAZ**: All 35+ features as extra dimensions
+- **NPZ/HDF5/PyTorch**: Full feature matrix with all computed features
+- **LAZ**: All features as extra dimensions
 - **Metadata**: `feature_names` list, `num_features` count
 
 **Performance:**
 
 - Processing: ~50s per 1M points (CPU)
 - Training: Complete geometric description
-- Memory: ~700 MB per 1M points
-- File Size: ~3-4x larger than LOD2 (worth it for completeness)
+- Memory: ~600 MB per 1M points
+- File Size: ~3-4x larger than minimal mode
 
 **Best For:**
 
@@ -174,10 +202,7 @@ features:
 - Feature importance studies
 - Complete geometric characterization
 - GIS visualization (all features in LAZ)
-
-:::tip Feature Export Guarantee
-All computed features are now exported! Previous versions (< 2.4.2) only saved 12 features despite computing 43+. Upgrade and regenerate datasets for complete feature access.
-:::
+- When you want future features automatically included
 
 ---
 

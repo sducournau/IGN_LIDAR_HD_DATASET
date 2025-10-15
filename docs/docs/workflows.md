@@ -204,6 +204,10 @@ graph TB
 
 Understanding how building components are classified into LOD levels.
 
+:::tip Classification Schema
+LOD2/LOD3 use a **building-focused classification** where buildings are Class 0 (`wall`), ground is Class 9, etc. This differs from ASPRS standards. See [Classification Taxonomy](./reference/classification-taxonomy.md) for details.
+:::
+
 ```mermaid
 flowchart LR
     Input[Point Cloud Input] --> Classify{Classification Type}
@@ -212,11 +216,11 @@ flowchart LR
     Classify -->|LOD3| LOD3_Process[LOD3 Processing<br/>30+ Classes]
 
     subgraph "LOD2 Classes"
-        LOD2_1[Ground]
-        LOD2_2[Building]
-        LOD2_3[Vegetation]
-        LOD2_4[Water]
-        LOD2_5[Bridge]
+        LOD2_1[0: Wall]
+        LOD2_2[9: Ground]
+        LOD2_3[10/11: Vegetation]
+        LOD2_4[12: Water]
+        LOD2_5[14: Other]
         LOD2_More[...]
     end
 

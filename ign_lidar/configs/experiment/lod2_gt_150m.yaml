@@ -1,0 +1,123 @@
+# @package _global_
+
+# ⚠️ DEPRECATED: Use lod2_ground_truth with processor.patch_size=150 instead
+#
+# This config is maintained for backward compatibility but is superseded by:
+#   ign-lidar-hd process experiment=lod2_ground_truth \
+#     processor.patch_size=150 \
+#     processor.num_points=24576 \
+#     features.k_neighbors=25 \
+#     stitching.buffer_size=15.0 \
+#     input_dir=data/raw output_dir=data/lod2_gt_150m
+
+# LOD2 Multi-Scale Training - 150m Patches with Ground Truth
+# Purpose: Full-context LOD2 classification with improved ground truth
+# Optimal for: Large buildings, campus layouts, complete building context
+
+defaults:
+  - override /processor: default
+  - override /features: full
+  - override /preprocess: default
+  - override /ground_truth: update_classification
+  - override /stitching: enhanced
+  - override /output: patches_only
+
+# Dataset configuration for 150m patches
+dataset:
+  enabled: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  random_seed: 42
+  split_by_tile: true
+  create_split_dirs: true
+  patch_sizes: [150] # Full context patches
+  balance_across_sizes: false
+
+# Ground Truth - Improved Classification Before Training
+ground_truth:
+  enabled: true
+  update_classification: true
+
+  # IGN BD TOPO® features
+  include_buildings: true
+  include_roads: true
+  include_water: true
+  include_vegetation: true
+
+  # NDVI refinement
+  use_ndvi: true
+  fetch_rgb_nir: true
+  ndvi_vegetation_threshold: 0.3
+  ndvi_building_threshold: 0.15
+
+  # Caching
+  cache_dir: data/cache/ground_truth_150m
+  save_ground_truth_vectors: true
+  save_updated_tiles: true
+
+# Processor configuration for 150m patches
+processor:
+  lod_level: LOD2
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 2
+  patch_size: 150.0 # Full building context
+  patch_overlap: 0.10 # Lower overlap for large patches
+  num_points: 32768 # Full PointNet++ capacity
+  augment: true
+  num_augmentations: 3
+  pin_memory: true
+  processing_mode: patches_only
+  skip_existing: true
+
+# Features optimized for 150m scale
+features:
+  mode: full
+  k_neighbors: 30 # Larger neighborhood for context
+  search_radius: 3.0 # Appropriate for 150m patches
+  include_extra: true
+
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+
+  # Geometric features for LOD2
+  compute_normals: true
+  compute_curvature: true
+  compute_eigenfeatures: true
+
+  sampling_method: fps
+  normalize_xyz: true
+  normalize_features: true
+
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+
+# Preprocessing
+preprocess:
+  enabled: true
+  sor_k: 12
+  sor_std: 2.0
+  ror_radius: 1.0
+  ror_neighbors: 4
+  voxel_enabled: false
+
+# Stitching
+stitching:
+  enabled: true
+  buffer_size: 15.0 # 15m buffer for 150m patches
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+
+# Output
+output:
+  format: npz,laz
+  processing_mode: patches_only
+  save_stats: true
+  save_metadata: true
+  compression: null
+
+log_level: INFO
+verbose: true

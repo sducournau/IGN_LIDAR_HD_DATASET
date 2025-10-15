@@ -429,7 +429,7 @@ class GPUChunkedFeatureComputer:
             global_indices = local_indices + tree_start
             
             # Compute normals for this chunk
-            if cp is not None:
+            if self.use_gpu and cp is not None:
                 global_indices_gpu = cp.asarray(global_indices)
             else:
                 global_indices_gpu = global_indices
@@ -739,12 +739,12 @@ class GPUChunkedFeatureComputer:
                         points_gpu[start_idx:end_idx]
                     )
                     distances, indices = knn.kneighbors(chunk_points_cpu)
-                    if cp is not None:
+                    if self.use_gpu and cp is not None:
                         indices = cp.asarray(indices)
                 
                 # Compute curvature for chunk (VECTORIZED)
                 # Get neighbor normals: [chunk_size, k, 3]
-                if cp is not None and isinstance(normals_gpu, cp.ndarray):
+                if self.use_gpu and cp is not None and isinstance(normals_gpu, cp.ndarray):
                     xp = cp
                     # [chunk_size, k, 3]
                     neighbor_normals = normals_gpu[indices]
@@ -848,7 +848,7 @@ class GPUChunkedFeatureComputer:
             
             # Compute curvature (VECTORIZED)
             # Get neighbor normals for all points at once: [chunk_size, k, 3]
-            if cp is not None and isinstance(normals_gpu, cp.ndarray):
+            if self.use_gpu and cp is not None and isinstance(normals_gpu, cp.ndarray):
                 neighbor_normals = cp.asnumpy(
                     normals_gpu[global_indices]
                 )  # [chunk_size, k, 3]
@@ -1337,7 +1337,7 @@ class GPUChunkedFeatureComputer:
             global_indices = local_indices + tree_start
             
             # Compute normals for this chunk
-            if cp is not None:
+            if self.use_gpu and cp is not None:
                 global_indices_gpu = cp.asarray(global_indices)
             else:
                 global_indices_gpu = global_indices
@@ -1348,7 +1348,7 @@ class GPUChunkedFeatureComputer:
             normals[start_idx:end_idx] = self._to_cpu(chunk_normals)
             
             # Compute curvature for this chunk (using chunk normals)
-            if cp is not None and isinstance(chunk_normals, cp.ndarray):
+            if self.use_gpu and cp is not None and isinstance(chunk_normals, cp.ndarray):
                 normals_for_curv = cp.asnumpy(chunk_normals)
                 # Need to get neighbor normals from already computed normals
                 # For first chunk, use chunk normals; for later, use results

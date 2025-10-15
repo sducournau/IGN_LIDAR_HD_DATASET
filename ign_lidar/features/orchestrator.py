@@ -328,14 +328,21 @@ class FeatureOrchestrator:
         - CUSTOM: User-defined selection
         """
         features_cfg = self.config.get('features', {})
-        mode_str = features_cfg.get('mode', 'full')
+        # Check both 'mode' (Hydra configs) and 'feature_mode' (legacy kwargs)
+        mode_str = features_cfg.get('mode') or features_cfg.get('feature_mode', 'lod2')
+        
+        # Debug: Log the mode being loaded (with full config inspection)
+        logger.info(f"🔍 DEBUG: features_cfg = {dict(features_cfg)}")
+        logger.info(f"🔍 DEBUG: mode_str = '{mode_str}' (type: {type(mode_str).__name__})")
         
         # Parse mode
         try:
             if isinstance(mode_str, FeatureMode):
                 self.feature_mode = mode_str
+                logger.info(f"🔍 DEBUG: mode_str is already a FeatureMode: {self.feature_mode}")
             else:
                 self.feature_mode = FeatureMode(mode_str.lower())
+                logger.info(f"🔍 DEBUG: Parsed mode string '{mode_str}' to {self.feature_mode}")
         except ValueError:
             logger.warning(f"Invalid feature mode '{mode_str}', using FULL")
             self.feature_mode = FeatureMode.FULL
@@ -368,14 +375,14 @@ class FeatureOrchestrator:
         if self.feature_config.requires_rgb:
             if has_rgb_fetcher or self.use_rgb:
                 logger.info("   ✓ RGB channels enabled (will use from input LAZ or fetch if needed)")
-            else:
-                logger.warning("   ⚠️  RGB channels required but RGB fetcher not available")
+            elif has_rgb_fetcher is False and not self.use_rgb:
+                logger.debug("   ⚠️  RGB channels required but RGB fetcher not available (will attempt to load from LAZ)")
         
         if self.feature_config.requires_nir:
             if has_nir_fetcher or self.use_infrared:
                 logger.info("   ✓ NIR channel enabled (will use from input LAZ or fetch if needed)")
-            else:
-                logger.warning("   ⚠️  NIR channel required but NIR fetcher not available")
+            elif has_nir_fetcher is False and not self.use_infrared:
+                logger.debug("   ⚠️  NIR channel required but NIR fetcher not available (will attempt to load from LAZ)")
     
     def validate_mode(self, mode: FeatureMode) -> bool:
         """
@@ -433,6 +440,19 @@ class FeatureOrchestrator:
         # Always keep core features regardless of mode
         core_features = {'normals', 'curvature', 'height', 'intensity', 'return_number'}
         allowed_features.update(core_features)
+        
+        # Handle spectral features: if mode defines 'red', 'green', 'blue' individually,
+        # also allow 'rgb' as a combined feature (and vice versa)
+        if 'red' in allowed_features or 'green' in allowed_features or 'blue' in allowed_features:
+            allowed_features.add('rgb')
+        if 'rgb' in allowed_features:
+            allowed_features.update(['red', 'green', 'blue'])
+        
+        # Same for NIR and NDVI
+        if 'nir' in allowed_features or self.use_infrared:
+            allowed_features.add('nir')
+        if 'ndvi' in allowed_features or (self.use_rgb and self.use_infrared):
+            allowed_features.add('ndvi')
         
         # Filter
         filtered = {
@@ -585,16 +605,18 @@ class FeatureOrchestrator:
         
         k_neighbors = features_cfg.get('k_neighbors')
         search_radius = features_cfg.get('search_radius', None)
-        include_extra = processor_cfg.get('include_extra_features', True)
         
-        feature_mode = "FULL" if include_extra else "CORE"
+        # Derive include_extra from feature mode (not from config)
+        # Only MINIMAL mode should exclude extra features
+        include_extra = self.feature_mode != FeatureMode.MINIMAL
+        
         k_display = k_neighbors if k_neighbors else "auto"
         
         # Log search strategy
         if search_radius is not None and search_radius > 0:
-            logger.info(f"  🔧 Computing features | radius={search_radius:.2f}m (avoids scan line artifacts) | mode={feature_mode}")
+            logger.info(f"  🔧 Computing features | radius={search_radius:.2f}m (avoids scan line artifacts) | mode={self.feature_mode.value}")
         else:
-            logger.info(f"  🔧 Computing features | k={k_display} | mode={feature_mode}")
+            logger.info(f"  🔧 Computing features | k={k_display} | mode={self.feature_mode.value}")
         
         feature_start = time.time()
         
@@ -671,7 +693,7 @@ class FeatureOrchestrator:
         if self.rgb_fetcher is not None:
             try:
                 points = tile_data['points']
-                rgb = self.rgb_fetcher.fetch_rgb_for_points(points)
+                rgb = self.rgb_fetcher.augment_points_with_rgb(points)
                 if rgb is not None:
                     all_features['rgb'] = rgb
                     logger.info("  ✓ Fetched RGB from IGN orthophotos")
@@ -710,7 +732,7 @@ class FeatureOrchestrator:
         if self.infrared_fetcher is not None:
             try:
                 points = tile_data['points']
-                nir = self.infrared_fetcher.fetch_nir_for_points(points)
+                nir = self.infrared_fetcher.augment_points_with_infrared(points)
                 if nir is not None:
                     all_features['nir'] = nir
                     logger.info("  ✓ Fetched NIR from IGN IRC")

@@ -1,26 +1,12 @@
 ---
 slug: /
-sidebar_p### v2.4.4 (2025-10-12) - Latest Release
-### LAZ Data Quality Tools & Validation
-
-- 🛠️ **Post-Processing Tools**: New `fix_enriched_laz.py` script for automated LAZ file correction
-- 🔍 **Data Quality Detection**: Identifies NDVI calculation errors, eigenvalue outliers, and derived feature corruption
-- 📊 **Diagnostic Reports**: Comprehensive analysis with root cause identification and impact assessment
-- ✅ **Automated Fixes**: Caps eigenvalues, recomputes derived features, validates results
-- 📈 **Enhanced Validation**: Improved NIR data checks and error handling in enrichment pipeline
-
-### Key Fixes
-
-- 🐛 **NDVI Calculation**: Fixed all values = -1.0 when NIR data is missing/corrupted
-- 🔢 **Eigenvalue Outliers**: Addressed extreme values (>10,000) causing ML training instability
-- 📉 **Derived Features**: Corrected cascading corruption in change_curvature, omnivariance, etc.
-- 🏷️ **Duplicate LAZ Fields**: Fixed duplicate field warnings when processing pre-enriched LAZ files
-- ⚡ **Production Ready**: Robust validation and error handling for real-world data quality issuese: IGN LiDAR HD Processing Library
+sidebar_position: 1
+title: IGN LiDAR HD Processing Library
 ---
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.5.0** | Python 3.8+ | MIT License
+**Version 2.5.1** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -32,7 +18,16 @@ Transform French IGN LiDAR HD point clouds into ML-ready datasets for building c
 
 ## 🎯 What's New
 
-### v2.5.0 (2025-10-14) - Latest Release
+### v2.5.1 (2025-10-15) - Latest Release
+
+### Maintenance & Documentation Updates
+
+- 📦 **Version Update**: Maintenance release with documentation improvements and harmonization
+- 📚 **Documentation**: Updated version references across all documentation files (README, docusaurus intro pages)
+- 🔧 **Configuration**: Updated version in conda recipe and package configuration files
+- ⚠️ **Deprecation Notices**: Updated deprecation timelines for consistency
+
+### v2.5.0 (2025-10-14)
 
 ### System Consolidation & Modernization
 
@@ -114,16 +109,19 @@ patches = processor.process_tile("data.laz", "output/")
 
 ---
 
-## ✨ Key Features
+## 🎯 Key Features
 
-### Core Processing
-
-- **🎯 Complete Feature Export** - All 35-45 computed geometric features saved to disk (v2.4.2+)
-- **🏗️ Multi-level Classification** - LOD2 (12 features), LOD3 (38 features), Full (43+ features) modes
-- **📊 Rich Geometry** - Normals, curvature, eigenvalues, shape descriptors, architectural features, building scores
-- **🎨 Optional Augmentation** - RGB from orthophotos, NIR, NDVI for vegetation analysis
-- **⚙️ Auto-parameters** - Intelligent tile analysis for optimal settings
-- **📝 Feature Tracking** - Metadata includes feature names and counts for reproducibility
+- **📥 IGN Download**: Download HD LiDAR tiles from IGN French national geoportal
+- **🎨 RGB Enhancement**: Fetch RGB colors from IGN orthophotos
+- **📡 NIR Enhancement**: Fetch near-infrared channel from IGN IRC orthophotos
+- **� NDVI Computation**: Compute vegetation indices from RGB + NIR
+- **⚙️ Feature Engineering**: Compute geometric features (normals, curvature, height, planarity, etc.)
+- **🏗️ LOD Classification**: Building-focused LOD2/LOD3 classification taxonomy
+- **🏛️ Architectural Styles**: Encode regional/historical architectural characteristics
+- **🧮 Axonometric Views**: Generate multiple viewpoint representations for 3D geometry
+- **🌐 WFS Ground Truth**: Fetch building/vegetation polygons from IGN BD TOPO® WFS service
+- **📦 Multiple Output Formats**: NPZ, PyTorch, TensorFlow, HDF5, LAZ
+- **�️ Multi-Scale Training**: Generate datasets at multiple patch sizes (50m, 100m, 150m)
 
 ### Performance
 
@@ -255,7 +253,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {ImagoData},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {2.5.0}
+  version      = {2.5.1}
 }
 ```
 

@@ -1,0 +1,160 @@
+# ========================================================================
+# Architectural Style Training Configuration
+# ========================================================================
+# Purpose: Generate ML training patches with architectural style annotations
+#
+# Key Features:
+# - Architectural style as an additional feature (13 style classes)
+# - Multi-format output: NPZ (training) + LAZ (visualization)
+# - Style inference from location metadata and building features
+# - Optimized for heritage sites and diverse urban areas
+# - One-hot encoding for style-aware deep learning models
+#
+# Supported Styles (13 classes):
+#   0: unknown, 1: classical, 2: gothic, 3: renaissance, 4: baroque,
+#   5: haussmann, 6: modern, 7: industrial, 8: vernacular, 9: art_deco,
+#   10: brutalist, 11: glass_steel, 12: fortress
+#
+# Output Example:
+#   versailles_chateau_classical_patch_0001.npz (includes style features)
+#   paris_haussmann_haussmann_patch_0042.npz
+#   carcassonne_cite_fortress_patch_0015.npz
+#
+# Usage:
+#   ign-lidar-hd process experiment=architectural_training \
+#     input_dir=/path/to/tiles output_dir=/path/to/patches
+# ========================================================================
+
+processor:
+  lod_level: LOD3 # LOD3 for detailed architectural features
+  architecture: hybrid # Hybrid architecture for best results
+  use_gpu: true
+  num_workers: 2
+
+  # Patch configuration (100m patches good for buildings)
+  patch_size: 100.0
+  patch_overlap: 0.15 # 15% overlap for better boundary coverage
+  num_points: 32768 # 32k points for detailed features
+
+  # Data augmentation for training
+  augment: true
+  num_augmentations: 3
+
+  # Architectural style configuration
+  include_architectural_style: true
+  style_encoding: onehot # One-hot encoding (13-dimensional)
+  # Options:
+  #   - constant: Single style ID per point (memory efficient, 4 bytes/point)
+  #   - onehot: 13-dimensional binary vector (52 bytes/point)
+  #   - multihot: 13-dimensional weighted vector for mixed styles (52 bytes/point)
+
+  pin_memory: true
+
+features:
+  mode: full
+  k_neighbors: 30
+  search_radius: 1.5 # Radius search reduces scan line artifacts
+  include_extra: true
+
+  # Spectral features
+  use_rgb: true
+  use_infrared: false
+  compute_ndvi: false
+
+  # Architectural style features
+  include_architectural_style: true
+  style_encoding: onehot
+  style_from_building_features: true # Infer/refine style from building geometry
+
+  # Features for style inference:
+  #   - roof_slope_mean: Average roof slope (degrees)
+  #   - wall_thickness_mean: Average wall thickness (meters)
+  #   - window_to_wall_ratio: Window area ratio
+  #   - geometric_regularity: 0-1 regularity score
+  #   - building_height: Height in meters
+  #   - footprint_area: Building footprint (m²)
+
+  # PointNet++ settings
+  sampling_method: fps # Farthest point sampling for better coverage
+  normalize_xyz: true
+  normalize_features: true
+
+  # GPU settings
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+
+preprocess:
+  enabled: true
+  sor_k: 12 # Statistical outlier removal
+  sor_std: 2.0
+  ror_radius: 1.0 # Radius outlier removal
+  ror_neighbors: 4
+  voxel_enabled: false
+  voxel_size: 0.1
+
+stitching:
+  enabled: true # Enable tile stitching for boundary features
+  buffer_size: 15.0
+  auto_detect_neighbors: true
+  auto_download_neighbors: false # Set to true to auto-download neighbors
+  cache_enabled: true
+
+output:
+  # Multi-format output
+  format: npz,laz
+  # NPZ: Includes all features + architectural style as 'architectural_style'
+  # LAZ: Includes all features as extra dimensions + style encoded
+
+  processing_mode: patches_only # patches_only, both, or enriched_only
+
+  save_stats: true # Save statistics about style distribution
+  save_metadata: true # Save patch metadata including style info
+  compression: null
+
+# ============================================================================
+# LOCATION METADATA (Optional but recommended for style detection)
+# ============================================================================
+# If processing strategic locations with known styles, the system will
+# automatically detect and apply architectural styles based on:
+#   1. Location metadata (category, characteristics)
+#   2. Building feature analysis (roof slope, height, regularity)
+#   3. Point cloud geometry analysis
+#
+# Priority: location metadata > building features > geometry analysis
+#
+# Style Confidence Scores:
+#   - 0.9+: High confidence (location metadata with characteristics)
+#   - 0.6-0.8: Medium confidence (building features or category)
+#   - 0.3-0.5: Low confidence (geometry analysis only)
+# ============================================================================
+
+# Example input/output paths
+input_dir: ??? # /path/to/heritage/tiles
+output_dir: ??? # /path/to/architectural/patches
+
+# ============================================================================
+# ARCHITECTURAL STYLE INFERENCE RULES
+# ============================================================================
+# The system uses these heuristics when building features are available:
+#
+# Traditional Rural (vernacular):
+#   - Roof slope > 45°, Wall thickness > 0.6m, Height < 12m
+#
+# Haussmannian:
+#   - Roof slope: 25-45°, Height: 15-25m, Regularity > 0.8
+#
+# Modern Glass/Steel:
+#   - Window ratio > 0.6, Height > 20m
+#
+# Contemporary Modern:
+#   - Regularity < 0.5, Height: 10-30m
+#
+# Industrial:
+#   - Footprint > 1000m², Height < 15m, High regularity
+#
+# Gothic:
+#   - Roof slope > 55°, Wall thickness > 0.8m, Height > 15m
+#
+# Renaissance/Classical:
+#   - Regularity > 0.85, Height: 12-20m, Roof slope: 35-50°
+# ============================================================================

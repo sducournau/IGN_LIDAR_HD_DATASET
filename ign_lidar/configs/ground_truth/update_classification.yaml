@@ -1,0 +1,26 @@
+# Ground Truth Configuration - With Classification Update
+#
+# Update input tile classification before processing patches
+
+# Ground truth processing
+enabled: true # Enable ground truth fetching and labeling
+update_classification: true # Update classification in input tiles before processing
+
+# WFS Feature Selection
+include_buildings: true # Include building footprints
+include_roads: true # Include road polygons (with width buffer)
+include_water: true # Include water surfaces
+include_vegetation: true # Include vegetation zones
+
+# NDVI Refinement
+use_ndvi: true # Use NDVI to refine building/vegetation labels
+fetch_rgb_nir: true # Fetch RGB and NIR from IGN orthophotos for NDVI computation
+ndvi_vegetation_threshold: 0.3 # NDVI >= value -> vegetation (adjust for environment)
+ndvi_building_threshold: 0.15 # NDVI <= value -> building (adjust for environment)
+
+# Caching
+cache_dir: data/cache/ground_truth # Cache directory for WFS data and orthophotos
+
+# Output
+save_ground_truth_vectors: true # Save fetched ground truth vectors to GeoPackage files
+save_updated_tiles: true # Save tiles with updated classification to enriched/ directory

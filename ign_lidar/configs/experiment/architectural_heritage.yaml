@@ -1,0 +1,40 @@
+# Architectural Heritage Processing Configuration
+#
+# Optimized for processing heritage sites with architectural style classification
+
+# @package _global_
+
+defaults:
+  - processor: heritage
+  - features: architectural
+  - preprocess: default
+  - stitching: enabled
+  - output: default
+  - _self_
+
+# Heritage site processing
+input_dir: ??? # Path to heritage site tiles
+output_dir: ??? # Path to output
+
+# Use LOD3 for detailed architectural features
+processor:
+  lod_level: LOD3
+  architecture: hybrid
+
+# Architectural style settings
+include_architectural_style: true
+style_encoding: onehot # One-hot encoding for ML training (13 dimensions)
+style_from_building_features: true # Refine styles using building geometry
+
+# Enhanced feature extraction for heritage
+features:
+  k_neighbors: 30
+  search_radius: 1.5
+  include_extra: true
+  use_rgb: true
+
+# Multi-format output for analysis
+output:
+  format: npz,laz
+  save_metadata: true
+  save_stats: true

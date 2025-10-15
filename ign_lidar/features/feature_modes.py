@@ -100,6 +100,16 @@ FEATURE_DESCRIPTIONS = {
     'overhang_indicator': 'Overhang/protrusion detection',
     'surface_roughness': 'Fine-scale surface texture',
     
+    # NEW: Enhanced Building Classification Features (8 features)
+    'horizontality': 'Horizontality score [0,1] - 1 for horizontal surfaces (roofs)',
+    'facade_score': 'Facade likelihood (combined vertical + planar + elevated)',
+    'flat_roof_score': 'Flat roof likelihood (horizontal + planar + elevated)',
+    'sloped_roof_score': 'Sloped roof likelihood (15-45° tilt)',
+    'steep_roof_score': 'Steep roof likelihood (45-70° tilt)',
+    'opening_likelihood': 'Window/door likelihood (low planarity + high linearity)',
+    'structural_element_score': 'Pillar/column likelihood (linear + vertical + organized)',
+    'edge_strength_enhanced': 'Enhanced edge strength from eigenvalues (λ1-λ2)/λ1',
+    
     # Spectral Features (5 features)
     'red': 'Red channel [0-255]',
     'green': 'Green channel [0-255]',
@@ -121,7 +131,7 @@ MINIMAL_FEATURES = {
     'density',            # Local point density
 }
 
-# LOD2_SIMPLIFIED: Essential features for basic building classification (~12 features)
+# LOD2_SIMPLIFIED: Essential features for basic building classification (~17 features)
 LOD2_FEATURES = {
     # Coordinates
     'xyz',                # 3 features (x, y, z)
@@ -130,17 +140,26 @@ LOD2_FEATURES = {
     'normal_z',           # Verticality indicator
     'planarity',          # Flat surface detection
     'linearity',          # Edge detection
+    'anisotropy',         # Structure detection (NEW)
     
     # Building-specific
     'height_above_ground',# Height feature
     'verticality',        # Wall detection
+    'horizontality',      # Roof detection (NEW)
+    'wall_score',         # Wall likelihood (NEW)
+    'roof_score',         # Roof likelihood (NEW)
+    
+    # Enhanced building features (NEW)
+    'facade_score',       # Facade detection
+    'flat_roof_score',    # Flat roof detection
+    'sloped_roof_score',  # Sloped roof detection
     
     # Spectral
     'red', 'green', 'blue',  # RGB colors (3 features)
     'ndvi',               # Vegetation index
-}  # Total: 12 features (xyz=3, normal_z=1, planarity=1, linearity=1, height=1, verticality=1, RGB=3, ndvi=1)
+}  # Total: 17 features (xyz=3, geometric=4, building=8, spectral=4)
 
-# LOD3_FULL: Complete feature set for detailed modeling (~35 features)
+# LOD3_FULL: Complete feature set for detailed modeling (~43 features)
 LOD3_FEATURES = {
     # Coordinates
     'xyz',                # 3 features
@@ -190,11 +209,21 @@ LOD3_FEATURES = {
     'overhang_indicator',
     'surface_roughness',
     
+    # NEW: Enhanced Building Classification Features (8 features)
+    'horizontality',             # Roof surface detection
+    'facade_score',              # Facade/wall detection
+    'flat_roof_score',           # Flat roof detection
+    'sloped_roof_score',         # Sloped roof detection
+    'steep_roof_score',          # Steep roof detection
+    'opening_likelihood',        # Window/door detection
+    'structural_element_score',  # Pillar/column detection
+    'edge_strength_enhanced',    # Enhanced edge detection
+    
     # Spectral (5 features)
     'red', 'green', 'blue',
     'nir',
     'ndvi',
-}  # Total: ~35 features
+}  # Total: ~43 features (was 35, added 8 new building features)
 
 
 @dataclass

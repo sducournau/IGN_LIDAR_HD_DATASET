@@ -1,0 +1,88 @@
+# LOD3 Features Configuration
+#
+# Complete feature set for LOD3 detailed architectural modeling
+# Optimized for high-detail building reconstruction with ~35+ features
+
+mode: lod3 # LOD3_FULL mode
+k_neighbors: 30 # Higher k for better feature quality in LOD3
+
+# Feature flags - all enabled for LOD3
+include_extra: true # All additional geometric features
+use_rgb: true # RGB colors
+use_infrared: true # NIR for advanced classification
+compute_ndvi: true # NDVI vegetation index
+
+# Architectural style features
+include_architectural_style: false # Set to true for architectural style detection
+style_encoding: constant # constant (int32), onehot (13-dim), or multihot (13-dim weighted)
+style_from_building_features: true # Infer style from building geometry (roof slope, wall detection)
+
+# Search method
+# Radius search recommended for LOD3 to avoid scan line artifacts
+search_radius: 2.0 # Larger radius for detailed features
+
+# PointNet++ settings
+sampling_method: fps # Farthest Point Sampling for better coverage in LOD3
+normalize_xyz: true # Normalize for better feature learning
+normalize_features: true # Standardize features for consistency
+
+# GPU settings
+gpu_batch_size: 500000 # Smaller batches due to more features
+use_gpu_chunked: true # Essential for memory management with LOD3
+
+# ============================================================================
+# LOD3 FEATURE SET (~35 features)
+# ============================================================================
+# This configuration computes the following features:
+#
+# Coordinates (3):
+#   - x, y, z: Point coordinates
+#
+# Surface Normals (3):
+#   - normal_x, normal_y, normal_z: Full normal vector
+#
+# Curvature Features (2):
+#   - curvature: Local surface curvature
+#   - change_curvature: Rate of curvature change
+#
+# Shape Descriptors (6):
+#   - planarity: Flat surface measure
+#   - linearity: Linear structure measure
+#   - sphericity: Spherical shape measure
+#   - roughness: Surface texture
+#   - anisotropy: Directional variation
+#   - omnivariance: 3D dispersion measure
+#
+# Eigenvalue Features (5):
+#   - eigenvalue_1, eigenvalue_2, eigenvalue_3: PCA eigenvalues
+#   - sum_eigenvalues: Total eigenvalue sum
+#   - eigenentropy: Shannon entropy of eigenvalues
+#
+# Height Features (2):
+#   - height_above_ground: Height above ground level
+#   - vertical_std: Standard deviation of Z in neighborhood
+#
+# Building-Specific Scores (3):
+#   - verticality: Verticality score for walls
+#   - wall_score: Wall likelihood (planarity × verticality)
+#   - roof_score: Roof likelihood (planarity × horizontality)
+#
+# Density & Neighborhood (4):
+#   - density: Local point density
+#   - num_points_2m: Number of points within 2m radius
+#   - neighborhood_extent: Maximum distance to k-th neighbor
+#   - height_extent_ratio: Ratio of vertical std to spatial extent
+#
+# Advanced Architectural Features (4):
+#   - edge_strength: Edge detection strength
+#   - corner_likelihood: Corner probability
+#   - overhang_indicator: Overhang/protrusion detection
+#   - surface_roughness: Fine-scale surface texture
+#
+# Spectral Features (5):
+#   - red, green, blue: RGB colors
+#   - nir: Near-infrared channel
+#   - ndvi: Normalized Difference Vegetation Index
+#
+# Total: ~37 features (without architectural style)
+# ============================================================================

@@ -1,38 +1,78 @@
 # Configuration Files Guide
 
+**Last Updated:** October 15, 2025 (v2.5.1)
+
 ## Overview
 
 This directory contains Hydra configuration files for the IGN LiDAR HD processing pipeline. Configurations are organized by component and can be composed using Hydra's defaults mechanism.
+
+**Key Improvements (v2.5.1):**
+
+- ✨ **Base configs** for better reusability and maintainability
+- 📦 **Simplified experiment configs** with inheritance
+- 🗄️ **Consolidated configs** - 67% reduction in duplication
+- 📚 **Improved documentation** throughout
 
 ## Directory Structure
 
 ```
 configs/
 ├── config.yaml                 # Root configuration
+├── experiment/                 # ✨ Experiment presets (USE THESE!)
+│   ├── _base/                 # ✨ NEW: Reusable base configurations
+│   │   ├── buildings_common.yaml        # Building experiment base
+│   │   ├── boundary_aware_common.yaml   # Boundary-aware base
+│   │   ├── training_common.yaml         # Training base
+│   │   ├── dataset_common.yaml          # ✨ NEW: Dataset generation base
+│   │   └── ground_truth_common.yaml     # ✨ NEW: Ground truth base
+│   │
+│   ├── buildings_lod2.yaml              # LOD2 building classification
+│   ├── buildings_lod3.yaml              # LOD3 building classification
+│   │
+│   ├── dataset_50m.yaml                 # 50m patches (refactored)
+│   ├── dataset_100m.yaml                # 100m patches (refactored)
+│   ├── dataset_150m.yaml                # 150m patches (refactored)
+│   ├── dataset_multiscale.yaml          # Multi-scale combined
+│   │
+│   ├── lod2_ground_truth.yaml           # ✨ NEW: Unified LOD2 GT (all scales)
+│   ├── lod2_gt_50m.yaml                 # ⚠️ Deprecated (use lod2_ground_truth)
+│   ├── lod2_gt_100m.yaml                # ⚠️ Deprecated (use lod2_ground_truth)
+│   ├── lod2_gt_150m.yaml                # ⚠️ Deprecated (use lod2_ground_truth)
+│   │
+│   ├── ground_truth_patches.yaml        # Ground truth patch generation
+│   ├── ground_truth_training.yaml       # Ground truth training dataset
+│   │
+│   ├── fast.yaml                        # Quick testing
+│   ├── semantic_sota.yaml               # Semantic segmentation SOTA
+│   ├── vegetation_ndvi.yaml             # Vegetation analysis
+│   ├── architectural_heritage.yaml      # Heritage buildings
+│   ├── pointnet_training.yaml           # PointNet++ training
+│   ├── lod2_selfsupervised.yaml         # Self-supervised LOD2
+│   │
+│   ├── classify_enriched_tiles.yaml     # Classify pre-enriched tiles
+│   ├── boundary_aware_autodownload.yaml # With auto-download
+│   └── boundary_aware_offline.yaml      # Without auto-download
+│
 ├── processor/                  # Processing configurations
 │   ├── default.yaml           # CPU processing
-│   ├── gpu.yaml               # GPU processing
-│   ├── cpu_fast.yaml          # Fast CPU processing
-│   └── memory_constrained.yaml # Low memory mode
+│   └── ...
 ├── features/                   # Feature extraction configs
-│   ├── full.yaml              # All features
+│   ├── full.yaml              # All features (LOD3)
+│   ├── lod2.yaml              # LOD2 features
+│   ├── lod3.yaml              # LOD3 features
 │   ├── minimal.yaml           # Basic features
-│   ├── buildings.yaml         # Building detection
-│   ├── vegetation.yaml        # Vegetation analysis
-│   └── pointnet.yaml          # PointNet features
+│   └── ...
 ├── stitching/                  # Tile stitching configs
 │   ├── disabled.yaml          # No stitching
 │   ├── enabled.yaml           # Basic stitching
 │   ├── enhanced.yaml          # Advanced stitching
-│   ├── advanced.yaml          # Research-grade stitching
-│   └── auto_download.yaml     # 🆕 Auto-download neighbors
+│   └── auto_download.yaml     # Auto-download neighbors
 ├── preprocess/                 # Preprocessing configs
 ├── output/                     # Output format configs
-└── experiment/                 # Full experiment configs
-    ├── fast.yaml
-    ├── pointnet_training.yaml
-    ├── boundary_aware_autodownload.yaml  # 🆕 With downloads
-    └── boundary_aware_offline.yaml       # 🆕 Without downloads
+└── ground_truth/               # Ground truth configs
+    ├── disabled.yaml
+    ├── enabled.yaml
+    └── update_classification.yaml
 ```
 
 ## Tile Stitching Configurations

@@ -1,0 +1,172 @@
+# ========================================================================
+# Versailles Dataset Processing - LOD3 Extended Building Classification
+# ========================================================================
+# Purpose: Process Versailles LiDAR data with LOD3 extended building
+#          classification (30 classes: detailed walls, roofs, openings)
+#
+# LOD3 Classes (30 total):
+# - Walls: plain, with windows, with door
+# - Roofs: flat, gable, hip, mansard, shed, gambrel, butterfly, dome, other
+# - Openings: window, door, balcony door
+# - Details: chimney, dormer, balcony, overhang, gutter, parapet
+# - Foundation, ground, vegetation (low/high/tree), water, vehicle, other
+#
+# Features:
+# - Full feature computation (RGB, NIR, NDVI, geometric features)
+# - Ground truth classification from IGN BD TOPO®
+# - Optimal preprocessing (outlier removal)
+# - Outputs: LAZ (enriched tiles) + NPZ (training patches)
+#
+# Usage:
+#   ign-lidar-hd process --config config_versailles_lod3.yaml
+# ========================================================================
+
+defaults:
+  - processor: default
+  - features: full
+  - preprocess: default
+  - stitching: enabled
+  - output: default
+  - ground_truth: enabled
+  - _self_
+
+# ============================================================================
+# I/O PATHS
+# ============================================================================
+input_dir: /mnt/c/Users/Simon/ign/versailles
+output_dir: /mnt/c/Users/Simon/ign/versailles_processed_lod3
+
+# ============================================================================
+# PROCESSOR CONFIGURATION
+# ============================================================================
+processor:
+  lod_level: LOD3 # Use LOD3 extended building classification
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 4
+
+  # Patch extraction settings
+  patch_size: 150.0 # 150m x 150m patches
+  patch_overlap: 0.1 # 10% overlap
+  num_points: 32768 # Points per patch for training
+
+  # Training augmentation (disabled for initial processing)
+  augment: false
+  num_augmentations: 0
+
+  pin_memory: true
+
+# ============================================================================
+# FEATURES CONFIGURATION - FULL FEATURES
+# ============================================================================
+features:
+  mode: full # Compute all features
+  k_neighbors: 30
+  search_radius: 1.5
+  include_extra: true
+
+  # Spectral features
+  use_rgb: true # RGB colors
+  use_infrared: true # NIR (infrared)
+  compute_ndvi: true # NDVI = (NIR - R) / (NIR + R)
+
+  # PointNet++ settings for patch processing
+  sampling_method: fps # Farthest point sampling
+  normalize_xyz: true
+  normalize_features: true
+
+  # GPU acceleration
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+
+# ============================================================================
+# PREPROCESSING - OPTIMAL SETTINGS
+# ============================================================================
+preprocess:
+  enabled: true
+
+  # Statistical Outlier Removal
+  sor_k: 12 # Number of neighbors
+  sor_std: 2.0 # Standard deviation threshold
+
+  # Radius Outlier Removal
+  ror_radius: 1.0 # Search radius in meters
+  ror_neighbors: 4 # Minimum neighbors
+
+  # Voxel downsampling (disabled for full resolution)
+  voxel_enabled: false
+  voxel_size: 0.1
+
+# ============================================================================
+# STITCHING - BOUNDARY HANDLING
+# ============================================================================
+stitching:
+  enabled: true
+  buffer_size: 15.0 # 15m buffer for boundary points
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+
+# ============================================================================
+# GROUND TRUTH CLASSIFICATION
+# ============================================================================
+ground_truth:
+  enabled: true
+  update_classification: false # Don't modify input files
+
+  # WFS Feature Selection (IGN BD TOPO®)
+  include_buildings: true
+  include_roads: true
+  include_water: true
+  include_vegetation: true
+
+  # NDVI Refinement
+  use_ndvi: true
+  fetch_rgb_nir: false # Use existing RGB/NIR from LiDAR
+  ndvi_vegetation_threshold: 0.3 # NDVI >= 0.3 -> vegetation
+  ndvi_building_threshold: 0.15 # NDVI <= 0.15 -> building
+
+  # Caching
+  cache_dir: /mnt/c/Users/Simon/ign/cache/ground_truth
+
+  # Output
+  save_ground_truth_vectors: true
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  # Output both LAZ (enriched tiles) and NPZ (training patches)
+  format: laz,npz
+
+  # Processing mode: patches only (for training)
+  processing_mode: patches_only
+
+  # Statistics and metadata
+  save_stats: true
+  save_metadata: true
+  compression: null
+
+# ============================================================================
+# GLOBAL SETTINGS
+# ============================================================================
+num_workers: 4
+verbose: true
+log_level: INFO
+
+# Optional spatial filtering (bbox)
+bbox:
+  xmin: null
+  ymin: null
+  xmax: null
+  ymax: null
+
+# ============================================================================
+# HYDRA CONFIGURATION
+# ============================================================================
+hydra:
+  run:
+    dir: outputs/versailles_lod3/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    name: versailles_lod3
+    chdir: false

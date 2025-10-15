@@ -7,6 +7,10 @@ title: Enriched LAZ Only Mode
 
 Generate feature-enriched LAZ files without creating patches - perfect for visualization and exploration workflows.
 
+:::info Classification Schema
+Enriched LAZ files use the **LOD2/LOD3 classification taxonomy**, not ASPRS standard codes. Buildings are classified as Class 0 (`wall`), ground as Class 9, etc. See [Classification Taxonomy](../reference/classification-taxonomy.md) for complete details.
+:::
+
 ---
 
 ## 🎯 What is Enriched LAZ Only Mode?

@@ -1,0 +1,167 @@
+# @package _global_
+
+# Experiment: Update Classification for Enriched Tiles with Architectural Styles
+# Purpose: Update classification of enriched LAZ tiles using ground truth, NDVI, and architectural style detection
+# Input: Enriched tiles with RGB/NIR bands
+# Output: Updated LAZ tiles with improved classification and architectural style annotations
+# Features: LOD2 optimized feature set with architectural style (constant encoding)
+
+defaults:
+  - override /processor: gpu
+  - override /ground_truth: update_classification
+
+# Input/Output paths
+input_dir: /mnt/c/Users/Simon/ign/classified/input
+output_dir: /mnt/c/Users/Simon/ign/classified/output
+
+# Processor settings - LOD2 processing with architectural style detection
+processor:
+  use_gpu: true
+  num_workers: 1
+  patch_size: null # No patching, process full tiles
+  num_points: null # Process all points in tile
+  skip_existing: true
+  processing_mode: enriched_only # Only save enriched tiles, no patches
+
+  # Architectural style configuration (LOD2 optimized)
+  include_architectural_style: true
+  style_encoding: constant # Memory-efficient constant encoding (single ID per point)
+
+# Ground truth configuration for classification update
+ground_truth:
+  enabled: true
+  update_classification: true
+  use_ndvi: true
+  fetch_rgb_nir: true # Already in enriched tiles
+  save_updated_tiles: true
+
+  # Classification mode - ASPRS LAS 1.4 standard
+  # Options:
+  #   - asprs_standard: Use standard ASPRS codes 0-31 only (max compatibility)
+  #   - asprs_extended: Use ASPRS codes + extended codes 32-255 (detailed classification)
+  #   - lod2: Use LOD2 building-focused classes for training (15 classes)
+  #   - lod3: Use LOD3 detailed building classes for training (30 classes)
+  classification_mode: asprs_extended
+
+  # NDVI thresholds
+  ndvi_vegetation_threshold: 0.3
+  ndvi_low_vegetation_threshold: 0.15
+
+  # Features to fetch
+  fetch_buildings: true
+  fetch_roads: true
+  fetch_water: true
+  fetch_vegetation: true
+  fetch_railways: true # Fetch railway tracks
+
+  # Building settings
+  building_buffer: 0.5
+  preserve_building_nature: true # Use BD TOPO® nature attribute for detailed classification
+
+  # Road settings
+  # Road polygons are created by buffering centerlines using the 'largeur' field (width in meters)
+  # from BD TOPO®. The buffer is applied as largeur/2 on each side of the centerline.
+  # road_width_fallback is used when 'largeur' field is missing or invalid.
+  road_width_fallback: 6.0
+  preserve_road_nature: true # Use BD TOPO® nature attribute for detailed road types
+
+  # Water buffer
+  water_buffer: 1.0
+  preserve_water_nature: true # Use BD TOPO® nature attribute for water types
+
+# Features configuration - LOD2 optimized with RGB/NIR/NDVI augmentations
+features:
+  mode: full # Full feature set (LOD2 + RGB/NIR/NDVI)
+
+  # Spectral augmentations - RGB, NIR, and NDVI
+  use_rgb: true # Use RGB from enriched tiles (required for augmentation)
+  use_infrared: true # Use NIR from enriched tiles (required for NDVI)
+  compute_ndvi: true # Compute NDVI from RGB/NIR (vegetation augmentation)
+
+  # Geometric features
+  include_extra: false # Don't compute additional geometric features beyond LOD2
+  k_neighbors: 20 # Standard k for LOD2 (balanced between accuracy and speed)
+  search_radius: 1.5 # Radius search for better feature quality in aerial LiDAR
+
+  # PointNet++ settings
+  sampling_method: fps # Faster than FPS for LOD2
+  normalize_xyz: false # Keep absolute coordinates
+  normalize_features: false # Keep original feature scales
+
+  # Architectural style features (LOD2 optimized)
+  include_architectural_style: true
+  style_encoding: constant # Memory-efficient constant encoding
+  style_from_building_features: true # Refine styles from building geometry (roof slope, wall detection)
+
+  # GPU optimization
+  gpu_batch_size: 2000000 # Large batches for full tile processing
+  use_gpu_chunked: true # Process in GPU-friendly chunks
+
+# Preprocessing - minimal
+preprocess:
+  denoise:
+    enabled: false
+  normalize_z:
+    enabled: false
+  subsample:
+    enabled: false
+
+# Output configuration
+output:
+  processing_mode: enriched_only # Only save updated tiles, no patches
+  save_laz: true # LAZ with architectural_style extra dimension
+  save_npz: false
+  save_hdf5: false
+  save_stats: true # Save statistics including architectural style distribution
+  save_metadata: true # Save metadata with style information
+
+# Stitching - disabled since we're updating tiles
+stitching:
+  enabled: false
+
+# Performance - GPU with single worker
+num_workers: 1
+batch_size: 1
+use_gpu: true
+process_full_tiles: true # Process entire tiles, not patches
+
+# ============================================================================
+# OUTPUT FEATURES - LOD2 + RGB/NIR/NDVI Augmentations + Architectural Style
+# ============================================================================
+# The enriched LAZ files will include:
+#
+# Standard LiDAR:
+#   - XYZ coordinates
+#   - Intensity
+#   - Return number
+#   - Classification (updated from ground truth)
+#
+# Spectral Augmentations (from enriched tiles):
+#   - Red, Green, Blue (RGB) - color information
+#   - NIR (Near-Infrared) - vegetation response
+#   - NDVI (Normalized Difference Vegetation Index) - computed from RGB/NIR
+#
+# LOD2 Geometric Features (~12-13 features total):
+#   Coordinates (3): x, y, z
+#   Geometric (5): normal_z, planarity, linearity, height_above_ground, verticality
+#   Spectral (4-5): red, green, blue, nir, ndvi
+#
+# Architectural Style:
+#   - architectural_style: Style ID (0-12) - constant encoding
+#     Available as extra dimension in LAZ
+#
+# Style Classes (0-12):
+#   0: unknown       - Unknown or unclassified
+#   1: classical     - Classical/Traditional French architecture
+#   2: gothic        - Gothic (medieval churches, cathedrals)
+#   3: renaissance   - Renaissance (châteaux, palaces)
+#   4: baroque       - Baroque ornate style
+#   5: haussmann     - Haussmannian (Paris-style buildings)
+#   6: modern        - Modern/Contemporary (20th-21st century)
+#   7: industrial    - Industrial buildings and warehouses
+#   8: vernacular    - Vernacular/Local traditional rural
+#   9: art_deco      - Art Deco style (1920s-1940s)
+#  10: brutalist     - Brutalist concrete architecture
+#  11: glass_steel   - Modern glass and steel buildings
+#  12: mixed         - Mixed architectural styles
+# ============================================================================

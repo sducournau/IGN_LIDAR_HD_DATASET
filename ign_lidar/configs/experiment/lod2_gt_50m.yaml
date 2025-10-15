@@ -1,0 +1,123 @@
+# @package _global_
+
+# ⚠️ DEPRECATED: Use lod2_ground_truth with processor.patch_size=50 instead
+#
+# This config is maintained for backward compatibility but is superseded by:
+#   ign-lidar-hd process experiment=lod2_ground_truth \
+#     processor.patch_size=50 \
+#     processor.num_points=12288 \
+#     features.k_neighbors=15 \
+#     stitching.buffer_size=8.0 \
+#     input_dir=data/raw output_dir=data/lod2_gt_50m
+
+# LOD2 Multi-Scale Training - 50m Patches with Ground Truth
+# Purpose: Fine-detail LOD2 classification with improved ground truth
+# Optimal for: Small buildings, detailed facades, local features
+
+defaults:
+  - override /processor: default
+  - override /features: full
+  - override /preprocess: default
+  - override /ground_truth: update_classification
+  - override /stitching: enhanced
+  - override /output: patches_only
+
+# Dataset configuration for 50m patches
+dataset:
+  enabled: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  random_seed: 42
+  split_by_tile: true
+  create_split_dirs: true
+  patch_sizes: [50] # Fine detail patches
+  balance_across_sizes: false
+
+# Ground Truth - Improved Classification Before Training
+ground_truth:
+  enabled: true
+  update_classification: true
+
+  # IGN BD TOPO® features
+  include_buildings: true
+  include_roads: true
+  include_water: true
+  include_vegetation: true
+
+  # NDVI refinement (critical for accurate building detection)
+  use_ndvi: true
+  fetch_rgb_nir: true
+  ndvi_vegetation_threshold: 0.3 # Fine-tuned for 50m patches
+  ndvi_building_threshold: 0.15
+
+  # Caching
+  cache_dir: data/cache/ground_truth_50m
+  save_ground_truth_vectors: true
+  save_updated_tiles: true
+
+# Processor configuration for 50m patches
+processor:
+  lod_level: LOD2
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 4
+  patch_size: 50.0 # Fine architectural details
+  patch_overlap: 0.15 # Higher overlap for better boundary coverage
+  num_points: 24576 # High point density for LOD2 detail
+  augment: true
+  num_augmentations: 5
+  pin_memory: true
+  processing_mode: patches_only
+  skip_existing: true
+
+# Features optimized for 50m scale
+features:
+  mode: full
+  k_neighbors: 20 # Fine-grained local features
+  search_radius: 1.2 # Appropriate for 50m patches
+  include_extra: true
+
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+
+  # Geometric features for LOD2 roof complexity
+  compute_normals: true
+  compute_curvature: true
+  compute_eigenfeatures: true
+
+  sampling_method: fps
+  normalize_xyz: true
+  normalize_features: true
+
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+
+# Preprocessing
+preprocess:
+  enabled: true
+  sor_k: 8
+  sor_std: 1.5
+  ror_radius: 0.5
+  ror_neighbors: 3
+  voxel_enabled: false
+
+# Stitching
+stitching:
+  enabled: true
+  buffer_size: 8.0 # 8m buffer for 50m patches
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+
+# Output
+output:
+  format: npz,laz
+  processing_mode: patches_only
+  save_stats: true
+  save_metadata: true
+  compression: null
+
+log_level: INFO
+verbose: true

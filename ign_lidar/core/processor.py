@@ -45,6 +45,12 @@ from .modules.tile_loader import TileLoader
 # Phase 4.3: New unified orchestrator
 from ..features.orchestrator import FeatureOrchestrator
 
+# Dataset manager for ML dataset creation with train/val/test splits
+from ..datasets.dataset_manager import DatasetManager, DatasetConfig
+
+# Classification refinement module
+from .modules.classification_refinement import refine_classification, RefinementConfig
+
 # Import from modules (refactored in Phase 3.2)
 
 # Configure logging
@@ -179,6 +185,25 @@ class LiDARProcessor:
             only_enriched_laz=self.only_enriched_laz,
         )
         
+        # Initialize dataset manager for ML dataset creation (with train/val/test splits)
+        self.dataset_manager = None
+        if config.get('dataset', {}).get('enabled', False):
+            dataset_config = DatasetConfig(
+                train_ratio=config.dataset.get('train_ratio', 0.7),
+                val_ratio=config.dataset.get('val_ratio', 0.15),
+                test_ratio=config.dataset.get('test_ratio', 0.15),
+                random_seed=config.dataset.get('random_seed', 42),
+                split_by_tile=config.dataset.get('split_by_tile', True),
+                create_split_dirs=config.dataset.get('create_split_dirs', True),
+                patch_sizes=config.dataset.get('patch_sizes', [int(self.patch_size)]),
+                balance_across_sizes=config.dataset.get('balance_across_sizes', False),
+            )
+            # Dataset manager will be initialized in process_directory with output_dir
+            self._dataset_config = dataset_config
+            logger.info("📊 Dataset mode enabled - will create train/val/test splits")
+        else:
+            self._dataset_config = None
+        
         # Phase 4.3: Initialize tile processing modules
         self.tile_loader = TileLoader(self.config)
     
@@ -311,7 +336,7 @@ class LiDARProcessor:
     @property
     def feature_mode(self):
         """Get feature mode (backward compatibility)."""
-        return self.config.features.feature_mode
+        return self.config.features.mode
     
     @property
     def include_architectural_style(self):
@@ -503,8 +528,8 @@ class LiDARProcessor:
                 continue
                 
             try:
-                # Add as float32 extra dimension (truncate description to 32 chars)
-                desc = f"Feature: {feat_name}"[:32]
+                # Add as float32 extra dimension (truncate description to 31 chars - needs null terminator)
+                desc = f"Feature: {feat_name}"[:31]
                 las.add_extra_dim(laspy.ExtraBytesParams(
                     name=feat_name,
                     type=np.float32,
@@ -536,8 +561,8 @@ class LiDARProcessor:
         for feat_name in height_features:
             if feat_name in original_patch and feat_name not in added_dimensions:
                 try:
-                    # Truncate description to 32 chars max (LAZ limit)
-                    desc = f"Height: {feat_name}"[:32]
+                    # Truncate description to 31 chars max (LAZ limit - needs null terminator)
+                    desc = f"Height: {feat_name}"[:31]
                     las.add_extra_dim(laspy.ExtraBytesParams(
                         name=feat_name,
                         type=np.float32,
@@ -775,7 +800,9 @@ class LiDARProcessor:
             'input_rgb': input_rgb,  # Preserve input RGB if present
             'input_nir': input_nir,  # Preserve input NIR if present
             'input_ndvi': input_ndvi,  # Preserve input NDVI if present
-            'enriched_features': enriched_features  # Preserve enriched features if present
+            'enriched_features': enriched_features,  # Preserve enriched features if present
+            'las': tile_data.get('las'),  # Preserve LAS object for header info
+            'header': tile_data.get('header')  # Preserve header for chunked loading
         }
         
         # Data is already preprocessed by TileLoader if enabled  
@@ -805,11 +832,52 @@ class LiDARProcessor:
         excluded_features = {'normals', 'curvature', 'height', 'rgb', 'nir', 'ndvi', 'architectural_style'}
         geo_features = {k: v for k, v in all_features.items() if k not in excluded_features}
         
-        # 3. Remap labels
+        # 3. Remap labels (ASPRS → LOD)
         labels_v = np.array([
             self.class_mapping.get(c, self.default_class)
             for c in classification_v
         ], dtype=np.uint8)
+        
+        # 3b. Refine classification using NDVI, ground truth, and geometric features
+        if self.lod_level == 'LOD2':
+            # Prepare features for refinement
+            refinement_features = {
+                'points': points_v  # Always include point coordinates
+            }
+            if 'ndvi' in all_features:
+                refinement_features['ndvi'] = all_features['ndvi']
+            if height is not None:
+                refinement_features['height'] = height
+            if 'planarity' in geo_features:
+                refinement_features['planarity'] = geo_features['planarity']
+            if 'verticality' in geo_features:
+                refinement_features['verticality'] = geo_features['verticality']
+            if 'density' in geo_features:
+                refinement_features['density'] = geo_features['density']
+            if 'roughness' in geo_features:
+                refinement_features['roughness'] = geo_features['roughness']
+            if intensity_v is not None:
+                refinement_features['intensity'] = intensity_v
+            
+            # Prepare ground truth data if available
+            ground_truth_data = None
+            if 'ground_truth_building_mask' in tile_data or 'ground_truth_road_mask' in tile_data:
+                ground_truth_data = {}
+                if 'ground_truth_building_mask' in tile_data:
+                    ground_truth_data['building_mask'] = tile_data['ground_truth_building_mask']
+                if 'ground_truth_road_mask' in tile_data:
+                    ground_truth_data['road_mask'] = tile_data['ground_truth_road_mask']
+            
+            # Apply refinement
+            if refinement_features:
+                labels_v, refinement_stats = refine_classification(
+                    labels=labels_v,
+                    features=refinement_features,
+                    ground_truth_data=ground_truth_data,
+                    config=RefinementConfig(),
+                    lod_level=self.lod_level,
+                    logger_instance=logger
+                )
         
         # 4. Combine features (FeatureComputer has already computed everything)
         all_features_v = {
@@ -837,6 +905,56 @@ class LiDARProcessor:
             for feat_name, feat_data in enriched_features_v.items():
                 enriched_key = f"enriched_{feat_name}" if feat_name in all_features_v else feat_name
                 all_features_v[enriched_key] = feat_data
+        
+        # 5. Check if we should skip patch extraction (enriched_only mode with no patch_size)
+        if self.only_enriched_laz and self.patch_size is None:
+            # Skip patch extraction - we're only saving the updated enriched LAZ tile
+            logger.info(f"  💾 Saving updated enriched tile (no patch extraction)")
+            
+            # Import the new function
+            from .modules.serialization import save_enriched_tile_laz
+            
+            # Prepare output path
+            enriched_subdir = output_dir / "enriched"
+            enriched_subdir.mkdir(parents=True, exist_ok=True)
+            output_path = enriched_subdir / laz_file.name
+            
+            try:
+                # Determine RGB/NIR to save (prefer fetched/computed over input)
+                save_rgb = all_features_v.get('rgb') or original_data.get('input_rgb')
+                save_nir = all_features_v.get('nir') or original_data.get('input_nir')
+                
+                # Remove RGB/NIR from features dict to avoid duplication
+                features_to_save = {k: v for k, v in all_features_v.items() 
+                                   if k not in ['rgb', 'nir', 'input_rgb', 'input_nir']}
+                
+                # Save the enriched tile with all computed features
+                save_enriched_tile_laz(
+                    save_path=output_path,
+                    points=original_data['points'],
+                    classification=labels_v,
+                    intensity=original_data['intensity'],
+                    return_number=original_data['return_number'],
+                    features=features_to_save,
+                    original_las=original_data.get('las'),
+                    header=original_data.get('header'),
+                    input_rgb=save_rgb,
+                    input_nir=save_nir
+                )
+                
+                tile_time = time.time() - tile_start
+                pts_processed = len(original_data['points'])
+                logger.info(
+                    f"  ✅ Completed: tile processed in {tile_time:.1f}s "
+                    f"({pts_processed:,} points)"
+                )
+                return 1  # Return 1 to count as successfully processed
+                
+            except Exception as e:
+                logger.error(f"  ✗ Failed to save enriched tile: {e}")
+                import traceback
+                logger.debug(traceback.format_exc())
+                return 0
         
         # 5. Extract patches and create augmented versions using patch_extractor module
         patch_config = PatchConfig(
@@ -875,21 +993,46 @@ class LiDARProcessor:
             f"({num_versions} versions)"
         )
         
+        # Determine split if using dataset manager
+        tile_split = None
+        if self.dataset_manager is not None:
+            tile_split = self.dataset_manager.get_tile_split(laz_file.stem)
+            logger.info(f"  📂 Tile assigned to {tile_split} split")
+        
         # Save patches with proper naming
         # Each patch has _version and _patch_idx metadata
         for patch in all_patches_collected:
             version = patch.pop('_version', 'original')
             base_idx = patch.pop('_patch_idx', 0)
             
-            # Include architecture suffix in patch name
-            if version == 'original':
-                patch_name = f"{laz_file.stem}_{self.architecture}_patch_{base_idx:04d}"
+            # Use dataset manager for path determination if enabled
+            if self.dataset_manager is not None:
+                # Get format extension
+                formats_list = [fmt.strip() for fmt in self.output_format.split(',')]
+                ext = formats_list[0] if len(formats_list) == 1 else 'npz'
+                if ext in ['pt', 'pth', 'pytorch', 'torch']:
+                    ext = 'pt'
+                elif ext == 'hdf5':
+                    ext = 'h5'
+                
+                base_path = self.dataset_manager.get_patch_path(
+                    tile_name=laz_file.stem,
+                    patch_idx=base_idx,
+                    architecture=self.architecture,
+                    version=version,
+                    split=tile_split,
+                    extension=ext
+                ).with_suffix('')  # Remove extension, will be added by save functions
             else:
-                patch_name = (
-                    f"{laz_file.stem}_{self.architecture}_patch_{base_idx:04d}_"
-                    f"{version}"
-                )
-            base_path = output_dir / patch_name
+                # Traditional naming without dataset splits
+                if version == 'original':
+                    patch_name = f"{laz_file.stem}_{self.architecture}_patch_{base_idx:04d}"
+                else:
+                    patch_name = (
+                        f"{laz_file.stem}_{self.architecture}_patch_{base_idx:04d}_"
+                        f"{version}"
+                    )
+                base_path = output_dir / patch_name
             
             # Check if multiple formats are requested
             formats_list = [fmt.strip() for fmt in self.output_format.split(',')]
@@ -934,6 +1077,14 @@ class LiDARProcessor:
                     save_path = base_path.with_suffix('.npz')
                     save_patch_npz(save_path, patch, lod_level=self.lod_level)
                 num_saved += 1
+            
+            # Record patch in dataset manager for statistics
+            if self.dataset_manager is not None:
+                self.dataset_manager.record_patch_saved(
+                    tile_name=laz_file.stem,
+                    split=tile_split,
+                    patch_size=int(self.patch_size)
+                )
         
         tile_time = time.time() - tile_start
         pts_processed = len(original_data['points'])
@@ -960,6 +1111,15 @@ class LiDARProcessor:
             Total number of patches created
         """
         start_time = time.time()
+        
+        # Initialize dataset manager if enabled
+        if self._dataset_config is not None:
+            self.dataset_manager = DatasetManager(
+                output_dir=output_dir,
+                config=self._dataset_config,
+                patch_size=int(self.patch_size)
+            )
+            logger.info(f"📊 Dataset manager initialized for {output_dir}")
         
         # Check system memory and adjust workers if needed
         try:
@@ -1117,5 +1277,21 @@ class LiDARProcessor:
             )
             stats["processing_time_seconds"] = round(processing_time, 2)
             metadata_mgr.save_stats(stats)
+        
+        # Save dataset metadata if dataset manager is enabled
+        if self.dataset_manager is not None:
+            processing_time = time.time() - start_time
+            additional_info = {
+                "lod_level": self.lod_level,
+                "architecture": self.architecture,
+                "patch_size_meters": self.patch_size,
+                "num_points": self.num_points,
+                "augmentation_enabled": self.config.processor.get('augment', False),
+                "num_augmentations": self.config.processor.get('num_augmentations', 0),
+                "processing_time_seconds": round(processing_time, 2),
+                "tiles_processed": tiles_processed,
+                "tiles_skipped": tiles_skipped,
+            }
+            self.dataset_manager.save_metadata(additional_info=additional_info)
         
         return total_patches

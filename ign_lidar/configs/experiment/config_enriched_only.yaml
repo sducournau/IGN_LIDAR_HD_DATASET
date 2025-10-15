@@ -16,7 +16,7 @@ processor:
   pin_memory: true
 
 features:
-  mode: core
+  mode: lod3 # Complete feature set for detailed processing
   k_neighbors: 30
   include_extra: true
   use_rgb: true
