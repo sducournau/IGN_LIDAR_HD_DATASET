@@ -302,6 +302,35 @@ class BuildingDetector:
             refined[edge_candidates] = ASPRS_BUILDING
             stats['edges'] = edge_candidates.sum()
         
+        # Strategy 6: Handle unclassified building-like points
+        # This catches points that might be on building edges or have partial geometric features
+        unclassified_mask = (refined == 1) | (refined == 0)  # ASPRS unclassified codes
+        
+        if unclassified_mask.any():
+            # Check for building-like characteristics among unclassified
+            building_like = (
+                (height > self.config.min_height) &
+                (height < self.config.max_height) &
+                (planarity > 0.5) &  # Some planarity
+                unclassified_mask
+            )
+            
+            # Additional validation with available features
+            if normals is not None:
+                # Must have strong vertical or horizontal orientation
+                horizontality = np.abs(normals[:, 2])
+                building_orientation = (horizontality > 0.75) | (horizontality < 0.35)
+                building_like = building_like & building_orientation
+            
+            if anisotropy is not None:
+                # Must show some structural organization
+                building_like = building_like & (anisotropy > 0.35)
+            
+            # Apply with slightly lower confidence
+            if building_like.any():
+                refined[building_like] = ASPRS_BUILDING
+                stats['unclassified_recovery'] = building_like.sum()
+        
         stats['total'] = (refined == ASPRS_BUILDING).sum()
         
         return refined, stats

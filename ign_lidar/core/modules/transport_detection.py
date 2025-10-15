@@ -11,12 +11,15 @@ Modes:
 
 Author: Transport Detection Enhancement
 Date: October 15, 2025
+Updated: October 16, 2025 - Integrated unified thresholds (Issue #8)
 """
 
 import logging
 from typing import Optional, Dict, Any, Tuple
 from enum import Enum
 import numpy as np
+
+from .classification_thresholds import UnifiedThresholds
 
 logger = logging.getLogger(__name__)
 
@@ -37,24 +40,43 @@ class TransportDetectionMode(str, Enum):
 # ============================================================================
 
 class TransportDetectionConfig:
-    """Configuration for transport detection with mode-specific thresholds."""
+    """
+    Configuration for transport detection with mode-specific thresholds.
     
-    def __init__(self, mode: TransportDetectionMode = TransportDetectionMode.ASPRS_STANDARD):
+    Note: Thresholds now use UnifiedThresholds for consistency across modules.
+    See: docs/AUDIT_ACTION_PLAN.md - Issue #8
+    """
+    
+    def __init__(self, mode: TransportDetectionMode = TransportDetectionMode.ASPRS_STANDARD, 
+                 strict_mode: bool = False):
         """
         Initialize transport detection configuration.
         
         Args:
             mode: Detection mode (ASPRS_STANDARD, ASPRS_EXTENDED, or LOD2)
+            strict_mode: If True, use stricter thresholds (for urban areas)
         """
         self.mode = mode
+        self.strict_mode = strict_mode
         
-        # === Common Thresholds (used by all modes) ===
-        self.road_height_max = 0.5          # Maximum height above ground for roads (m)
-        self.rail_height_max = 0.8          # Maximum height above ground for rails (m)
-        self.road_planarity_min = 0.80      # Minimum planarity for roads
-        self.rail_planarity_min = 0.75      # Minimum planarity for rails
-        self.road_roughness_max = 0.05      # Maximum roughness for smooth roads
-        self.rail_roughness_max = 0.08      # Rails can be slightly rougher
+        # === Common Thresholds (from UnifiedThresholds) ===
+        # Height thresholds - now using updated values (Issue #1, #4)
+        self.road_height_max = UnifiedThresholds.ROAD_HEIGHT_MAX_STRICT if strict_mode else UnifiedThresholds.ROAD_HEIGHT_MAX
+        self.road_height_min = UnifiedThresholds.ROAD_HEIGHT_MIN
+        self.rail_height_max = UnifiedThresholds.RAIL_HEIGHT_MAX_STRICT if strict_mode else UnifiedThresholds.RAIL_HEIGHT_MAX
+        self.rail_height_min = UnifiedThresholds.RAIL_HEIGHT_MIN
+        
+        # Geometric thresholds
+        self.road_planarity_min = UnifiedThresholds.ROAD_PLANARITY_MIN_STRICT if strict_mode else UnifiedThresholds.ROAD_PLANARITY_MIN
+        self.rail_planarity_min = UnifiedThresholds.RAIL_PLANARITY_MIN_STRICT if strict_mode else UnifiedThresholds.RAIL_PLANARITY_MIN
+        self.road_roughness_max = UnifiedThresholds.ROAD_ROUGHNESS_MAX
+        self.rail_roughness_max = UnifiedThresholds.RAIL_ROUGHNESS_MAX
+        
+        # Intensity thresholds
+        self.road_intensity_min = UnifiedThresholds.ROAD_INTENSITY_MIN
+        self.road_intensity_max = UnifiedThresholds.ROAD_INTENSITY_MAX
+        self.rail_intensity_min = UnifiedThresholds.RAIL_INTENSITY_MIN
+        self.rail_intensity_max = UnifiedThresholds.RAIL_INTENSITY_MAX
         
         # === Mode-specific Configuration ===
         if mode == TransportDetectionMode.ASPRS_STANDARD:

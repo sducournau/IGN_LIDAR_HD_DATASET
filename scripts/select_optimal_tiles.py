@@ -202,10 +202,16 @@ def main():
         'lod3': args.lod3_count
     }
     
-    # Select tiles for each level
+    # Select tiles for each level (avoiding duplicates)
     selection_results = {}
+    already_selected = set()  # Track tiles already selected
     
-    for level, count in selection_config.items():
+    # Selection order: ASPRS first (largest), then LOD2, then LOD3
+    # This ensures we get the best tiles for each level without overlap
+    selection_order = ['asprs', 'lod2', 'lod3']
+    
+    for level in selection_order:
+        count = selection_config[level]
         logger.info(f"\nSelecting {count} tiles for {level.upper()}...")
         
         level_analysis = report.get('detailed_analysis', {}).get(level, {})
@@ -216,8 +222,24 @@ def main():
             selection_results[level] = []
             continue
         
-        selected_tiles = select_tiles_by_strategy(tiles, count, args.strategy)
+        # Filter out already selected tiles to avoid duplicates
+        available_tiles = [t for t in tiles if t['file_name'] not in already_selected]
+        logger.info(f"  Available tiles (excluding duplicates): {len(available_tiles)} / {len(tiles)}")
+        
+        if not available_tiles:
+            logger.warning(f"No available tiles for {level} after excluding duplicates!")
+            selection_results[level] = []
+            continue
+        
+        # Select from available tiles
+        selected_tiles = select_tiles_by_strategy(available_tiles, count, args.strategy)
         selection_results[level] = selected_tiles
+        
+        # Mark these tiles as selected
+        for tile in selected_tiles:
+            already_selected.add(tile['file_name'])
+        
+        logger.info(f"  Selected {len(selected_tiles)} unique tiles for {level.upper()}")
         
         # Save tile list
         list_file = output_path / f"{level}_selected_tiles.txt"
@@ -240,11 +262,35 @@ def main():
         
         logger.info(f"Saved detailed selection info to: {detail_file}")
     
-    # Create summary
+    # Create summary with duplicate detection
+    all_selected_tiles = []
+    for level in ['asprs', 'lod2', 'lod3']:
+        all_selected_tiles.extend([t['file_name'] for t in selection_results[level]])
+    
+    # Check for duplicates (should be none if logic worked correctly)
+    unique_tiles = set(all_selected_tiles)
+    has_duplicates = len(all_selected_tiles) != len(unique_tiles)
+    
+    if has_duplicates:
+        logger.warning(f"⚠️  WARNING: Found {len(all_selected_tiles) - len(unique_tiles)} duplicate tiles!")
+        # Find which tiles are duplicated
+        from collections import Counter
+        tile_counts = Counter(all_selected_tiles)
+        duplicates = {tile: count for tile, count in tile_counts.items() if count > 1}
+        logger.warning(f"  Duplicated tiles: {duplicates}")
+    else:
+        logger.info(f"✓ No duplicate tiles found across all levels")
+    
     summary = {
         'input_dataset': args.input,
         'analysis_report': args.analysis,
         'strategy': args.strategy,
+        'duplicate_detection': {
+            'has_duplicates': has_duplicates,
+            'total_selections': len(all_selected_tiles),
+            'unique_tiles': len(unique_tiles),
+            'duplicates_count': len(all_selected_tiles) - len(unique_tiles) if has_duplicates else 0
+        },
         'selection': {
             level: {
                 'requested': selection_config[level],
@@ -259,10 +305,20 @@ def main():
     with open(summary_file, 'w') as f:
         json.dump(summary, f, indent=2)
     
-    logger.info(f"\nSelection complete. Summary saved to: {summary_file}")
-    logger.info(f"Total tiles selected: {sum(len(v) for v in selection_results.values())}")
+    logger.info(f"\n{'='*60}")
+    logger.info(f"Selection Complete!")
+    logger.info(f"{'='*60}")
+    logger.info(f"Summary saved to: {summary_file}")
+    logger.info(f"\nTile counts:")
+    logger.info(f"  ASPRS: {len(selection_results['asprs'])} tiles")
+    logger.info(f"  LOD2:  {len(selection_results['lod2'])} tiles")
+    logger.info(f"  LOD3:  {len(selection_results['lod3'])} tiles")
+    logger.info(f"  Total: {sum(len(v) for v in selection_results.values())} tiles")
+    logger.info(f"  Unique: {len(unique_tiles)} tiles")
+    logger.info(f"\nDuplicate check: {'✓ PASS' if not has_duplicates else '✗ FAIL'}")
+    logger.info(f"{'='*60}\n")
     
-    return 0
+    return 0 if not has_duplicates else 1
 
 
 if __name__ == "__main__":

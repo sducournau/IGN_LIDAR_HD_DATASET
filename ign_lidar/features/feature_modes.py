@@ -88,10 +88,16 @@ FEATURE_DESCRIPTIONS = {
     'height_above_ground': 'Height above ground level (meters)',
     'vertical_std': 'Standard deviation of Z in neighborhood',
     
-    # Building-Specific Scores (3 features)
+    # Building-Specific Scores (legacy)
     'verticality': 'Verticality score [0,1] - 1 for vertical surfaces',
-    'wall_score': 'Wall likelihood (planarity × verticality)',
-    'roof_score': 'Roof likelihood (planarity × horizontality)',
+    'wall_score': 'Wall likelihood (planarity × verticality) - LEGACY',
+    'roof_score': 'Roof likelihood (planarity × horizontality) - LEGACY',
+    
+    # Canonical Architectural Features (from architectural.py)
+    'horizontality': 'Horizontality score [0,1] - 1 for horizontal surfaces',
+    'wall_likelihood': 'Wall probability (canonical from architectural.py)',
+    'roof_likelihood': 'Roof probability (canonical from architectural.py)',
+    'facade_score': 'Facade characteristic score (verticality + height + planarity)',
     
     # Density & Neighborhood (4 features)
     'density': 'Local point density (points per unit volume)',
@@ -143,26 +149,28 @@ LOD2_FEATURES = {
     
     # Essential geometric
     'normal_z',           # Verticality indicator
-    'planarity',          # Flat surface detection
+    'planarity',          # Flat surface detection (from architectural.py)
     'linearity',          # Edge detection
-    'anisotropy',         # Structure detection (NEW)
+    'anisotropy',         # Structure detection
     
     # Building-specific
     'height_above_ground',# Height feature
-    'verticality',        # Wall detection
-    'horizontality',      # Roof detection (NEW)
-    'wall_score',         # Wall likelihood (NEW)
-    'roof_score',         # Roof likelihood (NEW)
+    'verticality',        # Wall detection (from architectural.py)
+    'horizontality',      # Roof detection (from architectural.py)
     
-    # Enhanced building features (NEW)
-    'facade_score',       # Facade detection
-    'flat_roof_score',    # Flat roof detection
-    'sloped_roof_score',  # Sloped roof detection
+    # Architectural features (from canonical architectural.py)
+    'wall_likelihood',    # Wall probability (from architectural.py)
+    'roof_likelihood',    # Roof probability (from architectural.py)
+    'facade_score',       # Facade detection (from architectural.py)
+    
+    # Legacy building scores (for compatibility)
+    'wall_score',         # Legacy wall likelihood
+    'roof_score',         # Legacy roof likelihood
     
     # Spectral
     'red', 'green', 'blue',  # RGB colors (3 features)
     'ndvi',               # Vegetation index
-}  # Total: 17 features (xyz=3, geometric=4, building=8, spectral=4)
+}  # Total: 19 features (xyz=3, geometric=4, building=10, spectral=4)
 
 # LOD3_FULL: Complete feature set for detailed modeling (~43 features)
 LOD3_FEATURES = {
@@ -197,10 +205,16 @@ LOD3_FEATURES = {
     'height_above_ground',
     'vertical_std',
     
-    # Building scores (3 features)
+    # Building scores (3 features - legacy)
     'verticality',
     'wall_score',
     'roof_score',
+    
+    # Canonical Architectural Features (from architectural.py)
+    'horizontality',        # Horizontal surface detection (from architectural.py)
+    'wall_likelihood',      # Wall probability (from architectural.py)
+    'roof_likelihood',      # Roof probability (from architectural.py)
+    'facade_score',         # Facade detection (from architectural.py)
     
     # Density (4 features)
     'density',
@@ -208,21 +222,17 @@ LOD3_FEATURES = {
     'neighborhood_extent',
     'height_extent_ratio',
     
-    # Architectural (4 features)
-    'edge_strength',
-    'corner_likelihood',
-    'overhang_indicator',
-    'surface_roughness',
+    # Legacy Architectural (4 features - for backward compatibility)
+    'legacy_edge_strength',
+    'legacy_corner_likelihood',
+    'legacy_overhang_indicator',
+    'legacy_surface_roughness',
     
-    # NEW: Enhanced Building Classification Features (8 features)
-    'horizontality',             # Roof surface detection
-    'facade_score',              # Facade/wall detection
+    # Additional Building Classification Features (4 features)
     'flat_roof_score',           # Flat roof detection
     'sloped_roof_score',         # Sloped roof detection
     'steep_roof_score',          # Steep roof detection
     'opening_likelihood',        # Window/door detection
-    'structural_element_score',  # Pillar/column detection
-    'edge_strength_enhanced',    # Enhanced edge detection
     
     # Spectral (5 features)
     'red', 'green', 'blue',
@@ -258,11 +268,16 @@ ASPRS_FEATURES = {
     'height_above_ground',# Essential for vegetation height classes
     'vertical_std',       # Local height variation
     
-    # Building detection
-    'verticality',        # Walls vs ground
-    'wall_score',
-    'roof_score',
-    'horizontality',      # Ground and flat roofs
+    # Building detection (canonical architectural features)
+    'verticality',        # Walls vs ground (from architectural.py)
+    'horizontality',      # Ground and flat roofs (from architectural.py)
+    'wall_likelihood',    # Wall probability (from architectural.py)
+    'roof_likelihood',    # Roof probability (from architectural.py)
+    'facade_score',       # Facade detection (from architectural.py)
+    
+    # Legacy building scores (for compatibility)
+    'wall_score',         # Legacy wall score
+    'roof_score',         # Legacy roof score
     
     # Density features for classification
     'density',            # Point density varies by class

@@ -8,11 +8,16 @@ This module refines LOD2/LOD3 classifications using additional data sources:
 - Height information for building vs vegetation
 
 Improves classification accuracy beyond basic ASPRS remapping.
+
+Updated: October 16, 2025 - Integrated unified thresholds (Issue #8)
 """
 
 import logging
 from typing import Optional, Dict, Any, Tuple
 import numpy as np
+
+# Import unified thresholds
+from .classification_thresholds import UnifiedThresholds
 
 # Import new building detection module
 from .building_detection import (
@@ -38,20 +43,25 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 class RefinementConfig:
-    """Configuration for classification refinement."""
+    """
+    Configuration for classification refinement.
+    
+    Note: Using UnifiedThresholds for consistency (Issue #8).
+    Legacy values retained as class attributes for backward compatibility.
+    """
     
     # NDVI thresholds for vegetation classification
-    NDVI_VEGETATION_MIN = 0.3      # Minimum NDVI for vegetation
-    NDVI_HIGH_VEG_MIN = 0.5        # Minimum NDVI for healthy high vegetation
-    NDVI_LOW_VEG_MAX = 0.6         # Maximum NDVI for low vegetation
+    NDVI_VEGETATION_MIN = UnifiedThresholds.NDVI_VEG_THRESHOLD
+    NDVI_HIGH_VEG_MIN = UnifiedThresholds.NDVI_HIGH_VEG_THRESHOLD
+    NDVI_LOW_VEG_MAX = 0.6         # Maximum NDVI for low vegetation (kept as refinement-specific)
     
-    # Height thresholds (meters)
-    LOW_VEG_HEIGHT_MAX = 2.0       # Maximum height for low vegetation
-    HIGH_VEG_HEIGHT_MIN = 1.5      # Minimum height for high vegetation
-    BUILDING_HEIGHT_MIN = 2.5      # Minimum height for buildings
-    VEHICLE_HEIGHT_MAX = 3.0       # Maximum height for vehicles
-    VEHICLE_HEIGHT_MIN = 0.5       # Minimum height for vehicles
-    ROAD_HEIGHT_MAX = 0.5          # Maximum height above ground for road surfaces
+    # Height thresholds (meters) - from UnifiedThresholds
+    LOW_VEG_HEIGHT_MAX = UnifiedThresholds.LOW_VEG_HEIGHT_MAX
+    HIGH_VEG_HEIGHT_MIN = UnifiedThresholds.HIGH_VEG_HEIGHT_MIN
+    BUILDING_HEIGHT_MIN = UnifiedThresholds.BUILDING_HEIGHT_MIN
+    VEHICLE_HEIGHT_MAX = UnifiedThresholds.VEHICLE_HEIGHT_MAX
+    VEHICLE_HEIGHT_MIN = UnifiedThresholds.VEHICLE_HEIGHT_MIN
+    ROAD_HEIGHT_MAX = UnifiedThresholds.GROUND_HEIGHT_MAX  # For ground-level detection
     
     # Geometric feature thresholds - General
     PLANARITY_FLAT_MIN = 0.7       # Minimum planarity for flat surfaces (ground, roofs)
@@ -89,11 +99,23 @@ class RefinementConfig:
     REFINE_ROADS = True            # Refine roads using ground truth + geometry
     REFINE_VEHICLES = True         # Detect vehicles using height + size
     
-    # Road-specific parameters
-    ROAD_BUFFER_TOLERANCE = 0.3    # Tolerance for matching points to road polygons (meters)
+    # Road-specific parameters - from UnifiedThresholds (Issue #1, #8)
+    ROAD_BUFFER_TOLERANCE = UnifiedThresholds.ROAD_BUFFER_TOLERANCE
+    ROAD_HEIGHT_MAX = UnifiedThresholds.ROAD_HEIGHT_MAX  # Updated: 2.0m (was 1.5m)
+    ROAD_HEIGHT_MIN = UnifiedThresholds.ROAD_HEIGHT_MIN  # Updated: -0.5m (was -0.3m)
+    ROAD_PLANARITY_MIN = UnifiedThresholds.ROAD_PLANARITY_MIN
     ROAD_INTENSITY_FILTER = True   # Use intensity to refine road detection
-    ROAD_MIN_INTENSITY = 0.2       # Minimum intensity for asphalt roads
-    ROAD_MAX_INTENSITY = 0.6       # Maximum intensity for asphalt roads
+    ROAD_MIN_INTENSITY = UnifiedThresholds.ROAD_INTENSITY_MIN
+    ROAD_MAX_INTENSITY = UnifiedThresholds.ROAD_INTENSITY_MAX
+    
+    # Railway-specific parameters - from UnifiedThresholds (Issue #4, #8)
+    RAIL_BUFFER_TOLERANCE = UnifiedThresholds.RAIL_BUFFER_MULTIPLIER * UnifiedThresholds.ROAD_BUFFER_TOLERANCE
+    RAIL_HEIGHT_MAX = UnifiedThresholds.RAIL_HEIGHT_MAX  # Updated: 2.0m (was 1.2m)
+    RAIL_HEIGHT_MIN = UnifiedThresholds.RAIL_HEIGHT_MIN  # Updated: -0.5m (was -0.2m)
+    RAIL_PLANARITY_MIN = UnifiedThresholds.RAIL_PLANARITY_MIN
+    RAIL_INTENSITY_FILTER = True   # Use intensity to refine rail detection
+    RAIL_MIN_INTENSITY = UnifiedThresholds.RAIL_INTENSITY_MIN
+    RAIL_MAX_INTENSITY = UnifiedThresholds.RAIL_INTENSITY_MAX
 
 
 # ============================================================================
@@ -292,6 +314,13 @@ def refine_building_classification(
     curvature: Optional[np.ndarray] = None,
     intensity: Optional[np.ndarray] = None,
     points: Optional[np.ndarray] = None,
+    # NEW: Canonical architectural features
+    horizontality: Optional[np.ndarray] = None,
+    wall_likelihood: Optional[np.ndarray] = None,
+    roof_likelihood: Optional[np.ndarray] = None,
+    facade_score: Optional[np.ndarray] = None,
+    building_regularity: Optional[np.ndarray] = None,
+    corner_likelihood: Optional[np.ndarray] = None,
     mode: str = 'lod2',
     config: RefinementConfig = None
 ) -> Tuple[np.ndarray, int]:
@@ -303,14 +332,25 @@ def refine_building_classification(
     - LOD2 mode: Building elements (walls, roofs)
     - LOD3 mode: Detailed architectural elements (windows, doors, etc.)
     
-    Features used:
-    - Horizontality: For roof detection (high horizontal planarity)
-    - Verticality: For wall detection (high vertical planarity)
-    - Planarity: For distinguishing flat building surfaces from vegetation
-    - Linearity: For detecting building edges and structural elements
-    - Anisotropy: For identifying organized structures vs random vegetation
-    - Wall/Roof scores: Combined metrics for building element classification
-    - Height: For distinguishing buildings from ground-level structures
+    Features used (prioritized order):
+    1. CANONICAL ARCHITECTURAL FEATURES (from architectural.py):
+       - wall_likelihood: Canonical wall probability (verticality × planarity)
+       - roof_likelihood: Canonical roof probability (horizontality × planarity)
+       - facade_score: Facade detection (verticality + height + planarity)
+       - horizontality: Horizontal surface detection [0,1]
+       - building_regularity: Structured geometry indicator
+       - corner_likelihood: Building edge/corner detection
+    
+    2. LEGACY GEOMETRIC FEATURES (for backward compatibility):
+       - verticality: Wall detection (vertical alignment)
+       - planarity: Flat surface detection
+       - wall_score: Legacy wall metric
+       - roof_score: Legacy roof metric
+       - linearity: Edge detection
+       - anisotropy: Structure detection
+    
+    3. ADDITIONAL FEATURES:
+       - height: Distinguishing buildings from ground-level structures
     
     Improves distinction between:
     - Building walls vs other vertical structures (poles, trees)
@@ -345,7 +385,7 @@ def refine_building_classification(
     
     # Use new building detection module if mode-aware detection is requested
     if mode in ['asprs', 'lod2', 'lod3']:
-        # Prepare features dictionary
+        # Prepare features dictionary (prioritize canonical architectural features)
         features = {
             'height': height,
             'planarity': planarity,
@@ -357,7 +397,14 @@ def refine_building_classification(
             'roof_score': roof_score,
             'curvature': curvature,
             'intensity': intensity,
-            'points': points
+            'points': points,
+            # Canonical architectural features (preferred)
+            'horizontality': horizontality,
+            'wall_likelihood': wall_likelihood,
+            'roof_likelihood': roof_likelihood,
+            'facade_score': facade_score,
+            'building_regularity': building_regularity,
+            'corner_likelihood': corner_likelihood
         }
         
         # Use the new building detection system
@@ -405,9 +452,37 @@ def refine_building_classification(
             logger.debug(f"  Ground truth: {changed.sum()} points assigned to buildings")
     
     # === ENHANCED GEOMETRIC-BASED BUILDING DETECTION ===
+    # Prioritize canonical architectural features when available
     
-    # Strategy 1: Wall detection using verticality + planarity
-    if height is not None and verticality is not None:
+    # Strategy 1: Wall detection using canonical wall_likelihood (PREFERRED)
+    if height is not None and wall_likelihood is not None:
+        # Use canonical wall_likelihood (combines verticality × planarity)
+        wall_candidates = (
+            (height > config.BUILDING_HEIGHT_MIN) &
+            (wall_likelihood > 0.5) &  # Canonical wall probability threshold
+            (labels != LOD2_WALL)  # Not already classified as building
+        )
+        
+        # Enhance with facade_score if available
+        if facade_score is not None:
+            # Facade score considers verticality + height + planarity
+            wall_candidates = wall_candidates | (
+                (height > config.BUILDING_HEIGHT_MIN) &
+                (facade_score > 0.5) &
+                (labels != LOD2_WALL)
+            )
+        
+        # Validate with building_regularity if available (structured geometry)
+        if building_regularity is not None:
+            wall_candidates = wall_candidates & (building_regularity > 0.3)
+        
+        # Apply wall detection
+        changed = wall_candidates & (refined != LOD2_WALL)
+        refined[wall_candidates] = LOD2_WALL
+        num_changed += changed.sum()
+    
+    # Strategy 1b: FALLBACK - Wall detection using legacy features
+    elif height is not None and verticality is not None:
         # Building wall candidates: tall + vertical + planar
         wall_candidates = (
             (height > config.BUILDING_HEIGHT_MIN) &
@@ -429,16 +504,36 @@ def refine_building_classification(
         refined[wall_candidates] = LOD2_WALL
         num_changed += changed.sum()
     
-    # Strategy 2: Roof detection using horizontality + planarity
-    if height is not None and normals is not None:
-        # Compute horizontality from normals
-        horizontality = np.abs(normals[:, 2]) if normals is not None else None
+    # Strategy 2: Roof detection using canonical roof_likelihood (PREFERRED)
+    if height is not None and roof_likelihood is not None:
+        # Use canonical roof_likelihood (combines horizontality × planarity)
+        roof_candidates = (
+            (height > config.BUILDING_HEIGHT_MIN) &
+            (roof_likelihood > 0.5) &  # Canonical roof probability threshold
+            (labels != LOD2_WALL)  # Not already classified
+        )
         
-        if horizontality is not None and planarity is not None:
+        # Validate with building_regularity if available
+        if building_regularity is not None:
+            roof_candidates = roof_candidates & (building_regularity > 0.3)
+        
+        # Apply roof detection
+        changed = roof_candidates & (refined != LOD2_WALL)
+        refined[roof_candidates] = LOD2_WALL
+        num_changed += changed.sum()
+    
+    # Strategy 2b: FALLBACK - Roof detection using legacy features
+    elif height is not None:
+        # Compute horizontality from input or normals
+        horiz = horizontality
+        if horiz is None and normals is not None:
+            horiz = np.abs(normals[:, 2])
+        
+        if horiz is not None and planarity is not None:
             # Roof candidates: elevated + horizontal + planar
             roof_candidates = (
                 (height > config.BUILDING_HEIGHT_MIN) &
-                (horizontality > 0.85) &  # Nearly horizontal surfaces
+                (horiz > 0.85) &  # Nearly horizontal surfaces
                 (planarity > 0.7) &  # Very planar
                 (labels != LOD2_WALL)  # Not already classified
             )
@@ -874,6 +969,14 @@ def refine_classification(
         else:
             detection_mode = 'asprs'  # Default for other levels
         
+        # Extract canonical architectural features (preferred)
+        horizontality_feat = features.get('horizontality')
+        wall_likelihood_feat = features.get('wall_likelihood')
+        roof_likelihood_feat = features.get('roof_likelihood')
+        facade_score_feat = features.get('facade_score')
+        building_regularity_feat = features.get('building_regularity')
+        corner_likelihood_feat = features.get('corner_likelihood')
+        
         refined, n_bldg = refine_building_classification(
             labels=refined,
             height=height,
@@ -888,21 +991,43 @@ def refine_classification(
             curvature=curvature_feat,
             intensity=intensity_feat,
             points=points_feat,
+            # Canonical architectural features (preferred)
+            horizontality=horizontality_feat,
+            wall_likelihood=wall_likelihood_feat,
+            roof_likelihood=roof_likelihood_feat,
+            facade_score=facade_score_feat,
+            building_regularity=building_regularity_feat,
+            corner_likelihood=corner_likelihood_feat,
             mode=detection_mode,
             config=config
         )
         stats['buildings_refined'] = n_bldg
         if n_bldg > 0:
             # Build feature list for logging
-            used_features = ['height', 'planarity', 'verticality']
-            if normals is not None:
-                used_features.append('normals/horizontality')
+            used_features = ['height']
+            
+            # Prioritize canonical architectural features in logging
+            if wall_likelihood_feat is not None or roof_likelihood_feat is not None:
+                used_features.append('canonical arch features')
+                if facade_score_feat is not None:
+                    used_features.append('facade_score')
+                if building_regularity_feat is not None:
+                    used_features.append('building_regularity')
+            else:
+                # Legacy features
+                if planarity is not None:
+                    used_features.append('planarity')
+                if verticality is not None:
+                    used_features.append('verticality')
+                if wall_score_feat is not None or roof_score_feat is not None:
+                    used_features.append('wall/roof scores (legacy)')
+            
+            if normals is not None or horizontality_feat is not None:
+                used_features.append('horizontality')
             if linearity_feat is not None:
                 used_features.append('linearity')
             if anisotropy_feat is not None:
                 used_features.append('anisotropy')
-            if wall_score_feat is not None or roof_score_feat is not None:
-                used_features.append('wall/roof scores')
             if detection_mode == 'lod3':
                 used_features.append('LOD3 details')
             features_str = ', '.join(used_features)

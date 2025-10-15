@@ -1,0 +1,2164 @@
+{
+  "metrics": {
+    "total_files": 82,
+    "total_lines": 40002,
+    "total_functions": 702,
+    "total_classes": 103,
+    "avg_lines_per_file": 487.8292682926829,
+    "avg_functions_per_file": 8.560975609756097,
+    "most_imports": [
+      {
+        "file": "ign_lidar/__init__.py",
+        "import_count": 67
+      },
+      {
+        "file": "ign_lidar/core/processor.py",
+        "import_count": 44
+      },
+      {
+        "file": "ign_lidar/core/modules/__init__.py",
+        "import_count": 43
+      },
+      {
+        "file": "ign_lidar/features/__init__.py",
+        "import_count": 35
+      },
+      {
+        "file": "ign_lidar/io/wfs_ground_truth.py",
+        "import_count": 26
+      },
+      {
+        "file": "ign_lidar/core/modules/advanced_classification.py",
+        "import_count": 23
+      },
+      {
+        "file": "ign_lidar/core/tile_stitcher.py",
+        "import_count": 21
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "import_count": 21
+      },
+      {
+        "file": "ign_lidar/features/orchestrator.py",
+        "import_count": 21
+      },
+      {
+        "file": "ign_lidar/io/cadastre.py",
+        "import_count": 21
+      }
+    ]
+  },
+  "duplicates": {
+    "get_class_name": [
+      {
+        "file": "ign_lidar/asprs_classes.py",
+        "line": 459,
+        "args": [
+          "code"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/hierarchical_classifier.py",
+        "line": 631,
+        "args": [
+          "class_id",
+          "level"
+        ],
+        "decorators": []
+      }
+    ],
+    "__init__": [
+      {
+        "file": "ign_lidar/downloader.py",
+        "line": 37,
+        "args": [
+          "self",
+          "output_dir",
+          "max_concurrent"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/cli/hydra_runner.py",
+        "line": 63,
+        "args": [
+          "self",
+          "config_dir"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/error_handler.py",
+        "line": 24,
+        "args": [
+          "self",
+          "message",
+          "suggestions",
+          "context"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/logging_config.py",
+        "line": 157,
+        "args": [
+          "self",
+          "operation_name",
+          "logger"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/memory_manager.py",
+        "line": 67,
+        "args": [
+          "self",
+          "min_chunk_size",
+          "max_chunk_size",
+          "enable_gpu"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/performance_monitor.py",
+        "line": 93,
+        "args": [
+          "self",
+          "enable_gpu_monitoring",
+          "sampling_interval"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/processor.py",
+        "line": 68,
+        "args": [
+          "self",
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/skip_checker.py",
+        "line": 25,
+        "args": [
+          "self",
+          "output_format",
+          "architecture",
+          "num_augmentations",
+          "augment",
+          "validate_content",
+          "min_file_size",
+          "only_enriched_laz"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/tile_stitcher.py",
+        "line": 73,
+        "args": [
+          "self",
+          "buffer_size",
+          "enable_caching",
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/verification.py",
+        "line": 143,
+        "args": [
+          "self",
+          "expected_features",
+          "sample_size",
+          "check_rgb",
+          "check_infrared",
+          "mode"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/datasets/augmentation.py",
+        "line": 34,
+        "args": [
+          "self",
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/datasets/dataset_manager.py",
+        "line": 96,
+        "args": [
+          "self",
+          "output_dir",
+          "config",
+          "patch_size"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/datasets/dataset_manager.py",
+        "line": 373,
+        "args": [
+          "self",
+          "base_output_dir",
+          "patch_sizes",
+          "config",
+          "balance_samples"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/datasets/multi_arch_dataset.py",
+        "line": 118,
+        "args": [
+          "self",
+          "data_dir",
+          "architecture",
+          "preset",
+          "num_points",
+          "octree_depth",
+          "knn_k",
+          "voxel_size",
+          "use_rgb",
+          "use_infrared",
+          "use_geometric",
+          "use_radiometric",
+          "use_contextual",
+          "normalize",
+          "normalize_rgb",
+          "standardize_features",
+          "augment",
+          "augmentation_config",
+          "cache_in_memory",
+          "use_gpu_cache",
+          "split",
+          "train_ratio",
+          "val_ratio",
+          "random_seed"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 41,
+        "args": [
+          "self",
+          "k_neighbors"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 115,
+        "args": [
+          "self",
+          "k_neighbors"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 177,
+        "args": [
+          "self",
+          "k_neighbors",
+          "gpu_batch_size"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 255,
+        "args": [
+          "self",
+          "k_neighbors",
+          "buffer_size",
+          "tile_bounds"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_boundary.py",
+        "line": 48,
+        "args": [
+          "self",
+          "k_neighbors",
+          "boundary_threshold",
+          "compute_normals",
+          "compute_curvature",
+          "compute_planarity",
+          "compute_verticality"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 48,
+        "args": [
+          "self",
+          "use_gpu",
+          "batch_size"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 59,
+        "args": [
+          "self",
+          "chunk_size",
+          "vram_limit_gb",
+          "use_gpu",
+          "show_progress",
+          "auto_optimize"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/orchestrator.py",
+        "line": 87,
+        "args": [
+          "self",
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/bd_foret.py",
+        "line": 140,
+        "args": [
+          "self",
+          "cache_dir",
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/cadastre.py",
+        "line": 71,
+        "args": [
+          "self",
+          "cache_dir",
+          "crs"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/data_fetcher.py",
+        "line": 129,
+        "args": [
+          "self",
+          "cache_dir",
+          "config",
+          "crs"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/metadata.py",
+        "line": 19,
+        "args": [
+          "self",
+          "base_dir"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/rpg.py",
+        "line": 176,
+        "args": [
+          "self",
+          "cache_dir",
+          "year",
+          "crs"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/wfs_ground_truth.py",
+        "line": 90,
+        "args": [
+          "self",
+          "cache_dir",
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/preprocessing/artifact_detector.py",
+        "line": 96,
+        "args": [
+          "self",
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/preprocessing/infrared_augmentation.py",
+        "line": 39,
+        "args": [
+          "self",
+          "cache_dir",
+          "use_gpu"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/preprocessing/rgb_augmentation.py",
+        "line": 39,
+        "args": [
+          "self",
+          "cache_dir",
+          "use_gpu"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/formatters/base_formatter.py",
+        "line": 20,
+        "args": [
+          "self",
+          "num_points",
+          "normalize",
+          "standardize_features"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/formatters/hybrid_formatter.py",
+        "line": 27,
+        "args": [
+          "self",
+          "num_points",
+          "octree_depth",
+          "knn_k",
+          "voxel_size",
+          "normalize",
+          "standardize_features",
+          "use_rgb",
+          "use_infrared",
+          "use_geometric",
+          "use_radiometric",
+          "use_contextual"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/formatters/multi_arch_formatter.py",
+        "line": 31,
+        "args": [
+          "self",
+          "target_archs",
+          "num_points",
+          "octree_depth",
+          "knn_k",
+          "voxel_size",
+          "normalize",
+          "standardize_features",
+          "use_rgb",
+          "use_infrared",
+          "use_geometric",
+          "use_radiometric",
+          "use_contextual"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/advanced_classification.py",
+        "line": 79,
+        "args": [
+          "self",
+          "use_ground_truth",
+          "use_ndvi",
+          "use_geometric",
+          "road_buffer_tolerance",
+          "ndvi_veg_threshold",
+          "ndvi_building_threshold",
+          "height_low_veg_threshold",
+          "height_medium_veg_threshold",
+          "planarity_road_threshold",
+          "planarity_building_threshold",
+          "building_detection_mode",
+          "transport_detection_mode"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/building_detection.py",
+        "line": 43,
+        "args": [
+          "self",
+          "mode"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/building_detection.py",
+        "line": 132,
+        "args": [
+          "self",
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/classification_validation.py",
+        "line": 138,
+        "args": [
+          "self",
+          "class_names"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/classification_validation.py",
+        "line": 458,
+        "args": [
+          "self",
+          "confidence_threshold"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/grammar_3d.py",
+        "line": 164,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/grammar_3d.py",
+        "line": 450,
+        "args": [
+          "self",
+          "grammar",
+          "max_iterations",
+          "min_confidence"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/hierarchical_classifier.py",
+        "line": 93,
+        "args": [
+          "self",
+          "target_level",
+          "use_confidence_scores",
+          "refinement_config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/optimized_thresholds.py",
+        "line": 499,
+        "args": [
+          "self",
+          "thresholds"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/tile_loader.py",
+        "line": 23,
+        "args": [
+          "self",
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/transport_detection.py",
+        "line": 42,
+        "args": [
+          "self",
+          "mode"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/transport_detection.py",
+        "line": 126,
+        "args": [
+          "self",
+          "config"
+        ],
+        "decorators": []
+      }
+    ],
+    "setup_logging": [
+      {
+        "file": "ign_lidar/cli/hydra_main.py",
+        "line": 70,
+        "args": [
+          "cfg"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/cli/main.py",
+        "line": 37,
+        "args": [
+          "verbose"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/logging_config.py",
+        "line": 23,
+        "args": [
+          "level",
+          "log_file",
+          "include_timestamp",
+          "format_style"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/cli/commands/process.py",
+        "line": 17,
+        "args": [
+          "cfg"
+        ],
+        "decorators": []
+      }
+    ],
+    "print_config_summary": [
+      {
+        "file": "ign_lidar/cli/hydra_main.py",
+        "line": 79,
+        "args": [
+          "cfg"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/config/loader.py",
+        "line": 379,
+        "args": [
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/cli/commands/process.py",
+        "line": 26,
+        "args": [
+          "cfg"
+        ],
+        "decorators": []
+      }
+    ],
+    "process_lidar": [
+      {
+        "file": "ign_lidar/cli/hydra_main.py",
+        "line": 101,
+        "args": [
+          "cfg"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/cli/commands/process.py",
+        "line": 56,
+        "args": [
+          "cfg"
+        ],
+        "decorators": []
+      }
+    ],
+    "info": [
+      {
+        "file": "ign_lidar/cli/hydra_main.py",
+        "line": 258,
+        "args": [
+          "cfg"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/cli/main.py",
+        "line": 95,
+        "args": [],
+        "decorators": [
+          "<ast.Call object at 0x7cccbf595790>"
+        ]
+      }
+    ],
+    "main": [
+      {
+        "file": "ign_lidar/cli/hydra_main.py",
+        "line": 308,
+        "args": [
+          "cfg"
+        ],
+        "decorators": [
+          "<ast.Call object at 0x7cccbf725c10>"
+        ]
+      },
+      {
+        "file": "ign_lidar/cli/main.py",
+        "line": 101,
+        "args": [],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/qgis_converter.py",
+        "line": 191,
+        "args": [
+          "input_file",
+          "output_file",
+          "quiet",
+          "batch"
+        ],
+        "decorators": [
+          "<ast.Call object at 0x7cccbf5b2710>",
+          "<ast.Call object at 0x7cccbf5b0250>",
+          "<ast.Call object at 0x7cccbf5b0f90>",
+          "<ast.Call object at 0x7cccbf5b0210>",
+          "<ast.Call object at 0x7cccbf5b3150>"
+        ]
+      },
+      {
+        "file": "ign_lidar/preprocessing/artifact_detector.py",
+        "line": 701,
+        "args": [],
+        "decorators": []
+      }
+    ],
+    "load_config": [
+      {
+        "file": "ign_lidar/cli/hydra_runner.py",
+        "line": 87,
+        "args": [
+          "self",
+          "config_name",
+          "overrides",
+          "config_file",
+          "return_dict"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/cli/hydra_runner.py",
+        "line": 309,
+        "args": [
+          "config_file",
+          "overrides",
+          "config_name"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/stitching_config.py",
+        "line": 86,
+        "args": [
+          "cls",
+          "config_name"
+        ],
+        "decorators": [
+          "classmethod"
+        ]
+      }
+    ],
+    "validate_config": [
+      {
+        "file": "ign_lidar/cli/hydra_runner.py",
+        "line": 218,
+        "args": [
+          "cfg",
+          "schema_cls"
+        ],
+        "decorators": [
+          "staticmethod"
+        ]
+      },
+      {
+        "file": "ign_lidar/config/loader.py",
+        "line": 66,
+        "args": [
+          "config"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/stitching_config.py",
+        "line": 105,
+        "args": [
+          "cls",
+          "config"
+        ],
+        "decorators": [
+          "classmethod"
+        ]
+      }
+    ],
+    "create": [
+      {
+        "file": "ign_lidar/core/error_handler.py",
+        "line": 103,
+        "args": [
+          "reason"
+        ],
+        "decorators": [
+          "staticmethod"
+        ]
+      },
+      {
+        "file": "ign_lidar/core/error_handler.py",
+        "line": 139,
+        "args": [
+          "available_ram_gb",
+          "swap_used_percent",
+          "required_ram_gb"
+        ],
+        "decorators": [
+          "staticmethod"
+        ]
+      },
+      {
+        "file": "ign_lidar/core/error_handler.py",
+        "line": 176,
+        "args": [
+          "file_path",
+          "error",
+          "stage"
+        ],
+        "decorators": [
+          "staticmethod"
+        ]
+      },
+      {
+        "file": "ign_lidar/core/error_handler.py",
+        "line": 214,
+        "args": [
+          "parameter",
+          "value",
+          "reason",
+          "valid_range"
+        ],
+        "decorators": [
+          "staticmethod"
+        ]
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 314,
+        "args": [
+          "use_gpu",
+          "use_chunked",
+          "use_boundary_aware",
+          "gpu_batch_size",
+          "k_neighbors",
+          "buffer_size",
+          "tile_bounds"
+        ],
+        "decorators": [
+          "staticmethod"
+        ]
+      }
+    ],
+    "calculate_optimal_workers": [
+      {
+        "file": "ign_lidar/core/memory_manager.py",
+        "line": 259,
+        "args": [
+          "self",
+          "num_files",
+          "file_sizes_mb",
+          "mode"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/memory_utils.py",
+        "line": 104,
+        "args": [
+          "num_files",
+          "file_sizes_mb",
+          "mode",
+          "use_gpu",
+          "requested_workers",
+          "min_workers",
+          "max_workers"
+        ],
+        "decorators": []
+      }
+    ],
+    "to_dict": [
+      {
+        "file": "ign_lidar/core/performance_monitor.py",
+        "line": 47,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/performance_monitor.py",
+        "line": 65,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/verification.py",
+        "line": 108,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/loader.py",
+        "line": 69,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/optimized_thresholds.py",
+        "line": 431,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/stitching.py",
+        "line": 55,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      }
+    ],
+    "generate_report": [
+      {
+        "file": "ign_lidar/core/performance_monitor.py",
+        "line": 317,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/verification.py",
+        "line": 362,
+        "args": [
+          "self",
+          "results",
+          "file_path"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_ndvi": [
+      {
+        "file": "ign_lidar/core/processor.py",
+        "line": 322,
+        "args": [
+          "self"
+        ],
+        "decorators": [
+          "property"
+        ]
+      },
+      {
+        "file": "ign_lidar/core/modules/enrichment.py",
+        "line": 192,
+        "args": [
+          "rgb",
+          "nir",
+          "logger_instance"
+        ],
+        "decorators": []
+      }
+    ],
+    "get_statistics": [
+      {
+        "file": "ign_lidar/core/tile_stitcher.py",
+        "line": 1747,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/datasets/dataset_manager.py",
+        "line": 253,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/hierarchical_classifier.py",
+        "line": 50,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      }
+    ],
+    "__repr__": [
+      {
+        "file": "ign_lidar/datasets/augmentation.py",
+        "line": 269,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/datasets/multi_arch_dataset.py",
+        "line": 493,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/orchestrator.py",
+        "line": 864,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/grammar_3d.py",
+        "line": 118,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/grammar_3d.py",
+        "line": 144,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/loader.py",
+        "line": 114,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      }
+    ],
+    "__post_init__": [
+      {
+        "file": "ign_lidar/datasets/dataset_manager.py",
+        "line": 52,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/feature_modes.py",
+        "line": 300,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/loader.py",
+        "line": 53,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_features": [
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 53,
+        "args": [
+          "self",
+          "points",
+          "classification"
+        ],
+        "decorators": [
+          "abstractmethod"
+        ]
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 84,
+        "args": [
+          "self",
+          "points",
+          "classification"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 133,
+        "args": [
+          "self",
+          "points",
+          "classification"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 201,
+        "args": [
+          "self",
+          "points",
+          "classification"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 266,
+        "args": [
+          "self",
+          "points",
+          "classification"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_boundary.py",
+        "line": 81,
+        "args": [
+          "self",
+          "core_points",
+          "buffer_points",
+          "tile_bounds"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/orchestrator.py",
+        "line": 469,
+        "args": [
+          "self",
+          "tile_data",
+          "use_enriched"
+        ],
+        "decorators": []
+      }
+    ],
+    "is_available": [
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 76,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 129,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 197,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      }
+    ],
+    "_check_gpu_availability": [
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 119,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/factory.py",
+        "line": 187,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_normals": [
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 118,
+        "args": [
+          "points",
+          "k"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 76,
+        "args": [
+          "self",
+          "points",
+          "k"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1294,
+        "args": [
+          "points",
+          "k"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_curvature": [
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 172,
+        "args": [
+          "points",
+          "normals",
+          "k"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 241,
+        "args": [
+          "self",
+          "points",
+          "normals",
+          "k"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1300,
+        "args": [
+          "points",
+          "normals",
+          "k"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_eigenvalue_features": [
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 211,
+        "args": [
+          "eigenvalues",
+          "epsilon"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 584,
+        "args": [
+          "self",
+          "points",
+          "normals",
+          "neighbors_indices"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1420,
+        "args": [
+          "points",
+          "normals",
+          "neighbors_indices"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 880,
+        "args": [
+          "self",
+          "points",
+          "normals",
+          "neighbors_indices",
+          "start_idx",
+          "end_idx"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 1566,
+        "args": [
+          "points",
+          "normals",
+          "neighbors_indices"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_architectural_features": [
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 279,
+        "args": [
+          "eigenvalues",
+          "normals",
+          "points",
+          "tree",
+          "k",
+          "epsilon"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 683,
+        "args": [
+          "self",
+          "points",
+          "normals",
+          "neighbors_indices"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1445,
+        "args": [
+          "points",
+          "normals",
+          "neighbors_indices"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 990,
+        "args": [
+          "self",
+          "points",
+          "normals",
+          "neighbors_indices",
+          "start_idx",
+          "end_idx"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 1591,
+        "args": [
+          "points",
+          "normals",
+          "neighbors_indices"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_density_features": [
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 375,
+        "args": [
+          "points",
+          "tree",
+          "k",
+          "radius_2m",
+          "epsilon"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 778,
+        "args": [
+          "self",
+          "points",
+          "neighbors_indices",
+          "radius_2m"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1469,
+        "args": [
+          "points",
+          "neighbors_indices",
+          "radius_2m"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 1102,
+        "args": [
+          "self",
+          "points",
+          "neighbors_indices",
+          "radius_2m",
+          "start_idx",
+          "end_idx"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 1615,
+        "args": [
+          "points",
+          "neighbors_indices",
+          "radius_2m"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_verticality": [
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 440,
+        "args": [
+          "normals"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 877,
+        "args": [
+          "normals"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 471,
+        "args": [
+          "self",
+          "normals"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1362,
+        "args": [
+          "normals"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_height_above_ground": [
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 723,
+        "args": [
+          "points",
+          "classification"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 296,
+        "args": [
+          "self",
+          "points",
+          "classification"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1343,
+        "args": [
+          "points",
+          "classification"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_wall_score": [
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 899,
+        "args": [
+          "normals",
+          "height_above_ground",
+          "min_height"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 495,
+        "args": [
+          "self",
+          "normals",
+          "height_above_ground",
+          "min_height"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1376,
+        "args": [
+          "normals",
+          "height_above_ground",
+          "min_height"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/optimized_thresholds.py",
+        "line": 163,
+        "args": [
+          "self",
+          "planarity",
+          "verticality"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_roof_score": [
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 927,
+        "args": [
+          "normals",
+          "height_above_ground",
+          "curvature",
+          "min_height"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 536,
+        "args": [
+          "self",
+          "normals",
+          "height_above_ground",
+          "curvature",
+          "min_height"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1396,
+        "args": [
+          "normals",
+          "height_above_ground",
+          "curvature",
+          "min_height"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/optimized_thresholds.py",
+        "line": 167,
+        "args": [
+          "self",
+          "planarity",
+          "horizontality"
+        ],
+        "decorators": []
+      }
+    ],
+    "extract_geometric_features": [
+      {
+        "file": "ign_lidar/features/features.py",
+        "line": 1014,
+        "args": [
+          "points",
+          "normals",
+          "k",
+          "radius"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 323,
+        "args": [
+          "self",
+          "points",
+          "normals",
+          "k",
+          "radius"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1352,
+        "args": [
+          "points",
+          "normals",
+          "k"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_boundary_aware_features": [
+      {
+        "file": "ign_lidar/features/features_boundary.py",
+        "line": 625,
+        "args": [
+          "core_points",
+          "buffer_points",
+          "tile_bounds",
+          "k_neighbors",
+          "boundary_threshold"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/stitching.py",
+        "line": 125,
+        "args": [
+          "stitcher",
+          "laz_file",
+          "k_neighbors",
+          "logger_instance"
+        ],
+        "decorators": []
+      }
+    ],
+    "_to_gpu": [
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 64,
+        "args": [
+          "self",
+          "array"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 162,
+        "args": [
+          "self",
+          "array"
+        ],
+        "decorators": []
+      }
+    ],
+    "_to_cpu": [
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 70,
+        "args": [
+          "self",
+          "array"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 168,
+        "args": [
+          "self",
+          "array"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_all_features_chunked": [
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1083,
+        "args": [
+          "self",
+          "points",
+          "classification",
+          "k",
+          "chunk_size",
+          "radius"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 1210,
+        "args": [
+          "self",
+          "points",
+          "classification",
+          "k",
+          "radius",
+          "mode"
+        ],
+        "decorators": []
+      }
+    ],
+    "compute_all_features_gpu_chunked": [
+      {
+        "file": "ign_lidar/features/features_gpu.py",
+        "line": 1310,
+        "args": [
+          "points",
+          "classification",
+          "k",
+          "chunk_size",
+          "radius"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/features/features_gpu_chunked.py",
+        "line": 1525,
+        "args": [
+          "points",
+          "classification",
+          "k",
+          "chunk_size",
+          "vram_limit_gb",
+          "radius"
+        ],
+        "decorators": []
+      }
+    ],
+    "_fetch_wfs_layer": [
+      {
+        "file": "ign_lidar/io/bd_foret.py",
+        "line": 206,
+        "args": [
+          "self",
+          "bbox"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/wfs_ground_truth.py",
+        "line": 918,
+        "args": [
+          "self",
+          "layer_name",
+          "bbox"
+        ],
+        "decorators": []
+      }
+    ],
+    "fetch_parcels": [
+      {
+        "file": "ign_lidar/io/cadastre.py",
+        "line": 94,
+        "args": [
+          "self",
+          "bbox",
+          "max_features"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/rpg.py",
+        "line": 205,
+        "args": [
+          "self",
+          "bbox",
+          "max_features"
+        ],
+        "decorators": []
+      }
+    ],
+    "_get_cache_path": [
+      {
+        "file": "ign_lidar/io/cadastre.py",
+        "line": 422,
+        "args": [
+          "self",
+          "bbox"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/rpg.py",
+        "line": 401,
+        "args": [
+          "self",
+          "bbox"
+        ],
+        "decorators": []
+      }
+    ],
+    "is_vegetation": [
+      {
+        "file": "ign_lidar/io/rpg.py",
+        "line": 141,
+        "args": [
+          "category"
+        ],
+        "decorators": [
+          "staticmethod"
+        ]
+      },
+      {
+        "file": "ign_lidar/core/modules/optimized_thresholds.py",
+        "line": 531,
+        "args": [
+          "self",
+          "ndvi",
+          "height",
+          "curvature",
+          "planarity"
+        ],
+        "decorators": []
+      }
+    ],
+    "_get_cache_key": [
+      {
+        "file": "ign_lidar/preprocessing/infrared_augmentation.py",
+        "line": 148,
+        "args": [
+          "self",
+          "bbox"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/preprocessing/rgb_augmentation.py",
+        "line": 147,
+        "args": [
+          "self",
+          "bbox"
+        ],
+        "decorators": []
+      }
+    ],
+    "clear_gpu_cache": [
+      {
+        "file": "ign_lidar/preprocessing/infrared_augmentation.py",
+        "line": 213,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/preprocessing/rgb_augmentation.py",
+        "line": 212,
+        "args": [
+          "self"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/memory.py",
+        "line": 60,
+        "args": [],
+        "decorators": []
+      }
+    ],
+    "format_patch": [
+      {
+        "file": "ign_lidar/io/formatters/base_formatter.py",
+        "line": 366,
+        "args": [
+          "self",
+          "patch"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/formatters/hybrid_formatter.py",
+        "line": 75,
+        "args": [
+          "self",
+          "patch"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/formatters/multi_arch_formatter.py",
+        "line": 78,
+        "args": [
+          "self",
+          "patch"
+        ],
+        "decorators": []
+      }
+    ],
+    "_build_knn_graph": [
+      {
+        "file": "ign_lidar/io/formatters/hybrid_formatter.py",
+        "line": 216,
+        "args": [
+          "self",
+          "points",
+          "k"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/formatters/multi_arch_formatter.py",
+        "line": 348,
+        "args": [
+          "self",
+          "points",
+          "k"
+        ],
+        "decorators": []
+      }
+    ],
+    "_voxelize": [
+      {
+        "file": "ign_lidar/io/formatters/hybrid_formatter.py",
+        "line": 241,
+        "args": [
+          "self",
+          "points",
+          "features",
+          "labels"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/io/formatters/multi_arch_formatter.py",
+        "line": 408,
+        "args": [
+          "self",
+          "points",
+          "features",
+          "labels",
+          "voxel_size"
+        ],
+        "decorators": []
+      }
+    ],
+    "_detect_lod2": [
+      {
+        "file": "ign_lidar/core/modules/building_detection.py",
+        "line": 309,
+        "args": [
+          "self",
+          "labels",
+          "height",
+          "planarity",
+          "verticality",
+          "normals",
+          "linearity",
+          "anisotropy",
+          "wall_score",
+          "roof_score",
+          "ground_truth_mask"
+        ],
+        "decorators": []
+      },
+      {
+        "file": "ign_lidar/core/modules/transport_detection.py",
+        "line": 396,
+        "args": [
+          "self",
+          "labels",
+          "height",
+          "planarity",
+          "roughness",
+          "intensity",
+          "normals",
+          "road_ground_truth_mask",
+          "rail_ground_truth_mask"
+        ],
+        "decorators": []
+      }
+    ]
+  },
+  "oversized": [
+    {
+      "file": "ign_lidar/features/features.py",
+      "lines": 2058,
+      "functions": 28,
+      "classes": 0,
+      "over_by": 1258
+    },
+    {
+      "file": "ign_lidar/core/tile_stitcher.py",
+      "lines": 1776,
+      "functions": 36,
+      "classes": 1,
+      "over_by": 976
+    },
+    {
+      "file": "ign_lidar/features/features_gpu_chunked.py",
+      "lines": 1637,
+      "functions": 18,
+      "classes": 1,
+      "over_by": 837
+    },
+    {
+      "file": "ign_lidar/features/features_gpu.py",
+      "lines": 1490,
+      "functions": 31,
+      "classes": 1,
+      "over_by": 690
+    },
+    {
+      "file": "ign_lidar/core/modules/classification_refinement.py",
+      "lines": 1387,
+      "functions": 8,
+      "classes": 1,
+      "over_by": 587
+    },
+    {
+      "file": "ign_lidar/core/processor.py",
+      "lines": 1297,
+      "functions": 29,
+      "classes": 1,
+      "over_by": 497
+    },
+    {
+      "file": "ign_lidar/io/wfs_ground_truth.py",
+      "lines": 1137,
+      "functions": 18,
+      "classes": 2,
+      "over_by": 337
+    },
+    {
+      "file": "ign_lidar/core/modules/grammar_3d.py",
+      "lines": 1048,
+      "functions": 27,
+      "classes": 5,
+      "over_by": 248
+    },
+    {
+      "file": "ign_lidar/datasets/strategic_locations.py",
+      "lines": 960,
+      "functions": 6,
+      "classes": 0,
+      "over_by": 160
+    },
+    {
+      "file": "ign_lidar/features/orchestrator.py",
+      "lines": 873,
+      "functions": 21,
+      "classes": 1,
+      "over_by": 73
+    }
+  ],
+  "coupling": {
+    "ign_lidar/config/loader.py": {
+      "imports": [
+        "ign_lidar.io.data_fetcher",
+        "ign_lidar.io.data_fetcher"
+      ],
+      "imported_by": []
+    },
+    "ign_lidar.io.data_fetcher": {
+      "imports": [],
+      "imported_by": [
+        "ign_lidar/config/loader.py",
+        "ign_lidar/config/loader.py"
+      ]
+    },
+    "ign_lidar/io/data_fetcher.py": {
+      "imports": [
+        "ign_lidar.io.wfs_ground_truth",
+        "ign_lidar.io.bd_foret",
+        "ign_lidar.io.rpg",
+        "ign_lidar.io.cadastre"
+      ],
+      "imported_by": []
+    },
+    "ign_lidar.io.wfs_ground_truth": {
+      "imports": [],
+      "imported_by": [
+        "ign_lidar/io/data_fetcher.py"
+      ]
+    },
+    "ign_lidar.io.bd_foret": {
+      "imports": [],
+      "imported_by": [
+        "ign_lidar/io/data_fetcher.py"
+      ]
+    },
+    "ign_lidar.io.rpg": {
+      "imports": [],
+      "imported_by": [
+        "ign_lidar/io/data_fetcher.py"
+      ]
+    },
+    "ign_lidar.io.cadastre": {
+      "imports": [],
+      "imported_by": [
+        "ign_lidar/io/data_fetcher.py"
+      ]
+    },
+    "ign_lidar/core/modules/grammar_3d.py": {
+      "imports": [
+        "ign_lidar.classes",
+        "ign_lidar.classes"
+      ],
+      "imported_by": []
+    },
+    "ign_lidar.classes": {
+      "imports": [],
+      "imported_by": [
+        "ign_lidar/core/modules/grammar_3d.py",
+        "ign_lidar/core/modules/grammar_3d.py",
+        "ign_lidar/core/modules/hierarchical_classifier.py",
+        "ign_lidar/core/modules/hierarchical_classifier.py",
+        "ign_lidar/core/modules/hierarchical_classifier.py",
+        "ign_lidar/core/modules/hierarchical_classifier.py"
+      ]
+    },
+    "ign_lidar/core/modules/hierarchical_classifier.py": {
+      "imports": [
+        "ign_lidar.classes",
+        "ign_lidar.classes",
+        "ign_lidar.classes",
+        "ign_lidar.classes",
+        "ign_lidar.asprs_classes"
+      ],
+      "imported_by": []
+    },
+    "ign_lidar.asprs_classes": {
+      "imports": [],
+      "imported_by": [
+        "ign_lidar/core/modules/hierarchical_classifier.py"
+      ]
+    },
+    "ign_lidar/cli/commands/info.py": {
+      "imports": [
+        "ign_lidar"
+      ],
+      "imported_by": []
+    },
+    "ign_lidar": {
+      "imports": [],
+      "imported_by": [
+        "ign_lidar/cli/commands/info.py"
+      ]
+    }
+  },
+  "recommendations": [
+    "\ud83d\udd34 CRITICAL: 25 functions have 3+ implementations. Create unified implementations in core modules.",
+    "\ud83d\udfe1 MODERATE: 10 modules exceed 800 LOC. Consider splitting into smaller, focused modules."
+  ]
+}

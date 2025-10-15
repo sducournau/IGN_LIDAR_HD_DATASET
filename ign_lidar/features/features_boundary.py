@@ -20,6 +20,16 @@ import numpy as np
 from typing import Dict, Optional, Tuple
 from scipy.spatial import KDTree
 
+# Import core feature implementations
+from ..features.core import (
+    compute_curvature as core_compute_curvature,
+    compute_linearity,
+    compute_planarity,
+    compute_sphericity,
+    compute_anisotropy,
+    compute_verticality as core_compute_verticality,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -303,29 +313,16 @@ class BoundaryAwareFeatureComputer:
         """
         Compute curvature from eigenvalues.
         
-        Curvature = λ3 / (λ1 + λ2 + λ3)
-        
         Args:
             eigenvalues: (N, 3) Eigenvalues (λ1, λ2, λ3)
         
         Returns:
             (N,) Curvature values [0, 1]
+        
+        Note:
+            Uses core implementation from ign_lidar.features.core
         """
-        # Ensure eigenvalues are non-negative (covariance matrices should be PSD)
-        eigenvalues_clean = np.maximum(eigenvalues, 0.0)
-        lambda_sum = eigenvalues_clean.sum(axis=1)
-        
-        # Avoid division by zero
-        curvature = np.where(
-            lambda_sum > 1e-10,
-            eigenvalues_clean[:, 2] / lambda_sum,
-            0.0
-        )
-        
-        # Clamp to valid range
-        curvature = np.clip(curvature, 0.0, 1.0)
-        
-        return curvature.astype(np.float32)
+        return core_compute_curvature(eigenvalues)
     
     def _compute_planarity_features(
         self,
@@ -341,69 +338,30 @@ class BoundaryAwareFeatureComputer:
         - Anisotropy:  (λ1 - λ3) / λ1  → general directionality
         - Roughness:   λ3 / Σλ         → surface roughness
         
-        All features are clamped to [0, 1] range.
-        
         Args:
             eigenvalues: (N, 3) Eigenvalues (λ1 ≥ λ2 ≥ λ3)
         
         Returns:
             Dictionary with planarity, linearity, sphericity, anisotropy, roughness
+        
+        Note:
+            Uses core implementations from ign_lidar.features.core
         """
-        lambda1 = eigenvalues[:, 0]
-        lambda2 = eigenvalues[:, 1]
-        lambda3 = eigenvalues[:, 2]
+        # Use core functions for individual features
+        planarity = compute_planarity(eigenvalues)
+        linearity = compute_linearity(eigenvalues)
+        sphericity = compute_sphericity(eigenvalues)
+        anisotropy = compute_anisotropy(eigenvalues)
         
-        # Ensure eigenvalues are non-negative (covariance matrices should be PSD)
-        # Clamp negative values to zero (numerical artifacts)
-        lambda1 = np.maximum(lambda1, 0.0)
-        lambda2 = np.maximum(lambda2, 0.0)
-        lambda3 = np.maximum(lambda3, 0.0)
-        
-        # Avoid division by zero
-        eps = 1e-10
-        
-        planarity = np.where(
-            lambda1 > eps,
-            (lambda2 - lambda3) / lambda1,
-            0.0
-        )
-        
-        linearity = np.where(
-            lambda1 > eps,
-            (lambda1 - lambda2) / lambda1,
-            0.0
-        )
-        
-        sphericity = np.where(
-            lambda1 > eps,
-            lambda3 / lambda1,
-            0.0
-        )
-        
-        # Clamp all features to valid range [0, 1]
-        # This handles rare numerical edge cases where λ3 > λ1 due to floating point errors
-        planarity = np.clip(planarity, 0.0, 1.0)
-        linearity = np.clip(linearity, 0.0, 1.0)
-        sphericity = np.clip(sphericity, 0.0, 1.0)
-        
-        # NEW: Add anisotropy feature (λ1 - λ3) / λ1
-        anisotropy = np.where(
-            lambda1 > eps,
-            (lambda1 - lambda3) / lambda1,
-            0.0
-        )
-        anisotropy = np.clip(anisotropy, 0.0, 1.0)
-        
-        # NEW: Add roughness feature λ3 / (λ1 + λ2 + λ3)
-        sum_lambda = lambda1 + lambda2 + lambda3 + eps
-        roughness = np.clip(lambda3 / sum_lambda, 0.0, 1.0)
+        # Roughness: λ3 / Σλ (same as curvature)
+        roughness = core_compute_curvature(eigenvalues)
         
         return {
-            'planarity': planarity.astype(np.float32),
-            'linearity': linearity.astype(np.float32),
-            'sphericity': sphericity.astype(np.float32),
-            'anisotropy': anisotropy.astype(np.float32),  # NEW
-            'roughness': roughness.astype(np.float32),    # NEW
+            'planarity': planarity,
+            'linearity': linearity,
+            'sphericity': sphericity,
+            'anisotropy': anisotropy,
+            'roughness': roughness,
         }
     
     def _compute_density(
@@ -440,19 +398,19 @@ class BoundaryAwareFeatureComputer:
         """
         Compute verticality and horizontality from normal vectors.
         
-        Verticality   = 1 - |nz|  → 1 for vertical surfaces (walls), 0 for horizontal
-        Horizontality = |nz|      → 1 for horizontal surfaces (ground/roof), 0 for vertical
-        
         Args:
             normals: (N, 3) Normal vectors
         
         Returns:
             Tuple of (verticality, horizontality) arrays, both [0, 1]
+        
+        Note:
+            Uses core implementation from ign_lidar.features.core
         """
-        abs_nz = np.abs(normals[:, 2])
-        verticality = 1.0 - abs_nz
-        horizontality = abs_nz
-        return verticality.astype(np.float32), horizontality.astype(np.float32)
+        verticality = core_compute_verticality(normals)
+        # Horizontality is the complement: |nz|
+        horizontality = np.abs(normals[:, 2]).astype(np.float32)
+        return verticality, horizontality
     
     def _validate_features(
         self,

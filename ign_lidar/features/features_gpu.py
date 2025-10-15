@@ -38,6 +38,15 @@ except ImportError:
 # Fallback CPU
 from sklearn.neighbors import KDTree
 
+# Import core feature implementations
+from ..features.core import (
+    compute_normals as core_compute_normals,
+    compute_curvature as core_compute_curvature,
+    compute_eigenvalue_features as core_compute_eigenvalue_features,
+    compute_density_features as core_compute_density_features,
+    compute_verticality as core_compute_verticality,
+)
+
 
 class GPUFeatureComputer:
     """
@@ -447,22 +456,24 @@ class GPUFeatureComputer:
         # Import CPU functions for advanced features
         from .features import (
             compute_eigenvalue_features,
-            compute_architectural_features,
             compute_num_points_within_radius
         )
+        from .core.architectural import compute_architectural_features as compute_arch_features_core
         
         # Compute eigenvalue-based features
         eigenvalue_features = compute_eigenvalue_features(eigenvalues)
         features.update(eigenvalue_features)
         
-        # Compute architectural features (requires tree and more context)
-        tree = KDTree(points, metric='euclidean', leaf_size=30)
-        architectural_features = compute_architectural_features(
-            eigenvalues, normals, points, tree, k
+        # Compute canonical architectural features (wall/roof likelihood, facade score, etc.)
+        architectural_features = compute_arch_features_core(
+            points=points,
+            normals=normals,
+            eigenvalues=eigenvalues
         )
         features.update(architectural_features)
         
         # Compute density features
+        tree = KDTree(points, metric='euclidean', leaf_size=30)
         num_points_2m = compute_num_points_within_radius(points, tree, radius=2.0)
         features['num_points_2m'] = num_points_2m
         
@@ -481,6 +492,9 @@ class GPUFeatureComputer:
             verticality: [N] verticality values [0, 1]
                         0 = horizontal surface
                         1 = vertical surface
+        
+        Note:
+            Uses core implementation with optional GPU acceleration for data transfer.
         """
         if self.use_gpu and cp is not None:
             # GPU computation
@@ -488,9 +502,8 @@ class GPUFeatureComputer:
             verticality_gpu = 1.0 - cp.abs(normals_gpu[:, 2])
             return self._to_cpu(verticality_gpu).astype(np.float32)
         else:
-            # CPU fallback
-            verticality = 1.0 - np.abs(normals[:, 2])
-            return verticality.astype(np.float32)
+            # Use core implementation for CPU fallback
+            return core_compute_verticality(normals)
 
     def compute_wall_score(
         self,

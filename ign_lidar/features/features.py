@@ -31,6 +31,15 @@ from sklearn.neighbors import KDTree
 from tqdm import tqdm
 import logging
 
+# Import core feature implementations
+from ..features.core import (
+    compute_normals as core_compute_normals,
+    compute_curvature as core_compute_curvature,
+    compute_eigenvalue_features as core_compute_eigenvalue_features,
+    compute_density_features as core_compute_density_features,
+    compute_verticality as core_compute_verticality,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -118,7 +127,6 @@ def estimate_optimal_radius_for_features(points: np.ndarray,
 def compute_normals(points: np.ndarray, k: int = 10) -> np.ndarray:
     """
     Compute surface normals using PCA on k-nearest neighbors.
-    Version ULTRA-OPTIMISÉE avec vectorisation complète (100x plus rapide).
     
     Args:
         points: [N, 3] point coordinates
@@ -126,54 +134,19 @@ def compute_normals(points: np.ndarray, k: int = 10) -> np.ndarray:
         
     Returns:
         normals: [N, 3] normalized surface normals
+    
+    Note:
+        This is a wrapper around the core implementation.
+        Use ign_lidar.features.core.compute_normals directly for new code.
     """
-    # Build KDTree for efficient neighbor search
-    tree = KDTree(points, metric='euclidean', leaf_size=30)
-    
-    # Query tous les voisins en une seule fois
-    _, indices = tree.query(points, k=k)
-    
-    # VECTORISATION COMPLÈTE - Traiter tous les points simultanément
-    # Shape: [N, k, 3]
-    neighbors_all = points[indices]
-    
-    # Centrer les voisins: [N, k, 3]
-    centroids = neighbors_all.mean(axis=1, keepdims=True)  # [N, 1, 3]
-    centered = neighbors_all - centroids  # [N, k, 3]
-    
-    # Calculer matrices de covariance pour tous les points: [N, 3, 3]
-    # cov = (1/(k-1)) * X^T @ X
-    # Utiliser einsum pour vectorisation ultra-rapide
-    cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
-    
-    # Eigendecomposition vectorisée sur tous les points
-    # eigenvalues: [N, 3], eigenvectors: [N, 3, 3]
-    eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
-    
-    # Normale = eigenvector avec la plus petite eigenvalue (colonne 0)
-    normals = eigenvectors[:, :, 0].copy()  # [N, 3]
-    
-    # Normaliser les normales
-    norms = np.linalg.norm(normals, axis=1, keepdims=True)
-    norms = np.maximum(norms, 1e-8)  # Éviter division par zéro
-    normals = normals / norms
-    
-    # Orienter vers le haut (Z positif)
-    flip_mask = normals[:, 2] < 0
-    normals[flip_mask] = -normals[flip_mask]
-    
-    # Gérer les cas dégénérés (très rare avec points réels)
-    degenerate = (eigenvalues[:, 0] < 1e-8) | np.isnan(normals).any(axis=1)
-    normals[degenerate] = np.array([0, 0, 1], dtype=np.float32)
-    
-    return normals.astype(np.float32)
+    normals, _ = core_compute_normals(points, k_neighbors=k, use_gpu=False)
+    return normals
 
 
 def compute_curvature(points: np.ndarray, normals: np.ndarray,
                       k: int = 10) -> np.ndarray:
     """
     Compute principal curvature from local surface fit.
-    Version ULTRA-OPTIMISÉE avec vectorisation complète (100x plus rapide).
     
     Args:
         points: [N, 3] point coordinates
@@ -182,30 +155,23 @@ def compute_curvature(points: np.ndarray, normals: np.ndarray,
         
     Returns:
         curvature: [N] principal curvature values
+    
+    Note:
+        This is a wrapper around the core implementation.
+        Use ign_lidar.features.core.compute_curvature directly for new code.
     """
+    # Core implementation needs eigenvalues, so we compute them first
     # Build KDTree
     tree = KDTree(points, metric='euclidean', leaf_size=30)
-    
-    # Query tous les voisins en une seule fois
     _, indices = tree.query(points, k=k)
-    
-    # VECTORISATION COMPLÈTE
-    # Récupérer tous les voisins: [N, k, 3]
     neighbors_all = points[indices]
+    centroids = neighbors_all.mean(axis=1, keepdims=True)
+    centered = neighbors_all - centroids
+    cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
+    eigenvalues = np.linalg.eigvalsh(cov_matrices)
     
-    # Position relative au centre: [N, k, 3]
-    centers = points[:, np.newaxis, :]  # [N, 1, 3]
-    relative_pos = neighbors_all - centers  # [N, k, 3]
-    
-    # Distance le long de la normale pour chaque point: [N, k]
-    # distances[i, j] = dot(relative_pos[i, j], normals[i])
-    normals_expanded = normals[:, np.newaxis, :]  # [N, 1, 3]
-    distances_along_normal = np.sum(relative_pos * normals_expanded, axis=2)
-    
-    # Curvature = std des distances le long de la normale
-    curvature = np.std(distances_along_normal, axis=1).astype(np.float32)
-    
-    return curvature
+    # Call core implementation
+    return core_compute_curvature(eigenvalues)
 
 
 def compute_eigenvalue_features(
@@ -220,60 +186,13 @@ def compute_eigenvalue_features(
         epsilon: Small constant to avoid division by zero
     
     Returns:
-        Dictionary of eigenvalue features:
-        - eigenvalue_1, eigenvalue_2, eigenvalue_3: Individual eigenvalues
-        - sum_eigenvalues: Σλ
-        - eigenentropy: Shannon entropy of normalized eigenvalues
-        - omnivariance: Cubic root of eigenvalue product (3D dispersion)
-        - change_curvature: Variance of eigenvalues (surface change rate)
+        Dictionary of eigenvalue features
+    
+    Note:
+        This is a wrapper around the core implementation.
+        Use ign_lidar.features.core.compute_eigenvalue_features directly for new code.
     """
-    λ0, λ1, λ2 = eigenvalues[:, 0], eigenvalues[:, 1], eigenvalues[:, 2]
-    
-    # Clamp to non-negative (handle numerical artifacts)
-    λ0 = np.maximum(λ0, 0.0)
-    λ1 = np.maximum(λ1, 0.0)
-    λ2 = np.maximum(λ2, 0.0)
-    
-    # Sum of eigenvalues
-    sum_λ = λ0 + λ1 + λ2 + epsilon
-    
-    # Shannon entropy: -Σ(pᵢ * log(pᵢ)) where pᵢ = λᵢ/Σλ
-    # Normalized eigenvalues as probability distribution
-    p0 = λ0 / sum_λ
-    p1 = λ1 / sum_λ
-    p2 = λ2 / sum_λ
-    
-    # Avoid log(0) by adding epsilon
-    with np.errstate(divide='ignore', invalid='ignore'):
-        log_p0 = np.log(p0 + epsilon)
-        log_p1 = np.log(p1 + epsilon)
-        log_p2 = np.log(p2 + epsilon)
-    
-    eigenentropy = -(p0 * log_p0 + p1 * log_p1 + p2 * log_p2)
-    eigenentropy = np.nan_to_num(eigenentropy, nan=0.0, posinf=0.0, neginf=0.0)
-    eigenentropy = np.clip(eigenentropy, 0.0, np.log(3.0))  # Max entropy = log(3)
-    
-    # Omnivariance: (λ₀ * λ₁ * λ₂)^(1/3) - measure of 3D dispersion
-    # Alternative formulation: geometric mean of eigenvalues
-    product = λ0 * λ1 * λ2 + epsilon
-    omnivariance = np.cbrt(product)  # Cubic root
-    
-    # Change of curvature: Variance of eigenvalues (rate of surface change)
-    # High variance indicates edges/corners, low variance indicates smooth surfaces
-    mean_λ = sum_λ / 3.0
-    change_curvature = np.sqrt(
-        ((λ0 - mean_λ)**2 + (λ1 - mean_λ)**2 + (λ2 - mean_λ)**2) / 3.0
-    )
-    
-    return {
-        'eigenvalue_1': λ0.astype(np.float32),
-        'eigenvalue_2': λ1.astype(np.float32),
-        'eigenvalue_3': λ2.astype(np.float32),
-        'sum_eigenvalues': sum_λ.astype(np.float32),
-        'eigenentropy': eigenentropy.astype(np.float32),
-        'omnivariance': omnivariance.astype(np.float32),
-        'change_curvature': change_curvature.astype(np.float32),
-    }
+    return core_compute_eigenvalue_features(eigenvalues, epsilon=epsilon)
 
 
 def compute_architectural_features(
@@ -382,12 +301,6 @@ def compute_density_features(
     """
     Compute comprehensive density and neighborhood features.
     
-    Features:
-    - density: Local point density (inverse of mean distance)
-    - num_points_2m: Number of points within 2m radius
-    - neighborhood_extent: Maximum distance to k-th neighbor
-    - height_extent_ratio: Ratio of vertical std to spatial extent
-    
     Args:
         points: [N, 3] point coordinates
         tree: KDTree for neighbor search
@@ -397,44 +310,14 @@ def compute_density_features(
     
     Returns:
         Dictionary of density features
+    
+    Note:
+        This is a wrapper around the core implementation.
+        Core function builds its own KDTree, so tree parameter is ignored.
+        Use ign_lidar.features.core.compute_density_features directly for new code.
     """
-    n_points = len(points)
-    
-    # Query k-nearest neighbors
-    distances, indices = tree.query(points, k=min(k, n_points))
-    
-    # Density: Inverse of mean distance to neighbors
-    # Exclude self (first neighbor)
-    mean_distances = np.mean(distances[:, 1:], axis=1)
-    density = 1.0 / (mean_distances + epsilon)
-    density = np.clip(density, 0.0, 1000.0)  # Cap at 1000 points/m
-    
-    # Neighborhood extent: Maximum distance to k-th neighbor
-    neighborhood_extent = distances[:, -1]
-    
-    # Vertical standard deviation in neighborhood
-    neighbors_all = points[indices]  # [N, k, 3]
-    z_neighbors = neighbors_all[:, :, 2]  # [N, k]
-    vertical_std = np.std(z_neighbors, axis=1)
-    
-    # Height-extent ratio
-    with np.errstate(divide='ignore', invalid='ignore'):
-        height_extent_ratio = vertical_std / (neighborhood_extent + epsilon)
-        height_extent_ratio = np.nan_to_num(height_extent_ratio, nan=0.0)
-        height_extent_ratio = np.clip(height_extent_ratio, 0.0, 10.0)
-    
-    # Number of points within 2m radius
-    # Use radius search for this
-    neighbor_counts = tree.query_radius(points, r=radius_2m, count_only=True)
-    num_points_2m = neighbor_counts.astype(np.float32)
-    
-    return {
-        'density': density.astype(np.float32),
-        'num_points_2m': num_points_2m,
-        'neighborhood_extent': neighborhood_extent.astype(np.float32),
-        'height_extent_ratio': height_extent_ratio.astype(np.float32),
-        'vertical_std': vertical_std.astype(np.float32),
-    }
+    # Core function builds its own tree, ignore the provided tree
+    return core_compute_density_features(points, k_neighbors=k)
 
 
 def compute_verticality(normals: np.ndarray) -> np.ndarray:
@@ -448,8 +331,12 @@ def compute_verticality(normals: np.ndarray) -> np.ndarray:
     
     Returns:
         verticality: [N] verticality scores [0, 1]
+    
+    Note:
+        This is a wrapper around the core implementation.
+        Use ign_lidar.features.core.compute_verticality directly for new code.
     """
-    return (1.0 - np.abs(normals[:, 2])).astype(np.float32)
+    return core_compute_verticality(normals)
 
 
 def compute_building_scores(
@@ -872,28 +759,6 @@ def compute_local_statistics(points: np.ndarray,
     }
     
     return features
-
-
-def compute_verticality(normals: np.ndarray) -> np.ndarray:
-    """
-    Compute verticality from surface normals.
-    
-    Verticality measures how vertical a surface is (walls vs roofs/ground).
-    IMPORTANT for building extraction.
-    
-    Args:
-        normals: [N, 3] surface normal vectors
-        
-    Returns:
-        verticality: [N] verticality values [0, 1]
-                    0 = horizontal surface
-                    1 = vertical surface
-    """
-    # Verticality = 1 - abs(normal_z)
-    # abs(normal_z) = 1 pour surfaces horizontales
-    # abs(normal_z) = 0 pour surfaces verticales
-    verticality = 1.0 - np.abs(normals[:, 2])
-    return verticality.astype(np.float32)
 
 
 def compute_wall_score(normals: np.ndarray, height_above_ground: np.ndarray,
@@ -1662,12 +1527,26 @@ def compute_all_features_optimized(
         eigenvalue_features = compute_eigenvalue_features(eigenvalues_sorted)
         geo_features.update(eigenvalue_features)
         
-        # === ARCHITECTURAL FEATURES (advanced building detection) ===
-        # Compute advanced architectural features for detailed analysis
-        architectural_features = compute_architectural_features(
-            eigenvalues_sorted, normals, points, tree, k
+        # === ARCHITECTURAL FEATURES (canonical building detection) ===
+        # Import canonical architectural features from core module
+        from .core.architectural import compute_architectural_features as compute_arch_core
+        
+        # Compute canonical architectural features (wall/roof likelihood, facade score, etc.)
+        architectural_features = compute_arch_core(
+            points=points,
+            normals=normals,
+            eigenvalues=eigenvalues_sorted
         )
         geo_features.update(architectural_features)
+        
+        # === LEGACY ARCHITECTURAL FEATURES (edge strength, overhang, etc.) ===
+        # Keep old architectural features for backward compatibility
+        legacy_architectural = compute_architectural_features(
+            eigenvalues_sorted, normals, points, tree, k
+        )
+        # Prefix legacy features to avoid conflicts
+        for key, value in legacy_architectural.items():
+            geo_features[f'legacy_{key}'] = value
         
         # === DENSITY FEATURES (neighborhood analysis) ===
         # Compute number of points within 2m radius

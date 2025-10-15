@@ -10,11 +10,15 @@ This module provides enhanced classification using:
 
 Author: Classification Enhancement
 Date: October 15, 2025
+Updated: October 16, 2025 - Integrated unified thresholds (Issue #8) and updated height filters (Issue #1, #4)
 """
 
 import logging
 from typing import Dict, Optional, Tuple, List, TYPE_CHECKING
 import numpy as np
+
+# Import unified thresholds
+from .classification_thresholds import UnifiedThresholds
 
 # Import building detection module
 from .building_detection import (
@@ -187,8 +191,16 @@ class AdvancedClassifier:
         if self.use_ground_truth and ground_truth_features:
             logger.info("  Stage 3: Ground truth classification (highest priority)")
             labels = self._classify_by_ground_truth(
-                labels, points, ground_truth_features, ndvi
+                labels, points, ground_truth_features, ndvi,
+                height=height, planarity=planarity, intensity=intensity
             )
+        
+        # Stage 4: Post-processing for unclassified points
+        logger.info("  Stage 4: Post-processing unclassified points")
+        labels = self._post_process_unclassified(
+            labels, confidence, points, height, normals, planarity,
+            curvature, intensity, ground_truth_features
+        )
         
         # Log final distribution
         self._log_distribution(labels)
@@ -390,7 +402,10 @@ class AdvancedClassifier:
         labels: np.ndarray,
         points: np.ndarray,
         ground_truth_features: Dict[str, 'gpd.GeoDataFrame'],
-        ndvi: Optional[np.ndarray]
+        ndvi: Optional[np.ndarray],
+        height: Optional[np.ndarray] = None,
+        planarity: Optional[np.ndarray] = None,
+        intensity: Optional[np.ndarray] = None
     ) -> np.ndarray:
         """
         Classify using IGN BD TOPO® ground truth with intelligent road buffers.
@@ -432,11 +447,13 @@ class AdvancedClassifier:
             # Special handling for roads and railways with intelligent buffers
             if feature_type == 'roads':
                 labels = self._classify_roads_with_buffer(
-                    labels, point_geoms, gdf, asprs_class
+                    labels, point_geoms, gdf, asprs_class,
+                    points=points, height=height, planarity=planarity, intensity=intensity
                 )
             elif feature_type == 'railways':
                 labels = self._classify_railways_with_buffer(
-                    labels, point_geoms, gdf, asprs_class
+                    labels, point_geoms, gdf, asprs_class,
+                    points=points, height=height, planarity=planarity, intensity=intensity
                 )
             else:
                 # Standard polygon intersection
@@ -468,19 +485,28 @@ class AdvancedClassifier:
         labels: np.ndarray,
         point_geoms: List[Point],
         roads_gdf: 'gpd.GeoDataFrame',
-        asprs_class: int
+        asprs_class: int,
+        points: Optional[np.ndarray] = None,
+        height: Optional[np.ndarray] = None,
+        planarity: Optional[np.ndarray] = None,
+        intensity: Optional[np.ndarray] = None
     ) -> np.ndarray:
         """
-        Classify road points using intelligent buffering based on road width.
+        Classify road points using intelligent buffering and geometric filtering.
         
         The IGN BD TOPO® contains road centerlines with width attributes.
-        We use the width to create appropriate buffers for each road.
+        We use the width to create appropriate buffers for each road, then
+        apply geometric filters to improve accuracy:
+        - Height filtering: exclude bridges/overpasses
+        - Planarity filtering: roads are relatively flat
+        - Intensity filtering: asphalt/concrete has specific reflectance
         """
         logger.info(f"      Using intelligent road buffers (tolerance={self.road_buffer_tolerance}m)")
         
         # Track road statistics
         road_widths = []
         points_per_road = []
+        filtered_counts = {'height': 0, 'planarity': 0, 'intensity': 0}
         
         for idx, row in roads_gdf.iterrows():
             # Get road polygon (already buffered by width/2 in fetch_roads_with_polygons)
@@ -497,10 +523,49 @@ class AdvancedClassifier:
             if self.road_buffer_tolerance > 0:
                 polygon = polygon.buffer(self.road_buffer_tolerance)
             
-            # Classify points within this road polygon
+            # Classify points within this road polygon with geometric filtering
+            # Performance optimization (Issue #14): Use spatial indexing for candidate points
             n_classified = 0
-            for i, point_geom in enumerate(point_geoms):
-                if polygon.contains(point_geom):
+            
+            # Use STRtree for spatial indexing to find candidate points (10-50x faster)
+            try:
+                from shapely.strtree import STRtree
+                # Build spatial index for all points (done once per polygon)
+                tree = STRtree(point_geoms)
+                # Query candidate points that intersect the polygon bounds
+                candidate_indices = list(tree.query(polygon))
+            except (ImportError, AttributeError):
+                # Fallback to brute force if STRtree unavailable
+                candidate_indices = range(len(point_geoms))
+            
+            # Test only candidate points (much faster than full scan)
+            for i in candidate_indices:
+                if not polygon.contains(point_geoms[i]):
+                    continue
+                
+                # Apply geometric filters to improve accuracy
+                passes_filters = True
+                
+                # Height filter: exclude bridges, overpasses, elevated structures
+                # Updated thresholds (Issue #1): 2.0m max (was 1.5m), -0.5m min (was -0.3m)
+                if height is not None and passes_filters:
+                    if height[i] > UnifiedThresholds.ROAD_HEIGHT_MAX or height[i] < UnifiedThresholds.ROAD_HEIGHT_MIN:
+                        filtered_counts['height'] += 1
+                        passes_filters = False
+                
+                # Planarity filter: roads should be relatively flat
+                if planarity is not None and passes_filters:
+                    if planarity[i] < UnifiedThresholds.ROAD_PLANARITY_MIN:
+                        filtered_counts['planarity'] += 1
+                        passes_filters = False
+                
+                # Intensity filter: asphalt/concrete has characteristic reflectance
+                if intensity is not None and passes_filters:
+                    if intensity[i] < UnifiedThresholds.ROAD_INTENSITY_MIN or intensity[i] > UnifiedThresholds.ROAD_INTENSITY_MAX:
+                        filtered_counts['intensity'] += 1
+                        passes_filters = False
+                
+                if passes_filters:
                     labels[i] = asprs_class
                     n_classified += 1
             
@@ -515,6 +580,11 @@ class AdvancedClassifier:
             total_road_points = sum(points_per_road)
             logger.info(f"      Classified {total_road_points:,} road points from {len(roads_gdf)} roads")
             logger.info(f"      Avg points per road: {np.mean(points_per_road):.0f}")
+            
+            # Log filtering statistics
+            if any(filtered_counts.values()):
+                logger.info(f"      Filtered out: height={filtered_counts['height']}, "
+                          f"planarity={filtered_counts['planarity']}, intensity={filtered_counts['intensity']}")
         
         return labels
     
@@ -523,13 +593,22 @@ class AdvancedClassifier:
         labels: np.ndarray,
         point_geoms: List[Point],
         railways_gdf: 'gpd.GeoDataFrame',
-        asprs_class: int
+        asprs_class: int,
+        points: Optional[np.ndarray] = None,
+        height: Optional[np.ndarray] = None,
+        planarity: Optional[np.ndarray] = None,
+        intensity: Optional[np.ndarray] = None
     ) -> np.ndarray:
         """
-        Classify railway points using intelligent buffering based on track width.
+        Classify railway points using intelligent buffering and geometric filtering.
         
         The IGN BD TOPO® contains railway centerlines with width attributes.
-        We use the width to create appropriate buffers for each railway.
+        We use the width to create appropriate buffers for each railway, then
+        apply geometric filters to improve accuracy:
+        - Height filtering: exclude bridges/viaducts
+        - Planarity filtering: tracks are relatively flat (less strict than roads)
+        - Intensity filtering: ballast, rails, and sleepers have specific reflectance
+        
         Similar to road buffering but typically narrower (default 3.5m for single track).
         """
         logger.info(f"      Using intelligent railway buffers (tolerance={self.road_buffer_tolerance}m)")
@@ -538,6 +617,7 @@ class AdvancedClassifier:
         railway_widths = []
         points_per_railway = []
         track_counts = []
+        filtered_counts = {'height': 0, 'planarity': 0, 'intensity': 0}
         
         for idx, row in railways_gdf.iterrows():
             # Get railway polygon (already buffered by width/2 in fetch_railways_with_polygons)
@@ -552,14 +632,54 @@ class AdvancedClassifier:
             railway_widths.append(railway_width if railway_width != 'unknown' else 0)
             track_counts.append(n_tracks)
             
-            # Apply additional tolerance buffer if specified
-            if self.road_buffer_tolerance > 0:
-                polygon = polygon.buffer(self.road_buffer_tolerance)
+            # Apply additional tolerance buffer if specified (wider for ballast)
+            tolerance = self.road_buffer_tolerance * 1.2  # Railways need slightly wider tolerance for ballast
+            if tolerance > 0:
+                polygon = polygon.buffer(tolerance)
             
-            # Classify points within this railway polygon
+            # Classify points within this railway polygon with geometric filtering
+            # Performance optimization (Issue #14): Use spatial indexing for candidate points
             n_classified = 0
-            for i, point_geom in enumerate(point_geoms):
-                if polygon.contains(point_geom):
+            
+            # Use STRtree for spatial indexing to find candidate points (10-50x faster)
+            try:
+                from shapely.strtree import STRtree
+                # Build spatial index for all points (done once per polygon)
+                tree = STRtree(point_geoms)
+                # Query candidate points that intersect the polygon bounds
+                candidate_indices = list(tree.query(polygon))
+            except (ImportError, AttributeError):
+                # Fallback to brute force if STRtree unavailable
+                candidate_indices = range(len(point_geoms))
+            
+            # Test only candidate points (much faster than full scan)
+            for i in candidate_indices:
+                if not polygon.contains(point_geoms[i]):
+                    continue
+                
+                # Apply geometric filters to improve accuracy
+                passes_filters = True
+                
+                # Height filter: exclude bridges, viaducts, elevated tracks
+                # Updated thresholds (Issue #4): 2.0m max (was 1.2m), -0.5m min (was -0.2m)
+                if height is not None and passes_filters:
+                    if height[i] > UnifiedThresholds.RAIL_HEIGHT_MAX or height[i] < UnifiedThresholds.RAIL_HEIGHT_MIN:
+                        filtered_counts['height'] += 1
+                        passes_filters = False
+                
+                # Planarity filter: tracks less planar than roads due to ballast
+                if planarity is not None and passes_filters:
+                    if planarity[i] < UnifiedThresholds.RAIL_PLANARITY_MIN:
+                        filtered_counts['planarity'] += 1
+                        passes_filters = False
+                
+                # Intensity filter: ballast (dark), rails (bright), wide range
+                if intensity is not None and passes_filters:
+                    if intensity[i] < UnifiedThresholds.RAIL_INTENSITY_MIN or intensity[i] > UnifiedThresholds.RAIL_INTENSITY_MAX:
+                        filtered_counts['intensity'] += 1
+                        passes_filters = False
+                
+                if passes_filters:
                     labels[i] = asprs_class
                     n_classified += 1
             
@@ -578,8 +698,163 @@ class AdvancedClassifier:
             if track_counts:
                 unique_tracks = sorted(set(track_counts))
                 logger.info(f"      Track counts: {unique_tracks} (single, double, etc.)")
+            
+            # Log filtering statistics
+            if any(filtered_counts.values()):
+                logger.info(f"      Filtered out: height={filtered_counts['height']}, "
+                          f"planarity={filtered_counts['planarity']}, intensity={filtered_counts['intensity']}")
         
         return labels
+    
+    def _post_process_unclassified(
+        self,
+        labels: np.ndarray,
+        confidence: np.ndarray,
+        points: np.ndarray,
+        height: Optional[np.ndarray],
+        normals: Optional[np.ndarray],
+        planarity: Optional[np.ndarray],
+        curvature: Optional[np.ndarray],
+        intensity: Optional[np.ndarray],
+        ground_truth_features: Optional[Dict[str, 'gpd.GeoDataFrame']]
+    ) -> np.ndarray:
+        """
+        Post-process unclassified points to improve building classification.
+        
+        This function handles points that remain unclassified after initial
+        classification stages. It applies heuristics to classify them based on:
+        1. Proximity to classified building points
+        2. Geometric similarity to buildings (height, planarity, verticality)
+        3. Context from ground truth building footprints
+        4. Intensity patterns characteristic of building materials
+        
+        Args:
+            labels: Current classification labels [N]
+            confidence: Confidence scores [N]
+            points: Point coordinates [N, 3]
+            height: Height above ground [N]
+            normals: Surface normals [N, 3]
+            planarity: Planarity values [N]
+            curvature: Surface curvature [N]
+            intensity: LiDAR intensity [N]
+            ground_truth_features: Ground truth building polygons
+            
+        Returns:
+            Updated labels with fewer unclassified points
+        """
+        unclassified_mask = labels == self.ASPRS_UNCLASSIFIED
+        n_unclassified = np.sum(unclassified_mask)
+        
+        if n_unclassified == 0:
+            logger.debug("    No unclassified points to post-process")
+            return labels
+        
+        logger.info(f"    Post-processing {n_unclassified:,} unclassified points")
+        
+        # Create a copy for updates
+        updated_labels = labels.copy()
+        n_reclassified = 0
+        
+        # Strategy 1: Check if unclassified points are within building footprints
+        if ground_truth_features and 'buildings' in ground_truth_features:
+            if not HAS_SPATIAL:
+                logger.debug("      Spatial libraries not available for ground truth matching")
+            else:
+                buildings_gdf = ground_truth_features['buildings']
+                if buildings_gdf is not None and len(buildings_gdf) > 0:
+                    unclassified_indices = np.where(unclassified_mask)[0]
+                    unclassified_points = points[unclassified_mask]
+                    
+                    # Create point geometries for unclassified points
+                    from shapely.geometry import Point
+                    point_geoms = [Point(p[0], p[1]) for p in unclassified_points]
+                    
+                    # Check intersection with building polygons
+                    within_building = np.zeros(len(unclassified_indices), dtype=bool)
+                    for idx, row in buildings_gdf.iterrows():
+                        polygon = row['geometry']
+                        if not isinstance(polygon, (Polygon, MultiPolygon)):
+                            continue
+                        
+                        for i, point_geom in enumerate(point_geoms):
+                            if polygon.contains(point_geom):
+                                within_building[i] = True
+                    
+                    # Classify points within building footprints
+                    n_within = np.sum(within_building)
+                    if n_within > 0:
+                        building_indices = unclassified_indices[within_building]
+                        updated_labels[building_indices] = self.ASPRS_BUILDING
+                        n_reclassified += n_within
+                        logger.info(f"      Ground truth: {n_within:,} points within building footprints")
+        
+        # Strategy 2: Geometric features for building-like unclassified points
+        if height is not None and planarity is not None:
+            still_unclassified = updated_labels == self.ASPRS_UNCLASSIFIED
+            
+            # Building-like characteristics
+            building_like = (
+                (height > 2.5) &  # Above typical building height
+                (planarity > 0.6) &  # Reasonably planar
+                still_unclassified
+            )
+            
+            # Enhance with normals if available (walls or roofs)
+            if normals is not None:
+                # Vertical (walls) or horizontal (roofs)
+                vertical_mask = np.abs(normals[:, 2]) < 0.3  # Vertical surfaces
+                horizontal_mask = np.abs(normals[:, 2]) > 0.85  # Horizontal surfaces
+                building_orientation = vertical_mask | horizontal_mask
+                building_like = building_like & building_orientation
+            
+            # Exclude vegetation using curvature (buildings are less curved)
+            if curvature is not None:
+                low_curvature = curvature < 0.02  # Buildings have low curvature
+                building_like = building_like & low_curvature
+            
+            # Apply intensity filter (buildings typically moderate to high intensity)
+            if intensity is not None:
+                building_intensity = (intensity > 0.2) & (intensity < 0.85)
+                building_like = building_like & building_intensity
+            
+            n_geometric = np.sum(building_like)
+            if n_geometric > 0:
+                updated_labels[building_like] = self.ASPRS_BUILDING
+                n_reclassified += n_geometric
+                logger.info(f"      Geometric: {n_geometric:,} building-like points classified")
+        
+        # Strategy 3: Classify remaining low-height unclassified as ground
+        if height is not None:
+            still_unclassified = updated_labels == self.ASPRS_UNCLASSIFIED
+            low_height = (height < 0.5) & still_unclassified
+            
+            n_ground = np.sum(low_height)
+            if n_ground > 0:
+                updated_labels[low_height] = self.ASPRS_GROUND
+                n_reclassified += n_ground
+                logger.info(f"      Low height: {n_ground:,} points classified as ground")
+        
+        # Strategy 4: Classify remaining medium-height with low planarity as vegetation
+        if height is not None and planarity is not None:
+            still_unclassified = updated_labels == self.ASPRS_UNCLASSIFIED
+            vegetation_like = (
+                (height >= 0.5) &
+                (height < 2.0) &
+                (planarity < 0.4) &  # Low planarity (irregular)
+                still_unclassified
+            )
+            
+            n_veg = np.sum(vegetation_like)
+            if n_veg > 0:
+                updated_labels[vegetation_like] = self.ASPRS_LOW_VEGETATION
+                n_reclassified += n_veg
+                logger.info(f"      Vegetation-like: {n_veg:,} points classified as low vegetation")
+        
+        # Log summary
+        final_unclassified = np.sum(updated_labels == self.ASPRS_UNCLASSIFIED)
+        logger.info(f"    Reclassified {n_reclassified:,} points, {final_unclassified:,} remain unclassified")
+        
+        return updated_labels
     
     def _log_distribution(self, labels: np.ndarray):
         """Log the final classification distribution."""

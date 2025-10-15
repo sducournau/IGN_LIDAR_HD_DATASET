@@ -37,6 +37,12 @@ except ImportError:
 # CPU fallback imports
 from sklearn.neighbors import NearestNeighbors
 
+# Import core feature implementations
+from ..features.core import (
+    compute_eigenvalue_features as core_compute_eigenvalue_features,
+    compute_density_features as core_compute_density_features,
+)
+
 
 class GPUChunkedFeatureComputer:
     """
