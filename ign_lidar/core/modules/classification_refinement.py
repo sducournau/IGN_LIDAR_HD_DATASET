@@ -14,6 +14,22 @@ import logging
 from typing import Optional, Dict, Any, Tuple
 import numpy as np
 
+# Import new building detection module
+from .building_detection import (
+    BuildingDetectionMode,
+    BuildingDetectionConfig,
+    BuildingDetector,
+    detect_buildings_multi_mode
+)
+
+# Import new transport detection module
+from .transport_detection import (
+    TransportDetectionMode,
+    TransportDetectionConfig,
+    TransportDetector,
+    detect_transport_multi_mode
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -273,12 +289,21 @@ def refine_building_classification(
     anisotropy: Optional[np.ndarray] = None,
     wall_score: Optional[np.ndarray] = None,
     roof_score: Optional[np.ndarray] = None,
+    curvature: Optional[np.ndarray] = None,
+    intensity: Optional[np.ndarray] = None,
+    points: Optional[np.ndarray] = None,
+    mode: str = 'lod2',
     config: RefinementConfig = None
 ) -> Tuple[np.ndarray, int]:
     """
     Refine building classification using advanced geometric features and ground truth.
     
-    Enhanced building detection using multiple geometric attributes:
+    Enhanced building detection using multiple geometric attributes with mode support:
+    - ASPRS mode: Simple building detection (class 6)
+    - LOD2 mode: Building elements (walls, roofs)
+    - LOD3 mode: Detailed architectural elements (windows, doors, etc.)
+    
+    Features used:
     - Horizontality: For roof detection (high horizontal planarity)
     - Verticality: For wall detection (high vertical planarity)
     - Planarity: For distinguishing flat building surfaces from vegetation
@@ -303,6 +328,10 @@ def refine_building_classification(
         anisotropy: Anisotropy values [N], range [0, 1] for structure detection
         wall_score: Pre-computed wall likelihood [N] (planarity × verticality)
         roof_score: Pre-computed roof likelihood [N] (planarity × horizontality)
+        curvature: Surface curvature [N] (for LOD3 detail detection)
+        intensity: LiDAR intensity [N] (for LOD3 opening detection)
+        points: Point coordinates [N, 3] (for LOD3 spatial analysis)
+        mode: Detection mode ('asprs', 'lod2', or 'lod3')
         config: Refinement configuration
         
     Returns:
@@ -313,6 +342,49 @@ def refine_building_classification(
     
     if not config.REFINE_BUILDINGS:
         return labels, 0
+    
+    # Use new building detection module if mode-aware detection is requested
+    if mode in ['asprs', 'lod2', 'lod3']:
+        # Prepare features dictionary
+        features = {
+            'height': height,
+            'planarity': planarity,
+            'verticality': verticality,
+            'normals': normals,
+            'linearity': linearity,
+            'anisotropy': anisotropy,
+            'wall_score': wall_score,
+            'roof_score': roof_score,
+            'curvature': curvature,
+            'intensity': intensity,
+            'points': points
+        }
+        
+        # Use the new building detection system
+        try:
+            refined, stats = detect_buildings_multi_mode(
+                labels=labels,
+                features=features,
+                mode=mode,
+                ground_truth_mask=ground_truth_mask,
+                config=None  # Use default mode-specific config
+            )
+            
+            # Calculate total changes
+            num_changed = np.sum(refined != labels)
+            
+            # Log detection statistics
+            logger.debug(f"  Building detection ({mode.upper()} mode): {num_changed} points updated")
+            for key, value in stats.items():
+                if value > 0:
+                    logger.debug(f"    - {key}: {value:,} points")
+            
+            return refined, num_changed
+            
+        except Exception as e:
+            logger.warning(f"  Mode-aware building detection failed: {e}, falling back to legacy method")
+    
+    # === LEGACY BUILDING DETECTION (Fallback) ===
     
     refined = labels.copy()
     num_changed = 0
@@ -481,17 +553,27 @@ def refine_road_classification(
     roughness: Optional[np.ndarray],
     intensity: Optional[np.ndarray],
     ground_truth_road_mask: Optional[np.ndarray] = None,
+    ground_truth_rail_mask: Optional[np.ndarray] = None,
+    normals: Optional[np.ndarray] = None,
+    road_types: Optional[np.ndarray] = None,
+    rail_types: Optional[np.ndarray] = None,
+    mode: str = 'lod2',
     config: RefinementConfig = None
 ) -> Tuple[np.ndarray, int]:
     """
-    Refine road classification using ground truth and geometric features.
+    Refine road and rail classification using ground truth and geometric features.
     
-    Improves road surface detection using:
-    - Ground truth road polygons from WFS (BD TOPO®)
+    Enhanced transport detection using multiple data sources with mode support:
+    - ASPRS_STANDARD mode: Simple road (11) and rail (10) detection
+    - ASPRS_EXTENDED mode: Detailed road/rail types
+    - LOD2 mode: Roads and rails as ground-level surfaces
+    
+    Improves transport surface detection using:
+    - Ground truth road/rail polygons from WFS (BD TOPO®)
     - High planarity (very flat surfaces)
     - Low roughness (smooth surfaces)
     - Low height above ground
-    - Typical asphalt intensity values
+    - Typical surface intensity values
     
     Args:
         labels: Current classification labels [N]
@@ -501,6 +583,11 @@ def refine_road_classification(
         roughness: Surface roughness [N]
         intensity: Intensity values [N], normalized [0, 1]
         ground_truth_road_mask: Boolean mask [N] for road points from WFS
+        ground_truth_rail_mask: Boolean mask [N] for rail points from WFS
+        normals: Surface normals [N, 3]
+        road_types: Road type classifications [N] from BD TOPO
+        rail_types: Rail type classifications [N] from BD TOPO
+        mode: Detection mode ('asprs_standard', 'asprs_extended', or 'lod2')
         config: Refinement configuration
         
     Returns:
@@ -511,6 +598,47 @@ def refine_road_classification(
     
     if not config.REFINE_ROADS:
         return labels, 0
+    
+    # Use new transport detection module if mode-aware detection is requested
+    if mode in ['asprs_standard', 'asprs_extended', 'lod2']:
+        # Prepare features dictionary
+        features = {
+            'height': height,
+            'planarity': planarity,
+            'roughness': roughness,
+            'intensity': intensity,
+            'normals': normals,
+            'points': points
+        }
+        
+        # Use the new transport detection system
+        try:
+            refined, stats = detect_transport_multi_mode(
+                labels=labels,
+                features=features,
+                mode=mode,
+                road_ground_truth_mask=ground_truth_road_mask,
+                rail_ground_truth_mask=ground_truth_rail_mask,
+                road_types=road_types,
+                rail_types=rail_types,
+                config=None  # Use default mode-specific config
+            )
+            
+            # Calculate total changes
+            num_changed = np.sum(refined != labels)
+            
+            # Log detection statistics
+            logger.debug(f"  Transport detection ({mode.upper()} mode): {num_changed} points updated")
+            for key, value in stats.items():
+                if value > 0:
+                    logger.debug(f"    - {key}: {value:,} points")
+            
+            return refined, num_changed
+            
+        except Exception as e:
+            logger.warning(f"  Mode-aware transport detection failed: {e}, falling back to legacy method")
+    
+    # === LEGACY ROAD DETECTION (Fallback) ===
     
     refined = labels.copy()
     num_changed = 0
@@ -734,6 +862,17 @@ def refine_classification(
         anisotropy_feat = features.get('anisotropy')  # Structure detection
         wall_score_feat = features.get('wall_score')  # Wall likelihood
         roof_score_feat = features.get('roof_score')  # Roof likelihood
+        curvature_feat = features.get('curvature')  # For LOD3 detail detection
+        intensity_feat = features.get('intensity')  # For LOD3 opening detection
+        points_feat = features.get('points')  # For LOD3 spatial analysis
+        
+        # Determine detection mode from lod_level
+        if lod_level == 'LOD3':
+            detection_mode = 'lod3'
+        elif lod_level == 'LOD2':
+            detection_mode = 'lod2'
+        else:
+            detection_mode = 'asprs'  # Default for other levels
         
         refined, n_bldg = refine_building_classification(
             labels=refined,
@@ -746,6 +885,10 @@ def refine_classification(
             anisotropy=anisotropy_feat,
             wall_score=wall_score_feat,
             roof_score=roof_score_feat,
+            curvature=curvature_feat,
+            intensity=intensity_feat,
+            points=points_feat,
+            mode=detection_mode,
             config=config
         )
         stats['buildings_refined'] = n_bldg
@@ -760,17 +903,46 @@ def refine_classification(
                 used_features.append('anisotropy')
             if wall_score_feat is not None or roof_score_feat is not None:
                 used_features.append('wall/roof scores')
+            if detection_mode == 'lod3':
+                used_features.append('LOD3 details')
             features_str = ', '.join(used_features)
-            log.info(f"    ✓ Buildings: {n_bldg:,} points refined using {features_str}")
+            log.info(f"    ✓ Buildings ({detection_mode.upper()}): {n_bldg:,} points refined using {features_str}")
     
-    # 3. Refine roads using ground truth + geometry
+    # 3. Refine roads and railways using ground truth + geometry
     if points is not None and height is not None:
-        refined, n_roads = refine_road_classification(
-            refined, points, height, planarity, roughness, intensity, road_mask, config
+        # Extract rail ground truth if available
+        rail_mask = None
+        if ground_truth_data is not None:
+            rail_mask = ground_truth_data.get('rail_mask')
+        
+        # Determine transport detection mode from lod_level
+        if lod_level == 'LOD2':
+            transport_mode = 'lod2'
+        else:
+            transport_mode = 'asprs_standard'  # Default for other levels
+        
+        # Get road/rail type information if available
+        road_types_feat = features.get('road_types')
+        rail_types_feat = features.get('rail_types')
+        
+        refined, n_transport = refine_road_classification(
+            labels=refined,
+            points=points,
+            height=height,
+            planarity=planarity,
+            roughness=roughness,
+            intensity=intensity,
+            ground_truth_road_mask=road_mask,
+            ground_truth_rail_mask=rail_mask,
+            normals=normals,
+            road_types=road_types_feat,
+            rail_types=rail_types_feat,
+            mode=transport_mode,
+            config=config
         )
-        stats['roads_refined'] = n_roads
-        if n_roads > 0:
-            log.info(f"    ✓ Roads: {n_roads:,} points refined using ground truth")
+        stats['transport_refined'] = n_transport
+        if n_transport > 0:
+            log.info(f"    ✓ Transport ({transport_mode.upper()}): {n_transport:,} points refined (roads + rails)")
     
     # 4. Refine ground using planarity + height
     if height is not None and planarity is not None:

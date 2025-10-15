@@ -6,6 +6,7 @@ This module provides enhanced classification using:
 - NDVI for vegetation detection
 - IGN BD TOPO® ground truth with intelligent road buffers
 - Multi-criteria decision fusion
+- Mode-aware building detection (ASPRS, LOD2, LOD3)
 
 Author: Classification Enhancement
 Date: October 15, 2025
@@ -14,6 +15,20 @@ Date: October 15, 2025
 import logging
 from typing import Dict, Optional, Tuple, List, TYPE_CHECKING
 import numpy as np
+
+# Import building detection module
+from .building_detection import (
+    BuildingDetectionMode,
+    BuildingDetectionConfig,
+    detect_buildings_multi_mode
+)
+
+# Import transport detection module
+from .transport_detection import (
+    TransportDetectionMode,
+    TransportDetectionConfig,
+    detect_transport_multi_mode
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +87,9 @@ class AdvancedClassifier:
         height_low_veg_threshold: float = 0.5,
         height_medium_veg_threshold: float = 2.0,
         planarity_road_threshold: float = 0.8,
-        planarity_building_threshold: float = 0.7
+        planarity_building_threshold: float = 0.7,
+        building_detection_mode: str = 'asprs',
+        transport_detection_mode: str = 'asprs_standard'
     ):
         """
         Initialize advanced classifier.
@@ -81,17 +98,21 @@ class AdvancedClassifier:
             use_ground_truth: Use IGN BD TOPO® ground truth
             use_ndvi: Use NDVI for vegetation refinement
             use_geometric: Use geometric features
-            road_buffer_tolerance: Additional buffer around roads (meters)
+            road_buffer_tolerance: Additional buffer around roads/rails (meters)
             ndvi_veg_threshold: NDVI threshold for vegetation (>= value)
             ndvi_building_threshold: NDVI threshold for non-vegetation (<= value)
             height_low_veg_threshold: Height threshold for low vegetation
             height_medium_veg_threshold: Height threshold for medium vegetation
             planarity_road_threshold: Planarity for road surfaces
             planarity_building_threshold: Planarity for building surfaces
+            building_detection_mode: Mode for building detection ('asprs', 'lod2', or 'lod3')
+            transport_detection_mode: Mode for transport detection ('asprs_standard', 'asprs_extended', or 'lod2')
         """
         self.use_ground_truth = use_ground_truth
         self.use_ndvi = use_ndvi
         self.use_geometric = use_geometric
+        self.building_detection_mode = building_detection_mode.lower()
+        self.transport_detection_mode = transport_detection_mode.lower()
         
         # Thresholds
         self.road_buffer_tolerance = road_buffer_tolerance
@@ -106,6 +127,8 @@ class AdvancedClassifier:
         logger.info(f"  Ground truth: {use_ground_truth}")
         logger.info(f"  NDVI refinement: {use_ndvi}")
         logger.info(f"  Geometric features: {use_geometric}")
+        logger.info(f"  Building detection mode: {self.building_detection_mode.upper()}")
+        logger.info(f"  Transport detection mode: {self.transport_detection_mode.upper()}")
     
     def classify_points(
         self,
@@ -212,22 +235,76 @@ class AdvancedClassifier:
             logger.info(f"    Roads (geometric): {np.sum(road_mask):,} points")
         
         # Building detection (medium height + high planarity)
+        # Use mode-aware building detection if enabled
         if height is not None and planarity is not None:
-            building_mask = (
-                (height >= 2.0) &
-                (planarity > self.planarity_building)
-            )
-            
-            # Refine with vertical/horizontal normals if available
-            if normals is not None:
-                # Either horizontal (roofs) or vertical (walls)
-                roof_mask = np.abs(normals[:, 2]) > 0.7  # Horizontal
-                wall_mask = np.abs(normals[:, 2]) < 0.3  # Vertical
-                building_mask = building_mask & (roof_mask | wall_mask)
-            
-            labels[building_mask] = self.ASPRS_BUILDING
-            confidence[building_mask] = 0.6
-            logger.info(f"    Buildings (geometric): {np.sum(building_mask):,} points")
+            if self.building_detection_mode in ['asprs', 'lod2', 'lod3']:
+                # Use new building detection system
+                try:
+                    # Compute verticality if normals available
+                    verticality = None
+                    if normals is not None:
+                        verticality = 1.0 - np.abs(normals[:, 2])  # 1 - |nz|
+                    
+                    # Prepare features for building detection
+                    features_dict = {
+                        'height': height,
+                        'planarity': planarity,
+                        'verticality': verticality,
+                        'normals': normals,
+                        'curvature': curvature,
+                        'intensity': intensity,
+                        'points': points
+                    }
+                    
+                    # Detect buildings using mode-aware detection
+                    labels_updated, stats = detect_buildings_multi_mode(
+                        labels=labels,
+                        features=features_dict,
+                        mode=self.building_detection_mode,
+                        ground_truth_mask=None,  # Ground truth handled separately
+                        config=None  # Use default mode-specific config
+                    )
+                    
+                    # Update labels where buildings detected
+                    building_mask = labels_updated != labels
+                    labels = labels_updated
+                    confidence[building_mask] = 0.7
+                    
+                    logger.info(f"    Buildings ({self.building_detection_mode.upper()}): {stats.get('total_building', 0):,} points")
+                    
+                except Exception as e:
+                    logger.warning(f"    Mode-aware building detection failed: {e}, using fallback")
+                    # Fall back to simple detection
+                    building_mask = (
+                        (height >= 2.0) &
+                        (planarity > self.planarity_building)
+                    )
+                    
+                    if normals is not None:
+                        roof_mask = np.abs(normals[:, 2]) > 0.7
+                        wall_mask = np.abs(normals[:, 2]) < 0.3
+                        building_mask = building_mask & (roof_mask | wall_mask)
+                    
+                    labels[building_mask] = self.ASPRS_BUILDING
+                    confidence[building_mask] = 0.6
+                    logger.info(f"    Buildings (geometric fallback): {np.sum(building_mask):,} points")
+            else:
+                # Legacy simple detection
+                building_mask = (
+                    (height >= 2.0) &
+                    (planarity > self.planarity_building)
+                )
+                
+                # Refine with vertical/horizontal normals if available
+                if normals is not None:
+                    # Either horizontal (roofs) or vertical (walls)
+                    roof_mask = np.abs(normals[:, 2]) > 0.7  # Horizontal
+                    wall_mask = np.abs(normals[:, 2]) < 0.3  # Vertical
+                    building_mask = building_mask & (roof_mask | wall_mask)
+                
+                labels[building_mask] = self.ASPRS_BUILDING
+                confidence[building_mask] = 0.6
+                logger.info(f"    Buildings (geometric): {np.sum(building_mask):,} points")
         
         # Vegetation detection (low planarity + variable height)
         if height is not None and planarity is not None:

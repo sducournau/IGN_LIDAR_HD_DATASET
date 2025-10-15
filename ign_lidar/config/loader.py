@@ -104,9 +104,9 @@ def validate_config(config: Dict[str, Any]) -> List[str]:
     if 'rpg' in data_sources:
         rpg = data_sources['rpg']
         if rpg.get('enabled', True):
-            year = rpg.get('year', 2023)
+            year = rpg.get('year', 2024)
             if not (2020 <= year <= 2024):
-                warnings.append(f"RPG year {year} may not be available (valid: 2020-2023)")
+                warnings.append(f"RPG year {year} may not be available (valid: 2020-2024)")
     
     # Cadastre
     if 'cadastre' in data_sources:
@@ -361,7 +361,7 @@ def create_fetcher_from_config(
         # Other sources
         include_forest=bd_foret.get('enabled', False),
         include_agriculture=rpg.get('enabled', False),
-        rpg_year=rpg.get('year', 2023),
+        rpg_year=rpg.get('year', 2024),
         
         include_cadastre=cadastre.get('enabled', False),
         group_by_parcel=cadastre.get('group_by_parcel', False)
@@ -409,7 +409,7 @@ def print_config_summary(config: Dict[str, Any]) -> None:
         if 'rpg' in data_sources:
             rpg = data_sources['rpg']
             if rpg.get('enabled', False):
-                year = rpg.get('year', 2023)
+                year = rpg.get('year', 2024)
                 print(f"  RPG: Enabled (year {year})")
             else:
                 print(f"  RPG: Disabled")
