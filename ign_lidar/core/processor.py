@@ -921,8 +921,8 @@ class LiDARProcessor:
             
             try:
                 # Determine RGB/NIR to save (prefer fetched/computed over input)
-                save_rgb = all_features_v.get('rgb') or original_data.get('input_rgb')
-                save_nir = all_features_v.get('nir') or original_data.get('input_nir')
+                save_rgb = all_features_v.get('rgb') if all_features_v.get('rgb') is not None else original_data.get('input_rgb')
+                save_nir = all_features_v.get('nir') if all_features_v.get('nir') is not None else original_data.get('input_nir')
                 
                 # Remove RGB/NIR from features dict to avoid duplication
                 features_to_save = {k: v for k, v in all_features_v.items() 

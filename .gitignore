@@ -20,7 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
+configs/
 # Build artifacts
 ign_lidar_hd-*/
 

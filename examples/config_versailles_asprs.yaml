@@ -28,7 +28,7 @@ defaults:
 # I/O PATHS
 # ============================================================================
 input_dir: /mnt/c/Users/Simon/ign/versailles
-output_dir: /mnt/c/Users/Simon/ign/versailles_processed_asprs
+output_dir: /mnt/c/Users/Simon/ign/versailles
 
 # ============================================================================
 # PROCESSOR CONFIGURATION
