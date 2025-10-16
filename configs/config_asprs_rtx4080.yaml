@@ -1,0 +1,329 @@
+# RTX 4080 Super Optimized Configuration
+# ASPRS Preprocessing with Cadastre - GPU Accelerated
+#
+# This configuration is optimized for NVIDIA RTX 4080 Super:
+# - 16GB GDDR6X VRAM
+# - 10,240 CUDA cores
+# - 736 GB/s memory bandwidth
+#
+# Expected performance: 5-10x faster than CPU
+#
+# Usage:
+#   python process_asprs_with_cadastre_gpu.py --config configs/config_asprs_rtx4080.yaml
+#
+# Monitor GPU usage:
+#   watch -n 1 nvidia-smi
+
+# ============================================================================
+# I/O PATHS
+# ============================================================================
+input_dir: /mnt/d/ign/selected_tiles/asprs/tiles
+output_dir: /mnt/d/ign/preprocessed/asprs/enriched_tiles
+cache_dir: /mnt/d/ign/cache
+
+# ============================================================================
+# BOUNDING BOX (Optional)
+# ============================================================================
+bbox:
+  xmin: null
+  ymin: null
+  xmax: null
+  ymax: null
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  format: laz
+  processing_mode: enriched_only # Direct LAZ enrichment (no patches)
+  save_stats: true
+  save_metadata: false
+  compression: null
+
+# ============================================================================
+# PROCESSOR CONFIGURATION - RTX 4080 OPTIMIZED
+# ============================================================================
+processor:
+  lod_level: ASPRS
+  processing_mode: enriched_only
+  skip_existing: false
+  architecture: hybrid
+
+  # GPU Settings - Optimized for RTX 4080 Super
+  use_gpu: true
+  batch_size: 64 # Large batches leverage 16GB VRAM
+  prefetch_factor: 4 # Prefetch 4 batches ahead
+  pin_memory: true # Fast CPU->GPU transfers with pinned memory
+  num_workers: 2 # Parallel data loading (adjust based on CPU cores)
+
+  # Detection modes
+  building_detection_mode: asprs
+  transport_detection_mode: asprs_extended
+
+  # Patch settings (not used in enriched_only mode)
+  patch_size: 150.0
+  patch_overlap: 0.1
+  num_points: 100000
+
+  # Output
+  output_format: laz
+  augment: false
+  num_augmentations: 0
+
+  # Tile stitching
+  use_stitching: true
+  buffer_size: 10.0
+
+  # Direct enrichment
+  apply_reclassification_inline: true
+  ground_truth_integration_mode: "direct"
+
+  # Reclassification - GPU Optimized
+  reclassification:
+    enabled: true
+    acceleration_mode: gpu # Force GPU mode for RTX 4080
+    chunk_size: 500_000 # Large chunks (GPU can handle it)
+    gpu_chunk_size: 1_000_000 # Even larger for GPU reclassification
+    show_progress: true
+    skip_existing: false
+
+    # Geometric rules
+    use_geometric_rules: true
+    ndvi_vegetation_threshold: 0.3
+    ndvi_road_threshold: 0.15
+    road_vegetation_height_threshold: 2.0
+    building_buffer_distance: 2.0
+    max_building_height_difference: 3.0
+    verticality_threshold: 0.7
+    verticality_search_radius: 1.0
+    min_vertical_neighbors: 5
+
+# ============================================================================
+# FEATURES CONFIGURATION - GPU OPTIMIZED
+# ============================================================================
+features:
+  mode: asprs_classes # Lightweight ~15 features for ASPRS
+
+  # Neighbor search - Optimized for speed
+  k_neighbors: 15 # Reduced from 20 for faster GPU computation
+  search_radius: 0.8 # Tighter radius (3-5x faster, still good quality!) 🚀
+  include_extra: false
+
+  # Core geometric features
+  compute_normals: true
+  compute_planarity: true
+  compute_curvature: false # Disabled for speed
+  compute_linearity: false # Disabled for speed
+  compute_verticality: true
+  compute_height_above_ground: true
+  compute_horizontality: true
+  compute_sphericity: true
+
+  # Spectral features - Required for NDVI
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+  augment_rgb: false
+  augment_infrared: false
+
+  # Advanced features (all disabled for maximum speed)
+  compute_architectural_features: false
+  include_architectural_style: false
+  compute_wall_likelihood: false
+  compute_roof_likelihood: false
+  compute_surface_variation: false
+  compute_anisotropy: false
+  compute_eigenvalue_features: false
+  compute_local_point_density: false
+  compute_roughness: false
+  compute_moment_features: false
+  compute_multiscale_features: false
+  compute_normal_variation: false
+  compute_normal_change_rate: false
+
+  # Sampling and normalization
+  sampling_method: fps # Farthest point sampling
+  normalize_xyz: true
+  normalize_features: true
+
+  # GPU Settings - RTX 4080 Super Optimized
+  # With 16GB VRAM, we can process very large batches
+  # OPTIMIZATION: Reduced from 5M to avoid CUSOLVER sub-batching overhead
+  # 5M points = 10 sub-batches (5M / 500k limit) = 10x kernel launch overhead
+  # 1.5M points = 3 sub-batches = cleaner splitting, better performance
+  gpu_batch_size: 1_500_000 # 1.5M points per batch (optimized for CUSOLVER)
+  use_gpu_chunked: true # Use chunked processing for very large tiles
+
+# ============================================================================
+# PREPROCESSING
+# ============================================================================
+preprocess:
+  enabled: true
+
+  # Statistical Outlier Removal
+  sor_enabled: true
+  sor_k: 10
+  sor_std: 2.0
+
+  # Radius Outlier Removal
+  ror_enabled: true
+  ror_radius: 1.0
+  ror_neighbors: 5
+
+  # Voxel downsampling (disabled for quality)
+  voxel_enabled: false
+  voxel_size: 0.1
+
+# ============================================================================
+# TILE STITCHING
+# ============================================================================
+stitching:
+  enabled: true
+  buffer_size: 10.0
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+  cache_dir: ${cache_dir}/neighbors
+
+# ============================================================================
+# GROUND TRUTH CONFIGURATION
+# ============================================================================
+ground_truth:
+  enabled: true
+  update_classification: true
+  use_ndvi: true
+  fetch_rgb_nir: true
+  cache_dir: ${cache_dir}/ground_truth
+
+# ============================================================================
+# DATA SOURCES - BD TOPO & CADASTRE
+# ============================================================================
+data_sources:
+  # BD TOPO® V3 - Infrastructure Ground Truth
+  bd_topo:
+    enabled: true
+    cache_enabled: true
+
+    # Features to fetch
+    features:
+      buildings: true # ASPRS 6
+      roads: true # ASPRS 11
+      railways: true # ASPRS 10
+      water: true # ASPRS 9
+      vegetation: true # ASPRS 5
+      bridges: true # ASPRS 17
+      parking: true # ASPRS 40
+      cemeteries: true # ASPRS 42
+      power_lines: true # ASPRS 43
+      sports: true # ASPRS 41
+
+    # Geometry generation parameters
+    parameters:
+      road_width_fallback: 4.0
+      road_buffer_tolerance: 0.5
+      railway_width_fallback: 3.5
+      railway_buffer_tolerance: 0.6
+      power_line_buffer: 2.0
+
+      # Height filtering (exclude bridges/overpasses)
+      road_height_max: 1.5
+      road_height_min: -0.3
+      rail_height_max: 1.2
+      rail_height_min: -0.2
+
+      # Geometric filtering
+      road_planarity_min: 0.6
+      rail_planarity_min: 0.5
+
+      # Intensity filtering
+      enable_intensity_filter: true
+      road_intensity_min: 0.15
+      road_intensity_max: 0.7
+      rail_intensity_min: 0.1
+      rail_intensity_max: 0.8
+
+    cache_dir: ${cache_dir}/ground_truth
+    use_cache: true
+
+  # BD PARCELLAIRE - Cadastre
+  cadastre:
+    enabled: true
+    group_by_parcel: true
+    label_parcel_id: true
+    compute_statistics: true
+    export_parcel_stats: true
+    export_attributes: true
+    cache_dir: ${cache_dir}/cadastre
+    use_cache: true
+
+  # BD Forêt (disabled for ASPRS)
+  bd_foret:
+    enabled: false
+
+  # RPG - Agriculture (disabled for ASPRS)
+  rpg:
+    enabled: false
+
+# ============================================================================
+# CLASSIFICATION SETTINGS
+# ============================================================================
+classification:
+  enabled: true
+
+  methods:
+    ground_truth: true
+    geometric: true
+    ndvi: true
+    forest_types: false
+    crop_types: false
+
+  # Priority order (lowest to highest - last wins)
+  priority_order:
+    - vegetation # 3/4/5
+    - water # 9
+    - cemeteries # 42
+    - parking # 40
+    - sports # 41
+    - power_lines # 43
+    - railways # 10
+    - roads # 11
+    - bridges # 17
+    - buildings # 6 (highest priority)
+
+  # Thresholds
+  thresholds:
+    ndvi_vegetation: 0.35
+    ndvi_building: 0.15
+    height_low_veg: 0.5
+    height_medium_veg: 2.0
+    planarity_road: 0.8
+    planarity_building: 0.7
+    road_buffer_tolerance: 0.5
+    building_buffer_tolerance: 0.0
+    use_building_footprints: true
+    ground_truth_building_priority: high
+
+  # Post-processing
+  post_processing:
+    enabled: true
+    reclassify_unclassified: true
+# ============================================================================
+# PERFORMANCE NOTES
+# ============================================================================
+# Expected performance on RTX 4080 Super:
+# - Feature computation: ~5-10x faster than CPU
+# - Reclassification: ~8-12x faster than CPU
+# - Overall speedup: ~5-10x vs CPU-only
+# - Memory usage: ~8-12GB VRAM (out of 16GB available)
+# - Processing time: ~30-60 seconds per tile (depending on size)
+#
+# Tips for maximum performance:
+# 1. Close other GPU applications (browsers, games, etc.)
+# 2. Monitor with: watch -n 1 nvidia-smi
+# 3. If OOM errors occur:
+#    - Reduce gpu_batch_size to 2_000_000
+#    - Reduce batch_size to 32
+#    - Reduce gpu_chunk_size to 500_000
+# 4. For very large tiles (>100M points):
+#    - Enable use_gpu_chunked
+#    - Increase chunk_size if stable

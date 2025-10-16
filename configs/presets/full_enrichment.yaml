@@ -1,0 +1,318 @@
+# IGN LiDAR HD - Full Enrichment Configuration
+# Complete multi-source enrichment with all data sources enabled
+# Date: October 16, 2025
+# Version: 3.0.0
+
+# Use this configuration for:
+# - Production-quality enriched datasets
+# - Complete multi-source integration
+# - Maximum information extraction
+# - Research and analysis requiring all attributes
+
+config_version: "3.0.0"
+project_name: "ign_lidar_full_enrichment"
+
+# ============================================================================
+# Processing Mode
+# ============================================================================
+
+mode: "both" # Generate both enriched LAZ and patches
+
+# ============================================================================
+# Input/Output
+# ============================================================================
+
+input:
+  data_dir: "data/raw/lidar"
+  tile_pattern: "*.laz"
+  crs: "EPSG:2154"
+
+output:
+  base_dir: "data/processed"
+  format: "laz"
+  save_enriched: true # Save enriched LAZ with all attributes
+  save_patches: true # Also generate ML patches
+  save_statistics: true # Export comprehensive statistics
+
+cache:
+  base_dir: "cache"
+  enabled: true # Strongly recommended for full enrichment
+
+# ============================================================================
+# Processing
+# ============================================================================
+
+processing:
+  num_workers: 4
+  max_tiles: null
+  batch_size: "auto"
+  prefetch_factor: 2
+  pin_memory: false
+
+# ============================================================================
+# Data Sources - ALL ENABLED
+# ============================================================================
+
+data_sources:
+  # BD TOPO® - All features enabled
+  bd_topo:
+    enabled: true
+    cache_enabled: true
+    cache_dir: "cache/ground_truth"
+
+    features:
+      buildings: true
+      roads: true
+      railways: true
+      water: true
+      vegetation: true
+      bridges: true
+      parking: true
+      cemeteries: true # ENABLED in full mode
+      power_lines: true # ENABLED in full mode
+      sports: true
+
+    parameters:
+      road_width_fallback: 4.0
+      railway_width_fallback: 3.5
+      power_line_buffer: 2.0
+      road_buffer_tolerance: 0.5
+      railway_buffer_tolerance: 0.6
+      road_height_max: 1.5
+      road_height_min: -0.3
+      rail_height_max: 1.2
+      rail_height_min: -0.2
+      road_planarity_min: 0.6
+      rail_planarity_min: 0.5
+      enable_intensity_filter: true
+      road_intensity_min: 0.15
+      road_intensity_max: 0.7
+      rail_intensity_min: 0.1
+      rail_intensity_max: 0.8
+
+  # BD Forêt® - Complete forest enrichment
+  bd_foret:
+    enabled: true # ENABLED
+    cache_enabled: true
+    cache_dir: "cache/bd_foret"
+
+    label_forest_type: true
+    label_primary_species: true
+    label_secondary_species: true # ENABLED in full mode
+    label_tertiary_species: true # ENABLED in full mode
+    estimate_height: true
+
+    export_attributes:
+      - forest_type
+      - primary_species
+      - secondary_species
+      - tertiary_species
+      - estimated_height
+
+  # RPG - Complete agricultural enrichment
+  rpg:
+    enabled: true # ENABLED
+    cache_enabled: true
+    cache_dir: "cache/rpg"
+    year: 2024
+
+    label_crop_code: true
+    label_crop_category: true
+    label_crop_name: true
+    label_parcel_area: true
+    label_organic_farming: true
+    apply_asprs_classification: true
+
+    export_attributes:
+      - crop_code
+      - crop_category
+      - crop_name
+      - parcel_area
+      - is_organic
+
+  # Cadastre - Complete cadastral enrichment
+  cadastre:
+    enabled: true # ENABLED
+    cache_enabled: true
+    cache_dir: "cache/cadastre"
+
+    label_parcel_id: true
+    group_by_parcel: true
+    compute_parcel_statistics: true
+
+    export_attributes:
+      - parcel_id
+
+    export_parcel_stats:
+      enabled: true
+      format: "both" # Both GeoJSON and CSV
+      include_class_distribution: true
+      include_point_density: true
+      include_crop_types: true
+      include_forest_types: true
+
+# ============================================================================
+# Features - Complete Set
+# ============================================================================
+
+features:
+  geometric:
+    enabled: true
+    k_neighbors: 20
+    search_radius: null
+
+    compute:
+      height: true
+      normals: true
+      curvature: true
+      planarity: true
+      linearity: true # ENABLED in full mode
+      sphericity: true # ENABLED in full mode
+      verticality: true # ENABLED in full mode
+
+  spectral:
+    rgb:
+      enabled: true
+      normalize: true
+      include_in_output: true
+
+    nir:
+      enabled: true # ENABLED in full mode
+      include_in_output: true
+
+    ndvi:
+      enabled: true # ENABLED in full mode
+      include_in_output: true
+
+# ============================================================================
+# Classification - All Methods
+# ============================================================================
+
+classification:
+  methods:
+    geometric: true
+    ndvi: true # ENABLED with NIR
+    ground_truth: true
+    forest_types: true # ENABLED
+    crop_types: true # ENABLED
+
+  priority_order:
+    - ground
+    - vegetation
+    - agriculture
+    - sports
+    - parking
+    - cemetery
+    - road
+    - rail
+    - power_line
+    - water
+    - building
+    - bridge
+
+  post_processing:
+    enabled: true
+    reclassify_unclassified: true
+    use_ground_truth_context: true
+    use_geometric_similarity: true
+    min_building_height: 2.5
+    min_building_planarity: 0.6
+
+  thresholds:
+    ndvi_vegetation: 0.35
+    ndvi_building: 0.15
+    height_low_veg: 0.5
+    height_medium_veg: 2.0
+    planarity_road: 0.8
+    planarity_building: 0.7
+    building_buffer_tolerance: 0.0
+
+# ============================================================================
+# Export - All Formats
+# ============================================================================
+
+export:
+  laz:
+    enabled: true
+    include_classification: true
+    include_extra_dims:
+      - ndvi
+      - height
+      - curvature
+      - planarity
+      - linearity
+      - sphericity
+      - verticality
+      - forest_type
+      - primary_species
+      - secondary_species
+      - tertiary_species
+      - estimated_height
+      - crop_code
+      - crop_category
+      - crop_name
+      - parcel_area
+      - is_organic
+      - parcel_id
+    compression: true
+
+  geojson:
+    enabled: true
+    export_parcels: true
+    include_statistics: true
+    include_class_distribution: true
+    include_crop_distribution: true
+
+  csv:
+    enabled: true # ENABLED for full export
+    include_all_attributes: true
+    separate_by_source: true
+
+  patches:
+    enabled: true
+    patch_size: 50
+    stride: 25
+    min_points: 100
+    output_format: "hdf5" # HDF5 for comprehensive patches
+
+# ============================================================================
+# Skip Checker
+# ============================================================================
+
+skip_checker:
+  enabled: true
+  check_enriched_laz: true
+  check_patches: true
+  check_statistics: true
+  validate_content: true
+  validate_features:
+    - classification
+    - forest_type
+    - crop_code
+    - parcel_id
+    - ndvi
+  min_file_size_kb: 10
+  skip_if:
+    output_exists: true
+    output_newer_than_input: true
+    validation_passed: true
+# ============================================================================
+# Usage
+# ============================================================================
+
+# Run with:
+#   ign-lidar-hd process --config configs/presets/full_enrichment.yaml
+#
+# Expect:
+# - Complete multi-source enrichment
+# - All BD TOPO®, BD Forêt®, RPG, and Cadastre data integrated
+# - All geometric and spectral features computed
+# - Maximum attribute richness in output
+# - Longer processing time (comprehensive analysis)
+# - Larger cache directory (all data sources cached)
+#
+# Recommended for:
+# - Production datasets
+# - Research projects
+# - Complete urban/rural analysis
+# - Maximum information extraction

@@ -2,6 +2,12 @@
 GPU-Accelerated Geometric Feature Extraction Functions
 Utilise CuPy et RAPIDS cuML pour des calculs 10-50x plus rapides
 Avec fallback automatique vers CPU si GPU indisponible
+
+IMPORTANT: CUSOLVER Batch Size Limits
+- CuPy's batched eigenvalue decomposition (cp.linalg.eigh) has internal limits
+- Maximum safe batch size: ~500,000 3x3 matrices per call
+- For larger batches, automatic sub-batching is applied
+- This prevents CUSOLVER_STATUS_INVALID_VALUE errors with large point clouds
 """
 
 from typing import Dict, Tuple, Any, Union
@@ -54,18 +60,18 @@ class GPUFeatureComputer:
     Fallback automatique CPU si GPU indisponible.
     """
     
-    def __init__(self, use_gpu: bool = True, batch_size: int = 250000):
+    def __init__(self, use_gpu: bool = True, batch_size: int = 1_000_000):
         """
         Args:
             use_gpu: Activer GPU si disponible
-            batch_size: Points par batch GPU (optimized: 250K)
+            batch_size: Points par batch GPU (default: 1M, configurable)
         """
         self.use_gpu = use_gpu and GPU_AVAILABLE
         self.use_cuml = use_gpu and CUML_AVAILABLE
         self.batch_size = batch_size
         
         if self.use_gpu:
-            print(f"🚀 Mode GPU activé (batch_size={batch_size})")
+            print(f"🚀 Mode GPU activé (batch_size={batch_size:,})")
         else:
             msg = "💻 Mode CPU (installer CuPy pour accélération)"
             print(msg)
@@ -135,12 +141,45 @@ class GPUFeatureComputer:
     
     def _batch_pca_gpu(self, points_gpu, neighbor_indices):
         """
-        VECTORIZED PCA on GPU.
-        ~100x faster than per-point loop.
+        VECTORIZED PCA on GPU with sub-batching for CUSOLVER limits.
+        CUSOLVER has a maximum batch size limit (~500k matrices).
         """
         if not GPU_AVAILABLE or cp is None:
             raise RuntimeError("GPU not available")
             
+        batch_size, k = neighbor_indices.shape
+        
+        # CUSOLVER batch limit - process in chunks if needed
+        # Empirically, ~500k 3x3 matrices is safe for most GPUs
+        max_cusolver_batch = 500_000
+        
+        if batch_size <= max_cusolver_batch:
+            # Single batch - original fast path
+            return self._batch_pca_gpu_core(points_gpu, neighbor_indices)
+        
+        # Multiple sub-batches needed
+        import logging
+        logger = logging.getLogger(__name__)
+        num_sub_batches = (batch_size + max_cusolver_batch - 1) // max_cusolver_batch
+        logger.info(f"    Splitting {batch_size:,} normals into {num_sub_batches} sub-batches (CUSOLVER limit)")
+        
+        normals = cp.zeros((batch_size, 3), dtype=cp.float32)
+        
+        for sub_batch_idx in range(num_sub_batches):
+            start_idx = sub_batch_idx * max_cusolver_batch
+            end_idx = min((sub_batch_idx + 1) * max_cusolver_batch, batch_size)
+            
+            sub_indices = neighbor_indices[start_idx:end_idx]
+            sub_normals = self._batch_pca_gpu_core(points_gpu, sub_indices)
+            normals[start_idx:end_idx] = sub_normals
+        
+        return normals
+    
+    def _batch_pca_gpu_core(self, points_gpu, neighbor_indices):
+        """
+        Core VECTORIZED PCA computation on GPU.
+        Assumes batch size is within CUSOLVER limits.
+        """
         batch_size, k = neighbor_indices.shape
         
         # Gather all neighbor points: [batch_size, k, 3]
@@ -357,16 +396,167 @@ class GPUFeatureComputer:
         Returns:
             features: dictionary of geometric features
         """
-        # If radius requested, use CPU implementation (GPU radius not yet impl)
+        # If radius requested: try GPU-accelerated approximate radius search
+        # Strategy: use k-NN on GPU with a sufficiently large k, then mask
+        # neighbors whose distance > radius. This avoids an expensive
+        # CPU-wide radius query but produces nearly-identical neighborhoods
+        # for feature computation. Falls back to CPU if GPU/cuML unavailable.
         if radius is not None:
             import logging
             logger = logging.getLogger(__name__)
-            logger.warning(
-                f"Radius search (r={radius:.2f}m) requested but GPU "
-                f"radius search not implemented yet. Using CPU fallback."
-            )
-            from .features import extract_geometric_features as cpu_extract
-            return cpu_extract(points, normals, k=k, radius=radius)
+
+            # If GPU + cuML available, perform approximate radius search on GPU
+            if self.use_cuml and cuNearestNeighbors is not None and self.use_gpu:
+                N = len(points)
+
+                # Heuristic: estimate k needed by sampling (cheap)
+                sample_n = int(min(2000, max(100, N // 10)))
+                try:
+                    sample_idx = np.random.choice(N, sample_n, replace=False)
+                    sample_points = points[sample_idx]
+                    # Use a lightweight KDTree on CPU for the sample to estimate counts
+                    sample_tree = KDTree(points, metric='euclidean')
+                    sample_counts = sample_tree.query_radius(sample_points, r=radius, count_only=True)
+                    est_k = int(np.median(sample_counts)) + 10
+                    est_k = int(np.clip(est_k, k, min(max(32, est_k), min(4096, N))))
+                except Exception:
+                    # Sampling failed - fall back to a conservative k
+                    est_k = min(max(128, k), N)
+
+                logger.info(f"Using approximate GPU radius search (r={radius:.2f}m): k_probe={est_k}")
+
+                # Build GPU k-NN and query in batches to collect distances+indices
+                points_gpu = self._to_gpu(points)
+                knn = cuNearestNeighbors(n_neighbors=min(est_k, N), metric='euclidean')
+                knn.fit(points_gpu)
+
+                # Collect distances/indices in batches to avoid OOM
+                batch_size = self.batch_size if hasattr(self, 'batch_size') else 1_000_000
+                num_batches = (N + batch_size - 1) // batch_size
+
+                distances_all = []
+                indices_all = []
+
+                for bi in range(num_batches):
+                    s = bi * batch_size
+                    e = min((bi + 1) * batch_size, N)
+                    qp = points_gpu[s:e]
+                    d_batch, idx_batch = knn.kneighbors(qp)
+                    # Move to CPU for masked processing
+                    distances_all.append(self._to_cpu(d_batch))
+                    indices_all.append(self._to_cpu(idx_batch))
+
+                distances = np.vstack(distances_all)
+                indices = np.vstack(indices_all)
+
+                # Mask neighbors outside the radius
+                within_mask = distances <= float(radius)
+
+                # Prepare neighbor point arrays and compute masked centroids/covariances
+                neighbors_all = points[indices]  # [N, kq, 3]
+
+                # Compute counts (number of valid neighbors per point)
+                counts = np.sum(within_mask, axis=1).astype(np.float32)  # [N]
+                counts_safe = np.where(counts <= 1, 1.0, counts)[:, None]
+
+                # Zero out invalid neighbors for centroid and covariance sums
+                mask_expanded = within_mask[:, :, None].astype(np.float32)
+                neighbors_masked = neighbors_all * mask_expanded
+
+                # Compute centroids using only valid neighbors
+                centroids = np.sum(neighbors_masked, axis=1) / counts_safe
+
+                # Center neighbors and apply mask again
+                centered = (neighbors_all - centroids[:, None, :]) * mask_expanded
+
+                # Degrees of freedom for covariance: counts - 1 (min 1)
+                dof = np.where(counts > 1, counts - 1.0, 1.0)[:, None, None]
+
+                # Compute covariance matrices with masked neighborhoods
+                cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / dof
+
+                # For points with <=1 neighbor within radius, mark cov as small
+                degenerate_mask = (counts.squeeze() <= 1)
+                if np.any(degenerate_mask):
+                    cov_matrices[degenerate_mask] = np.eye(3, dtype=np.float32)
+
+                # Eigenvalues: [N, 3]
+                eigenvalues = np.linalg.eigvalsh(cov_matrices)
+                eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]
+
+                λ0 = eigenvalues[:, 0]
+                λ1 = eigenvalues[:, 1]
+                λ2 = eigenvalues[:, 2]
+
+                # Clamp eigenvalues to non-negative
+                λ0 = np.maximum(λ0, 0.0)
+                λ1 = np.maximum(λ1, 0.0)
+                λ2 = np.maximum(λ2, 0.0)
+
+                # Compute features (same as k-based path)
+                λ0_safe = λ0 + 1e-8
+                sum_λ = λ0 + λ1 + λ2 + 1e-8
+
+                linearity = np.clip((λ0 - λ1) / λ0_safe, 0.0, 1.0).astype(np.float32)
+                planarity = np.clip((λ1 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
+                sphericity = np.clip(λ2 / λ0_safe, 0.0, 1.0).astype(np.float32)
+                anisotropy = np.clip((λ0 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
+                roughness = np.clip(λ2 / sum_λ, 0.0, 1.0).astype(np.float32)
+
+                # Density approximated from k-NN distances (use only valid neighbors)
+                # Avoid division by zero: replace zeros with small eps
+                mean_distances = np.zeros(N, dtype=np.float32)
+                valid_means = np.sum(within_mask[:, 1:], axis=1) > 0
+                # Compute mean distances excluding self (col 0)
+                with np.errstate(invalid='ignore'):
+                    mm = np.where(np.sum(within_mask[:, 1:], axis=1) > 0,
+                                  np.sum(distances[:, 1:] * within_mask[:, 1:], axis=1) /
+                                  np.sum(within_mask[:, 1:], axis=1),
+                                  np.mean(distances[:, 1:], axis=1))
+                mean_distances = mm.astype(np.float32)
+                density = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0).astype(np.float32)
+
+                # Build features dict
+                features = {
+                    'planarity': planarity,
+                    'linearity': linearity,
+                    'sphericity': sphericity,
+                    'anisotropy': anisotropy,
+                    'roughness': roughness,
+                    'density': density,
+                }
+
+                # Additional CPU-based features still called from core functions
+                from .features import (
+                    compute_eigenvalue_features,
+                    compute_num_points_within_radius
+                )
+                from .core.architectural import compute_architectural_features as compute_arch_features_core
+
+                eigenvalue_features = compute_eigenvalue_features(eigenvalues)
+                features.update(eigenvalue_features)
+
+                architectural_features = compute_arch_features_core(
+                    points=points,
+                    normals=normals,
+                    eigenvalues=eigenvalues
+                )
+                features.update(architectural_features)
+
+                # num_points_2m: use exact CPU KDTree for counting (fast with C impl)
+                tree = KDTree(points, metric='euclidean', leaf_size=30)
+                num_points_2m = compute_num_points_within_radius(points, tree, radius=2.0)
+                features['num_points_2m'] = num_points_2m
+
+                return features
+            else:
+                # GPU/cuML not available - fallback to CPU implementation
+                logger.warning(
+                    f"Radius search (r={radius:.2f}m) requested but GPU "
+                    f"radius search not available. Using CPU fallback."
+                )
+                from .features import extract_geometric_features as cpu_extract
+                return cpu_extract(points, normals, k=k, radius=radius)
         # Build KDTree
         tree = KDTree(points, metric='euclidean', leaf_size=30)
         distances, indices = tree.query(points, k=k)

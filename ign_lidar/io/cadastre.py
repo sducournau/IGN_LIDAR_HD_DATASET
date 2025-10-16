@@ -23,6 +23,7 @@ import json
 import requests
 from urllib.parse import urlencode
 from collections import defaultdict
+import time
 
 if TYPE_CHECKING:
     import geopandas as gpd
@@ -143,44 +144,84 @@ class CadastreFetcher:
         
         url = f"{self.WFS_URL}?{urlencode(params)}"
         
-        try:
-            logger.info(f"  Requesting WFS: {self.PARCELS_LAYER}")
-            response = requests.get(url, timeout=60)
-            response.raise_for_status()
-            
-            # Parse GeoJSON
-            data = response.json()
-            
-            if 'features' not in data or len(data['features']) == 0:
-                logger.info(f"  No cadastral parcels found in this area")
-                return None
-            
-            # Convert to GeoDataFrame
-            gdf = gpd.GeoDataFrame.from_features(data['features'], crs=self.crs)
-            
-            logger.info(f"  Retrieved {len(gdf)} cadastral parcels")
-            
-            # Log commune distribution
-            if 'commune' in gdf.columns:
-                n_communes = gdf['commune'].nunique()
-                logger.info(f"  Spanning {n_communes} commune(s)")
-            
-            # Cache the result
-            if self.cache_dir and cache_file:
-                try:
-                    gdf.to_file(cache_file, driver='GeoJSON')
-                    logger.info(f"  Cached to: {cache_file.name}")
-                except Exception as e:
-                    logger.warning(f"  Failed to cache: {e}")
-            
-            return gdf
-            
-        except requests.exceptions.RequestException as e:
-            logger.error(f"  WFS request failed: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"  Failed to parse cadastre data: {e}")
-            return None
+        # Retry logic with exponential backoff for rate limiting
+        max_retries = 5
+        base_delay = 2  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    logger.info(f"  Retry attempt {attempt}/{max_retries-1}")
+                else:
+                    logger.info(f"  Requesting WFS: {self.PARCELS_LAYER}")
+                
+                response = requests.get(url, timeout=60)
+                
+                # Handle rate limiting (429 Too Many Requests)
+                if response.status_code == 429:
+                    if attempt < max_retries - 1:
+                        # Exponential backoff: 2s, 4s, 8s, 16s, 32s
+                        delay = base_delay * (2 ** attempt)
+                        # Add jitter to avoid thundering herd
+                        import random
+                        delay = delay + random.uniform(0, delay * 0.1)
+                        logger.warning(f"  ⚠️  Rate limited (429). Waiting {delay:.1f}s before retry...")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        logger.error(f"  ❌ Rate limit exceeded after {max_retries} attempts")
+                        return None
+                
+                response.raise_for_status()
+                
+                # Parse GeoJSON
+                data = response.json()
+                
+                if 'features' not in data or len(data['features']) == 0:
+                    logger.info(f"  No cadastral parcels found in this area")
+                    return None
+                
+                # Convert to GeoDataFrame
+                gdf = gpd.GeoDataFrame.from_features(data['features'], crs=self.crs)
+                
+                logger.info(f"  Retrieved {len(gdf)} cadastral parcels")
+                
+                # Log commune distribution
+                if 'commune' in gdf.columns:
+                    n_communes = gdf['commune'].nunique()
+                    logger.info(f"  Spanning {n_communes} commune(s)")
+                
+                # Cache the result
+                if self.cache_dir and cache_file:
+                    try:
+                        gdf.to_file(cache_file, driver='GeoJSON')
+                        logger.info(f"  Cached to: {cache_file.name}")
+                    except Exception as e:
+                        logger.warning(f"  Failed to cache: {e}")
+                
+                return gdf
+                
+            except requests.exceptions.RequestException as e:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"  ⚠️  Request failed: {e}. Retrying in {delay}s...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"  WFS request failed after {max_retries} attempts: {e}")
+                    return None
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"  ⚠️  Parse error: {e}. Retrying in {delay}s...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"  Failed to parse cadastre data after {max_retries} attempts: {e}")
+                    return None
+        
+        # Should never reach here, but just in case
+        return None
     
     def group_points_by_parcel(
         self,

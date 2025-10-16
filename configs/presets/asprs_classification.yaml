@@ -1,0 +1,82 @@
+# ASPRS Classification Configuration
+# Optimized for ASPRS LAS 1.4 classification codes
+# Lightweight features + ground truth enrichment
+# Use case: ASPRS-compliant point cloud classification
+
+# Inherit from default v3
+defaults:
+  - ../default_v3
+
+# ASPRS-specific processing
+processing:
+  lod_level: "ASPRS" # ASPRS classification target
+  mode: "both" # Create both patches and enriched LAZ
+  architecture: "pointnet++"
+
+  # Performance tuning
+  num_workers: 4
+  use_gpu: false
+
+  # Patch settings
+  patch_size: 150.0
+  patch_overlap: 0.1
+  num_points: 16384
+  augment: false
+
+# ASPRS-optimized features (~15 features, lightweight)
+features:
+  mode: "asprs_classes" # Use ASPRS-optimized feature set
+
+  # Geometric
+  k_neighbors: 20
+  search_radius: null # k-neighbors is faster
+
+  # Spectral (important for ASPRS classification)
+  use_rgb: true
+  use_nir: true
+  compute_ndvi: true
+
+  # Keep it lightweight
+  include_extra: false
+
+  # GPU settings
+  gpu_batch_size: null
+  use_gpu_chunked: true
+
+# Enable ground truth enrichment (essential for ASPRS accuracy)
+data_sources:
+  # BD TOPO for infrastructure classification
+  bd_topo_enabled: true
+  bd_topo_buildings: true # ASPRS code 6
+  bd_topo_roads: true # ASPRS code 11
+  bd_topo_water: true # ASPRS code 9
+  bd_topo_vegetation: true # ASPRS code 5
+  bd_topo_cache_dir: "cache/bd_topo"
+
+  # BD Forêt for vegetation types
+  bd_foret_enabled: true
+  bd_foret_cache_dir: "cache/bd_foret"
+
+  # RPG for agricultural classification
+  rpg_enabled: true
+  rpg_year: 2024
+  rpg_cache_dir: "cache/rpg"
+
+  # Cadastre for building parcels
+  cadastre_enabled: true
+  cadastre_cache_dir: "cache/cadastre"
+
+# No preprocessing (keep original point density)
+preprocess:
+  enabled: false
+
+# Output settings
+output:
+  format: "laz" # LAZ format for ASPRS classification
+  save_stats: true
+  skip_existing: true
+  compression: null # No compression for LAZ (already compressed)
+
+# Logging
+verbose: true
+log_level: "INFO"

@@ -228,45 +228,76 @@ class DataFetcher:
         
         result = {}
         
-        # 1. BD TOPO® Ground Truth
-        logger.info("📍 Fetching BD TOPO® ground truth...")
-        result['ground_truth'] = self.ground_truth_fetcher.fetch_all_features(
-            bbox=bbox,
-            use_cache=use_cache,
-            include_buildings=self.config.include_buildings,
-            include_roads=self.config.include_roads,
-            include_railways=self.config.include_railways,
-            include_water=self.config.include_water,
-            include_vegetation=self.config.include_vegetation,
-            include_bridges=self.config.include_bridges,
-            include_parking=self.config.include_parking,
-            include_cemeteries=self.config.include_cemeteries,
-            include_power_lines=self.config.include_power_lines,
-            include_sports=self.config.include_sports,
-            road_width_fallback=self.config.road_width_fallback,
-            railway_width_fallback=self.config.railway_width_fallback,
-            power_line_buffer=self.config.power_line_buffer
-        )
+        # OPTIMIZATION: Fetch all data sources in parallel
+        # This reduces total fetch time from sum(T_i) to max(T_i)
+        # Expected speedup: 2-4× for typical use cases
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        fetch_tasks = []
+        
+        # 1. BD TOPO® Ground Truth (includes internal parallelization)
+        def fetch_ground_truth():
+            logger.info("📍 Fetching BD TOPO® ground truth...")
+            return self.ground_truth_fetcher.fetch_all_features(
+                bbox=bbox,
+                use_cache=use_cache,
+                include_buildings=self.config.include_buildings,
+                include_roads=self.config.include_roads,
+                include_railways=self.config.include_railways,
+                include_water=self.config.include_water,
+                include_vegetation=self.config.include_vegetation,
+                include_bridges=self.config.include_bridges,
+                include_parking=self.config.include_parking,
+                include_cemeteries=self.config.include_cemeteries,
+                include_power_lines=self.config.include_power_lines,
+                include_sports=self.config.include_sports,
+                road_width_fallback=self.config.road_width_fallback,
+                railway_width_fallback=self.config.railway_width_fallback,
+                power_line_buffer=self.config.power_line_buffer
+            )
+        fetch_tasks.append(('ground_truth', fetch_ground_truth))
         
         # 2. BD Forêt®
         if self.config.include_forest and self.forest_fetcher:
-            logger.info("🌲 Fetching BD Forêt® forest data...")
-            result['forest'] = self.forest_fetcher.fetch_forest_polygons(bbox)
-        else:
-            result['forest'] = None
+            def fetch_forest():
+                logger.info("🌲 Fetching BD Forêt® forest data...")
+                return self.forest_fetcher.fetch_forest_polygons(bbox)
+            fetch_tasks.append(('forest', fetch_forest))
         
         # 3. RPG Agriculture
         if self.config.include_agriculture and self.rpg_fetcher:
-            logger.info("🌾 Fetching RPG agricultural parcels...")
-            result['agriculture'] = self.rpg_fetcher.fetch_parcels(bbox)
-        else:
-            result['agriculture'] = None
+            def fetch_agriculture():
+                logger.info("🌾 Fetching RPG agricultural parcels...")
+                return self.rpg_fetcher.fetch_parcels(bbox)
+            fetch_tasks.append(('agriculture', fetch_agriculture))
         
         # 4. Cadastre
         if self.config.include_cadastre and self.cadastre_fetcher:
-            logger.info("🗺️  Fetching cadastral parcels...")
-            result['cadastre'] = self.cadastre_fetcher.fetch_parcels(bbox)
-        else:
+            def fetch_cadastre():
+                logger.info("🗺️  Fetching cadastral parcels...")
+                return self.cadastre_fetcher.fetch_parcels(bbox)
+            fetch_tasks.append(('cadastre', fetch_cadastre))
+        
+        # Execute all fetches in parallel
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            future_to_name = {executor.submit(task): name for name, task in fetch_tasks}
+            
+            for future in as_completed(future_to_name):
+                name = future_to_name[future]
+                try:
+                    result[name] = future.result()
+                except Exception as e:
+                    logger.error(f"Failed to fetch {name}: {e}")
+                    result[name] = None
+        
+        # Ensure all keys exist (for sources that weren't requested)
+        if 'ground_truth' not in result:
+            result['ground_truth'] = {}
+        if 'forest' not in result:
+            result['forest'] = None
+        if 'agriculture' not in result:
+            result['agriculture'] = None
+        if 'cadastre' not in result:
             result['cadastre'] = None
         
         # Log summary

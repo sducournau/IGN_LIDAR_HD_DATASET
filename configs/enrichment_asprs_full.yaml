@@ -10,10 +10,24 @@
 #     output_dir=D:/ign/preprocessed/asprs
 
 # ============================================================================
+# Hydra Defaults - Override base configuration
+# ============================================================================
+
+defaults:
+  - processor: default
+  - features: full
+  - preprocess: default
+  - stitching: enabled
+  - output: default
+  - ground_truth: enabled # ⚠️ CRITICAL: Enable ground truth data sources
+  - _self_
+  - optional experiment: null
+
+# ============================================================================
 # Processing Mode
 # ============================================================================
 
-mode: "enriched_only" # Only create enriched LAZ files, no patches
+mode: "enriched" # Only create enriched LAZ files, no patches
 # Options: "enriched_only", "both", "patches_only"
 
 # ============================================================================
@@ -29,10 +43,10 @@ cache_dir: "D:/ign/cache"
 # ============================================================================
 
 processor:
-  lod_level: "LOD2"
+  lod_level: "ASPRS"
   processing_mode: "enriched_only" # enriched_only | both | patches_only
-  num_workers: 4
-  use_gpu: false
+  num_workers: 1
+  use_gpu: true
 
   # Patch settings (ignored in enriched_only mode)
   patch_size: 150.0
@@ -51,12 +65,12 @@ processor:
 # ============================================================================
 
 features:
-  mode: "full" # full | lod2 | lod3 | minimal
+  mode: "asprs_classes" # full | lod2 | lod3 | minimal
 
   # RGB/NIR
   use_rgb: true
-  use_infrared: false
-  compute_ndvi: false
+  use_infrared: true
+  compute_ndvi: true
 
   # Geometric features
   include_extra_features: true
@@ -84,8 +98,8 @@ data_sources:
       vegetation: true # ASPRS 5
       bridges: true # ASPRS 17
       parking: true # ASPRS 40
-      cemeteries: false # ASPRS 42 (disabled by default)
-      power_lines: false # ASPRS 43 (disabled by default)
+      cemeteries: true # ASPRS 42 (disabled by default)
+      power_lines: true # ASPRS 43 (disabled by default)
       sports: true # ASPRS 41
 
     # Geometry generation parameters (improved for better classification)
@@ -256,6 +270,10 @@ output:
 
 preprocess:
   enabled: false
+
+  # Classification normalization
+  normalize_classification: true # Fix non-standard classification codes (e.g., class 67)
+  strict_class_normalization: false # If true, remap ALL unknown codes to Unclassified (1)
 
   # Preprocessing options
   remove_noise: false

@@ -19,6 +19,7 @@ h5py>=3.0.0
 # For ground truth fetching from IGN WFS (BD TOPO®)
 shapely>=2.0.0  # Geometric operations for ground truth labeling
 geopandas>=0.12.0  # GeoDataFrame support for vector data
+rtree>=1.0.0  # Spatial indexing for efficient geometric operations
 
 # Optional: For GPU acceleration (uncomment if you have NVIDIA GPU)
 # Choose ONE based on your CUDA version:

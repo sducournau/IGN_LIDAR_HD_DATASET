@@ -5,6 +5,10 @@ This module provides comprehensive classification codes according to the
 ASPRS LAS 1.4 specification, along with mapping utilities and extended
 classifications for French topographic data (IGN BD TOPO®).
 
+⚠️  IGN-Specific Non-Standard Classes:
+    - Class 67: Unknown/Invalid class found in some IGN LiDAR HD tiles
+      → Automatically remapped to Class 1 (Unclassified) during preprocessing
+
 Reference: ASPRS LAS Specification Version 1.4 - R15
 https://www.asprs.org/wp-content/uploads/2019/07/LAS_1_4_r15.pdf
 """

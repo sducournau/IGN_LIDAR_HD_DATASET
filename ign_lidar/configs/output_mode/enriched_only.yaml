@@ -1,0 +1,19 @@
+# Output Mode: Enriched LAZ Only
+#
+# This mode only creates enriched LAZ files with added features.
+# No patches are extracted - fastest for GIS workflows.
+#
+# Use cases:
+# - Preprocessing for later patch extraction
+# - GIS analysis without ML training
+# - Quick feature enrichment
+
+processing_mode: enriched_only
+format: laz
+save_enriched: true
+save_patches: false
+
+# Patch settings are ignored in this mode
+patch_size: null
+patch_overlap: null
+num_points: null

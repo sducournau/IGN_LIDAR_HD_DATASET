@@ -6,11 +6,19 @@ unified classification system.
 
 Author: Configuration Team
 Date: October 15, 2025
+
+DEPRECATED: This module is deprecated in v3.0+. 
+Use Hydra/OmegaConf configuration system instead:
+    from ign_lidar.config.schema_simplified import IGNLiDARConfig
+    
+For migration help:
+    from ign_lidar.config.schema_simplified import migrate_config_v2_to_v3
 """
 
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import logging
+import warnings
 
 try:
     import yaml
@@ -31,6 +39,9 @@ def load_config_from_yaml(config_path: Path) -> Dict[str, Any]:
     """
     Load configuration from a YAML file.
     
+    DEPRECATED: Use Hydra/OmegaConf configuration system instead.
+    This function will be removed in v4.0.
+    
     Args:
         config_path: Path to the YAML configuration file
         
@@ -40,6 +51,14 @@ def load_config_from_yaml(config_path: Path) -> Dict[str, Any]:
     Raises:
         ConfigError: If file not found, invalid YAML, or missing required sections
     """
+    warnings.warn(
+        "load_config_from_yaml() is deprecated and will be removed in v4.0. "
+        "Please use Hydra/OmegaConf configuration system instead. "
+        "See ign_lidar.config.schema_simplified for the new API.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
     if not YAML_AVAILABLE:
         raise ConfigError(
             "PyYAML is not installed. Install it with: pip install pyyaml"

@@ -1,9 +1,17 @@
 # ========================================================================
 # LOD3 Preprocessing Configuration
 # ========================================================================
-# Updated: October 15, 2025 - Latest datasets (BD TOPO V3, BD Forêt V2, RPG 2024)
+# Updated: October 16, 2025 - Latest datasets (BD TOPO V3, BD Forêt V2, RPG 2024)
 # Purpose: Preprocess selected tiles for LOD3 detailed architectural
 #          classification with maximum feature extraction
+#
+# ⚠️  MODERNIZATION NOTE (October 16, 2025):
+#     This config uses the old approach with duplicated settings.
+#     A simplified version using modular configs can be created if needed.
+#
+#     See: ign_lidar/configs/experiment/asprs_preprocessing_v2.yaml for example
+#     See: MIGRATION_GUIDE.md for migration instructions
+# ========================================================================
 #
 # Input: /mnt/d/ign/selected_tiles/lod3/tiles
 # Output: Enriched LAZ tiles with comprehensive architectural features

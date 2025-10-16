@@ -1,0 +1,19 @@
+# Output Mode: Both Enriched LAZ and Patches
+#
+# This mode creates both enriched LAZ files AND ML patches.
+# Most comprehensive but slowest option.
+#
+# Use cases:
+# - Complete dataset creation
+# - When you need both GIS and ML outputs
+# - Archival processing
+
+processing_mode: both
+format: npz
+save_enriched: true
+save_patches: true
+
+# Patch settings (can be overridden)
+patch_size: 150.0 # meters
+patch_overlap: 0.1 # 10%
+num_points: 16384 # points per patch

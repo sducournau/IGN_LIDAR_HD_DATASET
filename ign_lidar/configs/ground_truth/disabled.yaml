@@ -1,25 +1,34 @@
 # Ground Truth Configuration - Disabled
 #
 # No ground truth labeling or classification update
+# Updated: October 16, 2025 - Migrated to new data_sources structure
 
-# Ground truth processing
-enabled: false # Enable ground truth fetching and labeling
-update_classification: false # Update classification in input tiles before processing
+# ============================================================================
+# Multi-Source Data Integration (DISABLED)
+# ============================================================================
 
-# WFS Feature Selection
-include_buildings: true
-include_roads: true
-include_water: true
-include_vegetation: true
+data_sources:
+  bd_topo:
+    enabled: false
 
-# NDVI Refinement
-use_ndvi: true # Use NDVI to refine building/vegetation labels
-fetch_rgb_nir: false # Fetch RGB and NIR from IGN orthophotos
-ndvi_vegetation_threshold: 0.3 # NDVI >= value -> vegetation
-ndvi_building_threshold: 0.15 # NDVI <= value -> building
+  bd_foret:
+    enabled: false
 
-# Caching
-cache_dir: null # Cache directory for WFS data and orthophotos (null = default)
+  rpg:
+    enabled: false
 
-# Output
-save_ground_truth_vectors: false # Save fetched ground truth vectors to disk
+  cadastre:
+    enabled: false
+
+# ============================================================================
+# Classification Configuration (Geometric only)
+# ============================================================================
+
+classification:
+  enabled: false
+  methods:
+    geometric: true
+    ndvi: false
+    ground_truth: false
+    forest_types: false
+    crop_types: false

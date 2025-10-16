@@ -36,8 +36,11 @@ const sidebars: SidebarsConfig = {
       items: [
         "architecture",
         "workflows",
+        "guides/configuration-v3",
         "guides/configuration-system",
         "guides/processing-modes",
+        "guides/feature-modes-guide",
+        "guides/data-sources",
       ],
     },
 
@@ -55,6 +58,7 @@ const sidebars: SidebarsConfig = {
         "guides/regional-processing",
         "guides/performance",
         "guides/troubleshooting",
+        "guides/migration-v2-to-v3",
         "guides/migration-v1-to-v2",
       ],
     },
@@ -163,6 +167,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "📝 Release Notes",
       items: [
+        "release-notes/v3.0.0",
         "release-notes/v1.7.2",
         "release-notes/v1.7.1",
         "release-notes/v1.7.0",

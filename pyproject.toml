@@ -43,6 +43,9 @@ dependencies = [
     "requests>=2.25.0",  # HTTP requests for data download
     "Pillow>=9.0.0",  # Image processing for RGB features
     "h5py>=3.0.0",  # HDF5 for AI dataset creation and processing
+    "shapely>=2.0.0",  # Geometric operations for ground truth labeling
+    "geopandas>=0.12.0",  # GeoDataFrame support for vector data
+    "rtree>=1.0.0",  # Spatial indexing for efficient geometric operations
 ]
 
 [project.optional-dependencies]
@@ -65,12 +68,21 @@ gpu = [
     # cupy must be installed separately: pip install cupy-cuda11x or cupy-cuda12x
 ]
 
+# GPU-accelerated ground truth classification with cuSpatial
+# Note: Requires both CuPy and cuSpatial from RAPIDS
+# conda install -c rapidsai -c conda-forge -c nvidia cuspatial cupy
+gpu-spatial = [
+    # cupy must be installed separately: pip install cupy-cuda11x or cupy-cuda12x
+    # cuspatial requires conda: conda install -c rapidsai cuspatial
+]
+
 # Advanced GPU acceleration with RAPIDS cuML
 # Note: RAPIDS requires conda installation for best compatibility
 # conda install -c rapidsai -c conda-forge -c nvidia cuml
 gpu-full = [
     # cupy must be installed separately: pip install cupy-cuda11x or cupy-cuda12x
     "cuml>=23.10.0",  # RAPIDS cuML for GPU-accelerated ML
+    # cuspatial requires conda: conda install -c rapidsai cuspatial
 ]
 
 # PyTorch support for dataset classes and deep learning

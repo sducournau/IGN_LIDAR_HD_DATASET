@@ -1,9 +1,23 @@
 # ========================================================================
 # LOD2 Preprocessing Configuration
 # ========================================================================
-# Updated: October 15, 2025 - Latest datasets (BD TOPO V3, BD Forêt V2, RPG 2024)
+# Updated: October 16, 2025 - Latest datasets (BD TOPO V3, BD Forêt V2, RPG 2024)
 # Purpose: Preprocess selected tiles for LOD2 building classification
 #          with enhanced features for wall/roof detection
+#
+# ⚠️  MODERNIZATION NOTE (October 16, 2025):
+#     A NEW SIMPLIFIED VERSION exists: ign_lidar/configs/experiment/lod2_preprocessing_v2.yaml
+#     - 87% smaller (50 lines vs 389 lines)
+#     - Uses modular data source configs (no duplication)
+#     - Easier to maintain and understand
+#
+#     To use the new version:
+#       ign-lidar-hd process experiment=lod2_preprocessing_v2 \
+#         input_dir=/path/to/tiles output_dir=/path/to/output
+#
+#     This file is kept for backward compatibility but will be deprecated in v3.0
+#     See: MIGRATION_GUIDE.md for details
+# ========================================================================
 #
 # Input: /mnt/d/ign/selected_tiles/lod2/tiles
 # Output: Enriched LAZ tiles with building-focused features + RGB/IR/NDVI

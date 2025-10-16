@@ -20,6 +20,11 @@ dependencies:
   # - torchvision
   # - torchaudio
 
+  # Geospatial dependencies
+  - shapely>=2.0.0
+  - geopandas>=0.12.0
+  - rtree>=1.0.0
+
   - pip
   - pip:
       - laspy>=2.3.0

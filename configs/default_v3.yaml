@@ -1,0 +1,140 @@
+# IGN LiDAR HD - Simplified Default Configuration v3.0
+# Date: October 16, 2025
+#
+# This is the streamlined configuration for IGN LiDAR HD processing.
+# Changes from v2.x:
+# - Flatter structure (reduced nesting)
+# - Removed unused parameters
+# - Clearer naming
+# - Better defaults
+
+# ============================================================================
+# Input/Output (REQUIRED)
+# ============================================================================
+
+input_dir: "data/raw/lidar" # Directory containing LAZ files
+output_dir: "data/processed" # Output directory for processed data
+
+# ============================================================================
+# Processing Configuration
+# ============================================================================
+
+processing:
+  # Classification target
+  lod_level: "ASPRS" # Options: ASPRS, LOD2, LOD3
+
+  # Processing mode
+  mode: "patches_only" # Options: patches_only, both, enriched_only, reclassify_only
+
+  # Target architecture
+  architecture: "pointnet++" # Options: pointnet++, hybrid, octree, transformer, sparse_conv, multi
+
+  # Performance
+  num_workers: 4
+  use_gpu: false # Enable GPU acceleration (requires CuPy)
+
+  # Patch extraction
+  patch_size: 150.0 # Patch size in meters
+  patch_overlap: 0.1 # Overlap ratio (0.0-1.0)
+  num_points: 16384 # Target points per patch
+
+  # Augmentation (optional)
+  augment: false
+  num_augmentations: 3
+
+# ============================================================================
+# Feature Computation
+# ============================================================================
+
+features:
+  # Feature set selection (NEW in v3.0)
+  # - asprs_classes: Optimized for ASPRS classification (~15 features, lightweight)
+  # - minimal: Ultra-fast basic features (~8 features)
+  # - lod2: Essential features for LOD2 building detection (~17 features)
+  # - lod3: Complete features for LOD3 architectural modeling (~43 features)
+  # - full: All available features (~45 features)
+  mode: "asprs_classes"
+
+  # Geometric features
+  k_neighbors: 20 # Number of neighbors for feature computation
+  search_radius: null # Use null for k-neighbors, or specify radius in meters
+
+  # Spectral features (recommended for ASPRS classification)
+  use_rgb: true # Include RGB from orthophotos
+  use_nir: true # Include near-infrared
+  compute_ndvi: true # Compute NDVI vegetation index
+
+  # Advanced features
+  include_extra: false # Height stats, verticality, etc.
+
+  # GPU settings (auto-tuned if not specified)
+  gpu_batch_size: null # null = auto-calculate
+  use_gpu_chunked: true
+
+# ============================================================================
+# Data Source Enrichment (Optional)
+# ============================================================================
+
+data_sources:
+  # BD TOPO (IGN topographic database)
+  bd_topo_enabled: false
+  bd_topo_buildings: true
+  bd_topo_roads: true
+  bd_topo_water: true
+  bd_topo_vegetation: true
+  bd_topo_cache_dir: "cache/bd_topo"
+
+  # BD Forêt (forest database)
+  bd_foret_enabled: false
+  bd_foret_cache_dir: "cache/bd_foret"
+
+  # RPG (agricultural parcels)
+  rpg_enabled: false
+  rpg_year: 2024
+  rpg_cache_dir: "cache/rpg"
+
+  # Cadastre (land parcels)
+  cadastre_enabled: false
+  cadastre_cache_dir: "cache/cadastre"
+
+# ============================================================================
+# Preprocessing (Optional)
+# ============================================================================
+
+preprocess:
+  enabled: false # Outlier removal, downsampling
+
+  # Statistical Outlier Removal
+  sor_k: 12
+  sor_std: 2.0
+
+  # Radius Outlier Removal
+  ror_radius: 1.0
+  ror_neighbors: 4
+
+# ============================================================================
+# Output Configuration
+# ============================================================================
+
+output:
+  format: "npz" # Options: npz, hdf5, torch, laz
+  save_stats: true
+  skip_existing: true
+  compression: null # null = no compression, or 0-9
+
+# ============================================================================
+# Spatial Filtering (Optional)
+# ============================================================================
+
+bbox:
+  xmin: null
+  ymin: null
+  xmax: null
+  ymax: null
+
+# ============================================================================
+# Global Settings
+# ============================================================================
+
+verbose: true
+log_level: "INFO" # Options: DEBUG, INFO, WARNING, ERROR

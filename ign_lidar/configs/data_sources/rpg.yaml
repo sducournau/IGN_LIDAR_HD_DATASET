@@ -1,0 +1,14 @@
+# @package data_sources.rpg
+# RPG - Registre Parcellaire Graphique (Agricultural Parcels)
+#
+# This config enables agricultural crop classification from RPG data.
+
+enabled: true
+year: 2024 # Latest available: 2024
+
+# RPG features
+label_crops: true # Label crop types
+apply_classification: true # Apply ASPRS code 44 (agriculture)
+
+# Cache directory
+cache_dir: null

@@ -5,6 +5,19 @@
 # Purpose: Prétraitement de tuiles pour classification ASPRS avec enrichissement
 #          cadastral (BD PARCELLAIRE) et forestier (BD Forêt® V2)
 #
+# ⚠️  MODERNIZATION NOTE (October 16, 2025):
+#     This config uses the old approach with duplicated settings.
+#     With the new modular approach, you can simply compose multiple data sources:
+#
+#     defaults:
+#       - /data_sources: bd_topo_full
+#       - /data_sources: bd_foret
+#       - /data_sources: cadastre
+#       - _self_
+#
+#     See: MIGRATION_GUIDE.md for details
+# ========================================================================
+#
 # Input: /mnt/d/ign/selected_tiles/asprs/tiles
 # Output: Tuiles LAZ enrichies avec attributs cadastraux et forestiers
 #

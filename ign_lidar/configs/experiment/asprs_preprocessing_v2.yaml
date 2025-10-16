@@ -1,0 +1,47 @@
+# ASPRS Preprocessing - Simplified Experiment Config
+#
+# This config demonstrates the new modular approach.
+# Compare this to the old config_asprs_preprocessing.yaml (451 lines)
+# This version is ~60 lines (87% smaller!)
+#
+# Usage:
+#   ign-lidar-hd process experiment=asprs_preprocessing_v2 \
+#     input_dir=/path/to/tiles \
+#     output_dir=/path/to/output
+
+# @package _global_
+
+defaults:
+  - /processor: gpu
+  - /features: minimal
+  - /preprocess: default
+  - /stitching: enabled
+  - /output_mode: enriched_only
+  - /data_sources: bd_topo_full
+  - _self_
+
+# Override only what's unique to ASPRS preprocessing
+processor:
+  lod_level: ASPRS
+  skip_existing: false
+  building_detection_mode: asprs
+  transport_detection_mode: asprs_extended
+
+  # Reclassification settings
+  reclassification:
+    enabled: true
+    acceleration_mode: auto
+    use_geometric_rules: true
+    ndvi_vegetation_threshold: 0.3
+    ndvi_road_threshold: 0.15
+    road_vegetation_height_threshold: 2.0
+
+# Required paths (must be provided)
+input_dir: ???
+output_dir: ???
+
+# Cache directory (uses environment variable or default)
+cache_dir: ${oc.env:IGN_CACHE_DIR,/tmp/ign_cache}
+# Optional: Override if needed
+# num_workers: 1
+# verbose: true

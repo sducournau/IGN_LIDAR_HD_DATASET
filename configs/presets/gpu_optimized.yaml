@@ -1,0 +1,285 @@
+# IGN LiDAR HD - GPU Optimized Configuration
+# Optimized for NVIDIA RTX 4080 Super and similar high-end GPUs
+# Date: October 16, 2025
+# Version: 3.0.0
+
+# Hardware Target:
+# - NVIDIA RTX 4080 Super (16GB VRAM)
+# - 10,240 CUDA cores
+# - 736 GB/s memory bandwidth
+#
+# Expected Performance: 5-10x faster than CPU processing
+#
+# Requirements:
+# - CUDA 11.7+
+# - CuPy installed
+# - nvidia-smi for monitoring
+
+config_version: "3.0.0"
+project_name: "ign_lidar_gpu"
+
+# ============================================================================
+# Processing Mode
+# ============================================================================
+
+mode: "enrichment" # GPU-accelerated enrichment
+
+# ============================================================================
+# Input/Output
+# ============================================================================
+
+input:
+  data_dir: "data/raw/lidar"
+  tile_pattern: "*.laz"
+  crs: "EPSG:2154"
+
+output:
+  base_dir: "data/processed"
+  format: "laz"
+  save_enriched: true
+  save_patches: false # Focus on enrichment for speed
+  save_statistics: true
+
+cache:
+  base_dir: "cache"
+  enabled: true
+
+# ============================================================================
+# Processing - GPU Optimized
+# ============================================================================
+
+processing:
+  num_workers: 2 # Fewer workers to avoid CPU bottleneck
+  max_tiles: null
+  batch_size: 64 # Large batches leverage 16GB VRAM
+  prefetch_factor: 4 # Prefetch 4 batches ahead
+  pin_memory: true # Fast CPU->GPU transfers
+
+  # GPU-specific settings
+  use_gpu: true
+  gpu_chunk_size: 1_000_000 # 1M points per GPU chunk
+  gpu_memory_fraction: 0.9 # Use 90% of available VRAM
+
+# ============================================================================
+# Data Sources
+# ============================================================================
+
+data_sources:
+  bd_topo:
+    enabled: true
+    cache_enabled: true
+    cache_dir: "cache/ground_truth"
+
+    features:
+      buildings: true
+      roads: true
+      railways: true
+      water: true
+      vegetation: true
+      bridges: true
+      parking: true
+      cemeteries: false
+      power_lines: false
+      sports: true
+
+    parameters:
+      road_width_fallback: 4.0
+      railway_width_fallback: 3.5
+      power_line_buffer: 2.0
+      road_buffer_tolerance: 0.5
+      railway_buffer_tolerance: 0.6
+      road_height_max: 1.5
+      road_height_min: -0.3
+      rail_height_max: 1.2
+      rail_height_min: -0.2
+      road_planarity_min: 0.6
+      rail_planarity_min: 0.5
+      enable_intensity_filter: true
+      road_intensity_min: 0.15
+      road_intensity_max: 0.7
+      rail_intensity_min: 0.1
+      rail_intensity_max: 0.8
+
+  bd_foret:
+    enabled: false # Disable for maximum speed
+  rpg:
+    enabled: false # Disable for maximum speed
+  cadastre:
+    enabled: false # Disable for maximum speed
+
+# ============================================================================
+# Features - GPU Accelerated
+# ============================================================================
+
+features:
+  geometric:
+    enabled: true
+    k_neighbors: 20
+    search_radius: null
+
+    # GPU-specific feature computation
+    use_gpu: true
+    gpu_batch_size: 1_000_000
+    use_gpu_chunked: true
+
+    compute:
+      height: true
+      normals: true
+      curvature: true
+      planarity: true
+      linearity: false # Skip for speed
+      sphericity: false # Skip for speed
+      verticality: false # Skip for speed
+
+  spectral:
+    rgb:
+      enabled: true
+      normalize: true
+      include_in_output: true
+    nir:
+      enabled: false
+    ndvi:
+      enabled: false
+
+# ============================================================================
+# Classification - GPU Accelerated
+# ============================================================================
+
+classification:
+  methods:
+    geometric: true
+    ndvi: false
+    ground_truth: true
+    forest_types: false
+    crop_types: false
+
+  # GPU-specific classification settings
+  use_gpu: true
+  acceleration_mode: "gpu"
+
+  priority_order:
+    - ground
+    - vegetation
+    - sports
+    - parking
+    - road
+    - rail
+    - water
+    - building
+    - bridge
+
+  post_processing:
+    enabled: true
+    reclassify_unclassified: true
+    use_ground_truth_context: true
+    use_geometric_similarity: true
+    min_building_height: 2.5
+    min_building_planarity: 0.6
+
+  thresholds:
+    ndvi_vegetation: 0.35
+    ndvi_building: 0.15
+    height_low_veg: 0.5
+    height_medium_veg: 2.0
+    planarity_road: 0.8
+    planarity_building: 0.7
+    building_buffer_tolerance: 0.0
+
+# ============================================================================
+# Reclassification - GPU Optimized
+# ============================================================================
+
+reclassification:
+  enabled: true
+  acceleration_mode: "gpu" # Force GPU mode
+  chunk_size: 500_000 # Large chunks for GPU
+  gpu_chunk_size: 1_000_000 # Even larger for GPU processing
+  show_progress: true
+  skip_existing: false
+
+  # Geometric rules (GPU accelerated)
+  use_geometric_rules: true
+  ndvi_vegetation_threshold: 0.3
+  ndvi_road_threshold: 0.15
+  road_vegetation_height_threshold: 2.0
+  building_buffer_distance: 2.0
+  max_building_height_difference: 3.0
+  verticality_threshold: 0.7
+  verticality_search_radius: 1.0
+  min_vertical_neighbors: 5
+
+# ============================================================================
+# Export
+# ============================================================================
+
+export:
+  laz:
+    enabled: true
+    include_classification: true
+    include_extra_dims:
+      - height
+      - curvature
+      - planarity
+    compression: true
+
+  geojson:
+    enabled: false # Skip for speed
+  csv:
+    enabled: false # Skip for speed
+  patches:
+    enabled: false # Focus on enrichment
+
+# ============================================================================
+# Skip Checker
+# ============================================================================
+
+skip_checker:
+  enabled: true
+  check_enriched_laz: true
+  check_patches: false
+  check_statistics: false
+  validate_content: true
+  validate_features:
+    - classification
+  min_file_size_kb: 10
+  skip_if:
+    output_exists: true
+    output_newer_than_input: true
+    validation_passed: true
+
+# ============================================================================
+# Performance Monitoring
+# ============================================================================
+
+monitoring:
+  enabled: true
+  log_gpu_memory: true
+  log_timing: true
+  save_performance_stats: true
+# ============================================================================
+# Usage
+# ============================================================================
+
+# Run with:
+#   ign-lidar-hd process --config configs/presets/gpu_optimized.yaml
+#
+# Monitor GPU usage:
+#   watch -n 1 nvidia-smi
+#
+# Expect:
+# - 5-10x speed improvement over CPU
+# - High GPU utilization (>80%)
+# - Lower CPU usage
+# - Efficient memory management
+# - Automatic fallback to CPU if GPU unavailable
+#
+# Troubleshooting:
+# - Out of memory: Reduce batch_size or gpu_chunk_size
+# - Low GPU usage: Increase batch_size or prefetch_factor
+# - CPU bottleneck: Reduce num_workers
+#
+# Recommended for:
+# - Large-scale processing (>1000 tiles)
+# - Time-sensitive projects
+# - High-resolution LiDAR data
+# - Repetitive processing workflows

@@ -14,6 +14,8 @@ import numpy as np
 import laspy
 from omegaconf import DictConfig
 
+from ign_lidar.preprocessing.class_normalization import normalize_classification
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,6 +35,10 @@ class TileLoader:
         self.preprocess = config.get('processor', {}).get('preprocess', False)
         self.preprocess_config = config.get('preprocess')
         self.chunk_size_mb = config.get('processor', {}).get('chunk_size_mb', 500)
+        
+        # Classification normalization settings
+        self.normalize_classes = config.get('preprocess', {}).get('normalize_classification', True)
+        self.strict_class_normalization = config.get('preprocess', {}).get('strict_class_normalization', False)
         
     def load_tile(
         self, 
@@ -111,6 +117,16 @@ class TileLoader:
         return_number = np.array(las.return_number, dtype=np.float32)
         classification = np.array(las.classification, dtype=np.uint8)
         
+        # Normalize classification codes (handle non-standard IGN classes)
+        if self.normalize_classes:
+            classification, norm_stats = normalize_classification(
+                classification,
+                strict_mode=self.strict_class_normalization,
+                report_unknown=True
+            )
+            if norm_stats['remapped_count'] > 0:
+                logger.info(f"  🔧 Normalized {norm_stats['remapped_count']:,} classification codes")
+        
         # Extract RGB if present
         input_rgb = self._extract_rgb(las)
         if input_rgb is not None:
@@ -178,7 +194,16 @@ class TileLoader:
                         all_points.append(chunk_xyz)
                         all_intensity.append(np.array(chunk.intensity, dtype=np.float32) / 65535.0)
                         all_return_number.append(np.array(chunk.return_number, dtype=np.float32))
-                        all_classification.append(np.array(chunk.classification, dtype=np.uint8))
+                        
+                        # Normalize classification for each chunk
+                        chunk_classification = np.array(chunk.classification, dtype=np.uint8)
+                        if self.normalize_classes:
+                            chunk_classification, _ = normalize_classification(
+                                chunk_classification,
+                                strict_mode=self.strict_class_normalization,
+                                report_unknown=False  # Don't log for each chunk
+                            )
+                        all_classification.append(chunk_classification)
                         
                         # RGB if available
                         chunk_rgb = self._extract_rgb(chunk)

@@ -25,6 +25,11 @@ dependencies:
   - conda-forge::jpeg # Use conda-forge jpeg instead of defaults
   - conda-forge::llvm-openmp # Avoid intel-openmp conflict
 
+  # Geospatial dependencies
+  - conda-forge::shapely>=2.0.0
+  - conda-forge::geopandas>=0.12.0
+  - conda-forge::rtree>=1.0.0
+
   # GPU acceleration dependencies
   - rapidsai::cuml=24.10
   - conda-forge::cupy

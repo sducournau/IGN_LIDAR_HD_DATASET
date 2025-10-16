@@ -145,8 +145,11 @@ class GPUFeatureComputer(BaseFeatureComputer):
         
         from .features_gpu import GPUFeatureComputer as Impl
         
-        # Create GPU computer
-        computer = Impl(use_gpu=True, batch_size=250000)
+        # Get batch_size from kwargs or use default
+        batch_size = kwargs.get('gpu_batch_size', self.kwargs.get('gpu_batch_size', 1_000_000))
+        
+        # Create GPU computer with configurable batch size
+        computer = Impl(use_gpu=True, batch_size=batch_size)
         
         # Check if mode parameter is provided (new feature mode system)
         mode = kwargs.get('mode', None)

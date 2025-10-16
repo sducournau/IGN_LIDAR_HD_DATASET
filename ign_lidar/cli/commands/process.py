@@ -128,33 +128,9 @@ def process_lidar(cfg: DictConfig) -> None:
     # Get processing mode
     processing_mode = OmegaConf.select(cfg, "output.processing_mode", default="patches_only")
     
-    processor = LiDARProcessor(
-        lod_level=cfg.processor.lod_level,
-        processing_mode=processing_mode,
-        augment=cfg.processor.augment,
-        num_augmentations=cfg.processor.num_augmentations,
-        bbox=cfg.bbox.to_tuple() if hasattr(cfg.bbox, 'to_tuple') else None,
-        patch_size=cfg.processor.patch_size,
-        patch_overlap=cfg.processor.patch_overlap,
-        num_points=cfg.processor.num_points,
-        include_extra_features=cfg.features.include_extra,
-        feature_mode=cfg.features.mode,  # Pass feature mode from config
-        k_neighbors=cfg.features.k_neighbors,
-        include_rgb=cfg.features.use_rgb,
-        include_infrared=cfg.features.use_infrared,
-        compute_ndvi=cfg.features.compute_ndvi,
-        include_architectural_style=OmegaConf.select(cfg, "features.include_architectural_style", default=False),
-        style_encoding=OmegaConf.select(cfg, "features.style_encoding", default="constant"),
-        use_gpu=cfg.processor.use_gpu,
-        preprocess=cfg.preprocess.enabled,
-        preprocess_config=preprocess_config,
-        use_stitching=cfg.stitching.enabled,
-        buffer_size=cfg.stitching.buffer_size,
-        stitching_config=stitching_config,
-        architecture=OmegaConf.select(cfg, "processor.architecture", default="pointnet++"),
-        output_format=OmegaConf.select(cfg, "output.format", default="npz"),
-        ground_truth_config=ground_truth_config,
-    )
+    # Pass the full config to the processor (modern config-based initialization)
+    # This ensures data_sources and all other config sections are available
+    processor = LiDARProcessor(config=cfg)
     
     # Process
     logger.info("Starting processing...")

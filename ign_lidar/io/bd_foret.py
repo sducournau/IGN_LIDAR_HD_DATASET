@@ -216,6 +216,19 @@ class BDForetFetcher:
         Returns:
             GeoDataFrame or None if request failed
         """
+        # Check if cache file exists and load it
+        if self.cache_dir:
+            cache_file = self.cache_dir / f"bd_foret_{hash(bbox)}.geojson"
+            if cache_file.exists():
+                try:
+                    logger.info(f"Loading cached BD Forêt® data from {cache_file.name}")
+                    gdf = gpd.read_file(cache_file)
+                    logger.debug(f"Loaded {len(gdf)} forest formations from cache (skipped WFS fetch)")
+                    return gdf
+                except Exception as e:
+                    logger.warning(f"Failed to load cache file {cache_file}: {e}. Fetching from WFS...")
+                    # Continue to WFS fetch if cache load fails
+        
         # Build WFS GetFeature request
         params = {
             'SERVICE': 'WFS',
@@ -247,6 +260,15 @@ class BDForetFetcher:
                 geojson_data['features'],
                 crs=self.config.CRS
             )
+            
+            # Save to cache if enabled
+            if self.cache_dir:
+                cache_file = self.cache_dir / f"bd_foret_{hash(bbox)}.geojson"
+                try:
+                    gdf.to_file(cache_file, driver='GeoJSON')
+                    logger.debug(f"Cached BD Forêt® data to {cache_file.name}")
+                except Exception as e:
+                    logger.warning(f"Failed to cache BD Forêt® data: {e}")
             
             return gdf
             

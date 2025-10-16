@@ -1,0 +1,14 @@
+# @package data_sources.cadastre
+# BD PARCELLAIRE - Cadastre Configuration
+#
+# This config enables parcel-based clustering and labeling.
+
+enabled: true
+
+# Cadastre features
+group_by_parcel: true # Group points by cadastral parcel
+label_parcel_id: true # Add parcel ID to each point
+export_statistics: true # Export per-parcel statistics
+
+# Cache directory
+cache_dir: null

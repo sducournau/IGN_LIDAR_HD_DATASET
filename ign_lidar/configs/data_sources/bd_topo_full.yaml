@@ -1,0 +1,59 @@
+# @package data_sources.bd_topo
+# BD TOPO® V3 - Full Ground Truth Classification Configuration
+#
+# This config enables ALL BD TOPO features for comprehensive ground truth labeling.
+# Use this for ASPRS classification and when you need complete feature coverage.
+
+enabled: true
+cache_enabled: true
+
+# Features to fetch and apply
+features:
+  buildings: true # ASPRS 6
+  roads: true # ASPRS 11
+  railways: true # ASPRS 10
+  water: true # ASPRS 9
+  vegetation: true # ASPRS 5
+  bridges: true # ASPRS 17
+  parking: true # ASPRS 40
+  cemeteries: true # ASPRS 42
+  power_lines: true # ASPRS 43
+  sports: true # ASPRS 41
+
+# Geometry generation parameters
+parameters:
+  # Road geometry
+  road_width_fallback: 4.0
+  road_buffer_tolerance: 0.5
+
+  # Railway geometry
+  railway_width_fallback: 3.5
+  railway_buffer_tolerance: 0.6
+
+  # Power lines
+  power_line_buffer: 2.0
+
+  # Height filtering (exclude bridges/overpasses)
+  road_height_max: 1.5
+  road_height_min: -0.3
+  rail_height_max: 1.2
+  rail_height_min: -0.2
+
+  # Geometric filtering
+  road_planarity_min: 0.6
+  rail_planarity_min: 0.5
+
+  # Intensity filtering (surface reflectance)
+  enable_intensity_filter: true
+  road_intensity_min: 0.15
+  road_intensity_max: 0.7
+  rail_intensity_min: 0.1
+  rail_intensity_max: 0.8
+
+  # Building parameters
+  building_buffer_tolerance: 0.0 # Strict matching
+  use_building_footprints: true
+  ground_truth_building_priority: high
+
+# Cache directory (null = use default cache location)
+cache_dir: null
