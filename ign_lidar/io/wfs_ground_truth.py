@@ -550,15 +550,19 @@ class IGNGroundTruthFetcher:
         buffer_width: float = 2.0
     ) -> Optional[gpd.GeoDataFrame]:
         """
-        Fetch power lines from BD TOPO® and convert to polygons.
+        Fetch power lines from BD TOPO® and convert to polygons with intelligent buffering.
         
-        Power lines are linear features that we buffer to create polygons.
-        Useful for detecting power line corridors and pylons in LiDAR.
+        Power lines are linear features that we buffer to create corridors.
+        Buffer width is intelligently determined based on voltage level:
+        - High voltage (>63kV): 10-15m corridor
+        - Medium voltage (1-63kV): 4-6m corridor  
+        - Low voltage (<1kV): 2-3m corridor
+        - Unknown: use default buffer_width
         
         Args:
             bbox: Bounding box (xmin, ymin, xmax, ymax) in Lambert 93
             use_cache: Whether to use cached data if available
-            buffer_width: Buffer width in meters (default: 2.0m)
+            buffer_width: Default buffer width in meters (default: 2.0m)
             
         Returns:
             GeoDataFrame with power line corridor polygons
@@ -580,16 +584,81 @@ class IGNGroundTruthFetcher:
                 logger.info("No power lines found in this area")
                 return None
             
-            logger.info(f"Retrieved {len(gdf)} power lines, buffering by {buffer_width}m")
+            logger.info(f"Retrieved {len(gdf)} power lines, applying intelligent buffering...")
             
-            # Buffer lines to create polygons
-            gdf_buffered = gdf.copy()
-            gdf_buffered['geometry'] = gdf['geometry'].buffer(buffer_width)
-            gdf_buffered['buffer_width'] = buffer_width
+            # Generate power line corridor polygons with intelligent buffering
+            power_line_polygons = []
+            buffer_stats = {'high': 0, 'medium': 0, 'low': 0, 'unknown': 0}
             
-            self._cache[cache_key] = gdf_buffered
-            return gdf_buffered
+            for idx, row in gdf.iterrows():
+                geometry = row['geometry']
+                
+                # Determine intelligent buffer width based on voltage/nature
+                voltage_level = 'unknown'
+                intelligent_buffer = buffer_width
+                
+                # Check for voltage attribute (tension in kV)
+                if 'tension' in gdf.columns and row['tension'] is not None:
+                    try:
+                        voltage = float(row['tension'])
+                        if voltage >= 63:  # High voltage (HTB)
+                            voltage_level = 'high'
+                            intelligent_buffer = 12.0  # 12m corridor for HV lines
+                        elif voltage >= 1:  # Medium voltage (HTA)
+                            voltage_level = 'medium'
+                            intelligent_buffer = 5.0  # 5m corridor for MV lines
+                        else:  # Low voltage (BT)
+                            voltage_level = 'low'
+                            intelligent_buffer = 2.5  # 2.5m corridor for LV lines
+                    except (ValueError, TypeError):
+                        pass
+                
+                # Check nature attribute if voltage not available
+                if voltage_level == 'unknown' and 'nature' in gdf.columns:
+                    nature = str(row.get('nature', '')).lower()
+                    if 'haute tension' in nature or 'htb' in nature:
+                        voltage_level = 'high'
+                        intelligent_buffer = 12.0
+                    elif 'moyenne tension' in nature or 'hta' in nature:
+                        voltage_level = 'medium'
+                        intelligent_buffer = 5.0
+                    elif 'basse tension' in nature or 'bt' in nature:
+                        voltage_level = 'low'
+                        intelligent_buffer = 2.5
+                
+                buffer_stats[voltage_level] += 1
+                
+                # Buffer centerline to create corridor
+                try:
+                    if isinstance(geometry, LineString):
+                        corridor_polygon = geometry.buffer(intelligent_buffer, cap_style=2)  # Flat cap
+                        
+                        power_line_polygons.append({
+                            'geometry': corridor_polygon,
+                            'buffer_width': intelligent_buffer,
+                            'voltage_level': voltage_level,
+                            'nature': row.get('nature', 'unknown'),
+                            'tension': row.get('tension', None),
+                            'power_line_type': row.get('nature', 'power_line'),
+                            'original_geometry': geometry  # Keep centerline
+                        })
+                except Exception as e:
+                    logger.warning(f"Failed to buffer power line geometry: {e}")
+                    continue
             
+            if power_line_polygons:
+                result_gdf = gpd.GeoDataFrame(power_line_polygons, crs=self.config.CRS)
+                logger.info(f"Generated {len(result_gdf)} power line corridors with intelligent buffering:")
+                logger.info(f"  - High voltage (12m): {buffer_stats['high']} lines")
+                logger.info(f"  - Medium voltage (5m): {buffer_stats['medium']} lines")
+                logger.info(f"  - Low voltage (2.5m): {buffer_stats['low']} lines")
+                logger.info(f"  - Unknown voltage ({buffer_width}m): {buffer_stats['unknown']} lines")
+                self._cache[cache_key] = result_gdf
+                return result_gdf
+            else:
+                logger.warning("No valid power line polygons generated")
+                return None
+                
         except Exception as e:
             logger.error(f"Failed to fetch power lines: {e}")
             return None

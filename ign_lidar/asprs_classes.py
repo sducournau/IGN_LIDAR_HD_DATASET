@@ -175,10 +175,11 @@ ASPRS_CLASS_NAMES: Dict[int, str] = {
     37: "Service Road",
     38: "Pedestrian Zone",
     39: "Cycleway",
-    40: "Parking",
-    41: "Road Bridge",
-    42: "Road Tunnel",
-    43: "Roundabout",
+    40: "Parking",  # BD TOPO® - Parking areas (Aires de stationnement)
+    41: "Sports Facility",  # BD TOPO® - Sports facilities (Équipements sportifs)
+    42: "Cemetery",  # BD TOPO® - Cemeteries (Cimetières)
+    43: "Power Line",  # BD TOPO® - Power lines (Lignes électriques)
+    44: "Agriculture",  # RPG - Agricultural land (Terres agricoles)
     50: "Residential Building",
     51: "Commercial Building",
     52: "Industrial Building",
@@ -324,6 +325,116 @@ WATER_NATURE_TO_ASPRS: Dict[str, int] = {
     "Réservoir": ASPRSClass.WATER_POND,
 }
 
+# Railway nature to ASPRS classification
+# BD TOPO® railways: "troncon_de_voie_ferree" layer
+# All railways map to ASPRS code 10 (Rail)
+RAILWAY_NATURE_TO_ASPRS: Dict[str, int] = {
+    # Main railway lines
+    "Principale": 10,  # ASPRS_RAIL - Main railway line
+    "LGV": 10,  # ASPRS_RAIL - High-speed line (Ligne à Grande Vitesse)
+    "Voie de service": 10,  # ASPRS_RAIL - Service track
+    "Voie ferrée": 10,  # ASPRS_RAIL - Generic railway track
+    
+    # Tram and metro
+    "Tramway": 10,  # ASPRS_RAIL - Tram line
+    "Métro": 10,  # ASPRS_RAIL - Metro line
+    
+    # Default for any railway
+    "default": 10,  # ASPRS_RAIL
+}
+
+# Sports facility nature to ASPRS classification
+# BD TOPO® sports: "terrain_de_sport" layer
+# All sports facilities map to ASPRS code 41 (Sports)
+SPORTS_NATURE_TO_ASPRS: Dict[str, int] = {
+    # Ball sports
+    "Terrain de football": 41,  # ASPRS_SPORTS - Soccer/football field
+    "Terrain de rugby": 41,  # ASPRS_SPORTS - Rugby field
+    "Terrain de tennis": 41,  # ASPRS_SPORTS - Tennis court
+    "Terrain de basketball": 41,  # ASPRS_SPORTS - Basketball court
+    "Terrain de handball": 41,  # ASPRS_SPORTS - Handball court
+    "Terrain de volleyball": 41,  # ASPRS_SPORTS - Volleyball court
+    
+    # Track and field
+    "Piste d'athlétisme": 41,  # ASPRS_SPORTS - Athletics track
+    "Stade": 41,  # ASPRS_SPORTS - Stadium
+    
+    # Other sports
+    "Terrain multisports": 41,  # ASPRS_SPORTS - Multi-sport field
+    "Terrain de golf": 41,  # ASPRS_SPORTS - Golf course
+    "Piscine": 41,  # ASPRS_SPORTS - Swimming pool
+    "Skatepark": 41,  # ASPRS_SPORTS - Skate park
+    "Terrain de pétanque": 41,  # ASPRS_SPORTS - Pétanque court
+    "Terrain de sport": 41,  # ASPRS_SPORTS - Generic sports field
+    
+    # Default for any sports facility
+    "default": 41,  # ASPRS_SPORTS
+}
+
+# Cemetery nature to ASPRS classification
+# BD TOPO® cemeteries: "cimetiere" layer
+# All cemeteries map to ASPRS code 42 (Cemetery)
+CEMETERY_NATURE_TO_ASPRS: Dict[str, int] = {
+    "Cimetière": 42,  # ASPRS_CEMETERY - Cemetery
+    "Cimetière militaire": 42,  # ASPRS_CEMETERY - Military cemetery
+    "Cimetière communal": 42,  # ASPRS_CEMETERY - Municipal cemetery
+    "Cimetière paroissial": 42,  # ASPRS_CEMETERY - Parish cemetery
+    "Ossuaire": 42,  # ASPRS_CEMETERY - Ossuary
+    "Columbarium": 42,  # ASPRS_CEMETERY - Columbarium
+    
+    # Default for any cemetery
+    "default": 42,  # ASPRS_CEMETERY
+}
+
+# Power line nature to ASPRS classification
+# BD TOPO® power lines: "ligne_electrique" layer
+# All power lines map to ASPRS code 43 (Power Line)
+POWER_LINE_NATURE_TO_ASPRS: Dict[str, int] = {
+    # High voltage lines
+    "Ligne électrique": 43,  # ASPRS_POWER_LINE - Power line
+    "Ligne haute tension": 43,  # ASPRS_POWER_LINE - High voltage line
+    "Ligne moyenne tension": 43,  # ASPRS_POWER_LINE - Medium voltage line
+    "Ligne basse tension": 43,  # ASPRS_POWER_LINE - Low voltage line
+    
+    # Underground/overhead
+    "Aérienne": 43,  # ASPRS_POWER_LINE - Overhead line
+    "Souterraine": 43,  # ASPRS_POWER_LINE - Underground line (for corridor)
+    
+    # Default for any power line
+    "default": 43,  # ASPRS_POWER_LINE
+}
+
+# Parking nature to ASPRS classification
+# BD TOPO® parking: "parking" layer
+# All parking areas map to ASPRS code 40 (Parking)
+PARKING_NATURE_TO_ASPRS: Dict[str, int] = {
+    "Parking": 40,  # ASPRS_PARKING - Parking area
+    "Parking souterrain": 40,  # ASPRS_PARKING - Underground parking
+    "Parking aérien": 40,  # ASPRS_PARKING - Surface parking
+    "Parking couvert": 40,  # ASPRS_PARKING - Covered parking
+    "Aire de stationnement": 40,  # ASPRS_PARKING - Parking area
+    "Place de parking": 40,  # ASPRS_PARKING - Parking space
+    "Parc de stationnement": 40,  # ASPRS_PARKING - Parking lot
+    
+    # Default for any parking
+    "default": 40,  # ASPRS_PARKING
+}
+
+# Bridge nature to ASPRS classification
+# BD TOPO® bridges: "pont" layer
+# All bridges map to ASPRS code 17 (Bridge Deck)
+BRIDGE_NATURE_TO_ASPRS: Dict[str, int] = {
+    "Pont": 17,  # ASPRS_BRIDGE - Bridge
+    "Viaduc": 17,  # ASPRS_BRIDGE - Viaduct
+    "Passerelle": 17,  # ASPRS_BRIDGE - Footbridge
+    "Pont-route": 17,  # ASPRS_BRIDGE - Road bridge
+    "Pont ferroviaire": 17,  # ASPRS_BRIDGE - Railway bridge
+    "Aqueduc": 17,  # ASPRS_BRIDGE - Aqueduct
+    
+    # Default for any bridge
+    "default": 17,  # ASPRS_BRIDGE
+}
+
 
 # ============================================================================
 # Classification Mode Configuration
@@ -454,6 +565,142 @@ def get_classification_for_water(
         return WATER_NATURE_TO_ASPRS[nature]
     
     return ASPRSClass.WATER
+
+
+def get_classification_for_railway(
+    nature: Optional[str] = None,
+    mode: str = ClassificationMode.ASPRS_STANDARD
+) -> int:
+    """
+    Get ASPRS classification code for a railway based on its nature.
+    
+    All railways use ASPRS code 10 (Rail) regardless of type.
+    
+    Args:
+        nature: Railway nature from BD TOPO®
+        mode: Classification mode (not used, all return 10)
+        
+    Returns:
+        ASPRS classification code (always 10 for railways)
+    """
+    # All railway types map to ASPRS code 10
+    return 10
+
+
+def get_classification_for_sports(
+    nature: Optional[str] = None,
+    mode: str = ClassificationMode.ASPRS_EXTENDED
+) -> int:
+    """
+    Get ASPRS classification code for a sports facility based on its nature.
+    
+    All sports facilities use ASPRS code 41 (Sports).
+    
+    Args:
+        nature: Sports facility nature from BD TOPO®
+        mode: Classification mode
+        
+    Returns:
+        ASPRS classification code (always 41 for sports)
+    """
+    if mode == ClassificationMode.ASPRS_STANDARD:
+        # In standard mode, sports facilities are treated as unclassified
+        return 1
+    
+    # Extended mode: all sports facilities use code 41
+    return 41
+
+
+def get_classification_for_cemetery(
+    nature: Optional[str] = None,
+    mode: str = ClassificationMode.ASPRS_EXTENDED
+) -> int:
+    """
+    Get ASPRS classification code for a cemetery based on its nature.
+    
+    All cemeteries use ASPRS code 42 (Cemetery).
+    
+    Args:
+        nature: Cemetery nature from BD TOPO®
+        mode: Classification mode
+        
+    Returns:
+        ASPRS classification code (always 42 for cemeteries)
+    """
+    if mode == ClassificationMode.ASPRS_STANDARD:
+        # In standard mode, cemeteries are treated as unclassified
+        return 1
+    
+    # Extended mode: all cemeteries use code 42
+    return 42
+
+
+def get_classification_for_power_line(
+    nature: Optional[str] = None,
+    mode: str = ClassificationMode.ASPRS_EXTENDED
+) -> int:
+    """
+    Get ASPRS classification code for a power line based on its nature.
+    
+    All power lines use ASPRS code 43 (Power Line).
+    
+    Args:
+        nature: Power line nature from BD TOPO®
+        mode: Classification mode
+        
+    Returns:
+        ASPRS classification code (always 43 for power lines)
+    """
+    if mode == ClassificationMode.ASPRS_STANDARD:
+        # In standard mode, power lines are treated as unclassified
+        return 1
+    
+    # Extended mode: all power lines use code 43
+    return 43
+
+
+def get_classification_for_parking(
+    nature: Optional[str] = None,
+    mode: str = ClassificationMode.ASPRS_EXTENDED
+) -> int:
+    """
+    Get ASPRS classification code for a parking area based on its nature.
+    
+    All parking areas use ASPRS code 40 (Parking).
+    
+    Args:
+        nature: Parking nature from BD TOPO®
+        mode: Classification mode
+        
+    Returns:
+        ASPRS classification code (always 40 for parking)
+    """
+    if mode == ClassificationMode.ASPRS_STANDARD:
+        # In standard mode, parking is treated as unclassified
+        return 1
+    
+    # Extended mode: all parking areas use code 40
+    return 40
+
+
+def get_classification_for_bridge(
+    nature: Optional[str] = None,
+    mode: str = ClassificationMode.ASPRS_STANDARD
+) -> int:
+    """
+    Get ASPRS classification code for a bridge based on its nature.
+    
+    All bridges use ASPRS code 17 (Bridge Deck).
+    
+    Args:
+        nature: Bridge nature from BD TOPO®
+        mode: Classification mode
+        
+    Returns:
+        ASPRS classification code (always 17 for bridges)
+    """
+    # All bridge types map to ASPRS code 17 (standard code)
+    return 17
 
 
 def get_class_name(code: int) -> str:

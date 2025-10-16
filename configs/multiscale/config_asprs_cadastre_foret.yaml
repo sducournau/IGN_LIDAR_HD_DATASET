@@ -1,0 +1,590 @@
+# ========================================================================
+# ASPRS Preprocessing Configuration with Cadastre & BD Forêt
+# ========================================================================
+# Updated: October 16, 2025 - ASPRS enrichment with cadastral and forest data
+# Purpose: Prétraitement de tuiles pour classification ASPRS avec enrichissement
+#          cadastral (BD PARCELLAIRE) et forestier (BD Forêt® V2)
+#
+# Input: /mnt/d/ign/selected_tiles/asprs/tiles
+# Output: Tuiles LAZ enrichies avec attributs cadastraux et forestiers
+#
+# 🎯 STRATÉGIE ENRICHISSEMENT MULTI-SOURCES:
+#     - BD TOPO® pour infrastructure (routes/railways/buildings)
+#     - BD Forêt® V2 pour types forestiers et essences
+#     - BD PARCELLAIRE pour parcelles cadastrales
+#     - RPG 2024 pour agriculture
+#     → Fichiers enrichis avec attributs supplémentaires
+#
+# Features supplémentaires dans LAZ:
+# - Cadastre: parcel_id (identifiant parcelle unique 19 caractères)
+# - BD Forêt: forest_type, primary_species, estimated_height
+# - RPG: crop_code, crop_category, crop_name, parcel_area, is_organic
+#
+# Ground Truth BD TOPO® (infrastructure):
+# - Routes → ASPRS 11 (via WFS)
+# - Railways → ASPRS 10 (via WFS)
+# - Bâtiments → ASPRS 6 (via WFS)
+# - Eau → ASPRS 9 (via WFS)
+#
+# Usage:
+#   ign-lidar-hd process --config configs/multiscale/config_asprs_cadastre_foret.yaml
+# ========================================================================
+
+defaults:
+  - processor: default
+  - features: minimal
+  - preprocess: default
+  - stitching: enabled
+  - output: default
+  - ground_truth: enabled
+  - _self_
+
+# ============================================================================
+# I/O PATHS
+# ============================================================================
+input_dir: /mnt/d/ign/selected_tiles/asprs/tiles
+output_dir: /mnt/d/ign/preprocessed/asprs_cadastre_foret/enriched_tiles
+cache_dir: /mnt/d/ign/cache # Root cache directory for all data sources
+
+# ============================================================================
+# PROCESSOR CONFIGURATION - GPU OPTIMIZED
+# ============================================================================
+processor:
+  skip_existing: false # ❌ DISABLED - Force full reprocessing with complete reclassification
+  lod_level: ASPRS
+  processing_mode: enriched_only # ✅ REQUIRED: enriched_only = no patches, just enriched LAZ
+  architecture: hybrid
+  use_gpu: true # ✅ GPU ENABLED for feature computation
+  num_workers: 1 # ✅ SINGLE WORKER - GPU works best with sequential processing
+
+  # ✅ ENRICHED ONLY MODE - NO PATCH GENERATION
+  patch_size: null # ❌ NO patches - direct tile enrichment only
+  patch_overlap: null # ❌ NO overlap - not generating patches
+  num_points: null # ❌ NO sampling - full tiles
+  augment: false # ❌ NO augmentation - enrichment mode
+  num_augmentations: 0 # ❌ NO augmentations
+  output_format: laz # ✅ REQUIRED: Output format
+
+  # Tile stitching
+  use_stitching: true # ✅ Enable tile stitching (auto-download neighbors)
+  buffer_size: 10.0 # Buffer size in meters
+
+  # Performance settings (GPU optimized for direct enrichment)
+  batch_size: "auto" # Auto-detect optimal batch size for GPU
+  prefetch_factor: 2 # Prefetch 2 batches ahead
+  pin_memory: true # ✅ Pin memory for faster GPU transfer
+
+  # ✅ DIRECT ENRICHMENT MODE - Apply ground truth during processing
+  apply_reclassification_inline: true # ✅ Apply reclassification DURING enrichment
+  ground_truth_integration_mode: "direct" # ✅ Apply ground truth IMMEDIATELY during processing
+
+  # ========================================================================
+  # DETECTION MODES - ASPRS Extended Classification
+  # ========================================================================
+  # Building Detection Mode: asprs, lod2, or lod3
+  building_detection_mode: asprs
+
+  # Transport Detection Mode: asprs_standard, asprs_extended, or lod2
+  # Use asprs_extended for detailed road/railway type classification
+  transport_detection_mode: asprs_extended
+
+  # ========================================================================
+  # RECLASSIFICATION SETTINGS - GPU ACCELERATED DIRECT ENRICHMENT
+  # ========================================================================
+  # Full reclassification applied DIRECTLY during tile enrichment
+  # All geometric rules, ground truth, and NDVI refinements applied in single pass
+  # Supports: 'cpu', 'gpu', 'gpu+cuml', 'auto' (auto-detect best backend)
+  reclassification:
+    enabled: true # ✅ FULL reclassification during enrichment
+    acceleration_mode: gpu # ✅ GPU ACCELERATION (use 'auto' to fallback to CPU if GPU unavailable)
+    chunk_size: 150000 # Points per chunk (CPU fallback)
+    gpu_chunk_size: 2000000 # ✅ INCREASED for GPU - 2M points per chunk (optimized for direct enrichment)
+    show_progress: true
+    skip_existing: false # ❌ DISABLED - Force full processing of all tiles
+
+    # ✅ GEOMETRIC RULES - Intelligent refinement with NDVI
+    use_geometric_rules: true # ✅ Apply ALL geometric rules during enrichment
+
+    # ✅ NDVI-BASED ADVANCED REFINEMENT THRESHOLDS
+    ndvi_vegetation_threshold: 0.3 # NDVI >= 0.3 = likely vegetation (higher confidence)
+    ndvi_road_threshold: 0.15 # NDVI <= 0.15 = likely road/impervious surface
+    ndvi_building_threshold: 0.2 # NDVI <= 0.2 = likely building roof (non-vegetated)
+
+    # ✅ ROAD-VEGETATION DISAMBIGUATION (NDVI-based)
+    road_vegetation_height_threshold: 2.0 # Height (m) above road to classify as vegetation
+    use_ndvi_for_road_refinement: true # ✅ Use NDVI to refine road vs vegetation
+    ndvi_tree_threshold: 0.6 # NDVI >= 0.6 = high confidence trees (not roads)
+
+    # Building buffer zone classification
+    building_buffer_distance: 2.0 # Buffer (m) around buildings for unclassified points
+    max_building_height_difference: 3.0 # Max height (m) difference for building points
+
+    # Verticality-based building classification
+    verticality_threshold: 0.7 # Verticality score threshold (0-1, higher = more vertical)
+    verticality_search_radius: 1.0 # Search radius (m) for verticality computation
+    min_vertical_neighbors: 5 # Minimum neighbors required for verticality
+
+    # ✅ DIRECT ENRICHMENT OPTIMIZATION
+    apply_during_feature_computation: true # Apply rules immediately after feature computation
+    multi_pass_refinement: true # ✅ Enable multi-pass refinement for higher accuracy
+    max_refinement_passes: 3 # Maximum refinement iterations
+    convergence_threshold: 0.01 # Stop when < 1% points change classification
+
+# ============================================================================
+# TRANSPORT ENHANCEMENT - ADAPTIVE BUFFERING & SPATIAL INDEXING
+# ============================================================================
+transport_enhancement:
+  # Adaptive buffering with curvature awareness
+  adaptive_buffering:
+    enabled: true
+    curvature_aware: true
+    curvature_factor: 0.2 # 20% width increase on curves
+    min_curve_radius: 50.0 # Minimum radius for max adjustment (m)
+    type_specific_tolerance: true
+
+    # Road-type specific tolerances (improved for better classification)
+    tolerance_motorway: 0.6 # Increased for highways with shoulders
+    tolerance_primary: 0.5 # Major roads
+    tolerance_secondary: 0.4 # Regional roads
+    tolerance_residential: 0.35 # Increased for urban roads
+    tolerance_service: 0.25 # Increased for narrow roads
+    tolerance_railway_main: 0.7 # Increased for ballast coverage
+    tolerance_railway_tram: 0.4 # Increased for embedded trams
+
+    # Intersection enhancement
+    intersection_enhancement: true
+    intersection_threshold: 1.5 # Distance to consider intersection (m) - increased
+    intersection_buffer_multiplier: 1.6 # Buffer expansion at intersections - increased
+
+    # Elevation awareness (improved filtering)
+    elevation_aware: true
+    elevation_tolerance: 1.5 # Vertical tolerance for bridges (m) - tighter
+    elevation_min: -0.3 # Minimum height for valid road/rail points
+    elevation_max_road: 1.5 # Maximum height for ground-level roads
+    elevation_max_rail: 1.2 # Maximum height for ground-level railways
+
+  # Spatial indexing for 5-10x speedup
+  spatial_indexing:
+    enabled: true
+    index_type: rtree # Options: rtree, quadtree
+    cache_index: true
+    cache_dir: /mnt/d/ign/cache/spatial_index
+
+  # Quality metrics and validation
+  quality_metrics:
+    enabled: true
+    save_confidence: true # Add confidence field to LAZ output
+    detect_overlaps: true
+    generate_reports: true
+    report_output_dir: /mnt/d/ign/quality_reports/asprs_cadastre_foret
+    low_confidence_threshold: 0.5
+
+# ============================================================================
+# FEATURES CONFIGURATION - GPU ACCELERATED ASPRS (~15 FEATURES)
+# ============================================================================
+# Mode: asprs_classes - Ultra-optimized for ASPRS classification with GPU
+# Ground truth BD TOPO® + NDVI = lightweight but powerful classification
+# ============================================================================
+features:
+  mode: asprs_classes # ✅ Ultra-léger: ~15 features (vs 30+ standard)
+  k_neighbors: 15 # Optimized for GPU computation
+  search_radius: 1.2 # Reduced radius = faster computation
+  include_extra: false # ❌ NO extra features - keep it lightweight
+
+  # Core geometric features (GPU ACCELERATED)
+  compute_normals: true # ✅ Normal Z only (lightweight)
+  compute_planarity: true # ✅ Essential for roads/buildings
+  compute_curvature: false # ❌ Not needed with ground truth
+  compute_linearity: false # ❌ Not needed with ground truth
+  compute_verticality: true # ✅ Walls vs ground
+  compute_height_above_ground: true # ✅ CRITICAL for vegetation height classes & road filtering!
+
+  # Architectural features (MINIMAL)
+  compute_architectural_features: false # ❌ Ground truth handles buildings
+  compute_horizontality: true # ✅ Essential for flat surfaces (roads/roofs)
+  compute_wall_likelihood: false # ❌ Not needed
+  compute_roof_likelihood: false # ❌ Not needed
+  compute_facade_score: false # ❌ Not needed
+  compute_building_regularity: false # ❌ Not needed
+  compute_corner_likelihood: false # ❌ Not needed
+
+  # ✅ SPECTRAL FEATURES - CRITICAL FOR NDVI-BASED ADVANCED GROUND TRUTH
+  use_rgb: true # ✅ RGB for classification & NDVI computation
+  use_infrared: true # ✅ NIR REQUIRED for NDVI computation
+  compute_ndvi: true # ✅ NDVI REQUIRED for advanced ground truth refinement!
+
+  # RGB/IR augmentations (DISABLED for speed)
+  augment_rgb: false # ❌ No augmentation in enrichment mode
+  augment_infrared: false # ❌ No augmentation in enrichment mode
+
+  # Building-specific features (MINIMAL)
+  compute_surface_variation: false # ❌ Not needed with ground truth
+  compute_anisotropy: false # ❌ Not needed
+  compute_eigenvalue_features: false # ❌ Not needed
+  compute_sphericity: true # ✅ Essential for vegetation detection
+  compute_omnivariance: false # ❌ Not needed
+
+  # Advanced geometric features (DISABLED)
+  compute_local_point_density: false # ❌ Not needed
+  compute_roughness: false # ❌ Not needed
+  compute_moment_features: false # ❌ Not needed
+
+  # Multi-scale features (DISABLED)
+  compute_multiscale_features: false # ❌ Single scale sufficient
+
+  # Normal-based features (DISABLED)
+  compute_normal_variation: false # ❌ Not needed
+  compute_normal_change_rate: false # ❌ Not needed
+
+  # Sampling and normalization
+  sampling_method: fps # Farthest Point Sampling
+  normalize_xyz: true # Normalize coordinates
+  normalize_features: true # Normalize features
+
+  # ✅ GPU ACCELERATION SETTINGS
+  gpu_batch_size: 2000000 # ✅ INCREASED to 2M points per batch (optimized for GPU)
+  use_gpu_chunked: true # ✅ Use GPU chunked processing for large tiles
+
+# ============================================================================
+# PREPROCESSING - STANDARD OUTLIER REMOVAL
+# ============================================================================
+preprocess:
+  enabled: true
+
+  # Statistical Outlier Removal (standard settings for ASPRS)
+  sor_enabled: true
+  sor_k: 10 # Standard value (reduced from LOD2's 12)
+  sor_std: 2.0 # Standard value (relaxed from LOD2's 1.8)
+
+  # Radius Outlier Removal
+  ror_enabled: true
+  ror_radius: 1.0
+  ror_neighbors: 5 # Standard value (reduced from LOD2's 6)
+
+  # NO voxel downsampling - preserve point density
+  voxel_enabled: false
+
+  # Artifact Detection (reduced feature list)
+  artifact_detection:
+    enabled: true
+    auto_drop_artifacts: true # Automatically drop fields with severe artifacts
+    cv_threshold: 0.40 # CV threshold for auto-dropping
+    review_threshold: 0.25 # CV threshold for review warning
+    visualize: false # Disable to save time (reduced from LOD2)
+    output_dir: /mnt/d/ign/artifacts/asprs_cadastre_foret
+    features_to_check: # Only check features we compute
+      - planarity
+      - verticality
+      - horizontality
+      - surface_variation
+
+# ============================================================================
+# TILE STITCHING - STANDARD BUFFER FOR ASPRS
+# ============================================================================
+stitching:
+  enabled: true
+  buffer_size: 10.0 # Standard buffer (reduced from LOD2's 20.0)
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+  cache_dir: /mnt/d/ign/cache/neighbors
+
+# ============================================================================
+# DATA SOURCES - MULTI-SOURCE INTEGRATION WITH CADASTRE & BD FORÊT
+# ============================================================================
+# This section controls ground truth classification from multiple French national databases:
+# - BD TOPO® V3: Infrastructure (buildings, roads, railways, water, etc.)
+# - BD Forêt® V2: Forest types and species ✅ ENABLED
+# - RPG 2024: Agricultural parcels and crop types
+# - BD PARCELLAIRE: Cadastral parcels ✅ ENABLED
+#
+# When enabled, these sources are fetched via WFS/API for each tile's bounding box
+# and used to enrich point classifications. This happens DURING tile processing,
+# not as a separate step. The fetched data is cached for performance.
+#
+# IMPORTANT: To get roads and railways in enriched files, you MUST:
+#   1. Set bd_topo.enabled: true
+#   2. Set bd_topo.features.roads: true
+#   3. Set bd_topo.features.railways: true
+# ============================================================================
+data_sources:
+  # BD TOPO® V3 - Infrastructure Ground Truth
+  # Fetches vector data from IGN's WFS service and applies classification
+  # Roads → ASPRS 11, Railways → ASPRS 10, Buildings → ASPRS 6, etc.
+  bd_topo:
+    enabled: true # ⚠️ MUST BE TRUE for ground truth classification
+    cache_enabled: true
+    features:
+      buildings: true # ASPRS code 6 - Bâtiments / Building structures
+      roads: true # ⚠️ ASPRS code 11 - Routes/rues (REQUIS)
+      railways: true # ⚠️ ASPRS code 10 - Voies ferrées (REQUIS)
+      water: true # ASPRS code 9 - Surfaces d'eau / Water surfaces
+      vegetation: true # ASPRS codes 3-5 - Raffinement végétation
+      bridges: true # ASPRS code 17 - Ponts / Bridge decks
+      parking: true # ASPRS code 40 - Aires de stationnement
+      sports: true # ✅ ASPRS code 41 - Équipements sportifs (terrains, stades, pistes)
+      cemeteries: true # ✅ ASPRS code 42 - Cimetières (zones funéraires)
+      power_lines: true # ✅ ASPRS code 43 - Lignes électriques (corridors haute tension)
+    parameters:
+      road_width_fallback: 4.0
+      road_buffer_tolerance: 0.5 # Additional buffer for roads (m)
+      railway_width_fallback: 3.5
+      railway_buffer_tolerance: 0.6 # Additional buffer for railways (m) - wider for ballast
+      power_line_buffer: 2.0
+
+      # Height filtering (exclude bridges/overpasses)
+      road_height_max: 1.5
+      road_height_min: -0.3
+      rail_height_max: 1.2
+      rail_height_min: -0.2
+
+      # Geometric filtering
+      road_planarity_min: 0.6
+      rail_planarity_min: 0.5
+
+      # Intensity filtering
+      enable_intensity_filter: true
+      road_intensity_min: 0.15
+      road_intensity_max: 0.7
+      rail_intensity_min: 0.1
+      rail_intensity_max: 0.8
+    cache_dir: /mnt/d/ign/cache/ground_truth
+
+  # ============================================================================
+  # BD Forêt® V2 - Forest Types and Species ✅ ENABLED
+  # ============================================================================
+  # Enrichit les points LiDAR avec:
+  # - Type de formation végétale (conifères, feuillus, mixte)
+  # - Essence principale (Quercus, Pinus, etc.)
+  # - Hauteur estimée selon le type forestier
+  #
+  # Données exportées comme dimensions supplémentaires dans le LAZ:
+  # - forest_type (String): coniferous, deciduous, mixed
+  # - primary_species (String): Nom scientifique de l'essence
+  # - estimated_height (Float): Hauteur estimée en mètres
+  # ============================================================================
+  bd_foret:
+    enabled: true # ✅ ENABLED for forest enrichment
+    cache_enabled: true
+
+    # Enrichment options
+    label_forest_type: true # Type de forêt: conifères, feuillus, mixte
+    label_primary_species: true # Essence principale (Quercus, Pinus, etc.)
+    estimate_height: true # Estimation de hauteur par type forestier
+
+    # Export attributes as extra dimensions in LAZ
+    export_attributes: true # ✅ Export forest data to LAZ
+
+    # Cache configuration
+    cache_dir: /mnt/d/ign/cache/bd_foret
+
+  # RPG 2024 - Agriculture
+  rpg:
+    enabled: true
+    cache_enabled: true
+    year: 2024
+    apply_asprs_classification: true
+    label_crop_code: true
+    label_crop_category: true
+    export_attributes: true
+    cache_dir: /mnt/d/ign/cache/rpg
+
+  # ============================================================================
+  # BD PARCELLAIRE (Cadastre) - Cadastral Parcels ✅ ENABLED
+  # ============================================================================
+  # Enrichit les points LiDAR avec:
+  # - Identifiant de parcelle cadastrale (19 caractères unique)
+  # - Groupement par parcelle pour analyses
+  # - Cluster ID numérique pour chaque parcelle (1, 2, 3, ...)
+  # - Statistiques par parcelle (optionnel)
+  #
+  # Données exportées comme dimensions supplémentaires dans le LAZ:
+  # - parcel_id (String): Identifiant unique de la parcelle cadastrale (ex: "000AB0123000AA0001")
+  # - parcel_cluster (uint32): ID de cluster numérique (1-based) pour regrouper les points
+  #
+  # 🎯 CLUSTERING PAR PARCELLE:
+  #     Chaque parcelle cadastrale reçoit un ID de cluster numérique unique.
+  #     Tous les points appartenant à la même parcelle reçoivent le même cluster ID.
+  #     Permet de:
+  #     - Segmenter facilement les points par parcelle dans CloudCompare/QGIS
+  #     - Effectuer des analyses par parcelle (volume, hauteur, densité)
+  #     - Créer des visualisations colorées par parcelle
+  #     - Exporter des statistiques agrégées par parcelle
+  #
+  # Export optionnel de statistiques par parcelle (GeoJSON/CSV):
+  # - Mapping parcel_id → cluster_id pour référence
+  # - Distribution des classes ASPRS par parcelle
+  # - Densité de points par parcelle
+  # - Types de cultures (si RPG activé)
+  # - Types forestiers (si BD Forêt activé)
+  # ============================================================================
+  cadastre:
+    enabled: true # ✅ ENABLED for cadastral enrichment
+    cache_enabled: true
+
+    # Enrichment options
+    label_parcel_id: true # Ajouter l'ID de parcelle (19 caractères)
+    group_by_parcel: true # Grouper les points par parcelle
+    compute_parcel_statistics: true # Calculer statistiques par parcelle
+
+    # Clustering options - Create numerical cluster IDs for parcels
+    create_cluster_ids: true # ✅ Create numerical cluster ID for each parcel
+    cluster_id_start: 1 # Start cluster numbering at 1
+    cluster_id_field: "parcel_cluster" # Field name for cluster ID
+    assign_cluster_to_points: true # ✅ Assign cluster ID to all points in parcel
+
+    # Export attributes as extra dimensions in LAZ
+    export_attributes: true # ✅ Export parcel_id to LAZ
+
+    # Parcel statistics export (optional)
+    export_parcel_stats:
+      enabled: true # Export des statistiques par parcelle
+      format: "geojson" # Format: geojson, csv, or both
+      output_dir: /mnt/d/ign/parcel_stats/asprs_cadastre_foret
+      include_class_distribution: true # Distribution ASPRS par parcelle
+      include_point_density: true # Densité de points par parcelle
+      include_crop_types: true # Types de cultures (RPG)
+      include_forest_types: true # Types forestiers (BD Forêt)
+      include_cluster_mapping: true # ✅ Include parcel_id → cluster_id mapping table
+
+    # Cache configuration
+    cache_dir: /mnt/d/ign/cache/cadastre
+
+# ============================================================================
+# GROUND TRUTH - IGN BD TOPO® + ADVANCED NDVI REFINEMENT
+# ============================================================================
+ground_truth:
+  enabled: true # ✅ REQUIRED for BD TOPO® ground truth
+  source: ign_bdtopo
+  preclassify: true # ✅ Apply preclassification before detailed rules
+
+  # ✅ ADVANCED NDVI-BASED VEGETATION CLASSIFICATION
+  # NDVI = (NIR - Red) / (NIR + Red)
+  # Range: -1 (water/built) to +1 (dense vegetation)
+  ndvi_vegetation_threshold: 0.3 # ✅ NDVI >= 0.3 = vegetation (medium confidence)
+  ndvi_low_vegetation_threshold: 0.5 # ✅ NDVI >= 0.5 = low veg (grass, bushes)
+  ndvi_high_vegetation_threshold: 0.7 # ✅ NDVI >= 0.7 = high veg (dense trees)
+
+  # ✅ ADVANCED NDVI REFINEMENT THRESHOLDS
+  ndvi_water_max: 0.0 # NDVI <= 0.0 = likely water
+  ndvi_building_max: 0.2 # NDVI <= 0.2 = likely building (non-vegetated roof)
+  ndvi_road_max: 0.15 # NDVI <= 0.15 = likely road/pavement (impervious)
+  ndvi_bare_soil_max: 0.25 # NDVI <= 0.25 = bare soil/ground
+
+  # ✅ USE NDVI FOR INTELLIGENT DISAMBIGUATION
+  use_ndvi_for_building_refinement: true # Refine building vs vegetation confusion
+  use_ndvi_for_road_refinement: true # Refine road vs vegetation confusion
+  use_ndvi_for_ground_refinement: true # Refine ground vs low vegetation
+
+  # Building height thresholds
+  building_min_height: 2.5 # Minimum height for building detection (m)
+  building_max_height: 150.0 # Maximum reasonable building height (m)
+
+  # ✅ BUILDING CLASSIFICATION WITH NDVI AWARENESS
+  building_buffer_tolerance: 0.5 # Relaxed tolerance for ASPRS
+  use_building_footprints: true # ✅ Enable BD TOPO® footprint matching
+  ground_truth_building_priority: high # ✅ HIGH priority for direct enrichment
+
+  # Exclude vegetation on roofs using NDVI
+  building_roof_ndvi_threshold: 0.4 # Points with NDVI > 0.4 on roofs = roof vegetation (Class 4)
+
+  # ✅ ADVANCED POST-PROCESSING WITH NDVI
+  post_processing:
+    enabled: true # ✅ FULL post-processing during enrichment
+    reclassify_unclassified: true # ✅ Reclassify ALL unclassified points
+    use_ground_truth_context: true # ✅ Use building footprints for context
+    use_geometric_similarity: true # ✅ Use geometric features
+    use_ndvi_similarity: true # ✅ NEW: Use NDVI for similarity-based classification
+
+    # NDVI-based unclassified refinement
+    ndvi_based_refinement: true # ✅ Use NDVI to classify unclassified points
+    ndvi_confidence_threshold: 0.8 # High NDVI confidence for auto-classification
+
+    # Height and planarity thresholds
+    min_building_height: 2.5 # Minimum height for building classification (m)
+    min_building_planarity: 0.6 # Standard threshold for ASPRS
+
+    # Aggressive mode settings
+    aggressive_mode: true # ✅ Aggressive reclassification of ambiguous points
+    max_unclassified_ratio: 0.05 # Target: < 5% unclassified points after enrichment
+
+    # Multi-pass refinement with NDVI
+    multi_pass_ndvi_refinement: true # ✅ Multiple passes with NDVI checks
+    max_ndvi_refinement_passes: 2 # Maximum NDVI refinement iterations
+
+  # Ground classification
+  ground_max_slope: 30.0 # Maximum slope for ground points (degrees)
+
+  # Cache ground truth data
+  cache_enabled: true
+  cache_dir: /mnt/d/ign/cache/ground_truth
+
+# ============================================================================
+# OUTPUT CONFIGURATION - ENRICHED LAZ ONLY (NO PATCHES)
+# ============================================================================
+output:
+  format: laz # ✅ Enriched LAZ tiles with extra dimensions
+  processing_mode: enriched_only # ✅ NO PATCH GENERATION - Full tile enrichment only
+  save_stats: true
+  save_metadata: true
+  compression: true # LAZ compression for storage efficiency
+
+  # ✅ EXTRA DIMENSIONS - Cadastre, BD Forêt, RPG attributes
+  # These are added by the cadastre and BD Forêt enrichment
+  extra_dimensions:
+    - name: parcel_id
+      type: string
+      description: "Cadastral parcel ID (19 characters)"
+      source: cadastre
+    - name: parcel_cluster
+      type: uint32
+      description: "Numerical cluster ID for cadastral parcel grouping (1-based)"
+      source: cadastre
+    - name: forest_type
+      type: string
+      description: "Forest type: coniferous, deciduous, mixed"
+      source: bd_foret
+    - name: primary_species
+      type: string
+      description: "Primary tree species (scientific name)"
+      source: bd_foret
+    - name: estimated_height
+      type: float
+      description: "Estimated tree height in meters"
+      source: bd_foret
+    - name: crop_code
+      type: string
+      description: "RPG crop code (3 letters)"
+      source: rpg
+    - name: crop_category
+      type: string
+      description: "RPG crop category"
+      source: rpg
+    - name: ndvi
+      type: float
+      description: "NDVI value (Normalized Difference Vegetation Index)"
+      source: computed
+
+  # Metadata to save
+  save_feature_stats: true
+  save_class_distribution: true
+  save_quality_metrics: true
+  save_building_metrics: false # Disabled for ASPRS (not needed)
+  save_parcel_metrics: true # ✅ Save cadastral statistics
+  save_forest_metrics: true # ✅ Save forest statistics
+  save_ndvi_statistics: true # ✅ NEW: Save NDVI distribution statistics
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  level: INFO
+  log_file: /mnt/d/ign/logs/asprs_cadastre_foret_preprocessing.log
+  progress_bar: true
+
+  # Per-source logging levels (optional)
+  source_levels:
+    bd_topo: "INFO"
+    bd_foret: "INFO" # ✅ BD Forêt logging
+    rpg: "INFO"
+    cadastre: "INFO" # ✅ Cadastre logging

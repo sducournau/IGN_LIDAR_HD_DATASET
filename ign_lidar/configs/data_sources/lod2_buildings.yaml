@@ -1,0 +1,63 @@
+# BD TOPO® V3 - LOD2 Building Focus Configuration
+# ============================================================================
+# Building-focused classification for LOD2 reconstruction
+# ============================================================================
+# Date: October 16, 2025
+# Use Case: Building geometry reconstruction, BIM, 3D city models
+# ============================================================================
+
+# BD TOPO® V3 - Core features only
+bd_topo:
+  enabled: true
+  cache_enabled: true
+
+  features:
+    buildings: true # Primary focus - ASPRS 6
+    roads: true # Ground class - ASPRS 11
+    railways: true # Ground class - ASPRS 10
+    water: true # Context - ASPRS 9
+    vegetation: true # Context - ASPRS 3-5
+    bridges: true # Elevated structures - ASPRS 17
+    parking: true # Ground surfaces - ASPRS 40
+    sports: false # Not essential for building focus
+    cemeteries: false # Not essential for building focus
+    power_lines: false # Not essential for building focus
+
+  parameters:
+    road_width_fallback: 4.0
+    road_buffer_tolerance: 0.5
+    railway_width_fallback: 3.5
+    railway_buffer_tolerance: 0.6
+    power_line_buffer: 2.0
+    road_height_max: 1.5
+    road_height_min: -0.3
+    rail_height_max: 1.2
+    rail_height_min: -0.2
+    road_planarity_min: 0.6
+    rail_planarity_min: 0.5
+    enable_intensity_filter: true
+    road_intensity_min: 0.15
+    road_intensity_max: 0.7
+    rail_intensity_min: 0.1
+    rail_intensity_max: 0.8
+
+  cache_dir: null
+
+# Additional sources (limited for LOD2)
+bd_foret:
+  enabled: false # Less relevant for building-focused LOD2
+  cache_enabled: true
+  cache_dir: null
+
+rpg:
+  enabled: false # Less relevant for building-focused LOD2
+  cache_enabled: true
+  year: 2024
+  cache_dir: null
+
+cadastre:
+  enabled: true # Useful for building-parcel association
+  cache_enabled: true
+  group_by_parcel: true
+  label_parcel_id: true
+  cache_dir: null

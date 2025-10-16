@@ -7,6 +7,192 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.3] - 2025-10-16
+
+### 🔧 Critical Fix: Ground Truth Data Fetcher
+
+This release fixes critical issues with BD TOPO® ground truth classification that prevented points from being classified to roads, cemeteries, power lines, and other infrastructure features.
+
+**Impact:** Ground truth classification from IGN BD TOPO® now works correctly for all configured features.
+
+---
+
+### Fixed
+
+#### Ground Truth Fetcher Integration (`ign_lidar/core/processor.py`)
+
+**Issue:** Ground truth classification was not being applied due to incorrect class imports and missing parameters.
+
+**Root Causes:**
+
+1. Processor imported non-existent `MultiSourceDataFetcher` class (should be `DataFetcher`)
+2. Missing BD TOPO feature parameters (cemeteries, power_lines, sports) not passed to fetcher
+3. Missing buffer parameters (road_width_fallback, railway_width_fallback, power_line_buffer)
+4. Incorrect method call (`fetch_data()` instead of `fetch_all()`)
+
+**Fixes:**
+
+- ✅ Changed import from `MultiSourceDataFetcher` to `DataFetcher` and `DataFetchConfig`
+- ✅ Added ALL BD TOPO features to fetcher initialization (lines 220-251)
+- ✅ Added missing parameters: `include_cemeteries`, `include_power_lines`, `include_sports`
+- ✅ Added buffer parameters: `road_width_fallback`, `railway_width_fallback`, `power_line_buffer`
+- ✅ Fixed method call from `fetch_data()` to `fetch_all()` (line 1010)
+- ✅ Enhanced logging to show all enabled BD TOPO features
+
+**Result:** Points are now correctly classified to:
+
+- ASPRS 11: Road Surface ✅
+- ASPRS 40: Parking ✅
+- ASPRS 41: Sports Facilities ✅
+- ASPRS 42: Cemeteries ✅
+- ASPRS 43: Power Lines ✅
+
+---
+
+### Added
+
+#### Data Sources Configuration Directory (`ign_lidar/configs/data_sources/`)
+
+New Hydra configuration directory for BD TOPO® and multi-source data integration:
+
+- **`default.yaml`**: General purpose configuration with core BD TOPO features
+- **`asprs_full.yaml`**: Complete ASPRS classification with all infrastructure codes
+- **`lod2_buildings.yaml`**: Building-focused configuration for LOD2 reconstruction
+- **`lod3_architecture.yaml`**: Detailed architectural focus for LOD3 components
+- **`disabled.yaml`**: Pure geometric classification without ground truth
+- **`README.md`**: Comprehensive documentation with usage examples
+
+**Features:**
+
+- Consistent parameter structure across all configs
+- Clear documentation of when to use each configuration
+- Performance optimization guidelines
+- Example use cases for each scenario
+
+---
+
+### Changed
+
+#### Configuration Files
+
+**Updated:** `configs/multiscale/config_lod2_preprocessing.yaml`
+
+- ✅ Added `power_line_buffer: 2.0` parameter for consistency
+- ✅ Added clarifying comments for disabled features
+
+**Updated:** `configs/multiscale/config_lod3_preprocessing.yaml`
+
+- ✅ Added `power_line_buffer: 2.0` parameter for consistency
+- ✅ Added clarifying comments for disabled features
+
+**Note:** `configs/multiscale/config_asprs_preprocessing.yaml` was already correct.
+
+---
+
+### Documentation
+
+#### New Documentation Files
+
+1. **`docs/fixes/GROUND_TRUTH_FETCHER_FIX.md`**
+
+   - Detailed analysis of the ground truth fetcher issues
+   - Root cause analysis with code examples
+   - Complete fix documentation
+   - Verification steps and testing guide
+
+2. **`docs/fixes/CONFIG_FILES_UPDATE_SUMMARY.md`**
+   - Summary of all configuration file updates
+   - Configuration strategy by LOD level
+   - Comparison table of enabled features
+   - Usage examples for each scenario
+
+---
+
+### Technical Details
+
+#### Code Changes
+
+**File:** `ign_lidar/core/processor.py` (lines 210-278, 1010-1012)
+
+**Before:**
+
+```python
+from ..io.data_fetcher import MultiSourceDataFetcher, DataSourceConfig  # ❌ Wrong class
+self.data_fetcher = MultiSourceDataFetcher(...)  # ❌ Missing parameters
+gt_data = self.data_fetcher.fetch_data(...)  # ❌ Wrong method
+```
+
+**After:**
+
+```python
+from ..io.data_fetcher import DataFetcher, DataFetchConfig  # ✅ Correct class
+fetch_config = DataFetchConfig(
+    include_cemeteries=...,  # ✅ Now included
+    include_power_lines=...,  # ✅ Now included
+    include_sports=...,  # ✅ Now included
+    road_width_fallback=...,  # ✅ Now included
+    # ... all parameters
+)
+self.data_fetcher = DataFetcher(config=fetch_config)  # ✅ Complete config
+gt_data = self.data_fetcher.fetch_all(...)  # ✅ Correct method
+```
+
+---
+
+### Migration Guide
+
+#### For Users
+
+**No action required.** Existing configurations will work correctly after upgrading.
+
+If you were experiencing missing ground truth classifications:
+
+1. Update to v2.5.3
+2. Reinstall: `pip install -e .`
+3. Re-run processing with existing configs
+
+#### For Developers
+
+If you have custom code using the data fetcher:
+
+- Replace `MultiSourceDataFetcher` with `DataFetcher`
+- Replace `DataSourceConfig` with `DataFetchConfig`
+- Replace `fetch_data()` calls with `fetch_all()`
+- Ensure all BD TOPO features are in your config
+
+---
+
+### Compatibility
+
+- ✅ **Backward Compatible:** All existing configurations work correctly
+- ✅ **No API Changes:** Public API remains unchanged (internal fixes only)
+- ✅ **No Data Changes:** Existing enriched files are still valid
+- ✅ **Python 3.8+:** Tested on Python 3.8, 3.9, 3.10, 3.11, 3.12, 3.13
+
+---
+
+### Testing
+
+**Verified:**
+
+- ✅ DataFetcher and DataFetchConfig import successfully
+- ✅ All BD TOPO features are passed to fetcher
+- ✅ Ground truth WFS queries execute correctly
+- ✅ Points classified to all ASPRS codes including extended classes
+- ✅ Configuration files load and validate
+- ✅ Package installation completes without errors
+
+---
+
+### Credits
+
+- **Issue Report:** Ground truth classification not working for roads, cemeteries, power lines
+- **Root Cause Analysis:** Import errors, missing parameters, incorrect method calls
+- **Fix Implementation:** Complete data fetcher integration overhaul
+- **Testing:** Multi-configuration validation
+
+---
+
 ## [2.5.2] - 2025-10-16
 
 ### 🎯 Phase 1 Code Consolidation Complete

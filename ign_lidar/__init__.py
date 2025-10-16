@@ -4,17 +4,17 @@ IGN LiDAR HD Dataset Processing Library
 A Python library for processing IGN LiDAR HD data into machine learning-ready datasets
 with building LOD (Level of Detail) classification support.
 
-Version 2.5.1 includes maintenance and improvements:
-- Unified FeatureOrchestrator replaces FeatureManager + FeatureComputer
-- Strategy pattern architecture for CPU/GPU/Chunked/Boundary-aware processing
-- Enhanced type hints and error messages throughout codebase
-- Improved documentation with complete API reference
-- 100% backward compatibility maintained
+Version 2.5.3 - Critical Fix Release:
+- Fixed ground truth classification from BD TOPO® (roads, cemeteries, power lines, sports)
+- Fixed ASPRS mode classification (was incorrectly using LOD3 mapping)
+- Added proper DataFetcher integration with all BD TOPO features
+- New data_sources configuration directory for multi-source integration
+- Enhanced configuration files with consistent parameter structure
 
-Backward compatibility is maintained for existing imports.
+All ground truth classifications now work correctly across ASPRS, LOD2, and LOD3 modes.
 """
 
-__version__ = "2.5.1"
+__version__ = "2.5.3"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 
@@ -95,8 +95,20 @@ from .asprs_classes import (
     get_classification_for_road,
     get_classification_for_vegetation,
     get_classification_for_water,
+    get_classification_for_railway,
+    get_classification_for_sports,
+    get_classification_for_cemetery,
+    get_classification_for_power_line,
+    get_classification_for_parking,
+    get_classification_for_bridge,
     get_class_name,
     get_class_color,
+    RAILWAY_NATURE_TO_ASPRS,
+    SPORTS_NATURE_TO_ASPRS,
+    CEMETERY_NATURE_TO_ASPRS,
+    POWER_LINE_NATURE_TO_ASPRS,
+    PARKING_NATURE_TO_ASPRS,
+    BRIDGE_NATURE_TO_ASPRS,
 )
 
 # Reorganized modules - backward compatibility imports
@@ -213,8 +225,20 @@ __all__ = [
     "get_classification_for_road",
     "get_classification_for_vegetation",
     "get_classification_for_water",
+    "get_classification_for_railway",
+    "get_classification_for_sports",
+    "get_classification_for_cemetery",
+    "get_classification_for_power_line",
+    "get_classification_for_parking",
+    "get_classification_for_bridge",
     "get_class_name",
     "get_class_color",
+    "RAILWAY_NATURE_TO_ASPRS",
+    "SPORTS_NATURE_TO_ASPRS",
+    "CEMETERY_NATURE_TO_ASPRS",
+    "POWER_LINE_NATURE_TO_ASPRS",
+    "PARKING_NATURE_TO_ASPRS",
+    "BRIDGE_NATURE_TO_ASPRS",
     
     # ========== Reorganized Modules (Backward Compatibility) ==========
     # Core utilities

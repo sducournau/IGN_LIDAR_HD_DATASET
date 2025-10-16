@@ -4,7 +4,7 @@ Main LiDAR Processing Class
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Literal, Union
+from typing import Dict, Any, Literal, Union, Optional
 import multiprocessing as mp
 from functools import partial
 import time
@@ -27,6 +27,7 @@ from ..features.architectural_styles import (
     get_architectural_style_id
 )
 from .skip_checker import PatchSkipChecker
+from .processing_metadata import ProcessingMetadata
 
 # Import refactored modules
 # Note: FeatureManager has been replaced by FeatureOrchestrator in Phase 4.3
@@ -51,13 +52,16 @@ from ..datasets.dataset_manager import DatasetManager, DatasetConfig
 # Classification refinement module
 from .modules.classification_refinement import refine_classification, RefinementConfig
 
+# Reclassification module (optimized)
+from .modules.reclassifier import OptimizedReclassifier, reclassify_tile_optimized
+
 # Import from modules (refactored in Phase 3.2)
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Processing mode type definition
-ProcessingMode = Literal["patches_only", "both", "enriched_only"]
+ProcessingMode = Literal["patches_only", "both", "enriched_only", "reclassify_only"]
 
 
 class LiDARProcessor:
@@ -167,10 +171,14 @@ class LiDARProcessor:
         self.stitcher = ConfigValidator.init_stitcher(stitching_config)
         
         # Set class mapping based on LOD level
-        if self.lod_level == 'LOD2':
+        if self.lod_level == 'ASPRS':
+            # ASPRS mode: No class mapping - use ASPRS codes directly
+            self.class_mapping = None
+            self.default_class = 1  # ASPRS unclassified
+        elif self.lod_level == 'LOD2':
             self.class_mapping = ASPRS_TO_LOD2
             self.default_class = 14
-        else:
+        else:  # LOD3
             self.class_mapping = ASPRS_TO_LOD3
             self.default_class = 29
         
@@ -206,6 +214,97 @@ class LiDARProcessor:
         
         # Phase 4.3: Initialize tile processing modules
         self.tile_loader = TileLoader(self.config)
+        
+        # Initialize data fetcher for ground truth (BD TOPO, BD Forêt, RPG, Cadastre)
+        self.data_fetcher = None
+        if config.get('data_sources', {}).get('bd_topo', {}).get('enabled', False) or \
+           config.get('data_sources', {}).get('bd_foret', {}).get('enabled', False) or \
+           config.get('data_sources', {}).get('rpg', {}).get('enabled', False) or \
+           config.get('data_sources', {}).get('cadastre', {}).get('enabled', False):
+            try:
+                from ..io.data_fetcher import DataFetcher, DataFetchConfig
+                
+                # Build data source configuration
+                cache_dir = Path(config.get('cache_dir', 'data/cache'))
+                
+                # Extract BD TOPO features
+                bd_topo_features = config.get('data_sources', {}).get('bd_topo', {}).get('features', {})
+                bd_topo_params = config.get('data_sources', {}).get('bd_topo', {}).get('parameters', {})
+                
+                # Create configuration with ALL BD TOPO features and parameters
+                fetch_config = DataFetchConfig(
+                    # BD TOPO® features
+                    include_buildings=bd_topo_features.get('buildings', False),
+                    include_roads=bd_topo_features.get('roads', False),
+                    include_railways=bd_topo_features.get('railways', False),
+                    include_water=bd_topo_features.get('water', False),
+                    include_vegetation=bd_topo_features.get('vegetation', False),
+                    include_bridges=bd_topo_features.get('bridges', False),
+                    include_parking=bd_topo_features.get('parking', False),
+                    include_cemeteries=bd_topo_features.get('cemeteries', False),
+                    include_power_lines=bd_topo_features.get('power_lines', False),
+                    include_sports=bd_topo_features.get('sports', False),
+                    # Other data sources
+                    include_forest=config.get('data_sources', {}).get('bd_foret', {}).get('enabled', False),
+                    include_agriculture=config.get('data_sources', {}).get('rpg', {}).get('enabled', False),
+                    include_cadastre=config.get('data_sources', {}).get('cadastre', {}).get('enabled', False),
+                    group_by_parcel=config.get('data_sources', {}).get('cadastre', {}).get('group_by_parcel', False),
+                    # Buffer parameters
+                    road_width_fallback=bd_topo_params.get('road_width_fallback', 4.0),
+                    railway_width_fallback=bd_topo_params.get('railway_width_fallback', 3.5),
+                    power_line_buffer=bd_topo_params.get('power_line_buffer', 2.0),
+                    # RPG year
+                    rpg_year=config.get('data_sources', {}).get('rpg', {}).get('year', 2024)
+                )
+                
+                # Initialize data fetcher
+                self.data_fetcher = DataFetcher(
+                    cache_dir=cache_dir,
+                    config=fetch_config
+                )
+                logger.info("✓ Data fetcher initialized")
+                
+                # Log enabled data sources and features
+                enabled_sources = []
+                if config.get('data_sources', {}).get('bd_topo', {}).get('enabled', False):
+                    enabled_features = []
+                    bd_topo_features = config.get('data_sources', {}).get('bd_topo', {}).get('features', {})
+                    if bd_topo_features.get('roads', False):
+                        enabled_features.append('roads')
+                    if bd_topo_features.get('railways', False):
+                        enabled_features.append('railways')
+                    if bd_topo_features.get('buildings', False):
+                        enabled_features.append('buildings')
+                    if bd_topo_features.get('cemeteries', False):
+                        enabled_features.append('cemeteries')
+                    if bd_topo_features.get('power_lines', False):
+                        enabled_features.append('power_lines')
+                    if bd_topo_features.get('sports', False):
+                        enabled_features.append('sports')
+                    if bd_topo_features.get('parking', False):
+                        enabled_features.append('parking')
+                    if bd_topo_features.get('bridges', False):
+                        enabled_features.append('bridges')
+                    if bd_topo_features.get('water', False):
+                        enabled_features.append('water')
+                    if bd_topo_features.get('vegetation', False):
+                        enabled_features.append('vegetation')
+                    if enabled_features:
+                        enabled_sources.append(f"BD TOPO ({', '.join(enabled_features)})")
+                if config.get('data_sources', {}).get('bd_foret', {}).get('enabled', False):
+                    enabled_sources.append('BD Forêt')
+                if config.get('data_sources', {}).get('rpg', {}).get('enabled', False):
+                    enabled_sources.append('RPG')
+                if config.get('data_sources', {}).get('cadastre', {}).get('enabled', False):
+                    enabled_sources.append('Cadastre')
+                
+                if enabled_sources:
+                    logger.info(f"  Enabled sources: {', '.join(enabled_sources)}")
+                
+            except ImportError as e:
+                logger.warning(f"Could not initialize data fetcher: {e}")
+                logger.warning("Ground truth classification will not be applied")
+                self.data_fetcher = None
     
     def _validate_config(self, config: DictConfig) -> None:
         """Validate configuration object has required fields."""
@@ -326,7 +425,10 @@ class LiDARProcessor:
     @property
     def include_extra_features(self):
         """Check if extra features are enabled (backward compatibility)."""
-        return self.config.features.include_extra_features
+        # Support both include_extra and include_extra_features for backward compatibility
+        if hasattr(self.config.features, 'include_extra'):
+            return self.config.features.include_extra
+        return self.config.features.get('include_extra_features', False)
     
     @property
     def k_neighbors(self):
@@ -721,19 +823,79 @@ class LiDARProcessor:
         """
         progress_prefix = f"[{tile_idx}/{total_tiles}]" if total_tiles > 0 else ""
         
-        # Check if patches from this tile already exist
+        # Use intelligent skip checker to validate existing outputs
         if skip_existing:
-            tile_stem = laz_file.stem
-            pattern = f"{tile_stem}_patch_*.npz"
-            existing_patches = list(output_dir.glob(pattern))
+            # First check metadata-based skip (config changes)
+            metadata_mgr = ProcessingMetadata(output_dir)
+            should_reprocess, reprocess_reason = metadata_mgr.should_reprocess(
+                laz_file.stem, 
+                self.config
+            )
             
-            if existing_patches:
-                num_existing = len(existing_patches)
+            if should_reprocess:
+                if reprocess_reason == 'config_changed':
+                    logger.info(
+                        f"{progress_prefix} Reprocessing {laz_file.name}: "
+                        f"Configuration changed since last processing"
+                    )
+                elif reprocess_reason == 'no_metadata_found':
+                    logger.debug(
+                        f"{progress_prefix} No metadata found for {laz_file.name}, "
+                        f"will check for existing outputs"
+                    )
+                elif reprocess_reason and 'output_file_missing' in reprocess_reason:
+                    logger.info(
+                        f"{progress_prefix} Reprocessing {laz_file.name}: "
+                        f"Output file missing"
+                    )
+            else:
+                # Metadata indicates we can skip (config unchanged and outputs exist)
                 logger.info(
                     f"{progress_prefix} ⏭️  {laz_file.name}: "
-                    f"{num_existing} patches exist, skipping"
+                    f"Already processed with same config, skipping"
                 )
                 return 0
+            
+            # If no metadata or reprocessing needed, use output-based skip checker
+            if reprocess_reason == 'no_metadata_found':
+                should_skip, skip_info = self.skip_checker.should_skip_tile(
+                    tile_path=laz_file,
+                    output_dir=output_dir,
+                    expected_patches=None,  # We don't know expected count beforehand
+                    save_enriched=self.save_enriched_laz,
+                    include_rgb=self.config.features.use_rgb,
+                    include_infrared=self.config.features.use_infrared,
+                    compute_ndvi=self.config.features.compute_ndvi,
+                    include_extra_features=self.include_extra_features,
+                    include_classification=OmegaConf.select(self.config, "data_sources.bd_topo.enabled", default=False) and 
+                                         OmegaConf.select(self.config, "data_sources.bd_topo.features.buildings", default=False),
+                    include_forest=OmegaConf.select(self.config, "data_sources.bd_foret.enabled", default=False),
+                    include_agriculture=OmegaConf.select(self.config, "data_sources.rpg.enabled", default=False),
+                    include_cadastre=OmegaConf.select(self.config, "data_sources.cadastre.enabled", default=False),
+                )
+                
+                if should_skip:
+                    # Format detailed skip message
+                    skip_msg = self.skip_checker.format_skip_message(laz_file, skip_info)
+                    logger.info(f"{progress_prefix} {skip_msg}")
+                    return 0
+                else:
+                    # Log reason for processing (helpful for debugging)
+                    reason = skip_info.get('reason', 'unknown')
+                    if reason == 'no_patches_found':
+                        logger.debug(f"{progress_prefix} Processing: No existing outputs found")
+                    elif reason == 'enriched_laz_invalid':
+                        missing_features = skip_info.get('missing_features', [])
+                        logger.info(
+                            f"{progress_prefix} Reprocessing: Enriched LAZ missing features "
+                            f"({', '.join(missing_features[:3])}...)"
+                        )
+                    elif reason == 'corrupted_patches_found':
+                        num_corrupted = skip_info.get('corrupted_count', 0)
+                        logger.info(
+                            f"{progress_prefix} Reprocessing: Found {num_corrupted} "
+                            f"corrupted patches"
+                        )
         
         logger.info(f"{progress_prefix} Processing: {laz_file.name}")
         
@@ -828,15 +990,141 @@ class LiDARProcessor:
         curvature = all_features.get('curvature')
         height = all_features.get('height')
         
+        # For ground truth classification, use height_above_ground if available (critical for road/rail filtering!)
+        height_above_ground = all_features.get('height_above_ground', height)  # Fallback to height if not available
+        
         # Extract geometric features (excluding main features and spectral/style features)
         excluded_features = {'normals', 'curvature', 'height', 'rgb', 'nir', 'ndvi', 'architectural_style'}
         geo_features = {k: v for k, v in all_features.items() if k not in excluded_features}
         
-        # 3. Remap labels (ASPRS → LOD)
-        labels_v = np.array([
-            self.class_mapping.get(c, self.default_class)
-            for c in classification_v
-        ], dtype=np.uint8)
+        # 3. Remap labels (ASPRS → LOD) - skip for ASPRS mode
+        if self.class_mapping is not None:
+            # LOD2 or LOD3: Apply class mapping
+            labels_v = np.array([
+                self.class_mapping.get(c, self.default_class)
+                for c in classification_v
+            ], dtype=np.uint8)
+        else:
+            # ASPRS mode: Use classification codes directly
+            labels_v = classification_v.astype(np.uint8)
+        
+        # 3a. Fetch and apply ground truth classification (BD TOPO, BD Forêt, RPG, etc.)
+        if self.data_fetcher is not None:
+            try:
+                # Get tile bounding box
+                bbox = (
+                    float(points_v[:, 0].min()),
+                    float(points_v[:, 1].min()),
+                    float(points_v[:, 0].max()),
+                    float(points_v[:, 1].max())
+                )
+                
+                logger.debug(f"  Fetching ground truth for bbox: {bbox}")
+                
+                # Fetch all ground truth data for this tile
+                use_cache = self.config.get('data_sources', {}).get('bd_topo', {}).get('cache_enabled', True)
+                gt_data = self.data_fetcher.fetch_all(
+                    bbox=bbox,
+                    use_cache=use_cache
+                )
+                
+                # Apply ground truth classification if BD TOPO data is available
+                if gt_data and 'ground_truth' in gt_data:
+                    from ..core.modules.advanced_classification import AdvancedClassifier
+                    
+                    # Get building and transport detection modes from config
+                    building_mode = self.config.processor.get('building_detection_mode', 'asprs')
+                    transport_mode = self.config.processor.get('transport_detection_mode', 'asprs_standard')
+                    
+                    # Get BD TOPO parameters from config for ground truth classification
+                    bd_topo_params = self.config.get('data_sources', {}).get('bd_topo', {}).get('parameters', {})
+                    
+                    # Create advanced classifier with appropriate modes and config parameters
+                    classifier = AdvancedClassifier(
+                        use_ground_truth=True,
+                        use_ndvi=self.config.features.get('compute_ndvi', False),
+                        use_geometric=True,
+                        building_detection_mode=building_mode,
+                        transport_detection_mode=transport_mode,
+                        # Pass BD TOPO parameters for road/railway filtering
+                        road_buffer_tolerance=bd_topo_params.get('road_buffer_tolerance', 0.5)
+                    )
+                    
+                    # Prepare ground truth features dictionary
+                    ground_truth_features = gt_data['ground_truth']
+                    
+                    # Log what ground truth features are available
+                    available_features = [k for k, v in ground_truth_features.items() if v is not None and len(v) > 0]
+                    if available_features:
+                        logger.info(f"  🗺️  Applying ground truth from: {', '.join(available_features)}")
+                        for feat_type in available_features:
+                            logger.debug(f"    {feat_type}: {len(ground_truth_features[feat_type])} features")
+                    
+                    # Apply ground truth classification using the advanced classifier
+                    labels_v = classifier._classify_by_ground_truth(
+                        labels=labels_v,
+                        points=points_v,
+                        ground_truth_features=ground_truth_features,
+                        ndvi=all_features.get('ndvi'),
+                        height=height_above_ground,  # Use height_above_ground for proper road/rail filtering!
+                        planarity=geo_features.get('planarity'),
+                        intensity=intensity_v
+                    )
+                    
+                    logger.debug(f"  ✓ Ground truth classification applied")
+                else:
+                    logger.debug(f"  No ground truth data available for this tile")
+                    
+            except Exception as e:
+                logger.warning(f"  ⚠️  Failed to apply ground truth classification: {e}")
+                logger.debug(f"  Exception details:", exc_info=True)
+        
+        # 3aa. Optional: Apply optimized reclassification (if enabled in config)
+        reclassification_config = self.config.processor.get('reclassification', {})
+        if reclassification_config.get('enabled', False) and self.data_fetcher is not None:
+            try:
+                logger.info(f"  🔄 Applying optimized reclassification...")
+                
+                # Get tile bounding box
+                bbox = (
+                    float(points_v[:, 0].min()),
+                    float(points_v[:, 1].min()),
+                    float(points_v[:, 0].max()),
+                    float(points_v[:, 1].max())
+                )
+                
+                # Fetch ground truth features for reclassification
+                use_cache = self.config.get('data_sources', {}).get('bd_topo', {}).get('cache_enabled', True)
+                gt_data = self.data_fetcher.fetch_all(bbox=bbox, use_cache=use_cache)
+                
+                if gt_data and 'ground_truth' in gt_data:
+                    # Initialize optimized reclassifier
+                    chunk_size = reclassification_config.get('chunk_size', 100000)
+                    acceleration_mode = reclassification_config.get('acceleration_mode', 'auto')
+                    show_progress = reclassification_config.get('show_progress', False)
+                    use_geometric_rules = reclassification_config.get('use_geometric_rules', True)
+                    
+                    reclassifier = OptimizedReclassifier(
+                        chunk_size=chunk_size,
+                        show_progress=show_progress,
+                        acceleration_mode=acceleration_mode,
+                        use_geometric_rules=use_geometric_rules
+                    )
+                    
+                    # Reclassify points in-memory
+                    labels_v = reclassifier.reclassify_points(
+                        points=points_v,
+                        classification=labels_v,
+                        ground_truth_features=gt_data['ground_truth']
+                    )
+                    
+                    logger.info(f"  ✓ Reclassification completed")
+                else:
+                    logger.debug(f"  No ground truth data for reclassification")
+                    
+            except Exception as e:
+                logger.warning(f"  ⚠️  Reclassification failed: {e}")
+                logger.debug(f"  Exception details:", exc_info=True)
         
         # 3b. Refine classification using NDVI, ground truth, and geometric features
         if self.lod_level == 'LOD2':
@@ -914,10 +1202,9 @@ class LiDARProcessor:
             # Import the new function
             from .modules.serialization import save_enriched_tile_laz
             
-            # Prepare output path
-            enriched_subdir = output_dir / "enriched"
-            enriched_subdir.mkdir(parents=True, exist_ok=True)
-            output_path = enriched_subdir / laz_file.name
+            # Prepare output path - in enriched_only mode, save directly to output_dir
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / f"{laz_file.stem}_enriched.laz"
             
             try:
                 # Determine RGB/NIR to save (prefer fetched/computed over input)
@@ -1088,6 +1375,38 @@ class LiDARProcessor:
         
         tile_time = time.time() - tile_start
         pts_processed = len(original_data['points'])
+        
+        # Save processing metadata for intelligent skip detection
+        try:
+            metadata_mgr = ProcessingMetadata(output_dir)
+            output_files = {}
+            
+            # Record enriched LAZ if saved
+            if self.save_enriched_laz:
+                enriched_path = output_dir / f"{laz_file.stem}_enriched.laz"
+                if enriched_path.exists():
+                    output_files['enriched_laz'] = {
+                        'path': str(enriched_path),
+                        'size_bytes': enriched_path.stat().st_size,
+                    }
+            
+            # Record patch information
+            if num_saved > 0:
+                output_files['patches'] = {
+                    'count': num_saved,
+                    'format': self.output_format,
+                }
+            
+            metadata_mgr.save_metadata(
+                tile_name=laz_file.stem,
+                config=self.config,
+                processing_time=tile_time,
+                num_points=pts_processed,
+                output_files=output_files,
+            )
+        except Exception as e:
+            logger.warning(f"  ⚠️  Failed to save processing metadata: {e}")
+        
         logger.info(
             f"  ✅ Completed: {num_saved} patches in {tile_time:.1f}s "
             f"(from {pts_processed:,} original points)"
@@ -1295,3 +1614,180 @@ class LiDARProcessor:
             self.dataset_manager.save_metadata(additional_info=additional_info)
         
         return total_patches
+    
+    def reclassify_directory(
+        self,
+        input_dir: Path,
+        output_dir: Path,
+        cache_dir: Optional[Path] = None,
+        chunk_size: int = 100000,
+        show_progress: bool = True,
+        skip_existing: bool = True,
+        acceleration_mode: str = "auto"
+    ) -> int:
+        """
+        Reclassify all LAZ files in a directory with BD TOPO® ground truth.
+        
+        This is an optimized mode that only updates classification codes using
+        spatial indexing for fast processing. Use this when you already have
+        enriched tiles but need to apply/update ground truth classification.
+        
+        Acceleration modes:
+        - 'cpu': Use CPU with STRtree spatial indexing (~5-10 min for 18M points)
+        - 'gpu': Use RAPIDS cuSpatial GPU acceleration (~1-2 min for 18M points)
+        - 'gpu+cuml': Use full RAPIDS stack (~30-60 sec for 18M points)
+        - 'auto': Automatically select best available backend (recommended)
+        
+        Args:
+            input_dir: Directory containing enriched LAZ files
+            output_dir: Output directory for reclassified files
+            cache_dir: Cache directory for ground truth data (default: data/cache)
+            chunk_size: Points per processing chunk (default: 100,000)
+            show_progress: Show progress bars (default: True)
+            skip_existing: Skip already reclassified files (default: True)
+            acceleration_mode: Acceleration backend ('cpu', 'gpu', 'gpu+cuml', 'auto')
+            
+        Returns:
+            Number of files processed
+        """
+        from ..io.data_fetcher import DataFetcher, DataFetchConfig
+        
+        input_dir = Path(input_dir)
+        output_dir = Path(output_dir)
+        
+        if cache_dir is None:
+            cache_dir = Path("data/cache")
+        
+        logger.info("="*80)
+        logger.info("🔄 RECLASSIFICATION MODE - Optimized Ground Truth Application")
+        logger.info("="*80)
+        logger.info(f"Input:  {input_dir}")
+        logger.info(f"Output: {output_dir}")
+        logger.info(f"Cache:  {cache_dir}")
+        logger.info(f"Chunk size: {chunk_size:,} points")
+        logger.info("="*80)
+        
+        # Create output directory
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Find all LAZ files
+        laz_files = sorted(input_dir.glob("*.laz"))
+        if not laz_files:
+            logger.warning(f"No LAZ files found in {input_dir}")
+            return 0
+        
+        logger.info(f"Found {len(laz_files)} LAZ files to process")
+        
+        # Initialize data fetcher with all BD TOPO features
+        logger.info("\n📍 Initializing BD TOPO® data fetcher...")
+        
+        config = DataFetchConfig(
+            include_buildings=True,
+            include_roads=True,
+            include_railways=True,
+            include_water=True,
+            include_vegetation=True,
+            include_bridges=True,
+            include_parking=True,
+            include_cemeteries=True,
+            include_power_lines=True,
+            include_sports=True,
+            include_forest=False,
+            include_agriculture=False,
+            include_cadastre=False,
+            road_width_fallback=4.0,
+            railway_width_fallback=3.5,
+            power_line_buffer=2.0
+        )
+        
+        data_fetcher = DataFetcher(
+            cache_dir=cache_dir,
+            config=config
+        )
+        
+        # Initialize reclassifier with acceleration mode
+        reclassifier = OptimizedReclassifier(
+            chunk_size=chunk_size,
+            show_progress=show_progress,
+            acceleration_mode=acceleration_mode
+        )
+        
+        # Process each file
+        tiles_processed = 0
+        tiles_skipped = 0
+        start_time = time.time()
+        
+        for idx, laz_file in enumerate(laz_files, 1):
+            logger.info(f"\n[{idx}/{len(laz_files)}] Processing: {laz_file.name}")
+            
+            # Output file path
+            output_file = output_dir / f"{laz_file.stem}_reclassified.laz"
+            
+            # Skip if already exists
+            if skip_existing and output_file.exists():
+                logger.info(f"  ⏭️  Skipped (already exists): {output_file.name}")
+                tiles_skipped += 1
+                continue
+            
+            try:
+                # 1. Load file to get bbox
+                las = laspy.read(str(laz_file))
+                points = np.vstack([las.x, las.y, las.z]).T
+                
+                bbox = (
+                    float(points[:, 0].min()),
+                    float(points[:, 1].min()),
+                    float(points[:, 0].max()),
+                    float(points[:, 1].max())
+                )
+                
+                logger.info(f"  📦 Points: {len(points):,}")
+                logger.info(f"  📏 Bbox: {bbox}")
+                
+                # 2. Fetch ground truth for this tile's bbox
+                logger.info(f"  🗺️  Fetching ground truth...")
+                gt_data = data_fetcher.fetch_all(bbox=bbox, use_cache=True)
+                
+                if not gt_data or 'ground_truth' not in gt_data:
+                    logger.warning(f"  ⚠️  No ground truth data available, skipping")
+                    tiles_skipped += 1
+                    continue
+                
+                ground_truth_features = gt_data['ground_truth']
+                
+                # Log what was fetched
+                n_features = sum(1 for gdf in ground_truth_features.values() if gdf is not None and len(gdf) > 0)
+                logger.info(f"  ✓ Fetched {n_features} feature types")
+                
+                # 3. Reclassify
+                logger.info(f"  🎯 Reclassifying...")
+                stats = reclassifier.reclassify_file(
+                    input_laz=laz_file,
+                    output_laz=output_file,
+                    ground_truth_features=ground_truth_features
+                )
+                
+                tiles_processed += 1
+                logger.info(f"  ✅ Completed: {output_file.name}")
+                
+            except Exception as e:
+                logger.error(f"  ❌ Failed: {e}", exc_info=True)
+                tiles_skipped += 1
+                continue
+            
+            # Garbage collection every 5 tiles
+            if idx % 5 == 0:
+                gc.collect()
+        
+        # Summary
+        processing_time = time.time() - start_time
+        
+        logger.info("\n" + "="*80)
+        logger.info("📊 Reclassification Summary:")
+        logger.info(f"  Total files: {len(laz_files)}")
+        logger.info(f"  ✅ Processed: {tiles_processed}")
+        logger.info(f"  ⏭️  Skipped: {tiles_skipped}")
+        logger.info(f"  ⏱️  Time: {processing_time:.1f}s")
+        logger.info("="*80)
+        
+        return tiles_processed

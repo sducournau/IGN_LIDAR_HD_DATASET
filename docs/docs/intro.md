@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 2.5.1** | Python 3.8+ | MIT License
+**Version 2.5.3** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -18,7 +18,23 @@ Transform French IGN LiDAR HD point clouds into ML-ready datasets for building c
 
 ## 🎯 What's New
 
-### v2.5.1 (2025-10-15) - Latest Release
+### v2.5.3 (2025-10-16) - Latest Release
+
+### 🔧 Critical Fix: Ground Truth Classification
+
+This release fixes critical issues with BD TOPO® ground truth classification that prevented points from being classified to roads, cemeteries, power lines, and other infrastructure features.
+
+**Fixed:**
+
+- ✅ Ground truth classification from BD TOPO® now works correctly
+- ✅ ASPRS mode classification (was incorrectly using LOD3 mapping)
+- ✅ Fixed DataFetcher integration with all BD TOPO features
+- ✅ Added data_sources configuration directory for multi-source integration
+- ✅ Roads (ASPRS 11), cemeteries (ASPRS 42), power lines (ASPRS 43), and sports (ASPRS 41) now classified correctly
+
+**Impact:** All ground truth classifications now work correctly across ASPRS, LOD2, and LOD3 modes.
+
+### v2.5.1 (2025-10-15)
 
 ### Maintenance & Documentation Updates
 
@@ -253,7 +269,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {ImagoData},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {2.5.1}
+  version      = {2.5.3}
 }
 ```
 

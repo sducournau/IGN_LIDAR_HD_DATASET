@@ -6,7 +6,7 @@ title: Bibliothèque de Traitement LiDAR HD de l'IGN
 
 # Bibliothèque de Traitement LiDAR HD de l'IGN
 
-**Version 2.5.1** | Python 3.8+ | Licence MIT
+**Version 2.5.3** | Python 3.8+ | Licence MIT
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -18,7 +18,23 @@ Transformez les nuages de points LiDAR HD de l'IGN en jeux de données prêts po
 
 ## 🎯 Nouveautés
 
-### v2.5.1 (2025-10-15) - Dernière Version
+### v2.5.3 (2025-10-16) - Dernière Version
+
+### 🔧 Correction Critique : Classification de Vérité Terrain
+
+Cette version corrige des problèmes critiques avec la classification de vérité terrain BD TOPO® qui empêchait les points d'être classifiés en routes, cimetières, lignes électriques et autres infrastructures.
+
+**Corrections :**
+
+- ✅ La classification de vérité terrain de BD TOPO® fonctionne maintenant correctement
+- ✅ Classification en mode ASPRS (utilisait incorrectement le mapping LOD3)
+- ✅ Intégration DataFetcher corrigée avec toutes les fonctionnalités BD TOPO
+- ✅ Ajout du répertoire de configuration data_sources pour l'intégration multi-sources
+- ✅ Routes (ASPRS 11), cimetières (ASPRS 42), lignes électriques (ASPRS 43), et sports (ASPRS 41) maintenant classifiés correctement
+
+**Impact :** Toutes les classifications de vérité terrain fonctionnent maintenant correctement dans les modes ASPRS, LOD2 et LOD3.
+
+### v2.5.1 (2025-10-15)
 
 ### Maintenance et Mise à Jour de la Documentation
 

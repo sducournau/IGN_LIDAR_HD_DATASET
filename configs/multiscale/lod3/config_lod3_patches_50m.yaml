@@ -1,0 +1,80 @@
+# ========================================================================
+# LOD3 Patches Generation - 50m Scale
+# ========================================================================
+# Purpose: Generate 50m patches for LOD3 detailed architectural classification
+#
+# Focus: Windows, doors, balconies, fine architectural details
+# Scale: 50m - Essential for capturing small architectural features
+# Points: 24,576 per patch (more points for detail)
+# ========================================================================
+
+defaults:
+  - processor: default
+  - features: full
+  - preprocess: disabled
+  - stitching: enabled
+  - output: default
+  - _self_
+
+input_dir: /mnt/d/ign/preprocessed/lod3/enriched_tiles
+output_dir: /mnt/d/ign/patches/lod3/50m
+
+processor:
+  skip_existing: true
+  lod_level: LOD3
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 4
+
+  patch_size: 50.0
+  patch_overlap: 0.20 # High overlap for detail preservation
+  num_points: 24576 # More points for fine details
+
+  augment: true
+  num_augmentations: 5 # More augmentations for LOD3
+  augmentation_types:
+    - rotation
+    - flip
+    - jitter
+    - scale
+    - color_jitter # Vary RGB slightly
+
+  pin_memory: true
+
+features:
+  mode: precomputed
+
+preprocess:
+  enabled: false
+
+stitching:
+  enabled: true
+  buffer_size: 8.0
+  auto_detect_neighbors: true
+  auto_download_neighbors: false
+  cache_enabled: true
+  cache_dir: /mnt/d/ign/cache/neighbors
+
+output:
+  format: npz,laz # NPZ for training, LAZ for visualization
+  processing_mode: patches_only
+  save_stats: true
+  save_metadata: true
+  compression: false # No compression for NPZ (faster training)
+
+  split_data: true
+  train_split: 0.70
+  val_split: 0.15
+  test_split: 0.15
+  organize_by_split: true
+
+quality:
+  min_points_per_patch: 12288
+  min_classes_per_patch: 3 # Need variety for LOD3
+  min_building_ratio: 0.30 # Focus on building-rich patches
+  max_ground_ratio: 0.70
+
+logging:
+  level: INFO
+  log_file: /mnt/d/ign/logs/lod3_patches_50m.log
+  progress_bar: true

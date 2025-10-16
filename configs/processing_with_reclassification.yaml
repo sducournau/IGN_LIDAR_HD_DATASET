@@ -1,0 +1,239 @@
+# Processing Configuration with Optional Reclassification
+# This example shows how to enable reclassification as part of the main pipeline
+# Date: October 16, 2025
+#
+# Usage:
+#   ign-lidar-hd process --config-file configs/processing_with_reclassification.yaml
+
+# ============================================================================
+# Processing Mode
+# ============================================================================
+
+defaults:
+  - processor: default
+  - features: minimal
+  - preprocess: default
+  - stitching: enabled
+  - output: default
+  - ground_truth: enabled
+  - _self_
+# ============================================================================
+# Input/Output Directories
+# ============================================================================
+
+input_dir: /mnt/d/ign/selected_tiles/asprs/tiles
+output_dir: /mnt/d/ign/preprocessed/asprs/with_reclassification
+cache_dir: /mnt/d/ign/cache
+
+# ============================================================================
+# Processing Configuration
+# ============================================================================
+
+processor:
+  lod_level: ASPRS
+  architecture: hybrid
+  processing_mode: enriched_only # enriched_only | both | patches_only
+  num_workers: 1
+  use_gpu: true
+
+  # Patch settings
+  patch_size: 150.0
+  patch_overlap: 0.1
+  num_points: 16384
+  skip_existing: true
+
+  # Augmentation settings
+  augment: false
+  num_augmentations: 0
+
+  # Performance settings
+  batch_size: "auto"
+  prefetch_factor: 2
+  pin_memory: false
+
+  # ========================================================================
+  # OPTIONAL: Reclassification Settings
+  # ========================================================================
+  # Enable this to apply optimized ground truth reclassification after
+  # standard classification. This provides more accurate ASPRS codes using
+  # spatial indexing for fast processing.
+
+  reclassification:
+    enabled: true # Set to true to enable reclassification
+
+    # Performance tuning
+    acceleration_mode: "auto" # Options: 'cpu', 'gpu', 'gpu+cuml', 'auto'
+    chunk_size: 100000 # Points per chunk (100k for CPU, can be higher for GPU)
+    show_progress: false # Show progress bars during reclassification
+
+    # Geometric rules for intelligent refinement
+    use_geometric_rules: true # Apply geometric rules after basic reclassification
+
+    # NDVI-based refinement thresholds
+    ndvi_vegetation_threshold: 0.3 # NDVI >= this value = likely vegetation
+    ndvi_road_threshold: 0.15 # NDVI <= this value = likely road/impervious surface
+
+    # Road-vegetation disambiguation
+    road_vegetation_height_threshold: 2.0 # Height (m) above road to classify as vegetation
+
+    # Building buffer zone classification
+    building_buffer_distance: 2.0 # Buffer (m) around buildings for unclassified points
+    max_building_height_difference: 3.0 # Max height (m) difference for building points
+
+    # Verticality-based building classification
+    verticality_threshold: 0.7 # Verticality score threshold (0-1, higher = more vertical)
+    verticality_search_radius: 1.0 # Search radius (m) for verticality computation
+    min_vertical_neighbors: 5 # Minimum neighbors required for verticality
+
+# ============================================================================
+# Data Sources - BD TOPO® Ground Truth
+# ============================================================================
+
+data_sources:
+  # BD TOPO® V3 - Ground Truth Classification
+  bd_topo:
+    enabled: true
+    cache_enabled: true
+
+    # Features to fetch and apply
+    features:
+      buildings: true # ASPRS 6
+      roads: true # ASPRS 11
+      railways: true # ASPRS 10
+      water: true # ASPRS 9
+      vegetation: true # ASPRS 5
+      bridges: true # ASPRS 17
+      parking: true # ASPRS 40
+      cemeteries: true # ASPRS 42
+      power_lines: true # ASPRS 43
+      sports: true # ASPRS 41
+
+    # Geometry generation parameters
+    parameters:
+      road_width_fallback: 4.0 # Default road width (m)
+      road_buffer_tolerance: 0.5 # Additional buffer for roads (m)
+      railway_width_fallback: 3.5 # Default railway width (m)
+      railway_buffer_tolerance: 0.6 # Additional buffer for railways (m)
+      power_line_buffer: 2.0 # Buffer for power lines (m)
+
+    cache_dir: cache/ground_truth
+    use_cache: true
+
+  # BD Forêt® (optional - forest type classification)
+  bd_foret:
+    enabled: false
+
+  # RPG (optional - agricultural parcels)
+  rpg:
+    enabled: false
+
+  # Cadastre (optional - land parcels)
+  cadastre:
+    enabled: false
+
+# ============================================================================
+# Classification Configuration
+# ============================================================================
+
+classification:
+  enabled: true
+
+  # Classification methods (priority order)
+  methods:
+    ground_truth: true # Use BD TOPO® ground truth (highest priority)
+    geometric: true # Geometric-based classification
+    ndvi: true # NDVI-based vegetation detection
+    forest_types: true # Forest type classification
+    crop_types: true # Crop type classification
+
+  # Priority order (lowest to highest - last one wins)
+  priority_order:
+    - vegetation
+    - water
+    - cemeteries
+    - parking
+    - sports
+    - railways
+    - roads
+    - bridges
+    - buildings # Highest priority
+
+# ============================================================================
+# Output Settings
+# ============================================================================
+
+output:
+  format: "laz" # Output format for patches: npz, hdf5, torch, laz, all
+  processing_mode: "enriched_only" # patches_only, both, enriched_only
+  save_stats: true # Save processing statistics
+  save_metadata: true # Save patch metadata
+  compression: null # Compression level (0-9, None for no compression)
+  skip_existing: true # Skip tiles that have already been processed
+
+# ============================================================================
+# Features Configuration
+# ============================================================================
+
+features:
+  mode: asprs_classes # minimal | full | custom
+  k_neighbors: 20
+  search_radius: null # Auto-estimate if None, use k_neighbors if 0
+
+  # Feature flags
+  include_extra: true
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+
+  # Sampling and normalization
+  sampling_method: fps
+  normalize_xyz: false
+  normalize_features: false
+
+  # GPU configuration
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+
+# ============================================================================
+# Preprocessing Configuration
+# ============================================================================
+
+preprocess:
+  enabled: false # Enable preprocessing
+
+  # Statistical Outlier Removal
+  sor_k: 12
+  sor_std: 2.0
+
+  # Radius Outlier Removal
+  ror_radius: 1.0
+  ror_neighbors: 4
+
+  # Voxel downsampling
+  voxel_enabled: false
+  voxel_size: 0.1
+
+# ============================================================================
+# Stitching Configuration
+# ============================================================================
+
+stitching:
+  enabled: false # Enable tile stitching
+  buffer_size: 10.0
+  auto_detect_neighbors: true
+  auto_download_neighbors: false
+  cache_enabled: true
+
+# ============================================================================
+# Logging
+# ============================================================================
+
+log_level: "INFO" # DEBUG | INFO | WARNING | ERROR
+verbose: true
+
+# ============================================================================
+# Advanced Options
+# ============================================================================
+
+# Maximum number of tiles to process (null = all tiles)
+max_tiles: null

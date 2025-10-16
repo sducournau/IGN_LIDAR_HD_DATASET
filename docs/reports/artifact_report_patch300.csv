@@ -1,2 +1,0 @@
-file,severity,max_cv,n_points,x_range,y_range,planarity_cv_x,planarity_cv_y,planarity_mean,roof_score_cv_x,roof_score_cv_y,roof_score_mean,linearity_cv_x,linearity_cv_y,linearity_mean
-LHD_FXX_0635_6857_PTS_C_LAMB93_IGN69_hybrid_patch_0300.laz,SEVERE,0.30819958,24576,49.938,49.5,0.055031907,0.2852131,0.32700554,0.12587331,0.30819958,0.26785555,0.05195318,0.15896428,0.62766755

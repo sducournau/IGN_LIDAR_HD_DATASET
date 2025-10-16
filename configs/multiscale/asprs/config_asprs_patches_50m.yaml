@@ -1,0 +1,114 @@
+# ========================================================================
+# ASPRS Patches Generation - 50m Scale
+# ========================================================================
+# Purpose: Generate 50m x 50m training patches from enriched ASPRS tiles
+#          with 3 augmentations per patch
+#
+# Input: Enriched LAZ tiles from preprocessing phase
+# Output: NPZ training patches + LAZ for visualization
+#
+# Scale: 50m - Good for local details and small objects
+# Points: 16,384 per patch
+# Augmentations: 3 (rotation, flip, jitter)
+#
+# Usage:
+#   ign-lidar-hd process --config config_asprs_patches_50m.yaml
+# ========================================================================
+
+defaults:
+  - processor: default
+  - features: full
+  - preprocess: disabled
+  - stitching: enabled
+  - output: default
+  - _self_
+
+# ============================================================================
+# I/O PATHS
+# ============================================================================
+input_dir: /mnt/d/ign/preprocessed/asprs/enriched_tiles
+output_dir: /mnt/d/ign/patches/asprs/50m
+
+# ============================================================================
+# PROCESSOR CONFIGURATION - PATCH EXTRACTION
+# ============================================================================
+processor:
+  skip_existing: true
+  lod_level: ASPRS
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 4
+
+  # Patch extraction - 50m scale
+  patch_size: 50.0 # 50m x 50m patches
+  patch_overlap: 0.15 # 15% overlap (7.5m)
+  num_points: 16384 # 16k points per patch
+
+  # Augmentation - 3 variants per patch
+  augment: true
+  num_augmentations: 3
+  augmentation_types:
+    - rotation # Random rotation 0-360°
+    - flip # Horizontal/vertical flip
+    - jitter # Small XYZ jitter (±5%)
+
+  pin_memory: true
+
+# ============================================================================
+# FEATURES CONFIGURATION - USE PRECOMPUTED FEATURES
+# ============================================================================
+features:
+  mode: precomputed # Use features from enriched tiles
+  # All other feature settings inherited from preprocessing
+
+# ============================================================================
+# PREPROCESSING - DISABLED (ALREADY DONE)
+# ============================================================================
+preprocess:
+  enabled: false
+
+# ============================================================================
+# TILE STITCHING - SMALLER BUFFER FOR 50m PATCHES
+# ============================================================================
+stitching:
+  enabled: true
+  buffer_size: 8.0 # 8m buffer around patch edges
+  auto_detect_neighbors: true
+  auto_download_neighbors: false # Use cached neighbors
+  cache_enabled: true
+  cache_dir: /mnt/d/ign/cache/neighbors
+
+# ============================================================================
+# OUTPUT - NPZ + LAZ
+# ============================================================================
+output:
+  format: npz,laz # Both training format and visualization
+  processing_mode: patches_only # Only generate patches
+  save_stats: true
+  save_metadata: true
+  compression: false # No compression for NPZ (faster training)
+
+  # Split data into train/val/test
+  split_data: true
+  train_split: 0.70
+  val_split: 0.15
+  test_split: 0.15
+
+  # Organize by split
+  organize_by_split: true
+
+# ============================================================================
+# DATA QUALITY
+# ============================================================================
+quality:
+  min_points_per_patch: 8192 # At least 50% density
+  min_classes_per_patch: 2 # At least 2 different classes
+  max_ground_ratio: 0.95 # Reject patches with >95% ground
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  level: INFO
+  log_file: /mnt/d/ign/logs/asprs_patches_50m.log
+  progress_bar: true

@@ -13,6 +13,8 @@ Modules:
     stitching: Tile stitching and boundary processing
     config_validator: Configuration validation and normalization
     tile_loader: Tile loading and I/O operations (Phase 3.4)
+    reclassifier: Optimized reclassification with GPU acceleration
+    geometric_rules: Geometric rules engine for intelligent classification
     
 Note: FeatureManager and FeatureComputer have been consolidated into 
       FeatureOrchestrator in ign_lidar.features.orchestrator (Phase 4.3)
@@ -72,6 +74,17 @@ from .stitching import (
     get_stitching_stats,
 )
 
+# Reclassification modules (optional - may not be available)
+try:
+    from .reclassifier import OptimizedReclassifier, reclassify_tile_optimized
+    from .geometric_rules import GeometricRulesEngine
+    _HAS_RECLASSIFIER = True
+except ImportError:
+    _HAS_RECLASSIFIER = False
+    OptimizedReclassifier = None
+    reclassify_tile_optimized = None
+    GeometricRulesEngine = None
+
 __all__ = [
     # Memory management
     'aggressive_memory_cleanup',
@@ -124,4 +137,8 @@ __all__ = [
     'extract_and_normalize_features',
     'should_use_stitching',
     'get_stitching_stats',
+    # Reclassification (optional)
+    'OptimizedReclassifier',
+    'reclassify_tile_optimized',
+    'GeometricRulesEngine',
 ]

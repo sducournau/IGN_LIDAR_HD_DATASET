@@ -240,54 +240,34 @@ LOD3_FEATURES = {
     'ndvi',
 }  # Total: ~43 features (was 35, added 8 new building features)
 
-# ASPRS_CLASSES: Features optimized for ASPRS classification (~30 features)
+# ASPRS_CLASSES: Features optimized for ASPRS classification (~15 features - LÉGER)
+# Simplified and lightweight for fast processing and smaller output files
 ASPRS_FEATURES = {
     # Coordinates
     'xyz',                # 3 features
     
-    # Essential normals for surface orientation
-    'normal_x',
-    'normal_y',
+    # Essential normals for surface orientation (most important)
     'normal_z',           # Critical for ground/vegetation/building separation
     
-    # Core shape descriptors (essential for classification)
+    # Core shape descriptors (essential only)
     'planarity',          # Flat surfaces (ground, roads, roofs)
-    'linearity',          # Linear features (wires, edges)
     'sphericity',         # Vegetation detection
-    'roughness',          # Surface texture
-    'anisotropy',         # Structure detection
-    
-    # Eigenvalues for advanced classification
-    'eigenvalue_1',
-    'eigenvalue_2',
-    'eigenvalue_3',
-    'sum_eigenvalues',
-    'eigenentropy',
     
     # Height features (critical for multi-class separation)
     'height_above_ground',# Essential for vegetation height classes
-    'vertical_std',       # Local height variation
     
-    # Building detection (canonical architectural features)
-    'verticality',        # Walls vs ground (from architectural.py)
-    'horizontality',      # Ground and flat roofs (from architectural.py)
-    'wall_likelihood',    # Wall probability (from architectural.py)
-    'roof_likelihood',    # Roof probability (from architectural.py)
-    'facade_score',       # Facade detection (from architectural.py)
+    # Building detection (simplified - canonical only)
+    'verticality',        # Walls vs ground
+    'horizontality',      # Ground and flat roofs
     
-    # Legacy building scores (for compatibility)
-    'wall_score',         # Legacy wall score
-    'roof_score',         # Legacy roof score
-    
-    # Density features for classification
+    # Density feature (single most useful)
     'density',            # Point density varies by class
-    'num_points_2m',
     
-    # Spectral features (if available)
+    # Spectral features (if available - most important for classification)
     'red', 'green', 'blue',  # RGB for better classification
     'nir',                   # NIR for vegetation
-    'ndvi',                  # Vegetation index
-}  # Total: ~30 features (optimized for ASPRS multi-class classification)
+    'ndvi',                  # Vegetation index (ground truth does the heavy lifting)
+}  # Total: ~15 features (ultra-optimized, léger, ground truth handles roads/railways)
 
 
 @dataclass

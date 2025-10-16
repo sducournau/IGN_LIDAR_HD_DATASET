@@ -1,0 +1,265 @@
+# Configuration pour le système de classification unifié IGN LiDAR HD
+# Date: October 15, 2025
+# Updated: Latest dataset versions (BD TOPO V3, BD Forêt V2, RPG 2024, Cadastre current)
+
+# ============================================================================
+# Configuration des Sources de Données
+# ============================================================================
+
+data_sources:
+  # BD TOPO® V3 - Infrastructure et topographie
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true # Bâtiments
+      roads: true # Routes
+      railways: true # Voies ferrées
+      water: true # Surfaces hydrographiques
+      vegetation: true # Zones de végétation
+      bridges: true # Ponts
+      parking: true # Parkings
+      cemeteries: false # Cimetières
+      power_lines: false # Lignes électriques
+      sports: true # Terrains de sport
+
+    parameters:
+      road_width_fallback: 4.0 # Largeur par défaut des routes (m)
+      railway_width_fallback: 3.5 # Largeur par défaut des voies ferrées (m)
+      power_line_buffer: 2.0 # Buffer pour lignes électriques (m)
+
+    cache_dir: "cache/ground_truth"
+    use_cache: true
+
+  # BD Forêt® V2 - Types de forêts et essences
+  bd_foret:
+    enabled: true
+    year: latest # Latest version V2 (current)
+    refine_vegetation: true # Raffiner la classification de végétation
+
+  # RPG - Registre Parcellaire Graphique (Agriculture)
+  rpg:
+    enabled: true
+    year: 2024 # Année du RPG (Latest: 2024, Available: 2024-2020)
+    label_crops: true # Labelliser les types de cultures
+    apply_classification: true # Appliquer code ASPRS agriculture (44)
+
+  # BD PARCELLAIRE - Cadastre
+  cadastre:
+    enabled: true
+    group_by_parcel: true # Grouper les points par parcelle
+    label_parcel_id: true # Labelliser chaque point avec ID parcelle
+    export_statistics: true # Exporter statistiques par parcelle
+
+# ============================================================================
+# Configuration de la Classification
+# ============================================================================
+
+classification:
+  # Méthodes activées
+  methods:
+    geometric: true # Features géométriques
+    ndvi: true # Index NDVI
+    ground_truth: true # Ground truth BD TOPO®
+    forest_types: true # Types de forêts BD Forêt®
+    crop_types: true # Types de cultures RPG
+
+  # Seuils de classification
+  thresholds:
+    # NDVI
+    ndvi_vegetation: 0.35 # Seuil pour végétation
+    ndvi_building: 0.15 # Seuil pour bâtiments
+
+    # Géométrie
+    height_low_veg: 0.5 # Hauteur végétation basse (m)
+    height_medium_veg: 2.0 # Hauteur végétation moyenne (m)
+    planarity_road: 0.8 # Planéité pour routes
+    planarity_building: 0.7 # Planéité pour bâtiments
+
+    # Ground truth
+    road_buffer_tolerance: 0.5 # Tolérance buffer routes (m)
+    building_buffer_tolerance: 0.0 # Tolérance buffer bâtiments (m) - strict matching
+    use_building_footprints: true # Utiliser footprints bâtiments BD TOPO
+    ground_truth_building_priority: high # Priorité ground truth (high/medium/low)
+
+  # Hiérarchie de priorité (ordre inverse - dernier gagne)
+  priority_order:
+    - vegetation
+    - water
+    - cemeteries
+    - parking
+    - sports
+    - power_lines
+    - railways
+    - roads
+    - bridges
+    - buildings # Plus haute priorité
+
+  # Post-processing for unclassified points
+  post_processing:
+    enabled: true # Enable post-processing of unclassified points
+    reclassify_unclassified: true # Attempt to reclassify unclassified points
+    use_ground_truth_context: true # Use ground truth building footprints
+    use_geometric_similarity: true # Use geometric features for building detection
+    min_building_height: 2.5 # Minimum height for building classification (m)
+    min_building_planarity: 0.6 # Minimum planarity for building surfaces
+
+# ============================================================================
+# Codes ASPRS
+# ============================================================================
+
+asprs_codes:
+  standard:
+    unclassified: 1
+    ground: 2
+    low_vegetation: 3
+    medium_vegetation: 4
+    high_vegetation: 5
+    building: 6
+    low_point: 7
+    water: 9
+    rail: 10
+    road: 11
+    bridge: 17
+
+  extended:
+    parking: 40
+    sports: 41
+    cemetery: 42
+    power_line: 43
+    agriculture: 44
+
+# ============================================================================
+# Configuration du Cache
+# ============================================================================
+
+cache:
+  enabled: true
+  base_dir: "cache" # Répertoire racine du cache
+
+  # Sous-répertoires par source
+  subdirs:
+    ground_truth: "ground_truth"
+    bd_foret: "bd_foret"
+    rpg: "rpg"
+    cadastre: "cadastre"
+
+  # Durée de vie du cache
+  ttl_days:
+    bd_topo: 30 # BD TOPO® mis à jour fréquemment
+    bd_foret: 365 # BD Forêt® stable
+    rpg: 365 # RPG annuel
+    cadastre: 180 # Cadastre semi-stable
+
+# ============================================================================
+# Configuration des Features Géométriques
+# ============================================================================
+
+geometric_features:
+  enabled: true
+  k_neighbors: 20 # Nombre de voisins pour calculs
+
+  compute:
+    height: true # Hauteur au-dessus du sol
+    normals: true # Normales de surface
+    planarity: true # Planéité
+    curvature: true # Courbure
+    roughness: false # Rugosité
+    eigenvalues: false # Valeurs propres
+
+# ============================================================================
+# Configuration des Sorties
+# ============================================================================
+
+output:
+  # Formats de sortie
+  formats:
+    laz: true # LAZ avec classification
+    geojson: true # GeoJSON avec statistiques
+    csv: true # CSV avec attributs
+    hdf5: false # HDF5 pour ML
+
+  # Attributs à sauvegarder
+  save_attributes:
+    classification: true # Labels de classification
+    ndvi: true # Valeurs NDVI
+    height: true # Hauteur
+    forest_type: true # Type de forêt
+    crop_type: true # Type de culture
+    parcel_id: true # ID parcelle cadastrale
+    confidence: false # Scores de confiance
+
+  # Statistiques par parcelle
+  parcel_statistics:
+    enabled: true
+    output_format: "geojson" # geojson, csv, ou both
+    include_class_distribution: true
+    include_point_density: true
+    include_crop_types: true
+
+# ============================================================================
+# Configuration du Traitement par Lots
+# ============================================================================
+
+batch_processing:
+  enabled: true
+
+  # Parallélisation
+  parallel:
+    enabled: true
+    n_workers: 4 # Nombre de workers
+    chunk_size: 1000000 # Taille des chunks (points)
+
+  # Optimisations
+  optimizations:
+    use_spatial_index: true # Index spatial pour jointures
+    cache_wfs_queries: true # Cache requêtes WFS
+    reuse_fetchers: true # Réutiliser fetchers entre tiles
+
+# ============================================================================
+# Configuration du Logging
+# ============================================================================
+
+logging:
+  level: "INFO" # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  # Logs par module
+  modules:
+    wfs_ground_truth: "INFO"
+    bd_foret: "INFO"
+    rpg: "INFO"
+    cadastre: "INFO"
+    advanced_classification: "INFO"
+    unified_fetcher: "INFO"
+
+  # Fichiers de log
+  files:
+    enabled: true
+    output_dir: "logs"
+    rotation: "daily" # daily, weekly, ou size
+    max_size_mb: 100
+
+# ============================================================================
+# Configuration Avancée
+# ============================================================================
+
+advanced:
+  # Gestion des données manquantes
+  missing_data:
+    strategy: "skip" # skip, interpolate, ou use_default
+    default_values:
+      ndvi: 0.0
+      height: 0.0
+
+  # Validation
+  validation:
+    enabled: true
+    check_geometry: true # Vérifier géométries valides
+    check_crs: true # Vérifier cohérence CRS
+    check_overlaps: true # Vérifier chevauchements
+
+  # Performance
+  performance:
+    profile_enabled: false # Profiling de performance
+    memory_limit_gb: 16 # Limite mémoire
+    use_dask: false # Utiliser Dask pour gros volumes

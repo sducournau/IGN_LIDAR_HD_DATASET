@@ -11,7 +11,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Type definitions
-ProcessingMode = Literal["patches_only", "both", "enriched_only"]
+ProcessingMode = Literal["patches_only", "both", "enriched_only", "reclassify_only"]
 
 
 class ConfigValidator:
@@ -23,10 +23,11 @@ class ConfigValidator:
     - Processing mode validation  
     - Preprocessing config setup
     - Stitching config setup
+    - Reclassification mode
     """
     
     SUPPORTED_FORMATS = ['npz', 'hdf5', 'pytorch', 'torch', 'laz']
-    VALID_PROCESSING_MODES = ["patches_only", "both", "enriched_only"]
+    VALID_PROCESSING_MODES = ["patches_only", "both", "enriched_only", "reclassify_only"]
     
     @staticmethod
     def validate_output_format(output_format: str) -> List[str]:

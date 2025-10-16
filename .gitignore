@@ -20,7 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-configs/
+
 # Build artifacts
 ign_lidar_hd-*/
 
@@ -51,6 +51,7 @@ ehthumbs.db
 
 # Archive directory
 .archive/
+archive/
 Thumbs.db
 
 # Project specific
@@ -85,13 +86,14 @@ enrichment*.log
 .pytest_cache/
 .coverage
 htmlcov/
+.tox/
+.nox/
 nosetests.xml
 coverage.xml
 *.cover
 *.py,cover
 .hypothesis/
-.tox/
-.nox/
+pytest_report*.html
 
 # MyPy
 .mypy_cache/
@@ -120,12 +122,14 @@ consolidate_repo.py
 # Keep data directory structure but ignore contents
 data/validation/*.json
 data/validation/*.npz
-
-# Archive directory (development artifacts)
-archive/
+data/cache/*
+data/test_output/*
 
 # Output directories (can be regenerated)
 outputs/
 
-# Log files
-*.log
+# Documentation build artifacts
+docs/node_modules/
+docs/.docusaurus/
+docs/build/
+docs/.mypy_cache/

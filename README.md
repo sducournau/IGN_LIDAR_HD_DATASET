@@ -8,13 +8,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 2.5.1** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 2.5.3** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
 **Transform IGN LiDAR HD point clouds into ML-ready datasets for building classification**
 
-[Quick Start](#-quick-start) • [What's New](#-whats-new-in-v251) • [Features](#-key-features) • [Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) • [Examples](#-usage-examples)
+[Quick Start](#-quick-start) • [What's New](#-whats-new-in-v253) • [Features](#-key-features) • [Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) • [Examples](#-usage-examples)
 
 </div>
 
@@ -34,13 +34,83 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ---
 
-## ✨ What's New in v2.5.1
+## ✨ What's New in v2.5.4
 
-### 📦 Maintenance Release
+### 🆕 Optional Reclassification in Main Pipeline
 
-**v2.5.1 is a maintenance release with documentation improvements and updates.**
+**v2.5.4 adds reclassification as an optional feature in the main processing pipeline!**
 
-#### Recent Updates (v2.5.0)
+You can now enable optimized ground truth reclassification directly in your processing config:
+
+```yaml
+processor:
+  reclassification:
+    enabled: true # Optional - disabled by default
+    acceleration_mode: "auto" # CPU, GPU, or GPU+cuML
+    use_geometric_rules: true
+```
+
+**Benefits:**
+
+- ✅ **Flexible**: Enable/disable without separate runs
+- ✅ **Fast**: GPU-accelerated spatial indexing
+- ✅ **Accurate**: Ground truth from BD TOPO®
+- ✅ **Backward compatible**: Existing configs work unchanged
+
+📖 See [`docs/RECLASSIFICATION_INTEGRATION.md`](docs/RECLASSIFICATION_INTEGRATION.md) and [`docs/RECLASSIFICATION_QUICKSTART.md`](docs/RECLASSIFICATION_QUICKSTART.md) for details
+
+---
+
+## ✨ What's New in v2.5.3
+
+### 🔧 Critical Fix: Ground Truth Classification
+
+**v2.5.3 fixes critical issues with BD TOPO® ground truth classification.**
+
+#### What Was Fixed
+
+Ground truth classification from IGN BD TOPO® wasn't working - no points were being classified to roads, cemeteries, power lines, etc.
+
+**Root Causes:**
+
+- Incorrect class imports (`MultiSourceDataFetcher` → `DataFetcher`)
+- Missing BD TOPO feature parameters (cemeteries, power_lines, sports)
+- Missing buffer parameters (road_width_fallback, etc.)
+- Wrong method call (`fetch_data()` → `fetch_all()`)
+
+**Impact:** Ground truth now works correctly for all ASPRS codes:
+
+- ✅ ASPRS 11: Roads
+- ✅ ASPRS 40: Parking
+- ✅ ASPRS 41: Sports Facilities
+- ✅ ASPRS 42: Cemeteries
+- ✅ ASPRS 43: Power Lines
+
+#### What Was Added
+
+**New BD TOPO® Configuration Directory** (`ign_lidar/configs/data_sources/`)
+
+Pre-configured Hydra configs for different use cases:
+
+- `default.yaml` - General purpose with core features
+- `asprs_full.yaml` - Complete ASPRS classification
+- `lod2_buildings.yaml` - Building-focused for LOD2
+- `lod3_architecture.yaml` - Architectural focus for LOD3
+- `disabled.yaml` - Pure geometric features
+
+**Usage:**
+
+```yaml
+defaults:
+  - data_sources: asprs_full # or lod2_buildings, lod3_architecture
+  - _self_
+```
+
+📖 See `ign_lidar/configs/data_sources/README.md` for complete documentation
+
+---
+
+### 📦 Previous Updates (v2.5.0-2.5.2)
 
 **v2.5.0 represented a complete internal modernization while maintaining 100% backward compatibility!**
 
@@ -438,7 +508,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {GitHub},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {2.5.1}
+  version      = {2.5.3}
 }
 ```
 

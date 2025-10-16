@@ -1,0 +1,460 @@
+# ========================================================================
+# LOD3 Preprocessing Configuration
+# ========================================================================
+# Updated: October 15, 2025 - Latest datasets (BD TOPO V3, BD Forêt V2, RPG 2024)
+# Purpose: Preprocess selected tiles for LOD3 detailed architectural
+#          classification with maximum feature extraction
+#
+# Input: /mnt/d/ign/selected_tiles/lod3/tiles
+# Output: Enriched LAZ tiles with comprehensive architectural features
+#
+# Features:
+# - Maximum geometric features (architectural detail focused)
+# - RGB, NIR, NDVI computation
+# - Enhanced RGB/IR augmentations
+# - Ground truth from IGN BD TOPO®
+# - NDVI-based preclassification
+# - LOD3 mode: Detailed building components (windows, doors, balconies, etc.)
+# - LOD3 mode: Advanced edge and opening detection
+# - LOD2 mode: Transport as ground class (building-focused workflow)
+# - Tile stitching for boundary continuity
+# - Output: Enriched LAZ only (no patches)
+#
+# Usage:
+#   ign-lidar-hd process --config config_lod3_preprocessing.yaml
+# ========================================================================
+
+defaults:
+  - processor: default
+  - features: maximum
+  - preprocess: default
+  - stitching: enabled
+  - output: default
+  - ground_truth: enabled
+  - _self_
+
+# ============================================================================
+# I/O PATHS
+# ============================================================================
+input_dir: /mnt/d/ign/selected_tiles/lod3/tiles
+output_dir: /mnt/d/ign/preprocessed/lod3/enriched_tiles
+cache_dir: /mnt/d/ign/cache # Root cache directory for all data sources
+
+# ============================================================================
+# PROCESSOR CONFIGURATION
+# ============================================================================
+processor:
+  skip_existing: true
+  lod_level: LOD3
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 1 # Single worker to maximize GPU utilization
+
+  # NO patch extraction - full tile enrichment only
+  patch_size: null
+  patch_overlap: null
+  num_points: null
+  augment: false
+  num_augmentations: 0
+
+  # Performance settings
+  batch_size: "auto"
+  prefetch_factor: 2
+  pin_memory: true
+
+  # ========================================================================
+  # DETECTION MODES - LOD3 Configuration
+  # ========================================================================
+  # Building Detection Mode: lod3 for detailed architectural elements
+  # Detects windows, doors, balconies, chimneys, dormers, etc.
+  building_detection_mode: lod3
+
+  # Transport Detection Mode: lod2 for ground-level transport surfaces
+  # LOD3 uses LOD2 transport mode (ground class) for building focus
+  transport_detection_mode: lod2
+
+  # ========================================================================
+  # RECLASSIFICATION SETTINGS - GPU-Accelerated Ground Truth Application
+  # ========================================================================
+  # Use reclassification mode to update existing enriched files with ground truth
+  # Supports: 'cpu', 'gpu', 'gpu+cuml', 'auto' (auto-detect best backend)
+  reclassification:
+    enabled: true # Enable to apply geometric rules during processing
+    acceleration_mode: auto # Auto-detect: gpu+cuml → gpu → cpu
+    chunk_size: 100000 # Points per chunk (CPU)
+    gpu_chunk_size: 500000 # Larger chunks for GPU
+    show_progress: true
+    skip_existing: true
+
+    # Geometric rules for intelligent refinement (LOD3 optimized)
+    use_geometric_rules: true # Apply geometric rules after basic classification
+
+    # NDVI-based refinement thresholds
+    ndvi_vegetation_threshold: 0.3 # NDVI >= this value = likely vegetation
+    ndvi_road_threshold: 0.15 # NDVI <= this value = likely road/impervious surface
+
+    # Road-vegetation disambiguation
+    road_vegetation_height_threshold: 2.0 # Height (m) above road to classify as vegetation
+
+    # Building buffer zone classification (most precise for LOD3)
+    building_buffer_distance: 1.0 # Minimal buffer (m) for architectural precision
+    max_building_height_difference: 2.0 # Strictest height (m) tolerance for LOD3
+
+    # Verticality-based building classification (maximum precision for LOD3)
+    verticality_threshold: 0.8 # Highest threshold for LOD3 architectural details
+    verticality_search_radius: 0.8 # Smaller radius (m) for fine architectural features
+    min_vertical_neighbors: 10 # Maximum neighbors for best precision
+
+# ============================================================================
+# TRANSPORT ENHANCEMENT - ADAPTIVE BUFFERING & SPATIAL INDEXING
+# ============================================================================
+transport_enhancement:
+  # Adaptive buffering with curvature awareness
+  adaptive_buffering:
+    enabled: true
+    curvature_aware: true
+    curvature_factor: 0.2
+    min_curve_radius: 50.0
+    type_specific_tolerance: true
+
+    # LOD3: Most lenient tolerances (ground class only) - improved
+    tolerance_motorway: 0.7 # Maximum tolerance for highways
+    tolerance_primary: 0.7 # Major roads
+    tolerance_secondary: 0.6 # Regional roads
+    tolerance_residential: 0.5 # Urban roads
+    tolerance_service: 0.4 # Narrow roads
+    tolerance_railway_main: 0.8 # Main railways with maximum ballast
+    tolerance_railway_tram: 0.5 # Embedded trams
+
+    # Intersection enhancement (not needed for LOD3)
+    intersection_enhancement: false
+
+    # Elevation awareness (critical for architectural details)
+    elevation_aware: true
+    elevation_tolerance: 1.5 # Consistent filtering
+    elevation_min: -0.3
+    elevation_max_road: 1.5
+    elevation_max_rail: 1.2
+
+  # Spatial indexing for fast processing
+  spatial_indexing:
+    enabled: true
+    index_type: rtree
+    cache_index: true
+    cache_dir: /mnt/d/ign/cache/spatial_index
+
+  # Quality metrics (minimal for LOD3 ground class)
+  quality_metrics:
+    enabled: false # Not critical for LOD3 building focus
+    save_confidence: false
+    detect_overlaps: false
+    generate_reports: false
+
+# ============================================================================
+# FEATURES CONFIGURATION - MAXIMUM FOR ARCHITECTURAL DETAILS + FULL ARCHITECTURAL
+# ============================================================================
+features:
+  mode: lod3 # Valid modes: minimal, lod2, lod3, asprs_classes, full
+  k_neighbors: 50 # Maximum neighbors for fine detail analysis
+  search_radius: 2.5 # Larger radius for context
+  include_extra: true # All extra features enabled
+
+  # Maximum geometric features for architectural details
+  compute_normals: true
+  compute_planarity: true # Essential for surface analysis
+  compute_curvature: true # Roof shapes, arches
+  compute_linearity: true # Edges, window frames
+  compute_verticality: true # Walls, columns
+  compute_height_above_ground: true # Building levels
+  compute_surface_variation: true # Texture analysis
+  compute_anisotropy: true # Directional features
+  compute_eigenvalue_features: true # PCA-based features
+  compute_sphericity: true # Domes, curved surfaces
+  compute_omnivariance: true # 3D shape descriptors
+
+  # Full architectural features suite (essential for LOD3 classification)
+  compute_architectural_features: true
+  compute_horizontality: true
+  compute_wall_likelihood: true
+  compute_roof_likelihood: true
+  compute_facade_score: true
+  compute_building_regularity: true
+  compute_corner_likelihood: true
+
+  # Edge and opening detection
+  compute_edge_features: true
+  edge_detection_threshold: 0.05 # Sensitive edge detection
+  compute_opening_features: true # Window/door detection
+  opening_min_area: 0.5 # m² minimum opening size
+  opening_max_area: 10.0 # m² maximum opening size
+
+  # Spectral features with enhanced augmentations
+  use_rgb: true
+  use_infrared: true
+  compute_ndvi: true
+
+  # Enhanced RGB/IR augmentations for LOD3
+  augment_rgb: true
+  rgb_brightness_range: [0.7, 1.3]
+  rgb_contrast_range: [0.7, 1.3]
+  rgb_saturation_range: [0.7, 1.3]
+  rgb_hue_range: [-0.05, 0.05]
+
+  augment_infrared: true
+  ir_intensity_range: [0.85, 1.15]
+
+  # Architectural component features
+  compute_wall_features: true
+  wall_thickness_estimation: true
+  compute_roof_features: true
+  roof_type_estimation: true
+  compute_balcony_features: true
+  compute_overhang_features: true
+  compute_chimney_features: true
+
+  # Texture and material features
+  compute_texture_features: true
+  texture_window_size: 0.5 # m
+  compute_local_density: true
+  density_radius: 0.3
+  compute_local_point_density: true
+
+  # Advanced geometric features for fine details
+  compute_roughness: true
+  roughness_radius: 0.5 # m - finer for architectural details
+  compute_moment_features: true # Statistical shape moments
+  compute_shape_index: true # Curvature-based shape classification
+
+  # Multi-scale features for architectural context
+  compute_multiscale_features: true
+  multiscale_radii: [0.3, 0.5, 1.0, 2.0, 3.0] # Fine to coarse scales
+
+  # Normal-based features (critical for openings)
+  compute_normal_variation: true
+  normal_variation_radius: 0.8
+  compute_normal_change_rate: true
+  compute_normal_entropy: true # Measure of local normal disorder
+
+  # Boundary and edge features
+  compute_boundary_features: true
+  boundary_detection_radius: 0.5
+  compute_corner_features: true
+  corner_detection_threshold: 0.1
+
+  # Covariance-based features
+  compute_covariance_features: true
+  covariance_eigenvalue_ratios: true
+
+  # Return intensity features (if available)
+  use_intensity: true
+  compute_intensity_variance: true
+  intensity_variance_radius: 0.5
+
+  # Shadow and occlusion features
+  compute_shadow_features: true
+  shadow_detection_threshold: 0.3
+
+  # Sampling and normalization
+  sampling_method: fps
+  normalize_xyz: true
+  normalize_features: true
+
+  # GPU acceleration (may need more memory)
+  gpu_batch_size: 800000 # Reduced due to more features
+  use_gpu_chunked: true
+
+# ============================================================================
+# PREPROCESSING - PRECISE OUTLIER REMOVAL FOR DETAILS
+# ============================================================================
+preprocess:
+  enabled: true
+
+  # Statistical Outlier Removal (most aggressive for fine details)
+  sor_enabled: true
+  sor_k: 15
+  sor_std: 1.5
+
+  # Radius Outlier Removal (stricter)
+  ror_enabled: true
+  ror_radius: 0.8
+  ror_neighbors: 8
+
+  # NO voxel downsampling - preserve maximum detail
+  voxel_enabled: false
+
+  # Optional: smooth normal estimation
+  smooth_normals: true
+  normal_smoothing_radius: 0.5
+
+# ============================================================================
+# TILE STITCHING - MAXIMUM BUFFER FOR ARCHITECTURAL CONTINUITY
+# ============================================================================
+stitching:
+  enabled: true
+  buffer_size: 25.0 # Maximum buffer for building details across tiles
+  auto_detect_neighbors: true
+  auto_download_neighbors: true
+  cache_enabled: true
+  cache_dir: /mnt/d/ign/cache/neighbors
+
+# ============================================================================
+# DATA SOURCES - MULTI-SOURCE INTEGRATION (LOD3 FOCUSED)
+# ============================================================================
+data_sources:
+  # BD TOPO® V3 - Infrastructure (maximum detail)
+  bd_topo:
+    enabled: true
+    cache_enabled: true
+    features:
+      buildings: true # Maximum focus for LOD3
+      roads: true
+      railways: true
+      water: true
+      vegetation: true
+      bridges: true
+      parking: true
+      cemeteries: false # Not essential for LOD3 building focus
+      power_lines: false # Not essential for LOD3 building focus
+      sports: false # Not essential for LOD3 building focus
+    parameters:
+      road_width_fallback: 4.0
+      road_buffer_tolerance: 0.5
+      railway_width_fallback: 3.5
+      railway_buffer_tolerance: 0.6
+      power_line_buffer: 2.0 # For consistency (if power_lines enabled)
+
+      # Height filtering
+      road_height_max: 1.5
+      road_height_min: -0.3
+      rail_height_max: 1.2
+      rail_height_min: -0.2
+
+      # Geometric filtering
+      road_planarity_min: 0.6
+      rail_planarity_min: 0.5
+
+      # Intensity filtering
+      enable_intensity_filter: true
+      road_intensity_min: 0.15
+      road_intensity_max: 0.7
+      rail_intensity_min: 0.1
+      rail_intensity_max: 0.8
+    cache_dir: /mnt/d/ign/cache/ground_truth
+
+  # BD Forêt® V2 - Forest types (not relevant for LOD3)
+  bd_foret:
+    enabled: false
+    cache_enabled: true
+    cache_dir: /mnt/d/ign/cache/bd_foret
+
+  # RPG 2024 - Agriculture (not relevant for LOD3)
+  rpg:
+    enabled: false
+    cache_enabled: true
+    year: 2024
+    cache_dir: /mnt/d/ign/cache/rpg
+
+  # Cadastre - Parcels (essential for building-parcel linking)
+  cadastre:
+    enabled: true # Essential for LOD3 building analysis
+    cache_enabled: true
+    group_by_parcel: true
+    label_parcel_id: true
+    compute_statistics: true
+    cache_dir: /mnt/d/ign/cache/cadastre
+
+# ============================================================================
+# GROUND TRUTH - IGN BD TOPO® + DETAILED ARCHITECTURAL PRECLASSIFICATION
+# ============================================================================
+ground_truth:
+  enabled: true
+  source: ign_bdtopo
+  preclassify: true
+
+  # NDVI-based vegetation preclassification
+  ndvi_vegetation_threshold: 0.3
+  ndvi_low_vegetation_threshold: 0.5
+  ndvi_high_vegetation_threshold: 0.7
+
+  # Building height thresholds (most detailed)
+  building_min_height: 3.0
+  building_max_height: 150.0
+  building_floor_height: 3.0 # For floor detection
+
+  # Building classification improvements (NEW - Oct 2025)
+  building_buffer_tolerance: 0.0 # Strict footprint matching for LOD3
+  use_building_footprints: true # Enable BD TOPO® footprint matching
+  ground_truth_building_priority: high # Override other classifications
+
+  # Post-processing for unclassified points (NEW - Oct 2025)
+  # Most comprehensive for LOD3 architectural details
+  post_processing:
+    enabled: true # Enable Stage 4 post-processing
+    reclassify_unclassified: true # Attempt to reclassify unclassified points
+    use_ground_truth_context: true # Use building footprints for context
+    use_geometric_similarity: true # Use geometric features for detailed detection
+    min_building_height: 3.0 # Minimum height for LOD3 buildings (m)
+    min_building_planarity: 0.7 # Higher planarity threshold for LOD3
+    min_wall_verticality: 0.75 # Strictest verticality for wall detection
+    min_roof_horizontality: 0.85 # Strict horizontality for roof detection
+    detect_openings: true # Enable window/door detection in post-processing
+    detect_edges: true # Enable edge detection for architectural details
+    edge_threshold: 0.05 # Sensitive edge detection
+
+  # Wall detection (strictest)
+  wall_verticality_threshold: 0.75
+  wall_min_height: 2.0
+  wall_max_thickness: 0.8
+
+  # Roof detection (detailed)
+  roof_planarity_threshold: 0.85
+  roof_slope_threshold: 10.0 # More sensitive
+  roof_min_area: 10.0
+
+  # Opening detection (windows/doors)
+  window_verticality_range: [0.3, 0.7] # Partially vertical
+  window_min_height: 0.8
+  window_max_height: 3.0
+  door_height_range: [1.8, 3.0]
+  door_width_range: [0.7, 2.0]
+
+  # Ground classification
+  ground_max_slope: 30.0
+
+  # Architectural component detection
+  detect_balconies: true
+  balcony_protrusion_threshold: 0.5
+  detect_chimneys: true
+  chimney_min_height: 1.0
+  detect_dormers: true
+  dormer_roof_angle_threshold: 30.0
+
+  # Cache ground truth data
+  cache_enabled: true
+  cache_dir: /mnt/d/ign/cache/ground_truth
+
+# ============================================================================
+# OUTPUT CONFIGURATION - LAZ ONLY (NO PATCHES)
+# ============================================================================
+output:
+  format: laz # Only enriched LAZ tiles
+  processing_mode: enriched_only # No patch extraction
+  save_stats: true
+  save_metadata: true
+  compression: true
+
+  # Metadata to save
+  save_feature_stats: true
+  save_class_distribution: true
+  save_quality_metrics: true
+  save_building_metrics: true
+  save_opening_metrics: true
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  level: INFO
+  log_file: /mnt/d/ign/logs/lod3_preprocessing.log
+  progress_bar: true
+  detailed_progress: true # More verbose for complex processing

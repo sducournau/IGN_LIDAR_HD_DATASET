@@ -1,0 +1,257 @@
+# Reclassification Configuration
+# This config enables fast ground truth classification updates using GPU acceleration
+#
+# Usage:
+#   python -m ign_lidar.cli.commands.process \
+#     --config-file configs/reclassification_config.yaml \
+#     input_dir=D:/ign/preprocessed/asprs/enriched_tiles \
+#     output_dir=D:/ign/preprocessed/asprs/reclassified_tiles
+
+# ============================================================================
+# Processing Mode - Reclassification Only
+# ============================================================================
+
+mode: "reclassify_only" # Only reclassify existing enriched tiles
+
+# ============================================================================
+# Input/Output Directories
+# ============================================================================
+
+input_dir: /mnt/d/ign/selected_tiles/asprs/tiles
+output_dir: /mnt/d/ign/preprocessed/asprs/reclassified_tiles
+cache_dir: /mnt/d/ign/cache
+
+# ============================================================================
+# Processing Configuration
+# ============================================================================
+
+processor:
+  lod_level: "LOD2" # Not used in reclassify mode, but required
+  architecture: "pointnet++" # Not used in reclassify mode, but required by schema
+  processing_mode: "reclassify_only"
+  num_workers: 1 # Reclassification is single-threaded (GPU handles parallelism)
+  use_gpu: false # Set to true if GPU is available for processing
+  patch_size: 150.0 # Not used in reclassify mode
+  patch_overlap: 0.1 # Not used in reclassify mode
+  num_points: 16384 # Not used in reclassify mode
+  skip_existing: true # Skip already reclassified files
+
+  # Augmentation settings (not used in reclassify mode)
+  augment: false
+  num_augmentations: 0
+
+  # Performance settings (not used in reclassify mode)
+  batch_size: "auto"
+  prefetch_factor: 2
+  pin_memory: false # Reclassification settings
+  reclassification:
+    enabled: true
+    acceleration_mode: "auto" # Options: 'cpu', 'gpu', 'gpu+cuml', 'auto'
+    chunk_size: 100000 # Points per chunk (100k for CPU, can be higher for GPU)
+    show_progress: true
+    skip_existing: true
+
+    # Performance tuning
+    gpu_chunk_size: 500000 # Use larger chunks when GPU is available
+    cpu_chunk_size: 100000 # Smaller chunks for CPU to avoid memory issues
+
+    # Geometric rules for intelligent refinement
+    use_geometric_rules: true # Apply geometric rules after basic reclassification
+
+    # NDVI-based refinement thresholds
+    ndvi_vegetation_threshold: 0.3 # NDVI >= this value = likely vegetation
+    ndvi_road_threshold: 0.15 # NDVI <= this value = likely road/impervious surface
+
+    # Road-vegetation disambiguation
+    road_vegetation_height_threshold: 2.0 # Height (m) above road to classify as vegetation
+
+    # Building buffer zone classification
+    building_buffer_distance: 2.0 # Buffer (m) around buildings for unclassified points
+    max_building_height_difference: 3.0 # Max height (m) difference for building points
+
+    # Verticality-based building classification
+    verticality_threshold: 0.7 # Verticality score threshold (0-1, higher = more vertical)
+    verticality_search_radius: 1.0 # Search radius (m) for verticality computation
+    min_vertical_neighbors: 5 # Minimum neighbors required for verticality
+
+# ============================================================================
+# Data Sources - BD TOPO® Ground Truth
+# ============================================================================
+
+data_sources:
+  # BD TOPO® V3 - Ground Truth Classification
+  bd_topo:
+    enabled: true
+    cache_enabled: true
+
+    # Features to fetch and apply
+    features:
+      buildings: true # ASPRS 6
+      roads: true # ASPRS 11 ⚠️ CRITICAL
+      railways: true # ASPRS 10 ⚠️ CRITICAL
+      water: true # ASPRS 9
+      vegetation: true # ASPRS 5
+      bridges: true # ASPRS 17
+      parking: true # ASPRS 40
+      cemeteries: true # ASPRS 42
+      power_lines: true # ASPRS 43
+      sports: true # ASPRS 41
+
+    # Geometry generation parameters
+    parameters:
+      road_width_fallback: 4.0
+      road_buffer_tolerance: 0.5
+      railway_width_fallback: 3.5
+      railway_buffer_tolerance: 0.6
+      power_line_buffer: 2.0
+
+    cache_dir: "cache/ground_truth"
+    use_cache: true
+
+  # Disable other data sources for reclassification
+  bd_foret:
+    enabled: false
+
+  rpg:
+    enabled: false
+
+  cadastre:
+    enabled: false
+
+# ============================================================================
+# Classification Settings
+# ============================================================================
+
+classification:
+  enabled: true
+
+  methods:
+    ground_truth: true # Only ground truth for reclassification
+    geometric: false
+    ndvi: false
+    forest_types: false
+    crop_types: false
+
+  # Priority order (lowest to highest - last one wins)
+  priority_order:
+    - vegetation
+    - water
+    - cemeteries
+    - parking
+    - sports
+    - railways
+    - roads
+    - bridges
+    - buildings # Highest priority
+
+# ============================================================================
+# Output Settings
+# ============================================================================
+
+output:
+  format: "laz" # Output format: laz only
+  processing_mode: "enriched_only" # Only create enriched LAZ (reclassification mode)
+  save_stats: false # Do not save statistics
+  save_metadata: false # Do not save metadata
+  compression: null # No compression
+  skip_existing: true # Skip already reclassified files
+
+# ============================================================================
+# Features Configuration (minimal for reclassification)
+# ============================================================================
+
+features:
+  mode: "minimal" # Minimal features for reclassification only
+  k_neighbors: 20
+  search_radius: null # Not used in reclassify mode
+
+  # Feature flags (all disabled for reclassification)
+  include_extra: false
+  use_rgb: false
+  use_infrared: false
+  compute_ndvi: false
+
+  # Sampling and normalization (not used in reclassify mode)
+  sampling_method: "random"
+  normalize_xyz: false
+  normalize_features: false
+
+  # GPU configuration (not used in reclassify mode)
+  gpu_batch_size: 1000000
+  use_gpu_chunked: true
+
+# ============================================================================
+# Preprocessing Configuration (minimal for reclassification)
+# ============================================================================
+
+preprocess:
+  enabled: false # No preprocessing needed for reclassification
+
+  # Statistical Outlier Removal (not used)
+  sor_k: 12
+  sor_std: 2.0
+
+  # Radius Outlier Removal (not used)
+  ror_radius: 1.0
+  ror_neighbors: 4
+
+  # Voxel downsampling (not used)
+  voxel_enabled: false
+  voxel_size: 0.1
+
+# ============================================================================
+# Stitching Configuration (not used for reclassification)
+# ============================================================================
+
+stitching:
+  enabled: false # No stitching needed for reclassification
+  buffer_size: 0.0
+  auto_detect_neighbors: true
+  auto_download_neighbors: false
+  cache_enabled: true
+
+# ============================================================================
+# Logging
+# ============================================================================
+
+log_level: "INFO" # DEBUG | INFO | WARNING | ERROR
+verbose: true
+
+# ============================================================================
+# Advanced Options
+# ============================================================================
+
+# Tile selection (optional)
+bbox: null # Optional: [xmin, ymin, xmax, ymax] to limit processing area
+max_tiles: null # Optional: limit number of tiles to process
+
+# ============================================================================
+# Performance Notes
+# ============================================================================
+#
+# CPU Mode (acceleration_mode: 'cpu'):
+#   - Processing time: ~5-10 minutes for 18M points
+#   - Memory usage: ~2-4 GB RAM
+#   - Best for: <5M points or systems without GPU
+#   - Uses: STRtree spatial indexing (O(log n) queries)
+#
+# GPU Mode (acceleration_mode: 'gpu'):
+#   - Processing time: ~1-2 minutes for 18M points
+#   - Memory usage: ~4-8 GB GPU VRAM
+#   - Best for: 5M-50M points with NVIDIA GPU
+#   - Requires: RAPIDS cuSpatial (conda install -c rapidsai cuspatial)
+#   - Uses: GPU-accelerated point-in-polygon tests
+#
+# GPU+cuML Mode (acceleration_mode: 'gpu+cuml'):
+#   - Processing time: ~30-60 seconds for 18M points
+#   - Memory usage: ~8-12 GB GPU VRAM
+#   - Best for: >50M points with high-end NVIDIA GPU
+#   - Requires: Full RAPIDS stack (cuspatial + cuml)
+#   - Uses: Additional GPU optimizations for large-scale processing
+#
+# Auto Mode (acceleration_mode: 'auto') - RECOMMENDED:
+#   - Automatically selects best available backend
+#   - Tries: gpu+cuml → gpu → cpu (in that order)
+#   - Safe default for all systems
+#
+# ============================================================================

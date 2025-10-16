@@ -1,6 +1,7 @@
 # Configuration Examples
 
-**Last Updated:** October 15, 2025
+**Last Updated:** October 16, 2025  
+**Library Version:** v2.5.3
 
 This directory contains example configurations and helper scripts for the IGN LiDAR HD processing library.
 
@@ -21,24 +22,29 @@ ign-lidar-hd info
 ## 📂 Directory Contents
 
 ### ✅ Active Example Configs
+
 - `config_architectural_analysis.yaml` - Architectural style analysis example
 - `config_architectural_training.yaml` - Training with architectural features
 
-### 📜 Python Examples  
+### 📜 Python Examples
+
 - `example_architectural_styles.py` - Architectural style detection API demo
 - `test_ground_truth_module.py` - Ground truth integration example
 
 ### 🔧 Utilities
+
 - `merge_multiscale_dataset.py` - Merge multi-scale patches
 - `run_multiscale_training.sh` - Multi-scale training workflow
 
 ### 📚 Documentation
+
 - `ARCHITECTURAL_CONFIG_REFERENCE.md`
-- `ARCHITECTURAL_STYLES_README.md`  
+- `ARCHITECTURAL_STYLES_README.md`
 - `MULTISCALE_QUICK_REFERENCE.md`
 - `MULTI_SCALE_TRAINING_STRATEGY.md`
 
 ### 🗄️ Archive
+
 - `archive/` - Legacy configs (see [archive/README.md](archive/README.md))
 - `archive/OLD_README.md` - Previous version of this file
 
@@ -63,7 +69,7 @@ ign-lidar-hd process experiment=dataset_50m input_dir=data/raw output_dir=data/5
 # 100m patches (balanced)
 ign-lidar-hd process experiment=dataset_100m input_dir=data/raw output_dir=data/100m
 
-# 150m patches (full context)  
+# 150m patches (full context)
 ign-lidar-hd process experiment=dataset_150m input_dir=data/raw output_dir=data/150m
 ```
 

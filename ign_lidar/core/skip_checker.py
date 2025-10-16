@@ -96,18 +96,64 @@ class PatchSkipChecker:
         
         # Special case: If only_enriched_laz mode, check for enriched LAZ file
         if self.only_enriched_laz:
-            # In enriched_only mode, files are saved directly in output_dir (no subdirectory)
-            enriched_path = output_dir / f"{tile_stem}_enriched.laz"
+            # In enriched_only mode, files can be saved in multiple locations/names:
+            # 1. Directly in output_dir with _enriched suffix (current behavior)
+            # 2. In output_dir/enriched/ subdirectory with _enriched suffix (legacy)
+            # 3. In output_dir/enriched/ subdirectory without _enriched suffix (very old)
+            # 4. Directly in output_dir without _enriched suffix (edge case)
+            possible_paths = [
+                output_dir / f"{tile_stem}_enriched.laz",  # Current
+                output_dir / "enriched" / f"{tile_stem}_enriched.laz",  # Legacy with suffix
+                output_dir / "enriched" / f"{tile_stem}.laz",  # Legacy without suffix
+                output_dir / f"{tile_stem}.laz",  # Direct without suffix
+            ]
             
-            # Simple filename check - don't validate content for enrich-only mode
-            # This avoids expensive recomputation and LAZ loading
-            if enriched_path.exists() and enriched_path.stat().st_size > self.min_file_size:
-                # File exists and has valid size - skip processing
-                return True, {
-                    'reason': 'enriched_laz_exists',
-                    'enriched_path': str(enriched_path),
-                    'file_size_mb': enriched_path.stat().st_size / (1024 * 1024),
+            # Find first existing file with valid size
+            enriched_path = None
+            for path in possible_paths:
+                if path.exists() and path.stat().st_size > self.min_file_size:
+                    enriched_path = path
+                    break
+            
+            if enriched_path is None:
+                # File doesn't exist in any location - process it
+                return False, {
+                    'reason': 'no_enriched_laz',
+                    'checked_paths': [str(p) for p in possible_paths],
                 }
+            
+            # Validate both existence and content
+            if enriched_path.exists() and enriched_path.stat().st_size > self.min_file_size:
+                # File exists - now validate it has required features
+                is_valid, validation_info = self._validate_enriched_laz(
+                    enriched_path,
+                    include_rgb=include_rgb,
+                    include_infrared=include_infrared,
+                    compute_ndvi=compute_ndvi,
+                    include_extra_features=include_extra_features,
+                    include_classification=include_classification,
+                    include_forest=include_forest,
+                    include_agriculture=include_agriculture,
+                    include_cadastre=include_cadastre
+                )
+                
+                if is_valid:
+                    # File exists and has all required features - skip processing
+                    return True, {
+                        'reason': 'enriched_laz_complete',
+                        'enriched_path': str(enriched_path),
+                        'file_size_mb': enriched_path.stat().st_size / (1024 * 1024),
+                        'features_validated': validation_info.get('features_present', []),
+                    }
+                else:
+                    # File exists but is missing features - reprocess it
+                    missing_features = validation_info.get('missing_features', [])
+                    return False, {
+                        'reason': 'enriched_laz_incomplete',
+                        'enriched_path': str(enriched_path),
+                        'missing_features': missing_features,
+                        'error': validation_info.get('error', 'Unknown validation error'),
+                    }
             else:
                 # File doesn't exist or is too small - process it
                 return False, {
@@ -612,7 +658,17 @@ class PatchSkipChecker:
         corrupted_count = skip_info.get('corrupted_count', 0)
         
         # New enriched LAZ skip reasons
-        if reason == 'enriched_laz_exists':
+        if reason == 'enriched_laz_complete':
+            file_size_mb = skip_info.get('file_size_mb', 0)
+            features = skip_info.get('features_validated', [])
+            return f"⏭️  {tile_path.name}: Valid enriched LAZ exists ({file_size_mb:.1f} MB, {len(features)} features), skipping"
+        
+        elif reason == 'enriched_laz_incomplete':
+            missing = skip_info.get('missing_features', [])
+            error = skip_info.get('error', 'unknown')
+            return f"🔄 {tile_path.name}: Enriched LAZ incomplete (missing: {missing}), reprocessing"
+        
+        elif reason == 'enriched_laz_exists':
             file_size_mb = skip_info.get('file_size_mb', 0)
             return f"⏭️  {tile_path.name}: Enriched LAZ exists ({file_size_mb:.1f} MB), skipping"
         

@@ -47,6 +47,9 @@ class ProcessorConfig:
     batch_size: Union[str, int] = "auto"
     prefetch_factor: int = 2
     pin_memory: bool = False
+    
+    # Optional reclassification settings
+    reclassification: Optional[dict] = None
 
 
 @dataclass
