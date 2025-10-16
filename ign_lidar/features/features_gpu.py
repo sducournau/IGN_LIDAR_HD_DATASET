@@ -70,16 +70,44 @@ class GPUFeatureComputer:
         self.use_cuml = use_gpu and CUML_AVAILABLE
         self.batch_size = batch_size
         
+        # Initialize CUDA context safely for multiprocessing
+        if self.use_gpu:
+            self._initialize_cuda_context()
+        
         if self.use_gpu:
             print(f"🚀 Mode GPU activé (batch_size={batch_size:,})")
         else:
             msg = "💻 Mode CPU (installer CuPy pour accélération)"
             print(msg)
     
-    def _to_gpu(self, array: np.ndarray):
-        """Transfert array vers GPU."""
+    def _initialize_cuda_context(self):
+        """Initialize CUDA context safely for multiprocessing."""
         if self.use_gpu and cp is not None:
-            return cp.asarray(array, dtype=cp.float32)
+            try:
+                # Force CUDA context initialization
+                _ = cp.cuda.Device()
+                # Test basic operation
+                test_array = cp.array([1.0], dtype=cp.float32)
+                _ = cp.asnumpy(test_array)
+                return True
+            except Exception as e:
+                print(f"⚠ CUDA initialization failed: {e}")
+                print("💻 Falling back to CPU mode")
+                self.use_gpu = False
+                self.use_cuml = False
+                return False
+        return False
+
+    def _to_gpu(self, array: np.ndarray):
+        """Transfert array vers GPU with safe context initialization."""
+        if self.use_gpu and cp is not None:
+            try:
+                return cp.asarray(array, dtype=cp.float32)
+            except Exception as e:
+                print(f"⚠ GPU transfer failed: {e}")
+                print("💻 Falling back to CPU for this operation")
+                # Don't disable GPU completely, just this operation
+                return array
         return array
     
     def _to_cpu(self, array) -> np.ndarray:
@@ -110,18 +138,33 @@ class GPUFeatureComputer:
         if not GPU_AVAILABLE or cp is None:
             return self._compute_normals_cpu(points, k)
             
-        N = len(points)
-        normals = np.zeros((N, 3), dtype=np.float32)
-        
-        # Transfert vers GPU
-        points_gpu = self._to_gpu(points)
-        
-        # Build GPU KNN
-        knn = cuNearestNeighbors(n_neighbors=k, metric='euclidean')
-        knn.fit(points_gpu)
-        
-        # Traitement par batch pour éviter OOM
-        num_batches = (N + self.batch_size - 1) // self.batch_size
+        try:
+            # Ensure CUDA context is initialized for this process
+            if not hasattr(self, '_cuda_initialized'):
+                self._initialize_cuda_context()
+                self._cuda_initialized = True
+                
+            N = len(points)
+            normals = np.zeros((N, 3), dtype=np.float32)
+            
+            # Transfert vers GPU
+            points_gpu = self._to_gpu(points)
+            
+            # If GPU transfer failed, fallback to CPU
+            if not isinstance(points_gpu, cp.ndarray):
+                return self._compute_normals_cpu(points, k)
+            
+            # Build GPU KNN
+            knn = cuNearestNeighbors(n_neighbors=k, metric='euclidean')
+            knn.fit(points_gpu)
+            
+            # Traitement par batch pour éviter OOM
+            num_batches = (N + self.batch_size - 1) // self.batch_size
+            
+        except Exception as e:
+            print(f"⚠ GPU normal computation failed: {e}")
+            print("💻 Falling back to CPU computation")
+            return self._compute_normals_cpu(points, k)
         
         for batch_idx in range(num_batches):
             start_idx = batch_idx * self.batch_size
@@ -623,7 +666,7 @@ class GPUFeatureComputer:
         # === FACULTATIVE FEATURES: WALL AND ROOF SCORES ===
         # Wall score: High planarity + Vertical surface (|normal_z| close to 0)
         # Roof score: High planarity + Horizontal surface (|normal_z| close to 1)
-        verticality = (1.0 - np.abs(normals[:, 2])).astype(np.float32)  # 0=horizontal, 1=vertical
+        verticality = core_compute_verticality(normals)  # Use core implementation
         horizontality = np.abs(normals[:, 2]).astype(np.float32)        # 1=horizontal, 0=vertical
         
         wall_score = (planarity * verticality).astype(np.float32)
@@ -687,7 +730,7 @@ class GPUFeatureComputer:
             Uses core implementation with optional GPU acceleration for data transfer.
         """
         if self.use_gpu and cp is not None:
-            # GPU computation
+            # GPU computation - optimized version
             normals_gpu = self._to_gpu(normals)
             verticality_gpu = 1.0 - cp.abs(normals_gpu[:, 2])
             return self._to_cpu(verticality_gpu).astype(np.float32)
@@ -719,8 +762,9 @@ class GPUFeatureComputer:
             normals_gpu = self._to_gpu(normals)
             height_gpu = self._to_gpu(height_above_ground)
             
-            # Verticality component
-            verticality = 1.0 - cp.abs(normals_gpu[:, 2])
+            # Verticality component - use core implementation
+            verticality_cpu = core_compute_verticality(self._to_cpu(normals_gpu))
+            verticality = self._to_gpu(verticality_cpu)
             
             # Height component (walls are typically > 1.5m above ground)
             height_score = cp.clip((height_gpu - min_height) / 5.0, 0, 1)
@@ -730,8 +774,8 @@ class GPUFeatureComputer:
             
             return self._to_cpu(wall_score_gpu).astype(np.float32)
         else:
-            # CPU fallback
-            verticality = 1.0 - np.abs(normals[:, 2])
+            # CPU fallback - use core implementation
+            verticality = core_compute_verticality(normals)
             height_score = np.clip((height_above_ground - min_height) / 5.0, 0, 1)
             wall_score = verticality * height_score
             return wall_score.astype(np.float32)
@@ -1566,12 +1610,23 @@ def compute_verticality(normals: np.ndarray) -> np.ndarray:
     """
     Wrapper for GPU-accelerated verticality computation.
     
+    .. deprecated:: 1.8.0
+        Use ign_lidar.features.core.compute_verticality() directly instead.
+        This wrapper will be removed in v2.0.0.
+    
     Args:
         normals: [N, 3] surface normal vectors
         
     Returns:
         verticality: [N] verticality values [0, 1]
     """
+    import warnings
+    warnings.warn(
+        "compute_verticality from features_gpu is deprecated. "
+        "Use ign_lidar.features.core.compute_verticality() directly.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     computer = get_gpu_computer()
     return computer.compute_verticality(normals)
 

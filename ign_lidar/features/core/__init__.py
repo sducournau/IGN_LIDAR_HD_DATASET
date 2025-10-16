@@ -87,6 +87,11 @@ from .utils import (
     compute_local_frame,
 )
 
+# Geometric features (consolidated)
+from .geometric import (
+    extract_geometric_features,
+)
+
 __all__ = [
     # Normal computation
     'compute_normals',
@@ -142,6 +147,9 @@ __all__ = [
     'normalize_features',
     'handle_nan_inf',
     'compute_local_frame',
+    
+    # Geometric features (consolidated)
+    'extract_geometric_features',
 ]
 
 __version__ = '1.0.0'

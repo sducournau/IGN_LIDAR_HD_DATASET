@@ -99,16 +99,10 @@ def compute_verticality(normals: np.ndarray) -> np.ndarray:
         Verticality values of shape (N,), range [0, 1]
         1 = perfectly vertical, 0 = perfectly horizontal
     """
-    # Vertical direction
-    vertical = np.array([0, 0, 1], dtype=np.float32)
-    
-    # Angle between normal and vertical
-    dot_product = np.abs(np.dot(normals, vertical))
-    
-    # Verticality: 1 - |dot(normal, vertical)|
-    # When normal is horizontal (perpendicular to vertical), dot = 0, verticality = 1
-    # When normal is vertical (parallel to vertical), dot = 1, verticality = 0
-    verticality = 1.0 - dot_product
+    # Verticality: 1 - |normal_z|
+    # When normal is horizontal (perpendicular to vertical), nz = 0, verticality = 1
+    # When normal is vertical (parallel to vertical), nz = ±1, verticality = 0
+    verticality = 1.0 - np.abs(normals[:, 2])
     
     return verticality.astype(np.float32)
 

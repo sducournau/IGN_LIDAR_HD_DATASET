@@ -316,9 +316,9 @@ class FeatureComputerFactory:
     @staticmethod
     def create(
         use_gpu: bool = False,
-        use_chunked: bool = False,
-        use_boundary_aware: bool = False,
-        gpu_batch_size: int = 1_000_000,
+        chunked: bool = False,
+        boundary_aware: bool = False,
+        batch_size: int = 1_000_000,
         k_neighbors: int = 20,
         buffer_size: float = 10.0,
         tile_bounds: Optional[Tuple[float, float, float, float]] = None,
@@ -357,7 +357,7 @@ class FeatureComputerFactory:
         )
         
         # Boundary-aware takes precedence (used for tile stitching)
-        if use_boundary_aware:
+        if boundary_aware:
             logger.info(f"Creating boundary-aware feature computer (buffer={buffer_size}m)")
             return BoundaryAwareFeatureComputer(
                 k_neighbors=k_neighbors,
@@ -369,11 +369,11 @@ class FeatureComputerFactory:
         # GPU processing
         if use_gpu:
             # Check if chunked processing is requested
-            if use_chunked:
-                logger.info(f"Creating GPU chunked feature computer (batch_size={gpu_batch_size:,})")
+            if chunked:
+                logger.info(f"Creating GPU chunked feature computer (batch_size={batch_size:,})")
                 computer = GPUChunkedFeatureComputer(
                     k_neighbors=k_neighbors,
-                    gpu_batch_size=gpu_batch_size,
+                    gpu_batch_size=batch_size,
                     **kwargs
                 )
                 if not computer.is_available():

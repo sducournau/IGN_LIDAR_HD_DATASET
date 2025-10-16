@@ -38,6 +38,7 @@ from ..features.core import (
     compute_eigenvalue_features as core_compute_eigenvalue_features,
     compute_density_features as core_compute_density_features,
     compute_verticality as core_compute_verticality,
+    extract_geometric_features as core_extract_geometric_features,
 )
 
 logger = logging.getLogger(__name__)
@@ -326,6 +327,10 @@ def compute_verticality(normals: np.ndarray) -> np.ndarray:
     
     Verticality = 1 - |normal_z| (1 for vertical, 0 for horizontal)
     
+    .. deprecated:: 1.8.0
+        Use ign_lidar.features.core.compute_verticality() directly instead.
+        This wrapper will be removed in v2.0.0.
+    
     Args:
         normals: [N, 3] surface normals
     
@@ -336,6 +341,13 @@ def compute_verticality(normals: np.ndarray) -> np.ndarray:
         This is a wrapper around the core implementation.
         Use ign_lidar.features.core.compute_verticality directly for new code.
     """
+    import warnings
+    warnings.warn(
+        "compute_verticality from features is deprecated. "
+        "Use ign_lidar.features.core.compute_verticality() directly.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return core_compute_verticality(normals)
 
 
@@ -355,8 +367,8 @@ def compute_building_scores(
         wall_score: [N] wall likelihood (planarity × verticality)
         roof_score: [N] roof likelihood (planarity × horizontality)
     """
-    # Verticality: 1 for vertical, 0 for horizontal
-    verticality = 1.0 - np.abs(normals[:, 2])
+    # Verticality: 1 for vertical, 0 for horizontal - use core implementation
+    verticality = core_compute_verticality(normals)
     
     # Horizontality: 1 for horizontal, 0 for vertical
     horizontality = np.abs(normals[:, 2])
@@ -878,18 +890,15 @@ def compute_num_points_in_radius(points: np.ndarray,
 
 def extract_geometric_features(points: np.ndarray, normals: np.ndarray,
                                k: int = 10,
-                               radius: float = None) -> Dict[str, np.ndarray]:
+                               radius: Optional[float] = None) -> Dict[str, np.ndarray]:
     """
     Extract comprehensive geometric features for each point.
-    Version ULTRA-OPTIMISÉE avec recherche par RAYON adaptatif.
     
-    IMPORTANT: Utilise un rayon spatial au lieu de k-neighbors fixes pour éviter
-    les artefacts de lignes pointillées causés par le pattern de scan LIDAR.
+    .. deprecated:: 1.8.0
+        Use ign_lidar.features.core.extract_geometric_features() directly instead.
+        This wrapper will be removed in v2.0.0.
     
     Features computed (all based on eigenvalue decomposition):
-    Using standard formulas (Weinmann et al., Demantké et al.)
-    where λ0 >= λ1 >= λ2 are eigenvalues in descending order:
-    
     - Linearity: (λ0-λ1)/λ0 - 1D structures (edges, cables) [0,1]
     - Planarity: (λ1-λ2)/λ0 - 2D structures (roofs, walls) [0,1]
     - Sphericity: λ2/λ0 - 3D structures (vegetation, noise) [0,1]
@@ -897,15 +906,23 @@ def extract_geometric_features(points: np.ndarray, normals: np.ndarray,
     - Roughness: λ2/Σλ - surface roughness (smooth vs rough) [0,1]
     - Density: 1/mean_dist - local point density
     
-    Properties:
-    - Linearity + Planarity + Sphericity = 1.0 (exact, due to λ0 normalization)
-    - For 1D: Linearity ≈ 1, Planarity ≈ 0, Sphericity ≈ 0
-    - For 2D: Linearity ≈ 0, Planarity ≈ 1, Sphericity ≈ 0
-    - For 3D: Linearity ≈ 0, Planarity ≈ 0, Sphericity ≈ 1
-    
-    Note: Verticality/Horizontality removed (use normals directly)
-    
     Args:
+        points: [N, 3] point coordinates
+        normals: [N, 3] normal vectors
+        k: number of neighbors (default: 10)
+        radius: search radius in meters (recommended)
+        
+    Returns:
+        features: dictionary of geometric features
+    """
+    import warnings
+    warnings.warn(
+        "extract_geometric_features from features is deprecated. "
+        "Use ign_lidar.features.core.extract_geometric_features() directly.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return core_extract_geometric_features(points, normals, k=k, radius=radius)
         points: [N, 3] point coordinates
         normals: [N, 3] normal vectors (not used here, kept for API compat)
         k: number of neighbors (used only if radius=None, fallback)
@@ -987,7 +1004,7 @@ def extract_geometric_features(points: np.ndarray, normals: np.ndarray,
     # === FACULTATIVE FEATURES: WALL AND ROOF SCORES ===
     # Wall score: High planarity + Vertical surface (|normal_z| close to 0)
     # Roof score: High planarity + Horizontal surface (|normal_z| close to 1)
-    verticality = 1.0 - np.abs(normals[:, 2])  # 0=horizontal, 1=vertical
+    verticality = core_compute_verticality(normals)  # Use core implementation
     horizontality = np.abs(normals[:, 2])      # 1=horizontal, 0=vertical
     
     wall_score = (planarity * verticality).astype(np.float32)
@@ -1474,7 +1491,7 @@ def compute_all_features_optimized(
     # === FACULTATIVE FEATURES: WALL AND ROOF SCORES ===
     # Wall score: High planarity + Vertical surface (|normal_z| close to 0)
     # Roof score: High planarity + Horizontal surface (|normal_z| close to 1)
-    verticality = 1.0 - np.abs(normals[:, 2])  # 0=horizontal, 1=vertical
+    verticality = core_compute_verticality(normals)  # Use core implementation
     horizontality = np.abs(normals[:, 2])      # 1=horizontal, 0=vertical
     
     wall_score = (planarity * verticality).astype(np.float32)
