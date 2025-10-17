@@ -68,7 +68,7 @@ time ign-lidar-hd process \
     processor.batch_size=512 \
     processor.apply_reclassification_inline=true \
     processor.reclassification.enabled=true \
-    processor.reclassification.acceleration_mode=auto \
+    processor.reclassification.acceleration_mode=cpu \
     processor.reclassification.use_geometric_rules=true \
     \
     processing.mode=enriched_only \

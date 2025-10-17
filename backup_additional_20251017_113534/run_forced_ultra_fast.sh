@@ -1,7 +1,6 @@
 #!/bin/bash
-# IGN LiDAR HD - Ground Truth Reclassification Pipeline
-# ENRICHED LAZ with BD TOPO Ground Truth Classification
-# NO Cadastre - FAST Processing
+# ULTRA-FAST IGN LiDAR HD Pipeline - FORCE ALL PARAMETERS
+# NO Hydra overrides - Direct parameter specification
 # Date: October 17, 2025
 
 # Function to log with timestamp
@@ -27,7 +26,7 @@ fi
 # Configuration paths
 CONFIG="configs/config_asprs_rtx4080.yaml"
 INPUT_DIR="/mnt/d/ign/selected_tiles/asprs/tiles"
-OUTPUT_DIR="/mnt/d/ign/preprocessed/asprs/enriched_reclassified"
+OUTPUT_DIR="/mnt/d/ign/preprocessed/asprs/enriched_ultra_fast"
 CACHE_DIR="/mnt/d/ign/cache"
 
 # Create output and cache directories
@@ -36,17 +35,15 @@ mkdir -p "$CACHE_DIR"
 
 # Display configuration
 echo "======================================================================"
-echo "IGN LiDAR HD - Ground Truth Reclassification Pipeline"
+echo "IGN LiDAR HD - FORCE ULTRA-FAST Pipeline (Parameter Override)"
 echo "======================================================================"
-echo "Input:              $INPUT_DIR"
-echo "Output:             $OUTPUT_DIR"
-echo "Config:             $CONFIG"
-echo "Mode:               ENRICHED + GROUND TRUTH RECLASSIFICATION"
-echo "Ground Truth:       BD TOPO (Buildings, Roads, Water)"
-echo "Cadastre:           DISABLED (for speed)"
-echo "NDVI:               DISABLED (for speed)" 
-echo "Reclassification:   ENABLED (CPU mode for stability)"
-echo "GPU Features:       ENABLED (16M batch size)"
+echo "Input:        $INPUT_DIR"
+echo "Output:       $OUTPUT_DIR"
+echo "Config:       $CONFIG (with FORCED overrides)"
+echo "Mode:         ENRICHED_ONLY + PARAMETER FORCING"
+echo "GPU Batch:    FORCED to 16M points"
+echo "Cadastre:     FORCED DISABLED"
+echo "NIR/NDVI:     FORCED DISABLED"
 echo "======================================================================"
 echo ""
 
@@ -73,8 +70,8 @@ fi
 # Record start time
 START_TIME=$(date +%s)
 
-# Run with Ground Truth Reclassification ENABLED
-log_info "Starting Ground Truth Reclassification pipeline..."
+# Run with MAXIMUM parameter forcing to override Hydra defaults
+log_info "Starting ULTRA-FAST pipeline with FORCED parameters..."
 
 ign-lidar-hd process \
     --config-file "$CONFIG" \
@@ -93,15 +90,15 @@ ign-lidar-hd process \
     processor.direct_enrichment=true \
     processor.use_stitching=false \
     processor.buffer_size=0.0 \
-    processor.apply_reclassification_inline=true \
-    processor.reclassification.enabled=true \
-    processor.reclassification.acceleration_mode=auto \
-    processor.reclassification.chunk_size=2000000 \
-    processor.reclassification.use_geometric_rules=true \
+    processor.apply_reclassification_inline=false \
+    processor.reclassification.enabled=false \
     \
     processing.mode=enriched_only \
     processing.architecture=direct \
     processing.generate_patches=false \
+    processing.patch_size=null \
+    processing.patch_overlap=null \
+    processing.num_points=null \
     processing.use_gpu=true \
     processing.num_workers=1 \
     \
@@ -126,19 +123,11 @@ ign-lidar-hd process \
     \
     ground_truth.enabled=true \
     ground_truth.update_classification=true \
-    ground_truth.apply_reclassification=true \
     ground_truth.use_ndvi=false \
     ground_truth.fetch_rgb_nir=false \
     ground_truth.optimization.force_method=auto \
     ground_truth.optimization.enable_monitoring=false \
     ground_truth.optimization.enable_auto_tuning=false \
-    \
-    classification.enabled=true \
-    classification.methods.ground_truth=true \
-    classification.methods.geometric=true \
-    classification.methods.ndvi=false \
-    classification.methods.forest_types=false \
-    classification.methods.crop_types=false \
     \
     data_sources.bd_topo_enabled=true \
     data_sources.bd_topo_buildings=true \
@@ -148,7 +137,6 @@ ign-lidar-hd process \
     data_sources.cadastre_enabled=false \
     data_sources.bd_foret_enabled=false \
     data_sources.rpg_enabled=false \
-    data_sources.bd_topo.enabled=true \
     data_sources.bd_topo.features.buildings=true \
     data_sources.bd_topo.features.roads=true \
     data_sources.bd_topo.features.water=true \
@@ -174,20 +162,18 @@ DURATION_SEC=$((DURATION % 60))
 if [ $? -eq 0 ]; then
     echo ""
     echo "======================================================================"
-    echo "✅ Ground Truth Reclassification Pipeline completed successfully!"
+    echo "✅ ULTRA-FAST FORCED Pipeline completed successfully!"
     echo "======================================================================"
     log_info "Processing completed in ${DURATION_MIN}m ${DURATION_SEC}s"
     log_info "Output directory: $OUTPUT_DIR"
     echo ""
     
     if [ -d "$OUTPUT_DIR" ]; then
-        ENRICHED_COUNT=$(find "$OUTPUT_DIR" -name "*enriched*.laz" | wc -l)
-        RECLASSIFIED_COUNT=$(find "$OUTPUT_DIR" -name "*reclassified*.laz" | wc -l)
+        ENRICHED_COUNT=$(find "$OUTPUT_DIR" -name "*.laz" -not -name "*patch*" | wc -l)
         PATCH_COUNT=$(find "$OUTPUT_DIR" -name "*patch*.laz" | wc -l 2>/dev/null || echo "0")
         
         echo "Results:"
         echo "✅ Enriched LAZ files: $ENRICHED_COUNT"
-        echo "✅ Reclassified LAZ files: $RECLASSIFIED_COUNT"
         if [ "$PATCH_COUNT" -gt 0 ]; then
             echo "⚠️  WARNING: Patches still generated: $PATCH_COUNT (should be 0!)"
         else
@@ -197,20 +183,7 @@ if [ $? -eq 0 ]; then
         echo ""
         echo "Sample output files:"
         find "$OUTPUT_DIR" -name "*.laz" | head -5
-        
-        echo ""
-        echo "File sizes:"
-        find "$OUTPUT_DIR" -name "*.laz" -exec ls -lh {} \; | head -3
     fi
-    
-    echo ""
-    echo "Ground Truth Classification Features Applied:"
-    echo "✅ BD TOPO Buildings → ASPRS Class 6"
-    echo "✅ BD TOPO Roads → ASPRS Class 11" 
-    echo "✅ BD TOPO Water → ASPRS Class 9"
-    echo "✅ Geometric rules for remaining points"
-    echo "❌ Cadastre processing (disabled for speed)"
-    echo "❌ NDVI classification (disabled for speed)"
     
     echo ""
     echo "Performance:"
@@ -221,16 +194,8 @@ if [ $? -eq 0 ]; then
 else
     echo ""
     echo "======================================================================"
-    echo "❌ Ground Truth Reclassification Pipeline failed!"
+    echo "❌ ULTRA-FAST FORCED Pipeline failed!"
     echo "======================================================================"
     log_error "Processing failed after ${DURATION_MIN}m ${DURATION_SEC}s"
-    log_error "Check the logs above for error details"
-    
-    echo ""
-    echo "Common issues to check:"
-    echo "1. GPU memory: nvidia-smi"
-    echo "2. Disk space in output directory"
-    echo "3. BD TOPO cache/network connectivity"
-    echo "4. Input file validity"
     exit 1
 fi

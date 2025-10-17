@@ -95,7 +95,7 @@ ign-lidar-hd process \
     processor.buffer_size=0.0 \
     processor.apply_reclassification_inline=true \
     processor.reclassification.enabled=true \
-    processor.reclassification.acceleration_mode=auto \
+    processor.reclassification.acceleration_mode=cpu \
     processor.reclassification.chunk_size=2000000 \
     processor.reclassification.use_geometric_rules=true \
     \
