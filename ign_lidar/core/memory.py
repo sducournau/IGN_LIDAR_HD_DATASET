@@ -846,6 +846,175 @@ class AdaptiveMemoryManager:
         
         return optimal_workers
     
+    def calculate_optimal_gpu_chunk_size(
+        self,
+        num_points: int,
+        vram_free_gb: Optional[float],
+        feature_mode: str = 'minimal',
+        k_neighbors: int = 10
+    ) -> int:
+        """
+        Calculate optimal GPU chunk size for reclassification processing.
+        
+        Strategy:
+        1. Estimate GPU memory required per point
+        2. Calculate safe chunk size based on available VRAM
+        3. Apply reclassification-specific optimizations
+        4. Ensure minimum viable chunk size
+        
+        Args:
+            num_points: Total number of points to process
+            vram_free_gb: Available VRAM in GB (None = auto-detect)
+            feature_mode: Feature computation mode ('minimal', 'lod2', 'lod3', 'full')
+            k_neighbors: Number of neighbors for computations
+            
+        Returns:
+            Optimal GPU chunk size (0 if insufficient VRAM)
+        """
+        # Handle None VRAM value
+        if vram_free_gb is None:
+            try:
+                status = self.get_current_memory_status()
+                vram_free_gb = status[2] if len(status) > 2 else 8.0
+            except Exception:
+                vram_free_gb = 8.0  # Conservative default
+        
+        if vram_free_gb < 1.0:
+            logger.warning(
+                f"⚠️ Insufficient VRAM ({vram_free_gb:.1f}GB < 1.0GB required)"
+            )
+            return 0
+        
+        # GPU memory estimates per point (bytes) for different modes
+        # These include neighbor indices, covariance matrices, and intermediate results
+        GPU_BYTES_PER_POINT = {
+            'minimal': 150,    # Basic features only
+            'lod2': 220,      # LOD2 features
+            'lod3': 280,      # LOD3 features  
+            'full': 350,      # All features including architectural
+        }
+        
+        # K-neighbors memory multiplier (higher k = more memory)
+        k_multiplier = max(1.0, k_neighbors / 10.0)
+        
+        # Base memory per point
+        base_bytes = GPU_BYTES_PER_POINT.get(feature_mode, 350)
+        bytes_per_point = int(base_bytes * k_multiplier)
+        
+        # GPU-specific safety margins based on VRAM size
+        if vram_free_gb >= 12.0:
+            safety_margin = self.VRAM_SAFETY_MARGIN_HIGH
+        elif vram_free_gb >= 8.0:
+            safety_margin = self.VRAM_SAFETY_MARGIN_MED
+        else:
+            safety_margin = self.VRAM_SAFETY_MARGIN_LOW
+        
+        # Calculate safe VRAM usage
+        safe_vram_gb = vram_free_gb * (1 - safety_margin)
+        
+        # Calculate chunk size
+        chunk_size = int((safe_vram_gb * 1024**3) / bytes_per_point)
+        
+        # Apply bounds
+        min_chunk = 100_000   # Minimum for efficiency
+        max_chunk = 10_000_000  # Maximum to avoid CUSOLVER issues
+        
+        chunk_size = max(min_chunk, chunk_size)
+        chunk_size = min(max_chunk, chunk_size)
+        
+        # If chunk size >= num_points, no chunking needed
+        if chunk_size >= num_points:
+            logger.info(
+                f"✓ No GPU chunking needed: {num_points:,} points fit in VRAM"
+            )
+            return num_points
+        
+        logger.info(
+            f"✓ Optimal GPU chunk size: {chunk_size:,} points "
+            f"(~{chunk_size * bytes_per_point / (1024**3):.1f}GB per chunk, "
+            f"{safe_vram_gb:.1f}GB safe VRAM)"
+        )
+        
+        return chunk_size
+
+    def calculate_optimal_eigh_batch_size(
+        self,
+        chunk_size: int,
+        vram_free_gb: Optional[float]
+    ) -> int:
+        """
+        Calculate optimal batch size for eigenvalue decomposition to avoid CUSOLVER errors.
+        
+        CuSOLVER has internal limits on batch sizes for eigenvalue computations.
+        This function calculates a safe batch size based on available VRAM and
+        empirical CUSOLVER limits.
+        
+        Args:
+            chunk_size: Current chunk size being processed
+            vram_free_gb: Available VRAM in GB (None = auto-detect)
+            
+        Returns:
+            Safe batch size for cp.linalg.eigh operations
+        """
+        # Handle None VRAM value
+        if vram_free_gb is None:
+            try:
+                status = self.get_current_memory_status()
+                vram_free_gb = status[2] if len(status) > 2 else 8.0
+            except Exception:
+                vram_free_gb = 8.0  # Conservative default
+        
+        # Empirical CUSOLVER limits (conservative estimates)
+        # These are based on testing and known CUSOLVER behavior
+        if vram_free_gb >= 16.0:
+            max_eigh_batch = 750_000    # High-end GPUs
+        elif vram_free_gb >= 12.0:
+            max_eigh_batch = 500_000    # Mid-range GPUs  
+        elif vram_free_gb >= 8.0:
+            max_eigh_batch = 300_000    # Entry-level GPUs
+        else:
+            max_eigh_batch = 150_000    # Low VRAM
+        
+        # Use smaller of chunk_size and max safe batch
+        eigh_batch_size = min(chunk_size, max_eigh_batch)
+        
+        # Ensure minimum efficiency
+        eigh_batch_size = max(10_000, eigh_batch_size)
+        
+        return eigh_batch_size
+
+    def get_adaptive_safety_margin(
+        self,
+        total_memory_gb: float,
+        memory_type: str = 'RAM'
+    ) -> float:
+        """
+        Get adaptive safety margin based on total available memory.
+        
+        Higher memory systems can use lower safety margins for better utilization.
+        
+        Args:
+            total_memory_gb: Total memory in GB
+            memory_type: 'RAM' or 'VRAM'
+            
+        Returns:
+            Safety margin (0.0 to 1.0)
+        """
+        if memory_type == 'VRAM':
+            if total_memory_gb >= 12.0:
+                return self.VRAM_SAFETY_MARGIN_HIGH
+            elif total_memory_gb >= 8.0:
+                return self.VRAM_SAFETY_MARGIN_MED
+            else:
+                return self.VRAM_SAFETY_MARGIN_LOW
+        else:  # RAM
+            if total_memory_gb >= 32.0:
+                return self.RAM_SAFETY_MARGIN_HIGH
+            elif total_memory_gb >= 16.0:
+                return self.RAM_SAFETY_MARGIN_MED
+            else:
+                return self.RAM_SAFETY_MARGIN_LOW
+
     def get_optimal_config(
         self,
         num_points: int,

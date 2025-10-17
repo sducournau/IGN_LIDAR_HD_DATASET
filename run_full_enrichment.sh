@@ -77,9 +77,9 @@ check_gpu_status
 # Apply optimized ground truth computation
 log_info "Applying optimized ground truth computation..."
 python3 -c "
-    from ign_lidar.optimization.auto_select import optimize_ground_truth_processing
-    optimize_ground_truth_processing()
-    print('✅ Ground truth optimization applied')
+from ign_lidar.optimization.auto_select import auto_optimize
+auto_optimize()
+print('✅ Ground truth optimization applied')
 "
 
 # Display configuration
@@ -121,9 +121,12 @@ echo ""
 # Start GPU monitoring in background if available
 if command -v nvidia-smi &> /dev/null; then
     log_info "Starting GPU monitoring..."
-    nvidia-smi dmon -s pucvmet -i 0 -f nvidia_gpu_usage.log &
+    # Start monitoring with more frequent sampling (every 1 second)
+    nvidia-smi dmon -s pucvmet -i 0 -d 1 -f nvidia_gpu_usage.log &
     GPU_MONITOR_PID=$!
     trap "kill $GPU_MONITOR_PID 2>/dev/null" EXIT
+    # Give monitoring a moment to start
+    sleep 2
 fi
 
 # Record start time for performance tracking
@@ -138,14 +141,6 @@ ign-lidar-hd process \
     output_dir="$OUTPUT_DIR" \
     cache_dir="$CACHE_DIR" \
     processor.use_gpu=true \
-    processor.batch_size=64 \
-    processor.num_workers=1 \
-    processor.architecture=hybrid \
-    features.gpu_batch_size=1500000 \
-    features.use_gpu_chunked=true \
-    reclassification.acceleration_mode=gpu \
-    reclassification.chunk_size=500000 \
-    reclassification.gpu_chunk_size=1000000 \
     ground_truth.enabled=true \
     ground_truth.update_classification=true \
     ground_truth.use_ndvi=true \
@@ -188,8 +183,21 @@ if [ $? -eq 0 ]; then
         echo "GPU usage log: nvidia_gpu_usage.log"
         echo "Average GPU utilization:"
         if command -v awk &> /dev/null; then
-            awk 'NR>1 {sum+=$4; count++} END {if(count>0) print sum/count "%"; else print "N/A"}' nvidia_gpu_usage.log 2>/dev/null || echo "Unable to calculate"
+            # Better parsing: skip header lines and handle various formats
+            GPU_UTIL=$(awk 'NR>2 && NF>=4 && $4 ~ /^[0-9]+$/ {sum+=$4; count++} END {
+                if(count>0) 
+                    printf "%.1f%%\n", sum/count
+                else 
+                    print "N/A (no valid data points)"
+            }' nvidia_gpu_usage.log 2>/dev/null)
+            echo "$GPU_UTIL"
+            
+            # Show data points count for debugging
+            DATA_POINTS=$(awk 'NR>2 && NF>=4 && $4 ~ /^[0-9]+$/ {count++} END {print count+0}' nvidia_gpu_usage.log 2>/dev/null || echo "0")
+            echo "Data points collected: $DATA_POINTS"
         fi
+    else
+        echo "GPU usage log: Not available"
     fi
     echo "Files processed: $FILE_COUNT"
     echo "Processing rate: $(echo "scale=2; $FILE_COUNT / ($DURATION / 60)" | bc 2>/dev/null || echo "N/A") files/minute"

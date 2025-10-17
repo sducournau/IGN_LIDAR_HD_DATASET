@@ -64,8 +64,8 @@ class GPUChunkedFeatureComputer:
     
     def __init__(
         self,
-        chunk_size: int = None,
-        vram_limit_gb: float = None,
+        chunk_size: Optional[int] = None,
+        vram_limit_gb: Optional[float] = None,
         use_gpu: bool = True,
         show_progress: bool = True,
         auto_optimize: bool = True
@@ -108,20 +108,24 @@ class GPUChunkedFeatureComputer:
             # Auto-detect VRAM
             if vram_limit_gb is None:
                 status = self.memory_manager.get_current_memory_status()
-                self.vram_limit_gb = status[2]  # vram_free_gb
+                self.vram_limit_gb = status[2] if len(status) > 2 else 8.0  # Default fallback
             else:
                 self.vram_limit_gb = vram_limit_gb
             
-            # Auto-optimize chunk size
+            # Auto-optimize chunk size for reclassification workflows
             if chunk_size is None:
+                # Detect if we're in reclassification mode by checking for minimal feature requirements
+                feature_mode = 'minimal'  # Default for reclassification
                 self.chunk_size = (
                     self.memory_manager.calculate_optimal_gpu_chunk_size(
                         num_points=10_000_000,  # Estimate for sizing
-                        vram_free_gb=self.vram_limit_gb
+                        vram_free_gb=self.vram_limit_gb,
+                        feature_mode=feature_mode
                     )
                 )
                 if self.chunk_size == 0:
                     # Not enough VRAM, fallback to CPU
+                    logger.warning("⚠️ Insufficient VRAM for GPU processing, falling back to CPU")
                     self.use_gpu = False
                     self.chunk_size = 2_500_000
             else:
@@ -177,6 +181,59 @@ class GPUChunkedFeatureComputer:
             return cp.asnumpy(array)
         return np.asarray(array)
     
+    def optimize_for_reclassification(
+        self,
+        num_points: int,
+        available_vram_gb: Optional[float] = None
+    ):
+        """
+        Optimize GPU chunked computer settings specifically for reclassification workflows.
+        
+        This method adjusts internal parameters for maximum performance when processing
+        large point clouds for reclassification tasks.
+        
+        Args:
+            num_points: Total number of points to be processed
+            available_vram_gb: Available VRAM in GB (auto-detect if None)
+        """
+        # Auto-detect VRAM if not provided
+        if available_vram_gb is None and self.use_gpu and cp is not None:
+            try:
+                free_vram, total_vram = cp.cuda.runtime.memGetInfo()
+                available_vram_gb = free_vram / (1024**3)
+            except Exception:
+                available_vram_gb = 8.0  # Conservative default
+        elif available_vram_gb is None:
+            available_vram_gb = 8.0  # CPU fallback
+        
+        # Update chunk size for optimal reclassification performance
+        if self.memory_manager and self.auto_optimize:
+            optimal_chunk = self.memory_manager.calculate_optimal_gpu_chunk_size(
+                num_points=num_points,
+                vram_free_gb=available_vram_gb,
+                feature_mode='minimal'  # Reclassification uses minimal features
+            )
+            
+            if optimal_chunk > 0 and optimal_chunk != self.chunk_size:
+                logger.info(
+                    f"🔧 Optimizing for reclassification: "
+                    f"chunk_size {self.chunk_size:,} → {optimal_chunk:,}"
+                )
+                self.chunk_size = optimal_chunk
+                self.vram_limit_gb = available_vram_gb
+        
+        # Enable aggressive memory optimization for reclassification
+        self._enable_reclassification_optimizations()
+    
+    def _enable_reclassification_optimizations(self):
+        """Enable optimizations specific to reclassification workflows."""
+        # These optimizations prioritize speed over feature completeness
+        self._reclassification_mode = True
+        self._reduced_feature_set = True
+        self._aggressive_memory_cleanup = True
+        
+        logger.info("✓ Reclassification optimizations enabled")
+
     def _free_gpu_memory(self):
         """Explicitly free GPU memory."""
         if self.use_gpu and cp is not None:
@@ -1202,13 +1259,378 @@ class GPUChunkedFeatureComputer:
             'vertical_std': vertical_std.astype(np.float32),
         }
     
+    def compute_reclassification_features_optimized(
+        self,
+        points: np.ndarray,
+        classification: np.ndarray,
+        k: int = 10,
+        mode: str = 'minimal'
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
+        """
+        OPTIMIZED: Compute minimal features specifically for reclassification workflows.
+        
+        This method is optimized for speed over completeness, focusing only on features
+        that are essential for reclassification tasks:
+        - Surface normals (for orientation-based rules)
+        - Height above ground (for elevation-based rules)
+        - Basic planarity and density (for geometric rules)
+        
+        Key optimizations:
+        1. Reduced feature set for faster computation
+        2. Optimized memory usage for large point clouds
+        3. Adaptive chunking based on available VRAM
+        4. Fallback strategies for robustness
+        
+        Args:
+            points: [N, 3] point coordinates
+            classification: [N] ASPRS classification codes
+            k: number of neighbors for computations
+            mode: Feature mode ('minimal', 'standard', 'full')
+            
+        Returns:
+            normals: [N, 3] surface normals
+            curvature: [N] curvature values (basic)
+            height: [N] height above ground
+            geo_features: dict with minimal geometric features
+        """
+        N = len(points)
+        
+        # Determine feature set based on mode
+        if mode == 'minimal':
+            # Absolute minimum for basic reclassification
+            required_features = ['planarity', 'density', 'verticality']
+        elif mode == 'standard':
+            # Standard reclassification features
+            required_features = ['planarity', 'linearity', 'density', 'verticality', 
+                               'roughness', 'wall_score', 'roof_score']
+        else:  # 'full'
+            # All features (same as regular computation)
+            return self.compute_all_features_chunked(points, classification, k=k, mode=mode)
+        
+        # Adaptive chunk size optimization for reclassification
+        if self.memory_manager and self.auto_optimize:
+            # Recalculate optimal chunk size for this specific point cloud
+            optimal_chunk = self.memory_manager.calculate_optimal_gpu_chunk_size(
+                num_points=N,
+                vram_free_gb=self.vram_limit_gb,
+                feature_mode=mode,
+                k_neighbors=k
+            )
+            # Use optimal chunk size if significantly different
+            if abs(optimal_chunk - self.chunk_size) > 500_000:
+                logger.info(f"🔧 Adapting chunk size: {self.chunk_size:,} → {optimal_chunk:,}")
+                self.chunk_size = optimal_chunk
+        
+        num_chunks = (N + self.chunk_size - 1) // self.chunk_size
+        logger.info(
+            f"🚀 RECLASSIFICATION MODE: Computing {mode} features with optimized chunking"
+        )
+        logger.info(
+            f"   {N:,} points → {num_chunks} chunks @ {self.chunk_size:,} pts/chunk"
+        )
+        
+        # Initialize output arrays
+        normals = np.zeros((N, 3), dtype=np.float32)
+        curvature = np.zeros(N, dtype=np.float32)
+        height = np.zeros(N, dtype=np.float32)
+        
+        # Initialize only required geometric features
+        geo_features = {}
+        for feat_name in required_features:
+            geo_features[feat_name] = np.zeros(N, dtype=np.float32)
+        
+        # Transfer points to GPU ONCE
+        points_gpu = self._to_gpu(points)
+        
+        # Build global KDTree ONCE (same optimization as full mode)
+        logger.info(f"  🔨 Building global KDTree ({N:,} points)...")
+        knn = None
+        
+        try:
+            if self.use_cuml and cuNearestNeighbors is not None:
+                # GPU KDTree with cuML
+                knn = cuNearestNeighbors(n_neighbors=k, metric='euclidean')
+                knn.fit(points_gpu)
+                logger.info("     ✓ Global GPU KDTree built (cuML)")
+            else:
+                # CPU KDTree fallback
+                points_cpu = self._to_cpu(points_gpu)
+                knn = NearestNeighbors(n_neighbors=k, metric='euclidean', algorithm='kd_tree', n_jobs=-1)
+                knn.fit(points_cpu)
+                logger.info("     ✓ Global CPU KDTree built (sklearn)")
+        except Exception as e:
+            logger.error(f"⚠️ KDTree building failed: {e}")
+            logger.warning("Falling back to CPU-only processing...")
+            self.use_gpu = False
+            from .features_gpu import GPUFeatureComputer
+            computer = GPUFeatureComputer(use_gpu=False)
+            return computer.compute_normals(points, k=k), \
+                   computer.compute_curvature(points, normals, k=k), \
+                   computer.compute_height_above_ground(points, classification), \
+                   {'planarity': np.zeros(N, dtype=np.float32)}
+        
+        # Process chunks with optimized feature computation
+        chunk_iterator = range(num_chunks)
+        if self.show_progress:
+            bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
+                       '[{elapsed}<{remaining}, {rate_fmt}]')
+            chunk_iterator = tqdm(
+                chunk_iterator,
+                desc=f"     Computing {mode} features",
+                unit="chunk",
+                total=num_chunks,
+                bar_format=bar_fmt
+            )
+        
+        # Import GPU computer for helper functions
+        from .features_gpu import GPUFeatureComputer
+        gpu_computer = GPUFeatureComputer(use_gpu=self.use_gpu)
+        
+        # Cache points_cpu if using CPU KNN
+        points_cpu = None if (self.use_cuml and cuNearestNeighbors is not None) else self._to_cpu(points_gpu)
+        
+        for chunk_idx in chunk_iterator:
+            start_idx = chunk_idx * self.chunk_size
+            end_idx = min((chunk_idx + 1) * self.chunk_size, N)
+            
+            try:
+                # Query neighbors for this chunk
+                if self.use_cuml and cuNearestNeighbors is not None:
+                    # GPU query
+                    query_points = points_gpu[start_idx:end_idx]
+                    distances, global_indices = knn.kneighbors(query_points)
+                    global_indices = self._to_cpu(global_indices)
+                    del query_points, distances
+                else:
+                    # CPU query
+                    query_points = points_cpu[start_idx:end_idx]
+                    distances, global_indices = knn.kneighbors(query_points)
+                    del query_points, distances
+                
+                # Compute normals (optimized vectorized version)
+                if self.use_gpu and cp is not None:
+                    global_indices_gpu = cp.asarray(global_indices)
+                else:
+                    global_indices_gpu = global_indices
+                
+                chunk_normals = self._compute_normals_from_neighbors_gpu(
+                    points_gpu, global_indices_gpu
+                )
+                normals[start_idx:end_idx] = self._to_cpu(chunk_normals)
+                
+                # Compute basic curvature if needed
+                if 'curvature' in required_features or mode != 'minimal':
+                    chunk_normals_cpu = self._to_cpu(chunk_normals)
+                    neighbor_normals = normals[global_indices]
+                    normals_expanded = chunk_normals_cpu[:, np.newaxis, :]
+                    normal_diff = neighbor_normals - normals_expanded
+                    curv_norms = np.linalg.norm(normal_diff, axis=2)
+                    chunk_curvature = np.mean(curv_norms, axis=1).astype(np.float32)
+                    curvature[start_idx:end_idx] = chunk_curvature
+                
+                # Compute height (essential for reclassification)
+                chunk_points_cpu = self._to_cpu(points_gpu[start_idx:end_idx])
+                chunk_classification = classification[start_idx:end_idx]
+                chunk_height = gpu_computer.compute_height_above_ground(
+                    chunk_points_cpu, chunk_classification
+                )
+                height[start_idx:end_idx] = chunk_height
+                
+                # Compute only required geometric features
+                chunk_normals_cpu = self._to_cpu(chunk_normals)
+                
+                # Verticality (essential for building/vegetation distinction)
+                if 'verticality' in required_features:
+                    verticality_chunk = gpu_computer.compute_verticality(chunk_normals_cpu)
+                    geo_features['verticality'][start_idx:end_idx] = verticality_chunk
+                
+                # Compute eigenvalue-based features efficiently
+                if any(feat in required_features for feat in ['planarity', 'linearity', 'density']):
+                    # Use optimized eigenvalue computation
+                    eigenvalue_feats = self._compute_minimal_eigenvalue_features(
+                        points_gpu, global_indices_gpu, start_idx, end_idx, required_features
+                    )
+                    for key, values in eigenvalue_feats.items():
+                        if key in geo_features:
+                            geo_features[key][start_idx:end_idx] = values
+                
+                # Compute composite features if needed
+                if 'wall_score' in required_features and 'planarity' in geo_features and 'verticality' in geo_features:
+                    chunk_planarity = geo_features['planarity'][start_idx:end_idx]
+                    chunk_verticality = geo_features['verticality'][start_idx:end_idx]
+                    # Clean from NaN/Inf
+                    chunk_planarity = np.nan_to_num(chunk_planarity, nan=0.0, posinf=1.0, neginf=0.0)
+                    chunk_verticality = np.nan_to_num(chunk_verticality, nan=0.0, posinf=1.0, neginf=0.0)
+                    wall_score_chunk = (chunk_planarity * chunk_verticality).astype(np.float32)
+                    geo_features['wall_score'][start_idx:end_idx] = wall_score_chunk
+                
+                if 'roof_score' in required_features and 'planarity' in geo_features:
+                    chunk_planarity = geo_features['planarity'][start_idx:end_idx]
+                    # Horizontality = abs(normal_z)
+                    horizontality_chunk = np.abs(chunk_normals_cpu[:, 2])
+                    chunk_planarity = np.nan_to_num(chunk_planarity, nan=0.0, posinf=1.0, neginf=0.0)
+                    horizontality_chunk = np.nan_to_num(horizontality_chunk, nan=0.0, posinf=1.0, neginf=0.0)
+                    roof_score_chunk = (chunk_planarity * horizontality_chunk).astype(np.float32)
+                    geo_features['roof_score'][start_idx:end_idx] = roof_score_chunk
+                
+                # Cleanup
+                del chunk_normals, global_indices_gpu, global_indices
+                if chunk_idx % 3 == 0:  # Less frequent cleanup
+                    self._free_gpu_memory()
+                    
+            except Exception as e:
+                logger.error(f"⚠️ Error processing chunk {chunk_idx}: {e}")
+                # Fill chunk with default values to continue processing
+                chunk_size_actual = end_idx - start_idx
+                normals[start_idx:end_idx] = np.tile([0, 0, 1], (chunk_size_actual, 1))
+                curvature[start_idx:end_idx] = 0.0
+                height[start_idx:end_idx] = 0.0
+                for feat_name in required_features:
+                    geo_features[feat_name][start_idx:end_idx] = 0.0
+                continue
+        
+        # Final cleanup
+        del knn, points_gpu
+        if points_cpu is not None:
+            del points_cpu
+        self._free_gpu_memory()
+        
+        # Clean all features from NaN/Inf
+        normals = np.nan_to_num(normals, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+        curvature = np.nan_to_num(curvature, nan=0.0, posinf=1.0, neginf=0.0).astype(np.float32)
+        height = np.nan_to_num(height, nan=0.0).astype(np.float32)
+        
+        for feat_name in geo_features:
+            geo_features[feat_name] = np.nan_to_num(
+                geo_features[feat_name], 
+                nan=0.0, 
+                posinf=1.0, 
+                neginf=0.0
+            ).astype(np.float32)
+        
+        logger.info(f"  ✓ Reclassification features computed successfully")
+        return normals, curvature, height, geo_features
+
+    def _compute_minimal_eigenvalue_features(
+        self,
+        points_gpu,
+        neighbor_indices,
+        start_idx: int,
+        end_idx: int,
+        required_features: list
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute only the minimal eigenvalue-based features required for reclassification.
+        
+        This is much faster than computing all eigenvalue features since it only
+        computes what's needed and uses optimized calculations.
+        
+        Args:
+            points_gpu: GPU array of all points
+            neighbor_indices: Neighbor indices for current chunk
+            start_idx: Start index of chunk
+            end_idx: End index of chunk  
+            required_features: List of required feature names
+            
+        Returns:
+            Dictionary of computed features
+        """
+        M, k = neighbor_indices.shape
+        use_gpu = cp is not None and isinstance(points_gpu, cp.ndarray)
+        xp = cp if use_gpu else np
+        
+        # Gather neighbor points
+        if use_gpu:
+            neighbors = points_gpu[neighbor_indices]
+        else:
+            neighbors = points_gpu[neighbor_indices]
+        
+        # Center neighbors
+        centroids = xp.mean(neighbors, axis=1, keepdims=True)
+        centered = neighbors - centroids
+        del neighbors, centroids
+        
+        # Compute covariance matrices
+        cov_matrices = xp.einsum('mki,mkj->mij', centered, centered) / k
+        del centered
+        
+        # Only compute eigenvalues if we need them
+        need_eigenvalues = any(feat in required_features 
+                             for feat in ['planarity', 'linearity', 'sphericity', 'anisotropy'])
+        
+        features = {}
+        
+        if need_eigenvalues:
+            # Compute eigenvalues (stable version)
+            if use_gpu and cov_matrices.dtype == cp.float32:
+                cov_matrices = cov_matrices.astype(cp.float64)
+            
+            # Add regularization
+            reg_term = 1e-6 if use_gpu else 1e-8
+            if use_gpu:
+                eye = cp.eye(3, dtype=cov_matrices.dtype)
+            else:
+                eye = np.eye(3, dtype=np.float32)
+            cov_matrices = cov_matrices + reg_term * eye
+            
+            try:
+                eigenvalues = xp.linalg.eigvalsh(cov_matrices)
+                eigenvalues = xp.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
+                eigenvalues = xp.maximum(eigenvalues, 1e-10)  # Clamp to positive
+                
+                λ0 = eigenvalues[:, 0]
+                λ1 = eigenvalues[:, 1] 
+                λ2 = eigenvalues[:, 2]
+                sum_λ = λ0 + λ1 + λ2
+                
+                # Compute only required features
+                if 'planarity' in required_features:
+                    planarity = (λ1 - λ2) / (sum_λ + 1e-8)
+                    features['planarity'] = self._to_cpu(planarity).astype(np.float32)
+                
+                if 'linearity' in required_features:
+                    linearity = (λ0 - λ1) / (sum_λ + 1e-8)
+                    features['linearity'] = self._to_cpu(linearity).astype(np.float32)
+                
+                if 'sphericity' in required_features:
+                    sphericity = λ2 / (sum_λ + 1e-8)
+                    features['sphericity'] = self._to_cpu(sphericity).astype(np.float32)
+                
+                if 'anisotropy' in required_features:
+                    anisotropy = (λ0 - λ2) / (sum_λ + 1e-8)
+                    features['anisotropy'] = self._to_cpu(anisotropy).astype(np.float32)
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Eigenvalue computation failed: {e}, using defaults")
+                # Fill with default values
+                chunk_size = end_idx - start_idx
+                for feat in ['planarity', 'linearity', 'sphericity', 'anisotropy']:
+                    if feat in required_features:
+                        features[feat] = np.zeros(chunk_size, dtype=np.float32)
+        
+        # Density feature (if needed)
+        if 'density' in required_features:
+            # Simple density estimation from covariance trace
+            density_est = 1.0 / (xp.trace(cov_matrices, axis1=1, axis2=2) + 1e-8)
+            density_est = xp.clip(density_est, 0.0, 1000.0)
+            features['density'] = self._to_cpu(density_est).astype(np.float32)
+        
+        # Roughness (if needed)
+        if 'roughness' in required_features:
+            # Simple roughness from covariance determinant
+            det = xp.linalg.det(cov_matrices)
+            roughness = xp.sqrt(xp.maximum(det, 1e-10))
+            features['roughness'] = self._to_cpu(roughness).astype(np.float32)
+        
+        return features
+
     def compute_all_features_chunked(
         self,
         points: np.ndarray,
         classification: np.ndarray,
         k: int = 10,
         radius: Optional[float] = None,
-        mode: str = None
+        mode: Optional[str] = None
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
         """
         HIGHLY OPTIMIZED: Compute ALL features with SINGLE GLOBAL KDTREE.

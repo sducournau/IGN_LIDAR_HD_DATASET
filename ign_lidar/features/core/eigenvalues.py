@@ -111,9 +111,16 @@ def compute_eigenvalue_features(
     # Sum of eigenvalues
     features['sum_eigenvalues'] = lambda1 + lambda2 + lambda3
     
+    # Individual eigenvalues (always include for compatibility)
+    features['eigenvalue_1'] = lambda1
+    features['eigenvalue_2'] = lambda2
+    features['eigenvalue_3'] = lambda3
+    
     if include_all:
-        # Change of curvature (surface variation)
-        features['change_of_curvature'] = lambda3 / (sum_eigenvalues + epsilon)
+        # Change of curvature (surface variation) - alias for compatibility
+        change_curvature = lambda3 / (sum_eigenvalues + epsilon)
+        features['change_of_curvature'] = change_curvature
+        features['change_curvature'] = change_curvature  # Legacy alias
         
         # Verticality (1 - normalized smallest eigenvalue)
         features['verticality'] = 1.0 - np.abs(lambda3) / (lambda1 + epsilon)

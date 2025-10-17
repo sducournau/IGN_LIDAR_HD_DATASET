@@ -165,12 +165,12 @@ features:
 
   # GPU Settings - OPTIMIZED FOR STABILITY RTX 4080
   use_gpu: true
-  gpu_batch_size: 8_000_000 # REDUCED: 4M points per GPU batch for stability (avoid fallback)
+  gpu_batch_size: 4_000_000 # REDUCED: 4M points per GPU batch for stability (avoid fallback)
   use_gpu_chunked: true # Enable chunked processing for very large tiles
   adaptive_chunk_sizing: true # Dynamic chunk size optimization
-  vram_utilization_target: 0.85 # CONSERVATIVE: Use 75% of available VRAM for stability
+  vram_utilization_target: 0.75 # CONSERVATIVE: Use 75% of available VRAM for stability
   enable_async_processing: true # Asynchronous GPU processing
-  num_cuda_streams: 6 # REDUCED: Fewer streams for stability
+  num_cuda_streams: 4 # REDUCED: Fewer streams for stability
   memory_pool_enabled: true # Reuse GPU memory allocations
 
   # Neighbor search - BALANCED settings for GPU stability
@@ -278,7 +278,7 @@ ground_truth:
   optimization:
     enabled: true
     auto_select_method: true # Let system choose fastest method
-    force_method: "auto" # AUTO selection - GPU when available, CPU fallback
+    force_method: "strtree" # FORCE CPU STRtree (most reliable, no GPU errors)
     enable_monitoring: false # Disable monitoring for speed
     enable_auto_tuning: false # Disable auto-tuning for speed
 

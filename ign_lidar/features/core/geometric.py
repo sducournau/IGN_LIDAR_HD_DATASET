@@ -125,10 +125,17 @@ def extract_geometric_features(
         points, k_neighbors=k, search_radius=radius
     )
     
+    # Compute extended density features
+    from .density import compute_extended_density_features
+    extended_density_features = compute_extended_density_features(
+        points, k_neighbors=k
+    )
+    
     # Combine all features
     features = {}
     features.update(eigenvalue_features)
     features.update(density_features)
+    features.update(extended_density_features)
     
     # Handle any NaN/inf values
     for key, values in features.items():

@@ -93,6 +93,84 @@ def compute_density_features(
         'mean_distance': mean_distance,
         'std_distance': std_distance,
         'local_density_ratio': local_density_ratio,
+        'density': point_density,  # Alias for compatibility
+    }
+    
+    return features
+
+
+def compute_extended_density_features(
+    points: np.ndarray,
+    k_neighbors: int = 20,
+) -> Dict[str, np.ndarray]:
+    """
+    Compute extended density features including neighborhood characteristics.
+    
+    Parameters
+    ----------
+    points : np.ndarray
+        Point cloud array of shape (N, 3) with XYZ coordinates
+    k_neighbors : int, optional
+        Number of nearest neighbors (default: 20)
+        
+    Returns
+    -------
+    features : dict
+        Dictionary containing extended features:
+        - 'num_points_2m': Number of points within 2m radius
+        - 'neighborhood_extent': Size of k-neighbor bounding box
+        - 'height_extent_ratio': Height range / horizontal range ratio
+        - 'vertical_std': Standard deviation of heights in neighborhood
+    """
+    n_points = points.shape[0]
+    
+    # Build KD-tree for neighbor search
+    nbrs = NearestNeighbors(n_neighbors=k_neighbors, algorithm='kd_tree')
+    nbrs.fit(points)
+    distances, indices = nbrs.kneighbors(points)
+    
+    # Also build radius neighbors for 2m count
+    nbrs_radius = NearestNeighbors(radius=2.0, algorithm='kd_tree')
+    nbrs_radius.fit(points)
+    
+    # Initialize arrays
+    num_points_2m = np.zeros(n_points, dtype=np.int32)
+    neighborhood_extent = np.zeros(n_points, dtype=np.float32)
+    height_extent_ratio = np.zeros(n_points, dtype=np.float32)
+    vertical_std = np.zeros(n_points, dtype=np.float32)
+    
+    for i in range(n_points):
+        # Number of points within 2m radius
+        radius_distances, radius_indices = nbrs_radius.radius_neighbors(points[i:i+1])
+        num_points_2m[i] = len(radius_indices[0]) - 1  # Exclude self
+        
+        # Get k-neighbors
+        neighbor_indices = indices[i]
+        neighbor_points = points[neighbor_indices]
+        
+        # Neighborhood extent (bounding box diagonal)
+        min_coords = np.min(neighbor_points, axis=0)
+        max_coords = np.max(neighbor_points, axis=0)
+        extent_3d = np.linalg.norm(max_coords - min_coords)
+        neighborhood_extent[i] = extent_3d
+        
+        # Height extent ratio
+        height_range = max_coords[2] - min_coords[2]
+        horizontal_range = np.sqrt((max_coords[0] - min_coords[0])**2 + 
+                                 (max_coords[1] - min_coords[1])**2)
+        if horizontal_range > 1e-10:
+            height_extent_ratio[i] = height_range / horizontal_range
+        else:
+            height_extent_ratio[i] = 0.0
+            
+        # Vertical standard deviation
+        vertical_std[i] = np.std(neighbor_points[:, 2])
+    
+    features = {
+        'num_points_2m': num_points_2m,
+        'neighborhood_extent': neighborhood_extent,
+        'height_extent_ratio': height_extent_ratio,
+        'vertical_std': vertical_std,
     }
     
     return features

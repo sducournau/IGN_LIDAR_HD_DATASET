@@ -14,11 +14,11 @@ Key features:
 
 Usage:
     # Automatic enhancement of existing optimizer
-    from ign_lidar.optimization.enhanced_integration import enhance_ground_truth_optimization
+    from ign_lidar.optimization.integration_v2 import enhance_ground_truth_optimization
     enhance_ground_truth_optimization()
     
     # Manual usage with advanced features
-    from ign_lidar.optimization.enhanced_integration import EnhancedOptimizationManager
+    from ign_lidar.optimization.integration_v2 import EnhancedOptimizationManager
     manager = EnhancedOptimizationManager()
     labels = manager.optimize(points, ground_truth_features)
 """
@@ -131,7 +131,7 @@ class EnhancedOptimizationManager:
         if self.enable_gpu_enhancement:
             try:
                 # Import and apply GPU enhancements
-                from .enhanced_gpu import enhance_existing_optimizer
+                from .gpu_optimized import enhance_existing_optimizer
                 enhance_existing_optimizer()
                 enhancements_applied.append("GPU")
             except Exception as e:
@@ -141,7 +141,7 @@ class EnhancedOptimizationManager:
         if self.enable_cpu_enhancement:
             try:
                 # Import and apply CPU enhancements
-                from .enhanced_cpu import enhance_existing_cpu_optimizer
+                from .cpu_optimized import enhance_existing_cpu_optimizer
                 enhance_existing_cpu_optimizer()
                 enhancements_applied.append("CPU")
             except Exception as e:

@@ -1,20 +1,41 @@
 """
 Feature extraction modules for IGN LiDAR HD.
 
-This package contains geometric and radiometric feature calculation:
-- features: CPU-based feature extraction (includes all geometric features)
+This package provides unified feature computation with mode-based selection:
+
+Unified API (recommended):
+    from ign_lidar.features import compute_verticality, extract_geometric_features
+    
+    # Mode-based selection
+    verticality = compute_verticality(normals, mode='cpu')
+    verticality = compute_verticality(normals, mode='gpu') 
+    features = extract_geometric_features(points, normals, mode='auto')
+
+Legacy modules (deprecated):
+- features: CPU-based feature extraction
 - features_gpu: GPU-accelerated feature extraction (CuPy)
-- features_gpu_chunked: GPU feature extraction for large files
+- features_gpu_chunked: GPU feature extraction for large files  
 - features_boundary: Boundary-aware feature extraction
-- feature_modes: LOD2/LOD3 feature configuration
-- factory: Factory for creating feature computers
-- architectural_styles: Architectural style classification system
 """
 
-from .features import (
+# Unified API (recommended)
+from .unified_api import (
+    FeatureMode,
+    compute_verticality,
+    extract_geometric_features,
+    compute_all_features,
     compute_normals,
     compute_curvature,
-    extract_geometric_features,
+)
+
+# Core implementations
+from .core import (
+    compute_all_features as core_compute_all_features,
+    ComputeMode,
+)
+
+# Legacy imports (deprecated - use unified API instead)
+from .features import (
     compute_all_features_optimized,
     compute_all_features_with_gpu,
     compute_features_by_mode,
@@ -22,9 +43,8 @@ from .features import (
     compute_eigenvalue_features,
     compute_architectural_features,
     compute_density_features,
-    compute_verticality,
     compute_building_scores,
-    # NEW: Enhanced geometric features for building classification
+    # Enhanced geometric features for building classification
     compute_horizontality,
     compute_edge_strength,
     compute_facade_score,
@@ -60,20 +80,26 @@ from .feature_modes import (
 )
 
 __all__ = [
-    # Core feature functions
+    # Unified API (recommended)
+    'FeatureMode',
+    'compute_verticality',
+    'extract_geometric_features', 
+    'compute_all_features',
     'compute_normals',
     'compute_curvature',
-    'extract_geometric_features',
+    
+    # Core implementations
+    'core_compute_all_features',
+    'ComputeMode',
+    
+    # Legacy functions (deprecated)
     'compute_all_features_optimized',
     'compute_all_features_with_gpu',
     'compute_features_by_mode',
-    # Additional feature functions (merged from features_enhanced)
     'compute_eigenvalue_features',
     'compute_architectural_features',
     'compute_density_features',
-    'compute_verticality',
     'compute_building_scores',
-    # NEW: Enhanced geometric features for building classification
     'compute_horizontality',
     'compute_edge_strength',
     'compute_facade_score',

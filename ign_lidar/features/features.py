@@ -310,15 +310,28 @@ def compute_density_features(
         epsilon: Small constant
     
     Returns:
-        Dictionary of density features
+        Dictionary of density features including:
+        - Basic density features: density, mean_distance, std_distance, etc.
+        - Extended features: num_points_2m, neighborhood_extent, height_extent_ratio, vertical_std
     
     Note:
         This is a wrapper around the core implementation.
         Core function builds its own KDTree, so tree parameter is ignored.
         Use ign_lidar.features.core.compute_density_features directly for new code.
     """
-    # Core function builds its own tree, ignore the provided tree
-    return core_compute_density_features(points, k_neighbors=k)
+    # Get basic density features
+    basic_features = core_compute_density_features(points, k_neighbors=k)
+    
+    # Get extended density features
+    from .core.density import compute_extended_density_features
+    extended_features = compute_extended_density_features(points, k_neighbors=k)
+    
+    # Combine all features
+    all_features = {}
+    all_features.update(basic_features)
+    all_features.update(extended_features)
+    
+    return all_features
 
 
 def compute_verticality(normals: np.ndarray) -> np.ndarray:
@@ -923,6 +936,12 @@ def extract_geometric_features(points: np.ndarray, normals: np.ndarray,
         stacklevel=2
     )
     return core_extract_geometric_features(points, normals, k=k, radius=radius)
+
+
+def extract_geometric_features_direct(points, normals=None, k=30, radius=None):
+    """Extract geometric features from point cloud.
+    
+    Args:
         points: [N, 3] point coordinates
         normals: [N, 3] normal vectors (not used here, kept for API compat)
         k: number of neighbors (used only if radius=None, fallback)

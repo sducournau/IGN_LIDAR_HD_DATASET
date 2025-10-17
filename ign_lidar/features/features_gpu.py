@@ -1,7 +1,7 @@
 """
 GPU-Accelerated Geometric Feature Extraction Functions
-Utilise CuPy et RAPIDS cuML pour des calculs 10-50x plus rapides
-Avec fallback automatique vers CPU si GPU indisponible
+Uses CuPy and RAPIDS cuML for 10-50x faster computations
+With automatic CPU fallback if GPU unavailable
 
 IMPORTANT: CUSOLVER Batch Size Limits
 - CuPy's batched eigenvalue decomposition (cp.linalg.eigh) has internal limits
@@ -10,13 +10,14 @@ IMPORTANT: CUSOLVER Batch Size Limits
 - This prevents CUSOLVER_STATUS_INVALID_VALUE errors with large point clouds
 """
 
-from typing import Dict, Tuple, Any, Union
+from typing import Optional, Tuple, Dict, List, Union, Any
+from types import ModuleType
 import numpy as np
 import warnings
 from pathlib import Path
 from tqdm import tqdm
 
-# Tenter import GPU
+# Try GPU imports
 GPU_AVAILABLE = False
 CUML_AVAILABLE = False
 
@@ -25,9 +26,9 @@ try:
     from cupyx.scipy.spatial import distance as cp_distance
     GPU_AVAILABLE = True
     CpArray = cp.ndarray
-    print("✓ CuPy disponible - GPU activé")
+    print("✓ CuPy available - GPU enabled")
 except ImportError:
-    print("⚠ CuPy non disponible - fallback CPU")
+    print("⚠ CuPy not available - CPU fallback")
     cp = None
     CpArray = Any  # Type placeholder when CuPy unavailable
 
@@ -35,13 +36,13 @@ try:
     from cuml.neighbors import NearestNeighbors as cuNearestNeighbors
     from cuml.decomposition import PCA as cuPCA
     CUML_AVAILABLE = True
-    print("✓ RAPIDS cuML disponible - Algorithmes GPU activés")
+    print("✓ RAPIDS cuML available - GPU algorithms enabled")
 except ImportError:
-    print("⚠ RAPIDS cuML non disponible - fallback sklearn")
+    print("⚠ RAPIDS cuML not available - sklearn fallback")
     cuNearestNeighbors = None
     cuPCA = None
 
-# Fallback CPU
+# CPU fallback
 from sklearn.neighbors import KDTree
 
 # Import core feature implementations
@@ -51,34 +52,58 @@ from ..features.core import (
     compute_eigenvalue_features as core_compute_eigenvalue_features,
     compute_density_features as core_compute_density_features,
     compute_verticality as core_compute_verticality,
+    extract_geometric_features as core_extract_geometric_features,
 )
 
 
 class GPUFeatureComputer:
     """
-    Classe pour calcul de features géométriques optimisé GPU.
-    Fallback automatique CPU si GPU indisponible.
+    Class for GPU-optimized geometric feature computation.
+    Automatic CPU fallback if GPU unavailable.
     """
     
-    def __init__(self, use_gpu: bool = True, batch_size: int = 1_000_000):
+    def __init__(self, use_gpu: bool = True, batch_size: int = 8_000_000):
         """
         Args:
-            use_gpu: Activer GPU si disponible
-            batch_size: Points par batch GPU (default: 1M, configurable)
+            use_gpu: Enable GPU if available
+            batch_size: Points per GPU batch (default: 1M, optimized for reclassification)
         """
         self.use_gpu = use_gpu and GPU_AVAILABLE
         self.use_cuml = use_gpu and CUML_AVAILABLE
-        self.batch_size = batch_size
+        
+        # Adaptive batch size optimization for reclassification
+        if self.use_gpu:
+            # Auto-optimize batch size based on available VRAM
+            try:
+                if cp is not None:
+                    _, total_vram = cp.cuda.runtime.memGetInfo()
+                    total_vram_gb = total_vram / (1024**3)
+                    
+                    # More aggressive batch sizes for RTX 4080 Super optimization
+                    if total_vram_gb >= 15.0:  # RTX 4080 Super has ~16GB but reports 15.992
+                        # RTX 4080 Super and similar - use configured batch size up to 8M
+                        self.batch_size = min(batch_size, 8_000_000)  # High-end GPUs
+                    elif total_vram_gb >= 12.0:
+                        self.batch_size = min(batch_size, 4_000_000)  # Mid-range GPUs  
+                    elif total_vram_gb >= 8.0:
+                        self.batch_size = min(batch_size, 2_000_000)  # Standard GPUs
+                    else:
+                        self.batch_size = min(batch_size, 1_000_000)    # Low VRAM
+                else:
+                    self.batch_size = batch_size
+            except Exception:
+                self.batch_size = batch_size
+        else:
+            self.batch_size = batch_size
         
         # Initialize CUDA context safely for multiprocessing
         if self.use_gpu:
             self._initialize_cuda_context()
         
         if self.use_gpu:
-            print(f"🚀 Mode GPU activé (batch_size={batch_size:,})")
+            print(f"🚀 GPU mode enabled (batch_size={self.batch_size:,})")
         else:
-            msg = "💻 Mode CPU (installer CuPy pour accélération)"
-            print(msg)
+            print("💻 CPU mode (install CuPy for acceleration)")
     
     def _initialize_cuda_context(self):
         """Initialize CUDA context safely for multiprocessing."""
@@ -99,7 +124,7 @@ class GPUFeatureComputer:
         return False
 
     def _to_gpu(self, array: np.ndarray):
-        """Transfert array vers GPU with safe context initialization."""
+        """Transfer array to GPU with safe context initialization."""
         if self.use_gpu and cp is not None:
             try:
                 return cp.asarray(array, dtype=cp.float32)
@@ -111,15 +136,75 @@ class GPUFeatureComputer:
         return array
     
     def _to_cpu(self, array) -> np.ndarray:
-        """Transfert array vers CPU."""
+        """Transfer array to CPU."""
         if self.use_gpu and cp is not None and isinstance(array, cp.ndarray):
             return cp.asnumpy(array)
         return np.asarray(array)
     
+    def compute_all_features(
+        self,
+        points: np.ndarray,
+        classification: np.ndarray,
+        k: int = 10,
+        include_building_features: bool = False,
+        mode: Optional[str] = None,
+        **kwargs
+    ):
+        """
+        Compute all geometric features using GPU acceleration.
+        
+        Args:
+            points: [N, 3] point coordinates
+            classification: [N] ASPRS classification codes  
+            k: number of neighbors for feature computation
+            include_building_features: whether to include building-specific features
+            mode: feature computation mode ('minimal', 'lod2', 'lod3', 'full')
+            
+        Returns:
+            tuple: (normals, curvature, height, geo_features)
+                - normals: [N, 3] surface normals
+                - curvature: [N] curvature values
+                - height: [N] height above ground
+                - geo_features: dict with geometric features
+        """
+        # Handle mode-based feature computation
+        if mode is not None:
+            # Fallback to CPU implementation for mode-based features
+            from .features import compute_features_by_mode
+            return compute_features_by_mode(
+                points=points,
+                classification=classification,
+                mode=mode,
+                k=k,
+                auto_k=False,
+                patch_center=kwargs.get('patch_center'),
+                use_radius=False,
+                radius=0.8  # Default radius value
+            )
+        
+        # Compute individual features
+        normals = self.compute_normals(points, k=k)
+        curvature = self.compute_curvature(points, normals, k=k)
+        height = self.compute_height_above_ground(points, classification)
+        
+        # Compute geometric features
+        geo_features = {}
+        
+        # Basic geometric features that we can compute
+        verticality = self.compute_verticality(normals)
+        geo_features['verticality'] = verticality
+        
+        # If building features are requested, add more features
+        if include_building_features:
+            # Add additional features here if needed
+            pass
+            
+        return normals, curvature, height, geo_features
+    
     def compute_normals(self, points: np.ndarray, k: int = 10) -> np.ndarray:
         """
         Compute surface normals using PCA on k-nearest neighbors.
-        Version GPU-accélérée avec traitement par batch.
+        GPU-accelerated version with batch processing.
         
         Args:
             points: [N, 3] point coordinates
@@ -134,7 +219,7 @@ class GPUFeatureComputer:
             return self._compute_normals_cpu(points, k)
     
     def _compute_normals_gpu(self, points: np.ndarray, k: int) -> np.ndarray:
-        """Calcul normales sur GPU (RAPIDS cuML)."""
+        """Compute normals on GPU (RAPIDS cuML)."""
         if not GPU_AVAILABLE or cp is None:
             return self._compute_normals_cpu(points, k)
             
@@ -147,7 +232,7 @@ class GPUFeatureComputer:
             N = len(points)
             normals = np.zeros((N, 3), dtype=np.float32)
             
-            # Transfert vers GPU
+            # Transfer to GPU
             points_gpu = self._to_gpu(points)
             
             # If GPU transfer failed, fallback to CPU
@@ -158,29 +243,29 @@ class GPUFeatureComputer:
             knn = cuNearestNeighbors(n_neighbors=k, metric='euclidean')
             knn.fit(points_gpu)
             
-            # Traitement par batch pour éviter OOM
+            # Process in batches to avoid OOM
             num_batches = (N + self.batch_size - 1) // self.batch_size
+            
+            for batch_idx in range(num_batches):
+                start_idx = batch_idx * self.batch_size
+                end_idx = min((batch_idx + 1) * self.batch_size, N)
+                batch_points = points_gpu[start_idx:end_idx]
+                
+                # Query KNN
+                distances, indices = knn.kneighbors(batch_points)
+                
+                # Compute normals with GPU PCA
+                batch_normals = self._batch_pca_gpu(points_gpu, indices)
+                
+                # Transfer back to CPU
+                normals[start_idx:end_idx] = self._to_cpu(batch_normals)
+            
+            return normals
             
         except Exception as e:
             print(f"⚠ GPU normal computation failed: {e}")
             print("💻 Falling back to CPU computation")
             return self._compute_normals_cpu(points, k)
-        
-        for batch_idx in range(num_batches):
-            start_idx = batch_idx * self.batch_size
-            end_idx = min((batch_idx + 1) * self.batch_size, N)
-            batch_points = points_gpu[start_idx:end_idx]
-            
-            # Query KNN
-            distances, indices = knn.kneighbors(batch_points)
-            
-            # Compute normals with GPU PCA
-            batch_normals = self._batch_pca_gpu(points_gpu, indices)
-            
-            # Transfer back to CPU
-            normals[start_idx:end_idx] = self._to_cpu(batch_normals)
-        
-        return normals
     
     def _batch_pca_gpu(self, points_gpu, neighbor_indices):
         """
@@ -265,7 +350,7 @@ class GPUFeatureComputer:
     
     def _compute_normals_cpu(self, points: np.ndarray, k: int) -> np.ndarray:
         """
-        Calcul normales sur CPU (sklearn) - VECTORIZED.
+        Compute normals on CPU (sklearn) - VECTORIZED.
         ~100x faster than per-point PCA loop.
         """
         N = len(points)
@@ -274,7 +359,7 @@ class GPUFeatureComputer:
         # Build KDTree
         tree = KDTree(points, metric='euclidean')
         
-        # Batch query pour réduire overhead
+        # Batch query to reduce overhead
         batch_size = 50000  # Larger batches for vectorized computation
         num_batches = (N + batch_size - 1) // batch_size
         
@@ -286,7 +371,7 @@ class GPUFeatureComputer:
                 end_idx = min((batch_idx + 1) * batch_size, N)
                 batch_points = points[start_idx:end_idx]
                 
-                # Query KNN pour tout le batch
+                # Query KNN for entire batch
                 _, indices = tree.query(batch_points, k=k)
                 
                 # VECTORIZED covariance computation
@@ -337,7 +422,7 @@ class GPUFeatureComputer:
     ) -> np.ndarray:
         """
         Compute principal curvature from local surface fit.
-        Version optimisée avec vectorisation.
+        Optimized version with vectorization.
         
         Args:
             points: [N, 3] point coordinates
@@ -391,7 +476,7 @@ class GPUFeatureComputer:
     ) -> np.ndarray:
         """
         Compute height above ground for each point.
-        Version vectorisée pure.
+        Vectorized pure implementation.
         
         Args:
             points: [N, 3] point coordinates
@@ -411,307 +496,6 @@ class GPUFeatureComputer:
         height = points[:, 2] - ground_z
         return np.maximum(height, 0)
     
-    def extract_geometric_features(
-        self,
-        points: np.ndarray,
-        normals: np.ndarray,
-        k: int = 10,
-        radius: float = None
-    ) -> Dict[str, np.ndarray]:
-        """
-        Extract comprehensive geometric features for each point.
-        Version vectorisée optimale - aligned with features.py.
-        
-        Features computed (eigenvalue-based):
-        - Planarity: (λ1-λ2)/Σλ - surfaces planes
-        - Linearity: (λ0-λ1)/Σλ - structures linéaires
-        - Sphericity: λ2/Σλ - structures sphériques
-        - Anisotropy: (λ0-λ2)/λ0 - anisotropie
-        - Roughness: λ2/Σλ - rugosité
-        - Density: local point density
-        
-        Args:
-            points: [N, 3] point coordinates
-            normals: [N, 3] normal vectors (not used, kept for compat)
-            k: number of neighbors (used if radius=None)
-            radius: search radius in meters (RECOMMENDED, avoids scan artifacts)
-            
-        Returns:
-            features: dictionary of geometric features
-        """
-        # If radius requested: try GPU-accelerated approximate radius search
-        # Strategy: use k-NN on GPU with a sufficiently large k, then mask
-        # neighbors whose distance > radius. This avoids an expensive
-        # CPU-wide radius query but produces nearly-identical neighborhoods
-        # for feature computation. Falls back to CPU if GPU/cuML unavailable.
-        if radius is not None:
-            import logging
-            logger = logging.getLogger(__name__)
-
-            # If GPU + cuML available, perform approximate radius search on GPU
-            if self.use_cuml and cuNearestNeighbors is not None and self.use_gpu:
-                N = len(points)
-
-                # Heuristic: estimate k needed by sampling (cheap)
-                sample_n = int(min(2000, max(100, N // 10)))
-                try:
-                    sample_idx = np.random.choice(N, sample_n, replace=False)
-                    sample_points = points[sample_idx]
-                    # Use a lightweight KDTree on CPU for the sample to estimate counts
-                    sample_tree = KDTree(points, metric='euclidean')
-                    sample_counts = sample_tree.query_radius(sample_points, r=radius, count_only=True)
-                    est_k = int(np.median(sample_counts)) + 10
-                    est_k = int(np.clip(est_k, k, min(max(32, est_k), min(4096, N))))
-                except Exception:
-                    # Sampling failed - fall back to a conservative k
-                    est_k = min(max(128, k), N)
-
-                logger.info(f"Using approximate GPU radius search (r={radius:.2f}m): k_probe={est_k}")
-
-                # Build GPU k-NN and query in batches to collect distances+indices
-                points_gpu = self._to_gpu(points)
-                knn = cuNearestNeighbors(n_neighbors=min(est_k, N), metric='euclidean')
-                knn.fit(points_gpu)
-
-                # Collect distances/indices in batches to avoid OOM
-                batch_size = self.batch_size if hasattr(self, 'batch_size') else 1_000_000
-                num_batches = (N + batch_size - 1) // batch_size
-
-                distances_all = []
-                indices_all = []
-
-                for bi in range(num_batches):
-                    s = bi * batch_size
-                    e = min((bi + 1) * batch_size, N)
-                    qp = points_gpu[s:e]
-                    d_batch, idx_batch = knn.kneighbors(qp)
-                    # Move to CPU for masked processing
-                    distances_all.append(self._to_cpu(d_batch))
-                    indices_all.append(self._to_cpu(idx_batch))
-
-                distances = np.vstack(distances_all)
-                indices = np.vstack(indices_all)
-
-                # Mask neighbors outside the radius
-                within_mask = distances <= float(radius)
-
-                # Prepare neighbor point arrays and compute masked centroids/covariances
-                neighbors_all = points[indices]  # [N, kq, 3]
-
-                # Compute counts (number of valid neighbors per point)
-                counts = np.sum(within_mask, axis=1).astype(np.float32)  # [N]
-                counts_safe = np.where(counts <= 1, 1.0, counts)[:, None]
-
-                # Zero out invalid neighbors for centroid and covariance sums
-                mask_expanded = within_mask[:, :, None].astype(np.float32)
-                neighbors_masked = neighbors_all * mask_expanded
-
-                # Compute centroids using only valid neighbors
-                centroids = np.sum(neighbors_masked, axis=1) / counts_safe
-
-                # Center neighbors and apply mask again
-                centered = (neighbors_all - centroids[:, None, :]) * mask_expanded
-
-                # Degrees of freedom for covariance: counts - 1 (min 1)
-                dof = np.where(counts > 1, counts - 1.0, 1.0)[:, None, None]
-
-                # Compute covariance matrices with masked neighborhoods
-                cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / dof
-
-                # For points with <=1 neighbor within radius, mark cov as small
-                degenerate_mask = (counts.squeeze() <= 1)
-                if np.any(degenerate_mask):
-                    cov_matrices[degenerate_mask] = np.eye(3, dtype=np.float32)
-
-                # Eigenvalues: [N, 3]
-                eigenvalues = np.linalg.eigvalsh(cov_matrices)
-                eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]
-
-                λ0 = eigenvalues[:, 0]
-                λ1 = eigenvalues[:, 1]
-                λ2 = eigenvalues[:, 2]
-
-                # Clamp eigenvalues to non-negative
-                λ0 = np.maximum(λ0, 0.0)
-                λ1 = np.maximum(λ1, 0.0)
-                λ2 = np.maximum(λ2, 0.0)
-
-                # Compute features (same as k-based path)
-                λ0_safe = λ0 + 1e-8
-                sum_λ = λ0 + λ1 + λ2 + 1e-8
-
-                linearity = np.clip((λ0 - λ1) / λ0_safe, 0.0, 1.0).astype(np.float32)
-                planarity = np.clip((λ1 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
-                sphericity = np.clip(λ2 / λ0_safe, 0.0, 1.0).astype(np.float32)
-                anisotropy = np.clip((λ0 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
-                roughness = np.clip(λ2 / sum_λ, 0.0, 1.0).astype(np.float32)
-
-                # Density approximated from k-NN distances (use only valid neighbors)
-                # Avoid division by zero: replace zeros with small eps
-                mean_distances = np.zeros(N, dtype=np.float32)
-                valid_means = np.sum(within_mask[:, 1:], axis=1) > 0
-                # Compute mean distances excluding self (col 0)
-                with np.errstate(invalid='ignore'):
-                    mm = np.where(np.sum(within_mask[:, 1:], axis=1) > 0,
-                                  np.sum(distances[:, 1:] * within_mask[:, 1:], axis=1) /
-                                  np.sum(within_mask[:, 1:], axis=1),
-                                  np.mean(distances[:, 1:], axis=1))
-                mean_distances = mm.astype(np.float32)
-                density = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0).astype(np.float32)
-
-                # Build features dict
-                features = {
-                    'planarity': planarity,
-                    'linearity': linearity,
-                    'sphericity': sphericity,
-                    'anisotropy': anisotropy,
-                    'roughness': roughness,
-                    'density': density,
-                }
-
-                # Additional CPU-based features still called from core functions
-                from .features import (
-                    compute_eigenvalue_features,
-                    compute_num_points_within_radius
-                )
-                from .core.architectural import compute_architectural_features as compute_arch_features_core
-
-                eigenvalue_features = compute_eigenvalue_features(eigenvalues)
-                features.update(eigenvalue_features)
-
-                architectural_features = compute_arch_features_core(
-                    points=points,
-                    normals=normals,
-                    eigenvalues=eigenvalues
-                )
-                features.update(architectural_features)
-
-                # num_points_2m: use exact CPU KDTree for counting (fast with C impl)
-                tree = KDTree(points, metric='euclidean', leaf_size=30)
-                num_points_2m = compute_num_points_within_radius(points, tree, radius=2.0)
-                features['num_points_2m'] = num_points_2m
-
-                return features
-            else:
-                # GPU/cuML not available - fallback to CPU implementation
-                logger.warning(
-                    f"Radius search (r={radius:.2f}m) requested but GPU "
-                    f"radius search not available. Using CPU fallback."
-                )
-                from .features import extract_geometric_features as cpu_extract
-                return cpu_extract(points, normals, k=k, radius=radius)
-        # Build KDTree
-        tree = KDTree(points, metric='euclidean', leaf_size=30)
-        distances, indices = tree.query(points, k=k)
-        
-        # Get all neighbors: [N, k, 3]
-        neighbors_all = points[indices]
-        
-        # Center neighbors: [N, k, 3]
-        centroids = neighbors_all.mean(axis=1, keepdims=True)
-        centered = neighbors_all - centroids
-        
-        # Covariance matrices: [N, 3, 3]
-        cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k-1)
-        
-        # Eigenvalues: [N, 3]
-        eigenvalues = np.linalg.eigvalsh(cov_matrices)
-        
-        # Sort descending: λ0 >= λ1 >= λ2
-        eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]
-        
-        λ0 = eigenvalues[:, 0]
-        λ1 = eigenvalues[:, 1]
-        λ2 = eigenvalues[:, 2]
-        
-        # Clamp eigenvalues to non-negative (handle numerical artifacts)
-        λ0 = np.maximum(λ0, 0.0)
-        λ1 = np.maximum(λ1, 0.0)
-        λ2 = np.maximum(λ2, 0.0)
-        
-        # Safe division - use λ0 (largest eigenvalue) for normalization
-        # This matches the boundary-aware features and standard literature
-        λ0_safe = λ0 + 1e-8
-        sum_λ = λ0 + λ1 + λ2 + 1e-8
-        
-        # Compute features using λ0 normalization (consistent with boundary features)
-        # Formula: Weinmann et al. - normalized by largest eigenvalue λ0
-        # Range: linearity [0, 1], planarity [0, 1], sphericity [0, 1]
-        # Explicitly clamp to [0, 1] to handle edge cases
-        linearity = np.clip((λ0 - λ1) / λ0_safe, 0.0, 1.0).astype(np.float32)
-        planarity = np.clip((λ1 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
-        sphericity = np.clip(λ2 / λ0_safe, 0.0, 1.0).astype(np.float32)
-        anisotropy = np.clip((λ0 - λ2) / λ0_safe, 0.0, 1.0).astype(np.float32)
-        roughness = np.clip(λ2 / sum_λ, 0.0, 1.0).astype(np.float32)  # Keep sum normalization for roughness
-        
-        mean_distances = np.mean(distances[:, 1:], axis=1)
-        density = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0).astype(np.float32)
-        
-        # === VALIDATE AND FILTER DEGENERATE FEATURES ===
-        # Points with insufficient/degenerate eigenvalues
-        valid_features = (
-            (eigenvalues[:, 0] >= 1e-6) &  # Non-degenerate eigenvalue
-            (eigenvalues[:, 2] >= 1e-8) &  # Non-zero smallest eigenvalue
-            ~np.isnan(linearity) &         # Check for NaN
-            ~np.isinf(linearity)           # Check for Inf
-        )
-        
-        # Set invalid features to zero
-        planarity[~valid_features] = 0.0
-        linearity[~valid_features] = 0.0
-        sphericity[~valid_features] = 0.0
-        anisotropy[~valid_features] = 0.0
-        roughness[~valid_features] = 0.0
-        
-        # === FACULTATIVE FEATURES: WALL AND ROOF SCORES ===
-        # Wall score: High planarity + Vertical surface (|normal_z| close to 0)
-        # Roof score: High planarity + Horizontal surface (|normal_z| close to 1)
-        verticality = core_compute_verticality(normals)  # Use core implementation
-        horizontality = np.abs(normals[:, 2]).astype(np.float32)        # 1=horizontal, 0=vertical
-        
-        wall_score = (planarity * verticality).astype(np.float32)
-        roof_score = (planarity * horizontality).astype(np.float32)
-        
-        features = {
-            'planarity': planarity,
-            'linearity': linearity,
-            'sphericity': sphericity,
-            'anisotropy': anisotropy,
-            'roughness': roughness,
-            'density': density,
-            'wall_score': wall_score,
-            'roof_score': roof_score
-        }
-        
-        # === ADDITIONAL FEATURES FOR FULL MODE ===
-        # Note: These are computed on CPU since GPU implementations
-        # would require significant additional complexity
-        # Import CPU functions for advanced features
-        from .features import (
-            compute_eigenvalue_features,
-            compute_num_points_within_radius
-        )
-        from .core.architectural import compute_architectural_features as compute_arch_features_core
-        
-        # Compute eigenvalue-based features
-        eigenvalue_features = compute_eigenvalue_features(eigenvalues)
-        features.update(eigenvalue_features)
-        
-        # Compute canonical architectural features (wall/roof likelihood, facade score, etc.)
-        architectural_features = compute_arch_features_core(
-            points=points,
-            normals=normals,
-            eigenvalues=eigenvalues
-        )
-        features.update(architectural_features)
-        
-        # Compute density features
-        tree = KDTree(points, metric='euclidean', leaf_size=30)
-        num_points_2m = compute_num_points_within_radius(points, tree, radius=2.0)
-        features['num_points_2m'] = num_points_2m
-        
-        return features
-
     def compute_verticality(self, normals: np.ndarray) -> np.ndarray:
         """
         Compute verticality from surface normals (GPU-accelerated).
@@ -725,9 +509,6 @@ class GPUFeatureComputer:
             verticality: [N] verticality values [0, 1]
                         0 = horizontal surface
                         1 = vertical surface
-        
-        Note:
-            Uses core implementation with optional GPU acceleration for data transfer.
         """
         if self.use_gpu and cp is not None:
             # GPU computation - optimized version
@@ -738,788 +519,301 @@ class GPUFeatureComputer:
             # Use core implementation for CPU fallback
             return core_compute_verticality(normals)
 
-    def compute_wall_score(
+    def compute_reclassification_features_fast(
         self,
-        normals: np.ndarray,
-        height_above_ground: np.ndarray,
-        min_height: float = 1.5
-    ) -> np.ndarray:
+        points: np.ndarray,
+        classification: np.ndarray,
+        k: int = 10,
+        mode: str = 'minimal'
+    ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
         """
-        Compute wall probability score (GPU-accelerated).
+        OPTIMIZED: Fast feature computation specifically for reclassification workflows.
         
-        Combines verticality with height above ground to identify walls.
+        This method computes only the essential features needed for most reclassification
+        tasks, with aggressive optimizations for speed:
+        - Reduced feature set (normals + planarity + density + height)
+        - Optimized batch processing
+        - Minimal memory allocations
+        - Fast CPU fallback
         
         Args:
-            normals: [N, 3] surface normal vectors
-            height_above_ground: [N] height above ground in meters
-            min_height: minimum height to be considered a wall (default 1.5m)
+            points: [N, 3] point coordinates
+            classification: [N] ASPRS classification codes
+            k: number of neighbors
+            mode: Feature mode ('minimal', 'standard')
             
         Returns:
-            wall_score: [N] wall probability [0, 1]
+            normals: [N, 3] surface normals
+            features: dict with essential features for reclassification
         """
-        if self.use_gpu and cp is not None:
-            # GPU computation
-            normals_gpu = self._to_gpu(normals)
-            height_gpu = self._to_gpu(height_above_ground)
-            
-            # Verticality component - use core implementation
-            verticality_cpu = core_compute_verticality(self._to_cpu(normals_gpu))
-            verticality = self._to_gpu(verticality_cpu)
-            
-            # Height component (walls are typically > 1.5m above ground)
-            height_score = cp.clip((height_gpu - min_height) / 5.0, 0, 1)
-            
-            # Combine: high verticality AND elevated
-            wall_score_gpu = verticality * height_score
-            
-            return self._to_cpu(wall_score_gpu).astype(np.float32)
-        else:
-            # CPU fallback - use core implementation
-            verticality = core_compute_verticality(normals)
-            height_score = np.clip((height_above_ground - min_height) / 5.0, 0, 1)
-            wall_score = verticality * height_score
-            return wall_score.astype(np.float32)
-
-    def compute_roof_score(
-        self,
-        normals: np.ndarray,
-        height_above_ground: np.ndarray,
-        curvature: np.ndarray,
-        min_height: float = 3.0
-    ) -> np.ndarray:
-        """
-        Compute roof probability score (GPU-accelerated).
+        N = len(points)
         
-        Roofs are horizontal surfaces that are elevated and have low curvature.
+        # Determine essential features based on mode
+        if mode == 'minimal':
+            essential_features = ['planarity', 'height', 'verticality']
+        else:  # 'standard'
+            essential_features = ['planarity', 'linearity', 'height', 'verticality', 'density']
         
-        Args:
-            normals: [N, 3] surface normal vectors
-            height_above_ground: [N] height above ground in meters
-            curvature: [N] surface curvature
-            min_height: minimum height for a roof (default 3.0m)
-            
-        Returns:
-            roof_score: [N] roof probability [0, 1]
-        """
-        if self.use_gpu and cp is not None:
-            # GPU computation
-            normals_gpu = self._to_gpu(normals)
-            height_gpu = self._to_gpu(height_above_ground)
-            curvature_gpu = self._to_gpu(curvature)
-            
-            # Horizontality (inverse of verticality)
-            horizontality = cp.abs(normals_gpu[:, 2])
-            
-            # Height component (roofs are typically > 2m above ground)
-            height_score = cp.clip((height_gpu - min_height) / 8.0, 0, 1)
-            
-            # Low curvature (roofs are planar)
-            curvature_score = 1.0 - cp.clip(curvature_gpu / 0.5, 0, 1)
-            
-            # Combine: horizontal AND elevated AND planar
-            roof_score_gpu = horizontality * height_score * curvature_score
-            
-            return self._to_cpu(roof_score_gpu).astype(np.float32)
-        else:
-            # CPU fallback
-            horizontality = np.abs(normals[:, 2])
-            height_score = np.clip((height_above_ground - min_height) / 8.0, 0, 1)
-            curvature_score = 1.0 - np.clip(curvature / 0.5, 0, 1)
-            roof_score = horizontality * height_score * curvature_score
-            return roof_score.astype(np.float32)
+        print(f"🚀 RECLASSIFICATION MODE: Computing {mode} features ({N:,} points)")
+        
+        # Compute normals first (needed for other features)
+        normals = self.compute_normals(points, k=k)
+        
+        # Initialize feature dictionary
+        features = {}
+        
+        # Height above ground (critical for reclassification)
+        features['height'] = self.compute_height_above_ground(points, classification)
+        
+        # Verticality from normals (fast computation)
+        if 'verticality' in essential_features:
+            features['verticality'] = self.compute_verticality(normals)
+        
+        # Geometric features if needed
+        if any(feat in essential_features for feat in ['planarity', 'linearity', 'density']):
+            # Use fast geometric computation with reduced feature set
+            geo_features = self._compute_essential_geometric_features(
+                points, normals, k=k, required_features=essential_features
+            )
+            features.update(geo_features)
+        
+        # Clean features from NaN/Inf
+        for feat_name in features:
+            if isinstance(features[feat_name], np.ndarray):
+                features[feat_name] = np.nan_to_num(
+                    features[feat_name], 
+                    nan=0.0, 
+                    posinf=1.0, 
+                    neginf=0.0
+                ).astype(np.float32)
+        
+        # Clean normals
+        normals = np.nan_to_num(normals, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+        
+        print(f"  ✓ Reclassification features computed successfully")
+        return normals, features
 
-    def compute_eigenvalue_features(
+    def _compute_essential_geometric_features(
         self,
         points: np.ndarray,
         normals: np.ndarray,
-        neighbors_indices: np.ndarray
+        k: int = 10,
+        required_features: Optional[list] = None
     ) -> Dict[str, np.ndarray]:
         """
-        Compute eigenvalue-based features (FULL GPU-accelerated).
+        Compute only essential geometric features for reclassification.
         
-        Features:
-        - eigenvalue_1, eigenvalue_2, eigenvalue_3: Individual eigenvalues (λ₀, λ₁, λ₂)
-        - sum_eigenvalues: Sum of eigenvalues (Σλ)
-        - eigenentropy: Shannon entropy of normalized eigenvalues
-        - omnivariance: Cubic root of product of eigenvalues
-        - change_curvature: Variance-based curvature change measure
+        This is much faster than full geometric feature computation since it
+        only computes what's needed and uses simplified calculations.
         
         Args:
             points: [N, 3] point coordinates
             normals: [N, 3] surface normals
-            neighbors_indices: [N, k] indices of k-nearest neighbors
+            k: number of neighbors
+            required_features: List of required feature names
             
         Returns:
-            Dictionary of eigenvalue-based features
+            Dictionary of essential geometric features
         """
-        N = len(points)
-        k = neighbors_indices.shape[1]
+        if required_features is None:
+            required_features = ['planarity', 'density']
         
-        # Determine computation backend (GPU if available, else CPU)
+        N = len(points)
+        features = {}
+        
+        # Early exit if no eigenvalue-based features needed
+        eigenvalue_features = ['planarity', 'linearity', 'sphericity', 'anisotropy']
+        need_eigenvalues = any(feat in required_features for feat in eigenvalue_features)
+        
+        if not need_eigenvalues and 'density' not in required_features:
+            return features
+        
+        # Use vectorized computation with optimized batch size
+        if self.use_gpu and cp is not None:
+            batch_size = min(self.batch_size, N)
+        else:
+            batch_size = min(100_000, N)  # Smaller batches for CPU
+        
+        num_batches = (N + batch_size - 1) // batch_size
+        
+        # Initialize feature arrays
+        for feat in required_features:
+            if feat in eigenvalue_features or feat == 'density':
+                features[feat] = np.zeros(N, dtype=np.float32)
+        
+        # Process in batches
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = min((batch_idx + 1) * batch_size, N)
+            batch_points = points[start_idx:end_idx]
+            
+            # Build KDTree for batch
+            if self.use_gpu and self.use_cuml and cuNearestNeighbors is not None:
+                # GPU path
+                points_gpu = cp.asarray(batch_points)
+                knn = cuNearestNeighbors(n_neighbors=k, metric='euclidean')
+                knn.fit(points_gpu)
+                distances, indices = knn.kneighbors(points_gpu)
+                indices = cp.asnumpy(indices)
+                distances = cp.asnumpy(distances)
+            else:
+                # CPU path (fast KDTree)
+                tree = KDTree(batch_points, metric='euclidean')
+                distances, indices = tree.query(batch_points, k=k)
+            
+            if need_eigenvalues:
+                # Compute eigenvalue features for batch
+                batch_eigen_features = self._compute_batch_eigenvalue_features(
+                    batch_points, indices, required_features
+                )
+                for feat, values in batch_eigen_features.items():
+                    features[feat][start_idx:end_idx] = values
+            
+            if 'density' in required_features:
+                # Fast density estimation from mean distance
+                mean_distances = np.mean(distances[:, 1:], axis=1)  # Exclude self
+                density = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0)
+                features['density'][start_idx:end_idx] = density.astype(np.float32)
+        
+        return features
+
+    def _compute_batch_eigenvalue_features(
+        self,
+        points: np.ndarray,
+        indices: np.ndarray,
+        required_features: list
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute eigenvalue-based features for a batch using vectorized operations.
+        
+        Args:
+            points: [M, 3] batch of points
+            indices: [M, k] neighbor indices
+            required_features: List of required feature names
+            
+        Returns:
+            Dictionary of computed features for the batch
+        """
+        M, k = indices.shape
         use_gpu = self.use_gpu and cp is not None
         xp = cp if use_gpu else np
         
         # Transfer to GPU if available
         if use_gpu:
-            points_gpu = self._to_gpu(points)
-            neighbors_indices_gpu = cp.asarray(neighbors_indices)
-            neighbors = points_gpu[neighbors_indices_gpu]
+            points_gpu = cp.asarray(points)
+            indices_gpu = cp.asarray(indices)
+            neighbors = points_gpu[indices_gpu]
         else:
-            neighbors = points[neighbors_indices]
-        
-        # Center neighbors: [N, k, 3]
-        centroids = xp.mean(neighbors, axis=1, keepdims=True)
-        centered = neighbors - centroids
-        
-        # Covariance matrices: [N, 3, 3]
-        cov_matrices = xp.einsum('nki,nkj->nij', centered, centered) / (k - 1)
-        
-        # Compute eigenvalues: [N, 3]
-        eigenvalues = xp.linalg.eigvalsh(cov_matrices)
-        eigenvalues = xp.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
-        
-        # Clamp to non-negative
-        eigenvalues = xp.maximum(eigenvalues, 1e-10)
-        
-        λ0 = eigenvalues[:, 0]
-        λ1 = eigenvalues[:, 1]
-        λ2 = eigenvalues[:, 2]
-        
-        # Sum of eigenvalues
-        sum_eigenvalues = λ0 + λ1 + λ2
-        
-        # Eigenentropy: Shannon entropy of normalized eigenvalues
-        # H = -Σ(p_i * log(p_i)) where p_i = λ_i / Σλ
-        p0 = λ0 / (sum_eigenvalues + 1e-10)
-        p1 = λ1 / (sum_eigenvalues + 1e-10)
-        p2 = λ2 / (sum_eigenvalues + 1e-10)
-        
-        eigenentropy = -(
-            p0 * xp.log(p0 + 1e-10) +
-            p1 * xp.log(p1 + 1e-10) +
-            p2 * xp.log(p2 + 1e-10)
-        )
-        
-        # Omnivariance: cubic root of eigenvalue product
-        omnivariance = xp.cbrt(λ0 * λ1 * λ2)
-        
-        # Change of curvature: variance of eigenvalues (measures local complexity)
-        eigenvalue_variance = xp.var(eigenvalues, axis=1)
-        change_curvature = xp.sqrt(eigenvalue_variance)
-        
-        # Transfer results back to CPU if on GPU
-        if use_gpu:
-            λ0 = self._to_cpu(λ0)
-            λ1 = self._to_cpu(λ1)
-            λ2 = self._to_cpu(λ2)
-            sum_eigenvalues = self._to_cpu(sum_eigenvalues)
-            eigenentropy = self._to_cpu(eigenentropy)
-            omnivariance = self._to_cpu(omnivariance)
-            change_curvature = self._to_cpu(change_curvature)
-        
-        return {
-            'eigenvalue_1': λ0.astype(np.float32),
-            'eigenvalue_2': λ1.astype(np.float32),
-            'eigenvalue_3': λ2.astype(np.float32),
-            'sum_eigenvalues': sum_eigenvalues.astype(np.float32),
-            'eigenentropy': eigenentropy.astype(np.float32),
-            'omnivariance': omnivariance.astype(np.float32),
-            'change_curvature': change_curvature.astype(np.float32),
-        }
-
-    def compute_architectural_features(
-        self,
-        points: np.ndarray,
-        normals: np.ndarray,
-        neighbors_indices: np.ndarray
-    ) -> Dict[str, np.ndarray]:
-        """
-        Compute architectural features for building detection (FULL GPU-accelerated).
-        
-        Features:
-        - edge_strength: Strength of edges (high eigenvalue variance)
-        - corner_likelihood: Probability of corner point (3D structure)
-        - overhang_indicator: Overhang/protrusion detection
-        - surface_roughness: Fine-scale surface texture
-        
-        Args:
-            points: [N, 3] point coordinates
-            normals: [N, 3] surface normals
-            neighbors_indices: [N, k] indices of k-nearest neighbors
-            
-        Returns:
-            Dictionary of architectural features
-        """
-        N = len(points)
-        k = neighbors_indices.shape[1]
-        
-        # Determine computation backend (GPU if available, else CPU)
-        use_gpu = self.use_gpu and cp is not None
-        xp = cp if use_gpu else np
-        
-        # Transfer to GPU if available
-        if use_gpu:
-            points_gpu = self._to_gpu(points)
-            normals_gpu = self._to_gpu(normals)
-            neighbors_indices_gpu = cp.asarray(neighbors_indices)
-            neighbors = points_gpu[neighbors_indices_gpu]
-            neighbor_normals = normals_gpu[neighbors_indices_gpu]
-        else:
-            neighbors = points[neighbors_indices]
-            neighbor_normals = normals[neighbors_indices]
+            neighbors = points[indices]
         
         # Center neighbors
         centroids = xp.mean(neighbors, axis=1, keepdims=True)
         centered = neighbors - centroids
         
-        # Covariance matrices
-        cov_matrices = xp.einsum('nki,nkj->nij', centered, centered) / (k - 1)
-        eigenvalues = xp.linalg.eigvalsh(cov_matrices)
-        eigenvalues = xp.sort(eigenvalues, axis=1)[:, ::-1]
-        eigenvalues = xp.maximum(eigenvalues, 1e-10)
+        # Compute covariance matrices
+        cov_matrices = xp.einsum('mki,mkj->mij', centered, centered) / (k - 1)
         
+        # Add regularization for stability
+        reg_term = 1e-6 if use_gpu else 1e-8
+        if use_gpu:
+            eye = cp.eye(3, dtype=cov_matrices.dtype)
+        else:
+            eye = np.eye(3, dtype=np.float32)
+        cov_matrices = cov_matrices + reg_term * eye
+        
+        # Compute eigenvalues
+        try:
+            eigenvalues = xp.linalg.eigvalsh(cov_matrices)
+            eigenvalues = xp.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
+            eigenvalues = xp.maximum(eigenvalues, 1e-10)  # Clamp to positive
+        except Exception as e:
+            print(f"⚠️ Eigenvalue computation failed: {e}, using defaults")
+            # Use default values
+            batch_features = {}
+            for feat in required_features:
+                if feat in ['planarity', 'linearity', 'sphericity', 'anisotropy']:
+                    batch_features[feat] = np.zeros(M, dtype=np.float32)
+            return batch_features
+        
+        # Extract eigenvalues
         λ0 = eigenvalues[:, 0]
         λ1 = eigenvalues[:, 1]
         λ2 = eigenvalues[:, 2]
+        sum_λ = λ0 + λ1 + λ2
         
-        # Edge strength: High when eigenvalues are (large, medium, small)
-        # Normalized ratio (λ0 - λ2) / λ0
-        edge_strength = xp.clip((λ0 - λ2) / (λ0 + 1e-8), 0.0, 1.0)
+        # Compute only required features
+        batch_features = {}
         
-        # Corner likelihood: All eigenvalues similar (isotropic 3D structure)
-        # Measured as ratio of smallest to largest eigenvalue
-        corner_likelihood = xp.clip(λ2 / (λ0 + 1e-8), 0.0, 1.0)
+        if 'planarity' in required_features:
+            planarity = (λ1 - λ2) / (sum_λ + 1e-8)
+            batch_features['planarity'] = self._to_cpu(planarity).astype(np.float32)
         
-        # Normal variation (measures local surface complexity)
-        if use_gpu:
-            normal_diffs = neighbor_normals - normals_gpu[:, cp.newaxis, :]
-        else:
-            normal_diffs = neighbor_normals - normals[:, np.newaxis, :]
-        normal_variation = xp.linalg.norm(normal_diffs, axis=2).mean(axis=1)
+        if 'linearity' in required_features:
+            linearity = (λ0 - λ1) / (sum_λ + 1e-8)
+            batch_features['linearity'] = self._to_cpu(linearity).astype(np.float32)
         
-        # Overhang indicator: Large vertical normal variation
-        if use_gpu:
-            vertical_diffs = neighbor_normals[:, :, 2] - normals_gpu[:, 2:3]
-        else:
-            vertical_diffs = neighbor_normals[:, :, 2] - normals[:, 2:3]
-        overhang_indicator = xp.abs(vertical_diffs).mean(axis=1)
+        if 'sphericity' in required_features:
+            sphericity = λ2 / (sum_λ + 1e-8)
+            batch_features['sphericity'] = self._to_cpu(sphericity).astype(np.float32)
         
-        # Surface roughness: Standard deviation of distances to centroid
-        distances_to_centroid = xp.linalg.norm(centered, axis=2)
-        surface_roughness = xp.std(distances_to_centroid, axis=1)
+        if 'anisotropy' in required_features:
+            anisotropy = (λ0 - λ2) / (sum_λ + 1e-8)
+            batch_features['anisotropy'] = self._to_cpu(anisotropy).astype(np.float32)
         
-        # Transfer results back to CPU if on GPU
-        if use_gpu:
-            edge_strength = self._to_cpu(edge_strength)
-            corner_likelihood = self._to_cpu(corner_likelihood)
-            overhang_indicator = self._to_cpu(overhang_indicator)
-            surface_roughness = self._to_cpu(surface_roughness)
-        
-        return {
-            'edge_strength': edge_strength.astype(np.float32),
-            'corner_likelihood': corner_likelihood.astype(np.float32),
-            'overhang_indicator': np.clip(overhang_indicator, 0.0, 1.0).astype(np.float32),
-            'surface_roughness': surface_roughness.astype(np.float32),
-        }
+        return batch_features
 
-    def compute_density_features(
+    def _to_cpu(self, array) -> np.ndarray:
+        """Convert GPU array to CPU if needed."""
+        if self.use_gpu and cp is not None and isinstance(array, cp.ndarray):
+            return cp.asnumpy(array)
+        return array
+
+    def extract_geometric_features(
         self,
         points: np.ndarray,
-        neighbors_indices: np.ndarray,
-        radius_2m: float = 2.0
+        normals: np.ndarray,
+        k: int = 10,
+        radius: Optional[float] = None
     ) -> Dict[str, np.ndarray]:
         """
-        Compute density and neighborhood features (FULL GPU-accelerated).
+        Extract comprehensive geometric features for each point.
+        Version with fallback to core implementation.
         
-        Features:
-        - density: Local point density (1/mean_distance)
-        - num_points_2m: Number of points within 2m radius
-        - neighborhood_extent: Maximum distance to k-th neighbor
-        - height_extent_ratio: Ratio of vertical to spatial extent
+        .. deprecated:: 1.8.0
+            This class method is deprecated. Use the class for GPU-specific
+            operations, but use ign_lidar.features.core.extract_geometric_features() 
+            for feature extraction.
         
-        Args:
-            points: [N, 3] point coordinates
-            neighbors_indices: [N, k] indices of k-nearest neighbors
-            radius_2m: Radius for counting nearby points (default 2.0m)
-            
-        Returns:
-            Dictionary of density features
-        """
-        N = len(points)
-        k = neighbors_indices.shape[1]
-        
-        # Determine computation backend (GPU if available, else CPU)
-        use_gpu = self.use_gpu and cp is not None
-        xp = cp if use_gpu else np
-        
-        # Transfer to GPU if available
-        if use_gpu:
-            points_gpu = self._to_gpu(points)
-            neighbors_indices_gpu = cp.asarray(neighbors_indices)
-            neighbors = points_gpu[neighbors_indices_gpu]
-        else:
-            neighbors = points[neighbors_indices]
-        
-        # Compute distances to all neighbors: [N, k]
-        if use_gpu:
-            distances = xp.linalg.norm(
-                neighbors - points_gpu[:, cp.newaxis, :],
-                axis=2
-            )
-        else:
-            distances = xp.linalg.norm(
-                neighbors - points[:, np.newaxis, :],
-                axis=2
-            )
-        
-        # Density: 1 / mean distance (excluding self at distance 0)
-        mean_distances = xp.mean(distances[:, 1:], axis=1)
-        density = xp.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0)
-        
-        # Neighborhood extent: maximum distance to k-th neighbor
-        neighborhood_extent = xp.max(distances, axis=1)
-        
-        # Height extent ratio: vertical std / spatial extent
-        z_coords = neighbors[:, :, 2]
-        z_std = xp.std(z_coords, axis=1)
-        vertical_std = z_std  # Store vertical_std as a separate feature
-        spatial_extent = neighborhood_extent + 1e-8
-        height_extent_ratio = z_std / spatial_extent
-        
-        # Number of points within 2m radius
-        # For GPU: use efficient radius counting with neighbor distances
-        # For CPU: use KDTree for accurate radius search
-        if use_gpu:
-            # GPU-accelerated approach: approximate using k-NN distances
-            # Count neighbors within radius from existing k-NN results
-            within_radius = xp.sum(distances <= radius_2m, axis=1)
-            num_points_2m = within_radius.astype(xp.float32)
-            
-            # Transfer results back to CPU
-            density = self._to_cpu(density)
-            num_points_2m = self._to_cpu(num_points_2m)
-            neighborhood_extent = self._to_cpu(neighborhood_extent)
-            height_extent_ratio = self._to_cpu(height_extent_ratio)
-            vertical_std = self._to_cpu(vertical_std)
-        else:
-            # CPU fallback: use KDTree for accurate radius search
-            from sklearn.neighbors import KDTree
-            tree = KDTree(points, metric='euclidean')
-            neighbors_2m = tree.query_radius(points, r=radius_2m)
-            num_points_2m = np.array([len(n) for n in neighbors_2m], dtype=np.float32)
-        
-        return {
-            'density': density.astype(np.float32),
-            'num_points_2m': num_points_2m.astype(np.float32),
-            'neighborhood_extent': neighborhood_extent.astype(np.float32),
-            'height_extent_ratio': np.clip(height_extent_ratio, 0.0, 1.0).astype(np.float32),
-            'vertical_std': vertical_std.astype(np.float32),
-        }
-
-    def compute_all_features(
-        self,
-        points: np.ndarray,
-        classification: np.ndarray,
-        k: int = 10,
-        include_building_features: bool = False,
-        mode: str = None
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
-        """
-        Compute all features in one pass (GPU-accelerated).
-
-        This method provides feature parity with the CPU version
-        in features.py by computing all geometric features in a
-        single call.
-
-        Args:
-            points: [N, 3] point coordinates
-            classification: [N] ASPRS classification codes
-            k: number of neighbors for feature computation
-            include_building_features: if True, compute verticality,
-                                      wall_score, and roof_score (legacy parameter)
-            mode: Feature mode ('minimal', 'lod2', 'lod3', 'full') - 
-                  if specified, uses the new feature mode system
-
-        Returns:
-            normals: [N, 3] surface normals
-            curvature: [N] curvature values
-            height: [N] height above ground
-            geo_features: dict with all geometric features
-                         (includes building features if requested)
-        """
-        # If mode is specified, use the new feature mode system
-        if mode is not None:
-            from ..features.feature_modes import get_feature_config
-            
-            # Get feature configuration for the mode
-            # Suppress logging here - it's already logged at the orchestrator level
-            feature_config = get_feature_config(mode=mode, k_neighbors=k, log_config=False)
-            feature_set = feature_config.features
-            
-            # Compute base features (always needed)
-            normals = self.compute_normals(points, k=k)
-            curvature = self.compute_curvature(points, normals, k=k)
-            height = self.compute_height_above_ground(points, classification)
-            
-            # Get base geometric features from extract_geometric_features
-            # Note: This includes eigenvalue-based features and architectural features
-            geo_features = self.extract_geometric_features(points, normals, k=k)
-            
-            # Get neighbors_indices for additional feature computations
-            tree = KDTree(points, metric='euclidean', leaf_size=30)
-            _, neighbors_indices = tree.query(points, k=k)
-            
-            # Compute density features (includes neighborhood_extent, height_extent_ratio, vertical_std)
-            density_features = self.compute_density_features(
-                points=points,
-                neighbors_indices=neighbors_indices,
-                radius_2m=2.0
-            )
-            geo_features.update(density_features)
-            
-            # Compute additional architectural features
-            architectural_features = self.compute_architectural_features(
-                points=points,
-                neighbors_indices=neighbors_indices,
-                normals=normals
-            )
-            geo_features.update(architectural_features)
-            
-            # Filter features based on mode
-            filtered_features = {}
-            for feat_name in feature_set:
-                if feat_name in geo_features:
-                    filtered_features[feat_name] = geo_features[feat_name]
-            
-            # Add normal components if requested
-            if 'normal_x' in feature_set:
-                filtered_features['normal_x'] = normals[:, 0].astype(np.float32)
-            if 'normal_y' in feature_set:
-                filtered_features['normal_y'] = normals[:, 1].astype(np.float32)
-            if 'normal_z' in feature_set:
-                filtered_features['normal_z'] = normals[:, 2].astype(np.float32)
-            
-            # Add curvature if requested
-            if 'curvature' in feature_set and 'curvature' not in filtered_features:
-                filtered_features['curvature'] = curvature
-            
-            # Add height if requested
-            if 'height_above_ground' in feature_set:
-                filtered_features['height_above_ground'] = height
-            
-            # Add xyz coordinates if requested
-            if 'xyz' in feature_set:
-                filtered_features['xyz'] = points.astype(np.float32)
-            
-            # Add building-specific features if in feature set
-            if any(f in feature_set for f in ['verticality', 'wall_score', 'roof_score']):
-                if 'verticality' in feature_set:
-                    verticality = self.compute_verticality(normals)
-                    filtered_features['verticality'] = verticality
-                else:
-                    verticality = self.compute_verticality(normals)
-                
-                if 'wall_score' in feature_set:
-                    wall_score = self.compute_wall_score(normals, height, min_height=1.5)
-                    filtered_features['wall_score'] = wall_score
-                
-                if 'roof_score' in feature_set:
-                    roof_score = self.compute_roof_score(normals, height, curvature, min_height=3.0)
-                    filtered_features['roof_score'] = roof_score
-            
-            return normals, curvature, height, filtered_features
-        
-        # Legacy mode: compute all features (backward compatibility)
-        normals = self.compute_normals(points, k=k)
-        curvature = self.compute_curvature(points, normals, k=k)
-        height = self.compute_height_above_ground(points, classification)
-        geo_features = self.extract_geometric_features(points, normals, k=k)
-
-        # Add building-specific features if requested
-        if include_building_features:
-            verticality = self.compute_verticality(normals)
-            wall_score = self.compute_wall_score(normals, height, min_height=1.5)
-            roof_score = self.compute_roof_score(
-                normals, height, curvature, min_height=3.0
-            )
-            
-            geo_features['verticality'] = verticality
-            geo_features['wall_score'] = wall_score
-            geo_features['roof_score'] = roof_score
-
-        return normals, curvature, height, geo_features
-    
-    def interpolate_colors_gpu(
-        self,
-        points_gpu: 'CpArray',
-        rgb_image_gpu: 'CpArray',
-        bbox: Tuple[float, float, float, float]
-    ) -> 'CpArray':
-        """
-        Fast bilinear color interpolation on GPU.
-        
-        This method provides ~100x speedup over CPU-based PIL interpolation
-        by performing all operations on the GPU using CuPy.
-        
-        Args:
-            points_gpu: [N, 3] CuPy array (x, y, z coordinates in Lambert-93)
-            rgb_image_gpu: [H, W, 3] CuPy array (RGB image, uint8)
-            bbox: (xmin, ymin, xmax, ymax) in Lambert-93 coordinates
-            
-        Returns:
-            colors_gpu: [N, 3] CuPy array (R, G, B values, uint8)
-            
-        Performance:
-            - 1M points: ~0.5s on GPU vs ~12s on CPU (24x speedup)
-            - Memory efficient: operates directly on GPU arrays
-        """
-        if not self.use_gpu or cp is None:
-            # Fallback to CPU not implemented here
-            # This should be handled by the caller
-            raise RuntimeError(
-                "GPU not available. Use CPU-based interpolation instead."
-            )
-        
-        # Unpack bbox
-        xmin, ymin, xmax, ymax = bbox
-        H, W = rgb_image_gpu.shape[:2]
-        
-        # Normalize point coordinates to image space
-        # Lambert-93 coords → normalized [0, 1] → pixel coords
-        x_norm = (points_gpu[:, 0] - xmin) / (xmax - xmin)  # [N]
-        y_norm = (points_gpu[:, 1] - ymin) / (ymax - ymin)  # [N]
-        
-        # Convert to pixel coordinates (image y-axis is flipped)
-        px = x_norm * (W - 1)  # [N]
-        py = (1 - y_norm) * (H - 1)  # [N], flip y-axis
-        
-        # Clamp to valid range
-        px = cp.clip(px, 0, W - 1)
-        py = cp.clip(py, 0, H - 1)
-        
-        # Bilinear interpolation
-        # Get integer and fractional parts
-        px0 = cp.floor(px).astype(cp.int32)
-        py0 = cp.floor(py).astype(cp.int32)
-        px1 = cp.minimum(px0 + 1, W - 1)
-        py1 = cp.minimum(py0 + 1, H - 1)
-        
-        dx = px - px0  # [N]
-        dy = py - py0  # [N]
-        
-        # Fetch pixel values at 4 corners
-        # Shape: [N, 3]
-        c00 = rgb_image_gpu[py0, px0]  # Top-left
-        c01 = rgb_image_gpu[py0, px1]  # Top-right
-        c10 = rgb_image_gpu[py1, px0]  # Bottom-left
-        c11 = rgb_image_gpu[py1, px1]  # Bottom-right
-        
-        # Bilinear weights
-        w00 = (1 - dx[:, None]) * (1 - dy[:, None])  # [N, 1]
-        w01 = dx[:, None] * (1 - dy[:, None])
-        w10 = (1 - dx[:, None]) * dy[:, None]
-        w11 = dx[:, None] * dy[:, None]
-        
-        # Interpolated color
-        colors = (
-            w00 * c00 + w01 * c01 + w10 * c10 + w11 * c11
-        ).astype(cp.uint8)
-        
-        return colors
-
-    def compute_all_features_chunked(
-        self,
-        points: np.ndarray,
-        classification: np.ndarray,
-        k: int = 10,
-        chunk_size: int = 2_500_000,
-        radius: float = None
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
-        """
-        Compute ALL features per-chunk for memory efficiency.
-        GPU version without cuML - uses sklearn KDTree + NumPy/CuPy operations.
-        
-        This method processes the point cloud in chunks, computing all features
-        (normals, curvature, height, geometric) for each chunk before moving
-        to the next. This dramatically reduces memory usage compared to
-        computing each feature type globally.
+        Features computed (eigenvalue-based):
+        - Planarity: (λ1-λ2)/λ0 - plane surfaces
+        - Linearity: (λ0-λ1)/λ0 - linear structures
+        - Sphericity: λ2/λ0 - spherical structures
+        - Anisotropy: (λ0-λ2)/λ0 - anisotropy
+        - Roughness: λ2/Σλ - roughness
+        - Density: local point density
         
         Args:
             points: [N, 3] point coordinates
-            classification: [N] ASPRS classification codes
-            k: number of neighbors for KNN
-            chunk_size: points per chunk (default: 2.5M)
-            radius: search radius for geometric features (optional)
+            normals: [N, 3] normal vectors (not used, kept for compat)
+            k: number of neighbors (used if radius=None)
+            radius: search radius in meters (RECOMMENDED, avoids scan artifacts)
             
         Returns:
-            normals: [N, 3] surface normals
-            curvature: [N] curvature values
-            height: [N] height above ground
-            geo_features: dict with geometric features
+            features: dictionary of geometric features
         """
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        N = len(points)
-        
-        # Initialize output arrays
-        normals = np.zeros((N, 3), dtype=np.float32)
-        curvature = np.zeros(N, dtype=np.float32)
-        height = np.zeros(N, dtype=np.float32)
-        
-        # Initialize geometric features dict
-        feature_keys = ['planarity', 'linearity', 'sphericity',
-                        'anisotropy', 'roughness', 'density',
-                        'verticality', 'horizontality']
-        geo_features = {key: np.zeros(N, dtype=np.float32)
-                        for key in feature_keys}
-        
-        # Calculate number of chunks
-        num_chunks = (N + chunk_size - 1) // chunk_size
-        chunk_size_mb = (chunk_size * 12) / (1024 * 1024)  # Approx memory per chunk
-        
-        logger.info(
-            f"Processing {N:,} points in {num_chunks} chunks "
-            f"(GPU without cuML, per-chunk computation)"
+        import warnings
+        warnings.warn(
+            "GPUFeatureComputer.extract_geometric_features is deprecated. "
+            "Use ign_lidar.features.core.extract_geometric_features() directly.",
+            DeprecationWarning,
+            stacklevel=2
         )
         
-        # Progress bar for chunk processing
-        chunk_iterator = range(num_chunks)
-        bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
-                   '[{elapsed}<{remaining}, {rate_fmt}]')
-        chunk_iterator = tqdm(
-            chunk_iterator,
-            desc=f"  🔧 GPU Features [sklearn] ({N:,} pts, {num_chunks} chunks @ {chunk_size_mb:.1f}MB)",
-            unit="chunk",
-            total=num_chunks,
-            bar_format=bar_fmt
-        )
-        
-        # Process each chunk
-        for chunk_idx in chunk_iterator:
-            start_idx = chunk_idx * chunk_size
-            end_idx = min((chunk_idx + 1) * chunk_size, N)
-            chunk_points = end_idx - start_idx
-            
-            # Add overlap for accurate boundary computation
-            overlap = int(chunk_size * 0.10)  # 10% overlap
-            tree_start = max(0, start_idx - overlap)
-            tree_end = min(N, end_idx + overlap)
-            
-            # Extract chunk with overlap for KDTree
-            chunk_data = points[tree_start:tree_end]
-            chunk_class = classification[tree_start:tree_end]
-            
-            # Calculate local indices for storing results
-            local_start = start_idx - tree_start
-            local_end = local_start + chunk_points
-            query_points = chunk_data[local_start:local_end]
-            
-            # Build local KDTree for this chunk
-            tree = KDTree(chunk_data, metric='euclidean', leaf_size=30)
-            
-            # 1. Compute normals for this chunk
-            _, indices = tree.query(query_points, k=k)
-            
-            # Vectorized PCA for normals
-            neighbors_all = chunk_data[indices]
-            centroids = neighbors_all.mean(axis=1, keepdims=True)
-            centered = neighbors_all - centroids
-            cov_matrices = np.einsum('nki,nkj->nij',
-                                     centered, centered) / (k - 1)
-            eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
-            chunk_normals = eigenvectors[:, :, 0].copy()
-            
-            # Normalize normals
-            norms = np.linalg.norm(chunk_normals, axis=1, keepdims=True)
-            norms = np.maximum(norms, 1e-8)
-            chunk_normals = chunk_normals / norms
-            
-            # Orient normals upward
-            flip_mask = chunk_normals[:, 2] < 0
-            chunk_normals[flip_mask] *= -1
-            
-            # 2. Compute curvature for this chunk
-            neighbor_normals = chunk_normals[indices - local_start]
-            query_normals_expanded = chunk_normals[:, np.newaxis, :]
-            normal_diff = neighbor_normals - query_normals_expanded
-            curv_norms = np.linalg.norm(normal_diff, axis=2)
-            chunk_curvature = np.mean(curv_norms, axis=1).astype(np.float32)
-            
-            # 3. Compute height for this chunk
-            ground_mask = (chunk_class == 2)
-            if np.any(ground_mask):
-                ground_z = np.median(chunk_data[ground_mask, 2])
-            else:
-                ground_z = np.min(chunk_data[:, 2])
-            chunk_height = np.maximum(
-                query_points[:, 2] - ground_z, 0
-            ).astype(np.float32)
-            
-            # 4. Compute geometric features for this chunk
-            distances, geo_indices = tree.query(query_points, k=k)
-            neighbors_geo = chunk_data[geo_indices]
-            centroids_geo = neighbors_geo.mean(axis=1, keepdims=True)
-            centered_geo = neighbors_geo - centroids_geo
-            cov_matrices_geo = np.einsum('nki,nkj->nij',
-                                          centered_geo, centered_geo) / (k - 1)
-            eigenvalues_geo = np.linalg.eigvalsh(cov_matrices_geo)
-            eigenvalues_geo = np.sort(eigenvalues_geo, axis=1)[:, ::-1]
-            
-            λ0 = eigenvalues_geo[:, 0]
-            λ1 = eigenvalues_geo[:, 1]
-            λ2 = eigenvalues_geo[:, 2]
-            λ0_safe = λ0 + 1e-8
-            sum_λ = λ0 + λ1 + λ2 + 1e-8
-            
-            # Use λ0 normalization (consistent with boundary features)
-            chunk_linearity = ((λ0 - λ1) / λ0_safe).astype(np.float32)
-            chunk_planarity = ((λ1 - λ2) / λ0_safe).astype(np.float32)
-            chunk_sphericity = (λ2 / λ0_safe).astype(np.float32)
-            chunk_anisotropy = ((λ0 - λ2) / λ0_safe).astype(np.float32)
-            chunk_roughness = (λ2 / sum_λ).astype(np.float32)  # Keep sum normalization
-            mean_distances = np.mean(distances[:, 1:], axis=1)
-            chunk_density = (1.0 / (mean_distances + 1e-8)).astype(np.float32)
-            
-            # Compute verticality and horizontality from normals
-            chunk_verticality = self.compute_verticality(chunk_normals)
-            chunk_horizontality = np.abs(chunk_normals[:, 2]).astype(np.float32)
-            
-            # Store results in output arrays
-            normals[start_idx:end_idx] = chunk_normals
-            curvature[start_idx:end_idx] = chunk_curvature
-            height[start_idx:end_idx] = chunk_height
-            geo_features['planarity'][start_idx:end_idx] = chunk_planarity
-            geo_features['linearity'][start_idx:end_idx] = chunk_linearity
-            geo_features['sphericity'][start_idx:end_idx] = chunk_sphericity
-            geo_features['anisotropy'][start_idx:end_idx] = chunk_anisotropy
-            geo_features['roughness'][start_idx:end_idx] = chunk_roughness
-            geo_features['density'][start_idx:end_idx] = chunk_density
-            geo_features['verticality'][start_idx:end_idx] = chunk_verticality
-            geo_features['horizontality'][start_idx:end_idx] = chunk_horizontality
-            
-            # Cleanup chunk data
-            del (chunk_data, chunk_class, query_points, tree,
-                 indices, neighbors_all, centroids, centered, cov_matrices,
-                 eigenvalues, eigenvectors, chunk_normals, neighbor_normals,
-                 query_normals_expanded, normal_diff, curv_norms,
-                 chunk_curvature, chunk_height, distances, geo_indices,
-                 neighbors_geo, centroids_geo, centered_geo, cov_matrices_geo,
-                 eigenvalues_geo, chunk_planarity, chunk_linearity,
-                 chunk_sphericity, chunk_anisotropy, chunk_roughness,
-                 chunk_density, chunk_verticality, chunk_horizontality)
-        
-        # Log completion statistics
-        total_features = len(geo_features) + 3  # +3 for normals, curvature, height
-        logger.info(
-            f"✓ GPU features computed successfully: "
-            f"{total_features} feature types, {N:,} points, {num_chunks} chunks processed"
-        )
-        
-        return normals, curvature, height, geo_features
+        # Use core implementation for consistency
+        return core_extract_geometric_features(points, normals, k=k, radius=radius)
 
 
-# Instance globale pour réutilisation
+# Global instance for reuse
 _gpu_computer = None
 
 
@@ -1527,7 +821,7 @@ def get_gpu_computer(
     use_gpu: bool = True,
     batch_size: int = 100000
 ) -> GPUFeatureComputer:
-    """Obtenir instance GPU computer (singleton pattern)."""
+    """Get GPU computer instance (singleton pattern)."""
     global _gpu_computer
     if _gpu_computer is None:
         _gpu_computer = GPUFeatureComputer(
@@ -1537,9 +831,9 @@ def get_gpu_computer(
     return _gpu_computer
 
 
-# API compatible avec features.py (drop-in replacement)
+# API compatible with features.py (drop-in replacement)
 def compute_normals(points: np.ndarray, k: int = 10) -> np.ndarray:
-    """Wrapper API-compatible."""
+    """API-compatible wrapper."""
     computer = get_gpu_computer()
     return computer.compute_normals(points, k)
 
@@ -1549,49 +843,16 @@ def compute_curvature(
     normals: np.ndarray,
     k: int = 10
 ) -> np.ndarray:
-    """Wrapper API-compatible."""
+    """API-compatible wrapper."""
     computer = get_gpu_computer()
     return computer.compute_curvature(points, normals, k)
-
-
-def compute_all_features_gpu_chunked(
-    points: np.ndarray,
-    classification: np.ndarray,
-    k: int = 10,
-    chunk_size: int = 2_500_000,
-    radius: float = None
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
-    """
-    Compute ALL features per-chunk for memory efficiency.
-    GPU version without cuML - uses sklearn KDTree + NumPy operations.
-    
-    This is a wrapper function that calls the GPUFeatureComputer method.
-    
-    Args:
-        points: [N, 3] point coordinates
-        classification: [N] ASPRS classification codes
-        k: number of neighbors for KNN
-        chunk_size: points per chunk (default: 2.5M)
-        radius: search radius for geometric features (optional)
-        
-    Returns:
-        normals: [N, 3] surface normals
-        curvature: [N] curvature values
-        height: [N] height above ground
-        geo_features: dict with geometric features
-    """
-    computer = get_gpu_computer()
-    return computer.compute_all_features_chunked(
-        points, classification, k, chunk_size, radius
-    )
-
 
 
 def compute_height_above_ground(
     points: np.ndarray,
     classification: np.ndarray
 ) -> np.ndarray:
-    """Wrapper API-compatible."""
+    """API-compatible wrapper."""
     computer = get_gpu_computer()
     return computer.compute_height_above_ground(points, classification)
 
@@ -1601,9 +862,29 @@ def extract_geometric_features(
     normals: np.ndarray,
     k: int = 10
 ) -> Dict[str, np.ndarray]:
-    """Wrapper API-compatible."""
-    computer = get_gpu_computer()
-    return computer.extract_geometric_features(points, normals, k)
+    """
+    Wrapper for geometric features extraction.
+    
+    .. deprecated:: 1.8.0
+        Use ign_lidar.features.core.extract_geometric_features() directly instead.
+        This wrapper will be removed in v2.0.0.
+    
+    Args:
+        points: [N, 3] point coordinates
+        normals: [N, 3] normal vectors
+        k: number of neighbors
+        
+    Returns:
+        features: dictionary of geometric features
+    """
+    import warnings
+    warnings.warn(
+        "extract_geometric_features from features_gpu is deprecated. "
+        "Use ign_lidar.features.core.extract_geometric_features() directly.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return core_extract_geometric_features(points, normals, k=k)
 
 
 def compute_verticality(normals: np.ndarray) -> np.ndarray:
@@ -1629,120 +910,3 @@ def compute_verticality(normals: np.ndarray) -> np.ndarray:
     )
     computer = get_gpu_computer()
     return computer.compute_verticality(normals)
-
-
-def compute_wall_score(
-    normals: np.ndarray,
-    height_above_ground: np.ndarray,
-    min_height: float = 1.5
-) -> np.ndarray:
-    """
-    Wrapper for GPU-accelerated wall score computation.
-    
-    Args:
-        normals: [N, 3] surface normal vectors
-        height_above_ground: [N] height above ground in meters
-        min_height: minimum height to be considered a wall
-        
-    Returns:
-        wall_score: [N] wall probability [0, 1]
-    """
-    computer = get_gpu_computer()
-    return computer.compute_wall_score(normals, height_above_ground, min_height)
-
-
-def compute_roof_score(
-    normals: np.ndarray,
-    height_above_ground: np.ndarray,
-    curvature: np.ndarray,
-    min_height: float = 3.0
-) -> np.ndarray:
-    """
-    Wrapper for GPU-accelerated roof score computation.
-    
-    Args:
-        normals: [N, 3] surface normal vectors
-        height_above_ground: [N] height above ground in meters
-        curvature: [N] surface curvature
-        min_height: minimum height for a roof
-        
-    Returns:
-        roof_score: [N] roof probability [0, 1]
-    """
-    computer = get_gpu_computer()
-    return computer.compute_roof_score(
-        normals, height_above_ground, curvature, min_height
-    )
-
-
-def compute_eigenvalue_features(
-    points: np.ndarray,
-    normals: np.ndarray,
-    neighbors_indices: np.ndarray
-) -> Dict[str, np.ndarray]:
-    """
-    Wrapper for GPU-accelerated eigenvalue feature computation.
-    
-    Computes eigenvalue-based geometric features:
-    - eigenvalue_1, eigenvalue_2, eigenvalue_3
-    - sum_eigenvalues, eigenentropy, omnivariance
-    - change_curvature
-    
-    Args:
-        points: [N, 3] point coordinates
-        normals: [N, 3] surface normals
-        neighbors_indices: [N, k] indices of k-nearest neighbors
-        
-    Returns:
-        Dictionary of eigenvalue-based features
-    """
-    computer = get_gpu_computer()
-    return computer.compute_eigenvalue_features(points, normals, neighbors_indices)
-
-
-def compute_architectural_features(
-    points: np.ndarray,
-    normals: np.ndarray,
-    neighbors_indices: np.ndarray
-) -> Dict[str, np.ndarray]:
-    """
-    Wrapper for GPU-accelerated architectural feature computation.
-    
-    Computes architectural features for building detection:
-    - edge_strength, corner_likelihood
-    - overhang_indicator, surface_roughness
-    
-    Args:
-        points: [N, 3] point coordinates
-        normals: [N, 3] surface normals
-        neighbors_indices: [N, k] indices of k-nearest neighbors
-        
-    Returns:
-        Dictionary of architectural features
-    """
-    computer = get_gpu_computer()
-    return computer.compute_architectural_features(points, normals, neighbors_indices)
-
-
-def compute_density_features(
-    points: np.ndarray,
-    neighbors_indices: np.ndarray,
-    radius_2m: float = 2.0
-) -> Dict[str, np.ndarray]:
-    """
-    Wrapper for GPU-accelerated density feature computation.
-    
-    Computes density and neighborhood features:
-    - density, num_points_2m
-    - neighborhood_extent, height_extent_ratio
-    
-    Args:
-        points: [N, 3] point coordinates
-        neighbors_indices: [N, k] indices of k-nearest neighbors
-        radius_2m: Radius for counting nearby points (default 2.0m)
-        
-    Returns:
-        Dictionary of density features
-    """
-    computer = get_gpu_computer()
-    return computer.compute_density_features(points, neighbors_indices, radius_2m)

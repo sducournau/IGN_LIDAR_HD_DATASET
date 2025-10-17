@@ -43,17 +43,29 @@ processor:
   # Performance settings (not used in reclassify mode)
   batch_size: "auto"
   prefetch_factor: 2
-  pin_memory: false # Reclassification settings
+  # Reclassification settings - OPTIMIZED
   reclassification:
     enabled: true
     acceleration_mode: "auto" # Options: 'cpu', 'gpu', 'gpu+cuml', 'auto'
-    chunk_size: 100000 # Points per chunk (100k for CPU, can be higher for GPU)
+
+    # Adaptive chunk sizing for optimal performance
+    chunk_size: "auto" # Auto-optimize based on available memory
+    cpu_chunk_size: 100000 # Fallback for CPU processing
+    gpu_chunk_size: "auto" # Auto-optimize based on VRAM
+
+    # Feature computation mode for reclassification
+    feature_mode: "minimal" # Options: 'minimal', 'standard', 'full'
+    # minimal: Only essential features (normals, planarity, height, verticality)
+    # standard: Standard reclassification features (+ linearity, density)
+    # full: All features (slower but more accurate)
+
     show_progress: true
     skip_existing: true
 
-    # Performance tuning
-    gpu_chunk_size: 500000 # Use larger chunks when GPU is available
-    cpu_chunk_size: 100000 # Smaller chunks for CPU to avoid memory issues
+    # Memory management and optimization
+    vram_limit_gb: "auto" # Auto-detect available VRAM
+    adaptive_optimization: true # Enable intelligent parameter tuning
+    use_fast_reclassification: true # Use optimized reclassification algorithms
 
     # Geometric rules for intelligent refinement
     use_geometric_rules: true # Apply geometric rules after basic reclassification

@@ -92,6 +92,12 @@ from .geometric import (
     extract_geometric_features,
 )
 
+# Unified API (replaces all compute_all_features variants)
+from .unified import (
+    compute_all_features,
+    ComputeMode,
+)
+
 __all__ = [
     # Normal computation
     'compute_normals',
@@ -150,6 +156,10 @@ __all__ = [
     
     # Geometric features (consolidated)
     'extract_geometric_features',
+    
+    # Unified API (replaces all compute_all_features variants)
+    'compute_all_features',
+    'ComputeMode',
 ]
 
 __version__ = '1.0.0'
