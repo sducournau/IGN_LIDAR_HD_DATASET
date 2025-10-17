@@ -1,0 +1,61 @@
+# ========================================================================
+# Architectural Style Training (V5.1 Preset-Based)
+# ========================================================================
+# Purpose: Generate ML training patches with architectural style annotations
+#
+# Key Features:
+# - Architectural style as additional feature (13 style classes)
+# - Multi-format output: NPZ (training) + LAZ (visualization)
+# - Style inference from location metadata and building features
+# - One-hot encoding for style-aware deep learning models
+#
+# Supported Styles (13 classes):
+#   0: unknown, 1: classical, 2: gothic, 3: renaissance, 4: baroque,
+#   5: haussmann, 6: modern, 7: industrial, 8: vernacular, 9: art_deco,
+#   10: brutalist, 11: glass_steel, 12: fortress
+#
+# Usage:
+#   ign-lidar-hd process --config examples/config_architectural_training_v5.1.yaml
+# ========================================================================
+
+# Use FULL preset for maximum detail (inherits from base.yaml)
+preset: full
+
+# Override processor settings for training mode
+processor:
+  patch_size: 100.0 # 100m patches (good for buildings)
+  patch_overlap: 0.15 # 15% overlap for better boundary coverage
+  num_points: 32768 # 32k points for detailed features
+  augment: true # Enable data augmentation
+  num_augmentations: 3 # 3 augmented versions per patch
+  num_workers: 2 # Workers for parallel processing
+
+# Enable architectural style detection (one-hot encoding)
+features:
+  include_architectural_style: true
+  style_encoding: onehot # One-hot encoding (13-dimensional)
+
+# Output configuration for training
+output:
+  processing_mode: patches_only # Generate training patches only
+  format: npz,laz # NPZ (training) + LAZ (visualization)
+  save_stats: true # Save style distribution statistics
+  save_metadata: true # Save patch metadata
+
+# Hydra output directory
+hydra:
+  run:
+    dir: outputs/architectural_training/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    name: architectural_training
+# ========================================================================
+# All other settings inherited from full preset:
+# - GPU acceleration enabled
+# - LOD3 classification (30 classes)
+# - Full geometric + spectral features
+# - Architectural style detection
+# - Optimized ground truth classification
+# - Geometric reclassification refinement
+# - Statistical + radius outlier removal
+# - Tile stitching with 15m buffer
+# ========================================================================

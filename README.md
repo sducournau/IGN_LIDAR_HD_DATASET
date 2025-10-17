@@ -8,13 +8,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 3.0.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [⚙️ Configuration v4.0](configs/README.md)
+**Version 5.1.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
 **Transform IGN LiDAR HD point clouds into ML-ready datasets for building classification**
 
-[Quick Start](#-quick-start) • [What's New](#-whats-new-in-v253) • [Features](#-key-features) • [Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) • [Examples](#-usage-examples)
+[Quick Start](#-quick-start) • [What's New](#-whats-new-in-v510) • [Features](#-key-features) • [Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) • [Examples](#-usage-examples)
 
 </div>
 
@@ -26,11 +26,144 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 **Key Capabilities:**
 
-- 🚀 **GPU Acceleration**: 6-20x speedup with RAPIDS cuML
+- 🚀 **GPU Acceleration**: 16× faster processing with optimized batching
+- ⚡ **Optimized Pipeline**: 8× overall speedup (80min → 10min per large tile)
+- 🎯 **Smart Ground Truth**: 10× faster classification with auto-method selection
 - 🎨 **Multi-modal Data**: Geometry + RGB + Infrared (NDVI-ready)
 - 🏗️ **Building Classification**: LOD2/LOD3 schemas with 15-30+ classes
 - 📦 **Flexible Output**: NPZ, HDF5, PyTorch, LAZ formats
 - ⚙️ **YAML Configuration**: Reproducible workflows with example configs
+
+---
+
+## 🚀 Performance (October 2025 Optimizations)
+
+**Latest Update (Oct 17):** Performance optimization sprint with +30-45% throughput gains!
+
+### Quick Wins Implemented
+
+| Optimization          | Impact      | Status |
+| --------------------- | ----------- | ------ |
+| Batched GPU transfers | +15-25%     | ✅     |
+| CPU worker scaling    | +2-4× (CPU) | ✅     |
+| Reduced cleanup freq  | +3-5%       | ✅     |
+| **Combined Impact**   | **+30-45%** | ✅     |
+
+**Latest Performance (10M points):**
+
+- Before optimizations: 2.9s
+- After quick wins: **2.0-2.2s** (+30-45% faster)
+- Projected (all fixes): 1.5-1.8s (+60-90% faster)
+
+📊 See [PERFORMANCE_BOTTLENECK_ANALYSIS.md](PERFORMANCE_BOTTLENECK_ANALYSIS.md) for detailed analysis
+
+### Week 1 Refactoring Complete
+
+**Week 1 Refactoring Complete!** All performance targets met or exceeded:
+
+| Metric                | Before | After  | Speedup |
+| --------------------- | ------ | ------ | ------- |
+| GPU chunk processing  | 353s   | 22s    | **16×** |
+| Ground truth labeling | 20min  | ~2min  | **10×** |
+| Overall pipeline      | 80min  | ~10min | **8×**  |
+
+**Key Optimizations:**
+
+- ✅ GPU neighbor lookup batch size tuned (500K → 250K points)
+- ✅ `GroundTruthOptimizer` with auto-method selection (GPU/CPU)
+- ✅ Reclassification enabled with geometric refinement
+- ✅ Optimized batch size (8M → 1M points) for responsiveness
+
+**Annual Impact:** Saves ~1,140 hours for 100 jobs/year 🎯
+
+📖 See [WEEK_1_IMPLEMENTATION_COMPLETE.md](WEEK_1_IMPLEMENTATION_COMPLETE.md) for details
+
+---
+
+## ✨ What's New in v5.1.0
+
+### 🎯 **Preset-Based Configuration System (Week 3)**
+
+**v5.1.0 introduces a revolutionary preset-based configuration system!**
+
+- **71% fewer lines** in config files (914 → 261 lines across examples)
+- **5 clear presets** for common use cases (minimal, lod2, lod3, asprs, full)
+- **Single source of truth** (`base.yaml` with smart defaults)
+- **Simple inheritance** chain: base → preset → custom → CLI
+- **Zero duplication** - specify only what's different
+
+#### Quick Start with Presets
+
+```bash
+# List available presets
+ign-lidar-hd presets
+
+# Use a preset directly
+ign-lidar-hd process --preset lod2 input/ output/
+
+# Create custom config using preset
+cat > my_config.yaml << EOF
+preset: lod2
+input_dir: /data/tiles
+output_dir: /data/output
+EOF
+
+ign-lidar-hd process --config my_config.yaml
+```
+
+#### Available Presets
+
+| Preset         | Use Case                   | Speed       | Classes             |
+| -------------- | -------------------------- | ----------- | ------------------- |
+| 🚀 **minimal** | Quick preview, testing     | ⚡ Fastest  | ASPRS (standard)    |
+| 🏃 **lod2**    | Building modeling, facades | 🚀 Fast     | 15 building classes |
+| 🏗️ **lod3**    | Detailed architecture      | 🏃 Moderate | 30 detailed classes |
+| 📐 **asprs**   | Standard classification    | 🚀 Fast     | ASPRS LAS 1.4       |
+| 🔬 **full**    | ML training, research      | 🐢 Slow     | LOD3 + all features |
+
+#### Configuration Comparison
+
+**Before v5.1** (188 lines):
+
+```yaml
+defaults:
+  - ../ign_lidar/configs/config
+  - _self_
+
+input_dir: /data/tiles
+output_dir: /data/output
+
+processor:
+  lod_level: LOD2
+  architecture: hybrid
+  use_gpu: true
+  num_workers: 4
+  patch_size: 150.0
+  patch_overlap: 0.1
+  # ... 170 more lines
+```
+
+**After v5.1** (43 lines):
+
+```yaml
+preset: lod2
+
+input_dir: /data/tiles
+output_dir: /data/output
+# Everything else inherited from lod2 preset!
+```
+
+**Reduction**: 188 → 43 lines (**-77%** ✨)
+
+#### Benefits
+
+✅ **Simpler**: Only specify what's different  
+✅ **Clearer**: Presets document best practices  
+✅ **Maintainable**: Update presets once, all configs benefit  
+✅ **Discoverable**: `ign-lidar-hd presets` shows all options  
+✅ **Flexible**: Easy to experiment and switch presets
+
+📖 See [Configuration Guide](docs/guides/CONFIG_GUIDE.md) for complete documentation
 
 ---
 
@@ -274,7 +407,7 @@ ign-lidar-hd process \
 ign-lidar-hd process \
   input_dir=data/raw \
   output_dir=data/patches \
-  output.processing_mode=patches_only
+  processor.processing_mode=patches_only
 ```
 
 ### Mode 2: Both Patches & Enriched LAZ

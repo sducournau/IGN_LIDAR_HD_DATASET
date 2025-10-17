@@ -51,7 +51,7 @@ preprocess:
 # FEATURE COMPUTATION OVERRIDES
 # ============================================================================
 features:
-  mode: "asprs_classes" # Optimized for ASPRS classification
+  processing_mode: "asprs_classes" # Optimized for ASPRS classification
 
   # Enhanced neighborhood analysis
   k_neighbors: 25 # More neighbors for stable features
@@ -214,10 +214,10 @@ performance:
     cache_ground_truth: true
 
 # ============================================================================
-# PROCESSING CONFIGURATION (SIMPLIFIED v4.0 SCHEMA)
+# PROCESSING CONFIGURATION (SIMPLIFIED v5.0 SCHEMA)
 # ============================================================================
-processing:
-  mode: "enriched_only" # Focus on enriched LAZ output
+processor:
+  processing_mode: "enriched_only" # Focus on enriched LAZ output
   lod_level: "ASPRS" # ASPRS classification target
   architecture: "direct" # Direct processing architecture
   use_gpu: true # GPU acceleration

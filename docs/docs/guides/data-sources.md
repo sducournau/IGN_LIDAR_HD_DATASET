@@ -322,7 +322,7 @@ Data source enrichment does **not** significantly increase file size:
 
 - Point cloud size: No change (same points)
 - Classification field: Already present in LAZ
-- Metadata: Minimal increase (<1%)
+- Metadata: Minimal increase (&lt;1%)
 
 ### Caching System
 

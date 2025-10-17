@@ -1,0 +1,173 @@
+# ============================================================================
+# IGN LiDAR HD - Preset: LOD2
+# ============================================================================
+# Inherits: base.yaml
+#
+# USE CASE: Building modeling, facade detection, roof planes
+# SPEED: 🚀 FAST (1.5× slower than minimal, still efficient)
+#
+# FEATURES:
+#   - Geometric features (curvature, planarity, height)
+#   - Architectural feature detection
+#   - Building-focused classification
+#   - Ground truth from BD TOPO
+#
+# WHEN TO USE:
+#   ✓ Building facade detection and modeling
+#   ✓ Roof plane extraction (flat, gable, hip roofs)
+#   ✓ Urban modeling and city digital twins
+#   ✓ Building footprint refinement
+#   ✓ Architectural analysis (coarse level)
+#
+# CLASSIFICATION OUTPUT:
+#   LOD2 Building Classes:
+#     - wall, roof_flat, roof_gable, roof_hip
+#     - chimney, foundation, balcony
+#     - ground, vegetation (low/high), water, other
+#
+# USAGE:
+#   ign-lidar-hd process --preset lod2 input/ output/
+#
+# ALTERNATIVES:
+#   - For quick preview → use 'minimal' preset
+#   - For detailed architecture → use 'lod3' preset
+#   - For standard classification → use 'asprs' preset
+#
+# Version: 5.1.0
+# Week: 3 (Configuration Refactoring)
+# ============================================================================
+
+# Inherit from base configuration
+defaults:
+  - ../base
+  - _self_
+
+# ============================================================================
+# LOD2 PRESET OVERRIDES
+# ============================================================================
+
+# Processor: LOD2 classification scheme
+processor:
+  lod_level: "LOD2" # Use LOD2 building classification
+  processing_mode: "enriched_only" # Enriched LAZ output
+
+  # GPU settings (required for direct config loading)
+  use_gpu: true # Enable GPU acceleration
+  num_workers: 1 # Single worker for GPU processing
+  patch_overlap: 0.1 # 10% overlap
+  num_points: 32768 # Points per patch
+
+  # Balanced GPU settings
+  gpu_batch_size: 8_000_000 # 8M points (balanced)
+  gpu_memory_target: 0.85 # 85% VRAM usage
+  gpu_streams: 4 # CUDA streams for parallel processing
+
+  # Strategy pattern
+  use_strategy_pattern: true # Use new Strategy Pattern
+
+  # Optimization flags
+  use_optimized_ground_truth: true # Use optimized ground truth classifier
+  enable_memory_pooling: true # GPU memory pooling
+  enable_async_transfers: true # Async CPU-GPU transfers
+  adaptive_chunk_sizing: true # Dynamic chunk sizing
+
+  # Processing settings
+  skip_existing: false # Re-process existing files
+  output_format: "laz" # Output format
+  use_stitching: false # Tile stitching disabled by default
+
+  # Patch extraction
+  patch_size: 150.0 # Patch size in meters
+  architecture: "direct" # Direct patch extraction
+  augment: false # No augmentation for enriched-only mode
+  num_augmentations: 3 # Augmentations if enabled
+
+  # Ground truth settings
+  ground_truth_method: "auto" # GPU chunked or STRtree
+  ground_truth_chunk_size: 5_000_000 # 5M points per chunk
+
+  # Enable reclassification for better building detection
+  reclassification:
+    enabled: true
+    use_geometric_rules: true # Important for buildings
+    min_confidence: 0.7
+
+# Features: LOD2-optimized feature set
+features:
+  mode: "lod2" # LOD2 feature mode
+
+  # Required fields for direct config loading
+  include_extra: true # Include additional features
+  use_gpu_chunked: true # GPU chunked processing
+  gpu_batch_size: 1_000_000 # 1M points per batch
+  use_nir: false # No NIR by default
+
+  # Balanced geometric parameters
+  k_neighbors: 20 # Balanced neighborhood size
+  search_radius: 1.0 # 1 meter radius
+
+  # Essential LOD2 features
+  compute_normals: true
+  compute_curvature: true # Important for roof detection
+  compute_height: true # Height above ground
+  compute_geometric: true # Planarity, verticality
+
+  # Architectural features for building detection
+  compute_architectural: true # Enable architectural features
+  architectural_styles: false # Basic detection only
+
+  # Boundaries not needed for LOD2
+  compute_boundaries: false
+
+  # No spectral features (unless needed)
+  use_rgb: false # Can enable if color is needed
+  use_infrared: false
+  compute_ndvi: false
+
+# Data Sources: BD TOPO for building ground truth
+data_sources:
+  # BD TOPO: Essential for LOD2 classification
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true # Essential for LOD2
+      roads: true # Context
+      water: false # Not critical for LOD2
+      vegetation: false # Not critical for LOD2
+
+# Preprocessing: Required section
+preprocess:
+  enabled: false # Disabled by default
+
+# Stitching: Required section
+stitching:
+  enabled: false # Disabled by default
+  buffer_size: 10.0 # 10 meter buffer
+
+# Output: Required section
+output:
+  format: "laz" # Output format
+  save_enriched: true # Save enriched LAZ with LOD2 classes
+  save_patches: false # No patches for enriched-only mode
+  save_metadata: true # Save metadata
+  save_stats: true # Save classification stats
+
+# ============================================================================
+# EXPECTED PERFORMANCE
+# ============================================================================
+# Processing time (relative to base):
+#   - 1.5× slower than minimal
+#   - Comparable to base configuration
+#   - 2× faster than LOD3
+#
+# Memory usage:
+#   - Moderate (works on GPUs with 8GB+ VRAM)
+#
+# Output file size:
+#   - Medium (LOD2 classifications + geometric features)
+#
+# Classification accuracy:
+#   - High for building structures
+#   - Good for facade/roof detection
+#   - Excellent for urban modeling
+# ============================================================================

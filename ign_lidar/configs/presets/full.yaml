@@ -1,0 +1,216 @@
+# ============================================================================
+# IGN LiDAR HD - Preset: FULL
+# ============================================================================
+# Inherits: base.yaml
+#
+# USE CASE: Research, maximum detail, archival processing
+# SPEED: 🐌 SLOW (5× slower than minimal, maximum detail)
+#
+# FEATURES:
+#   - All geometric features (normals, curvature, height, boundaries)
+#   - All architectural features
+#   - Multi-scale analysis
+#   - Full spectral features (RGB, NIR, NDVI)
+#   - All data sources
+#   - Comprehensive outputs
+#
+# WHEN TO USE:
+#   ✓ Research projects requiring all available features
+#   ✓ Archival processing (process once, keep forever)
+#   ✓ Exploring new classification methods
+#   ✓ Maximum detail for critical projects
+#   ✓ Training data generation for ML
+#
+# CLASSIFICATION OUTPUT:
+#   - All available classes (ASPRS + LOD2 + LOD3)
+#   - All geometric features
+#   - All spectral features
+#   - All architectural features
+#
+# USAGE:
+#   ign-lidar-hd process --preset full input/ output/
+#
+# ALTERNATIVES:
+#   - For production → use 'lod2', 'lod3', or 'asprs' presets
+#   - For quick preview → use 'minimal' preset
+#   - For specific use case → use focused presets
+#
+# WARNING:
+#   This preset is SLOW and requires significant resources:
+#   - GPU with 16GB+ VRAM recommended
+#   - High-speed internet for orthophoto download
+#   - Large storage space for outputs
+#   - Processing time: 5-10× longer than minimal
+#
+# Version: 5.1.0
+# Week: 3 (Configuration Refactoring)
+# ============================================================================
+
+# Inherit from base configuration
+defaults:
+  - ../base
+  - _self_
+
+# ============================================================================
+# FULL PRESET OVERRIDES
+# ============================================================================
+
+# Processor: Maximum detail processing
+processor:
+  lod_level: "LOD3" # Most detailed classification
+  processing_mode: "both" # Both enriched LAZ and training patches
+
+  # GPU settings (required for direct config loading)
+  use_gpu: true # Enable GPU acceleration
+  num_workers: 1 # Single worker for GPU processing
+  patch_overlap: 0.1 # 10% overlap
+  num_points: 32768 # Points per patch
+
+  # Maximum GPU settings (requires high-end GPU)
+  gpu_batch_size: 8_000_000 # 8M points (conservative for stability)
+  gpu_memory_target: 0.85 # 85% VRAM usage
+  gpu_streams: 8 # Maximum parallelism
+
+  # Strategy pattern
+  use_strategy_pattern: true # Use new Strategy Pattern
+
+  # Optimization flags
+  use_optimized_ground_truth: true # Use optimized ground truth classifier
+  enable_memory_pooling: true # GPU memory pooling
+  enable_async_transfers: true # Async CPU-GPU transfers
+  adaptive_chunk_sizing: true # Dynamic chunk sizing
+
+  # Processing settings
+  skip_existing: false # Re-process existing files
+  output_format: "laz" # Output format
+  use_stitching: false # Tile stitching disabled by default
+
+  # Patch extraction
+  patch_size: 150.0 # Patch size in meters
+  architecture: "direct" # Direct patch extraction
+  augment: false # Enable manually if training
+  num_augmentations: 5 # Augmentations if enabled
+
+  # Ground truth with all methods
+  ground_truth_method: "auto" # Best method selection
+  ground_truth_chunk_size: 5_000_000
+
+  # Reclassification with all features
+  reclassification:
+    enabled: true
+    use_geometric_rules: true
+    use_ndvi_classification: true # Use NDVI if available
+    min_confidence: 0.75
+
+# Features: ALL features enabled
+features:
+  mode: "full" # Full feature mode
+
+  # Required fields for direct config loading
+  include_extra: true # Include all extra features
+  use_gpu_chunked: true # GPU chunked processing
+  gpu_batch_size: 1_000_000 # 1M points per batch
+  use_nir: true # Enable NIR if available
+
+  # High-resolution geometric parameters
+  k_neighbors: 30 # Maximum neighbors for detail
+  search_radius: 2.0 # Large radius for maximum context
+
+  # All geometric features
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: true
+
+  # All architectural features
+  compute_architectural: true
+  architectural_styles: true
+
+  # Boundary detection
+  compute_boundaries: true
+
+  # Multi-scale analysis (research feature)
+  compute_multiscale: true
+
+  # All spectral features (WARNING: SLOW)
+  use_rgb: true # Orthophoto RGB (slow)
+  use_infrared: true # Orthophoto NIR (very slow)
+  compute_ndvi: true # Vegetation index
+
+# Data Sources: ALL sources enabled
+data_sources:
+  # BD TOPO: All features
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true
+      roads: true
+      water: true
+      vegetation: true
+
+  # Additional BD TOPO layers
+  bd_topo_bridges: true
+  bd_topo_power_lines: true
+
+  # All orthophotos (WARNING: VERY SLOW)
+  orthophoto_rgb: true # RGB orthophotos
+  orthophoto_nir: true # NIR orthophotos
+
+  # Optional external sources (if available)
+  cadastre_enabled: false # Enable manually if needed
+  bd_foret_enabled: false # Enable manually if needed
+  rpg_enabled: false # Enable manually if needed
+
+# Preprocessing: Required section
+preprocess:
+  enabled: false # Disabled by default
+
+# Stitching: Required section
+stitching:
+  enabled: false # Disabled by default
+  buffer_size: 10.0 # 10 meter buffer
+
+# Output: EVERYTHING
+output:
+  format: "laz" # Output format
+  save_enriched: true # Enriched LAZ
+  save_patches: true # ML training patches
+  save_metadata: true # Detailed metadata
+  save_stats: true # Comprehensive statistics
+
+# Logging: Detailed for research
+logging:
+  level: "INFO"
+  show_progress: true
+  detailed_timing: true
+  enable_performance_metrics: true
+  enable_profiling: false # Enable manually for profiling
+
+# ============================================================================
+# EXPECTED PERFORMANCE
+# ============================================================================
+# Processing time (relative to base):
+#   - 5-10× slower than minimal
+#   - 3-5× slower than LOD2
+#   - 2-3× slower than LOD3
+#   - Orthophoto download can add hours
+#
+# Memory usage:
+#   - Very high (16GB+ VRAM recommended)
+#   - 32GB+ system RAM recommended
+#
+# Output file size:
+#   - Very large (all features + RGB + NIR)
+#   - Plan for 2-5× larger files than minimal
+#
+# Classification accuracy:
+#   - Maximum possible with all available data
+#   - Best for research and archival purposes
+#
+# RESOURCE REQUIREMENTS:
+#   - GPU: RTX 4080 or better (16GB+ VRAM)
+#   - CPU: 8+ cores recommended
+#   - RAM: 32GB+ recommended
+#   - Storage: SSD with ample space (100GB+ for large datasets)
+#   - Internet: High-speed for orthophoto download
+# ============================================================================

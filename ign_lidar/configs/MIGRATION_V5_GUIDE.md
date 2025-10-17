@@ -113,7 +113,7 @@ features:
 **V4 (Separate System):**
 ```yaml
 # Needed EnhancedFeatureOrchestrator
-processing:
+processor:
   architecture: "enhanced"
 
 # Complex optimization config
@@ -155,7 +155,7 @@ Create clean, focused presets:
 ```yaml
 # gpu_optimized_v5.yaml
 defaults:
-  - ../config_v5
+  - ../config
   - _self_
 
 processor:

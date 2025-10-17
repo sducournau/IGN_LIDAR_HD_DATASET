@@ -51,7 +51,7 @@ The three processing modes are:
 ign-lidar-hd process \
   input_dir=data/raw \
   output_dir=data/patches \
-  output.processing_mode=patches_only
+  processor.processing_mode=patches_only
 
 # Default behavior (mode can be omitted)
 ign-lidar-hd process \
@@ -101,7 +101,7 @@ output/
 ign-lidar-hd process \
   input_dir=data/raw_tiles \
   output_dir=data/training \
-  output.processing_mode=patches_only \
+  processor.processing_mode=patches_only \
   processor.num_points=16384 \
   processor.augment=true \
   processor.num_augmentations=5 \
@@ -137,7 +137,7 @@ Generate **both** patches and enriched LAZ files.
 ign-lidar-hd process \
   input_dir=data/raw \
   output_dir=data/both \
-  output.processing_mode=both
+  processor.processing_mode=both
 ```
 
 ### With Example Config
@@ -181,7 +181,7 @@ output/
 ign-lidar-hd process \
   input_dir=data/raw_tiles \
   output_dir=data/research \
-  output.processing_mode=both \
+  processor.processing_mode=both \
   processor.num_points=32768 \
   processor.augment=true \
   processor.num_augmentations=3 \
@@ -223,7 +223,7 @@ Generate **only** enriched LAZ files (no patches).
 ign-lidar-hd process \
   input_dir=data/raw \
   output_dir=data/enriched \
-  output.processing_mode=enriched_only
+  processor.processing_mode=enriched_only
 ```
 
 ### With Example Configs
@@ -270,7 +270,7 @@ output/
 ign-lidar-hd process \
   input_dir=data/raw_tiles \
   output_dir=data/qgis \
-  output.processing_mode=enriched_only \
+  processor.processing_mode=enriched_only \
   features.k_neighbors=10 \
   features.use_rgb=false \
   preprocess.enabled=false \
@@ -286,7 +286,7 @@ ign-lidar-hd process \
 ign-lidar-hd process \
   input_dir=data/raw_tiles \
   output_dir=data/enriched \
-  output.processing_mode=enriched_only \
+  processor.processing_mode=enriched_only \
   processor.use_gpu=true \
   features.k_neighbors=20 \
   features.use_rgb=true \
@@ -334,7 +334,7 @@ processor = LiDARTileProcessor(
 # New CLI - intuitive
 ign-lidar-hd process \
   input_dir=data/ \
-  output.processing_mode=enriched_only
+  processor.processing_mode=enriched_only
 ```
 
 ### Migration Table
@@ -369,7 +369,7 @@ The old flags will be removed in **v3.0.0**.
 ign-lidar-hd process \
   input_dir=data/raw \
   output_dir=data/training \
-  output.processing_mode=patches_only \
+  processor.processing_mode=patches_only \
   processor.use_gpu=true \
   processor.num_points=32768 \
   processor.augment=true \
@@ -495,10 +495,10 @@ Approximate processing times for a 17M point tile:
 
 ```bash
 # ❌ Wrong
-output.processing_mode=patch_only  # Missing 'es'
+processor.processing_mode=patch_only  # Missing 'es'
 
 # ✅ Correct
-output.processing_mode=patches_only
+processor.processing_mode=patches_only
 ```
 
 ### Issue: "Both patches and LAZ files created when I wanted only patches"
@@ -512,7 +512,7 @@ output.processing_mode=patches_only
 output.save_enriched_laz=false
 
 # ✅ New way
-output.processing_mode=patches_only
+processor.processing_mode=patches_only
 ```
 
 ### Issue: "No patches created"
@@ -523,10 +523,10 @@ output.processing_mode=patches_only
 
 ```bash
 # Change from:
-output.processing_mode=enriched_only
+processor.processing_mode=enriched_only
 
 # To:
-output.processing_mode=patches_only
+processor.processing_mode=patches_only
 ```
 
 ---

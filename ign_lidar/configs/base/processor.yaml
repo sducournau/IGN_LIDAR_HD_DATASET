@@ -10,11 +10,19 @@ processor:
   lod_level: "ASPRS" # Options: ASPRS, LOD2, LOD3
 
   # Processing mode (simplified)
-  mode: "enriched_only" # Options: enriched_only, patches_only, both
+  processing_mode: "enriched_only" # Options: enriched_only, patches_only, both
+
+  # ============================================================================
+  # WEEK 2: Strategy Pattern (NEW - Oct 21, 2025)
+  # ============================================================================
+  # Use new Strategy Pattern for feature computation instead of legacy Factory Pattern
+  use_strategy_pattern:
+    true # Recommended: Uses new Strategy Pattern (Week 2)
+    # Set to false for legacy Factory Pattern (deprecated)
 
   # GPU configuration (simplified)
   use_gpu: true
-  gpu_batch_size: 8_000_000 # 8M points per batch
+  gpu_batch_size: 1_000_000 # 1M points per batch (Task 1.4: optimized for GPU responsiveness)
   gpu_memory_target: 0.85 # Use 85% of available VRAM
 
   # Core parameters
@@ -23,3 +31,22 @@ processor:
 
   # Output format
   output_format: "laz"
+
+  # ============================================================================
+  # TASK 1.2: Optimized Ground Truth Classification (NEW - Oct 17, 2025)
+  # ============================================================================
+  # Use GroundTruthOptimizer instead of legacy AdvancedClassifier
+  # Provides 10× speedup with GPU acceleration and auto-method selection
+  use_optimized_ground_truth: true # Set false to use legacy classifier
+
+  # ============================================================================
+  # TASK 1.3: Optional Reclassification (ENABLED - Oct 17, 2025)
+  # ============================================================================
+  # Additional refinement pass using geometric rules and NDVI (if available)
+  # Provides improved classification accuracy with minimal overhead
+  reclassification:
+    enabled: true # Enable reclassification pass (step 3aa)
+    acceleration_mode: "auto" # Options: auto, gpu, gpu+cuml, cpu
+    chunk_size: 5_000_000 # Points per chunk for GPU processing
+    show_progress: true # Display progress bars
+    use_geometric_rules: true # Use planarity, height for refinement

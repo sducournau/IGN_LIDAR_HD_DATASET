@@ -20,7 +20,7 @@ Ce dossier contient la **configuration simplifiée V5.0** pour IGN LiDAR HD Data
 ```text
 configs/
 ├── config.yaml              # 🎯 Configuration par défaut V5
-├── config_v5.yaml           # 🎯 Configuration V5 (identique à config.yaml)
+├── config.yaml           # 🎯 Configuration V5 (identique à config.yaml)
 ├── base/                     # 📦 5 configurations de base V5
 │   ├── processor.yaml       #     Paramètres de traitement
 │   ├── features.yaml        #     Calcul de features
@@ -195,7 +195,7 @@ optimizations:
 ### CPU Fallback Automatique
 
 ```yaml
-processing:
+processor:
   gpu:
     ground_truth_method: "auto" # Auto-fallback si GPU OOM
     reclassification_mode: "auto" # Auto-fallback
@@ -237,7 +237,7 @@ defaults:
   - _self_ # Override local
 
 # Mes modifications spécifiques
-processing:
+processor:
   gpu:
     features_batch_size: 12_000_000 # Ajusté pour ma config
 
@@ -259,7 +259,7 @@ data_sources:
 **GPU non utilisé (17% utilisation)** :
 
 ```yaml
-processing:
+processor:
   gpu:
     reclassification_mode: "gpu" # Au lieu de "cpu"
     ground_truth_method: "gpu_chunked" # Au lieu de "auto"
@@ -268,7 +268,7 @@ processing:
 **Erreurs CUDA Out of Memory** :
 
 ```yaml
-processing:
+processor:
   gpu:
     features_batch_size: 4_000_000 # Réduire la batch size
     vram_target: 0.70 # Réduire VRAM target

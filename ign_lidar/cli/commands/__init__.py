@@ -10,6 +10,7 @@ This package contains modular command implementations:
 - ground_truth: Ground truth fetching from IGN BD TOPO®
 - update_classification: Update LAZ classification with ground truth and NDVI
 - auto_config: Auto-configuration based on system capabilities
+- presets: List and show configuration presets (Week 3)
 """
 
 from .process import process_command
@@ -20,6 +21,7 @@ from .info import info_command
 from .ground_truth import ground_truth_command
 from .update_classification import update_classification_command
 from .auto_config import auto_config
+from .presets import presets_command
 
 __all__ = [
     'process_command',
@@ -29,5 +31,6 @@ __all__ = [
     'info_command',
     'ground_truth_command',
     'update_classification_command',
-    'auto_config'
+    'auto_config',
+    'presets_command'
 ]

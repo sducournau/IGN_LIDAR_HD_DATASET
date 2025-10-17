@@ -36,8 +36,8 @@ def print_config_summary(cfg: DictConfig) -> None:
     logger.info(f"GPU: {cfg.processor.use_gpu}")
     logger.info(f"Workers: {cfg.processor.num_workers}")
     
-    # Get processing mode
-    processing_mode = OmegaConf.select(cfg, "output.processing_mode", default="patches_only")
+    # Get processing mode from processor config
+    processing_mode = OmegaConf.select(cfg, "processor.processing_mode", default="enriched_only")
     logger.info(f"Processing mode: {processing_mode}")
     
     if processing_mode != "enriched_only":
@@ -59,9 +59,9 @@ def process_lidar(cfg: DictConfig) -> None:
     """Process LiDAR tiles to create training patches."""
     # CRITICAL: Handle 'output' shorthand parameter FIRST
     # This must happen before any code tries to access cfg.output properties
-    # Maps: output=enriched_only -> output.processing_mode='enriched_only'
-    #       output=both -> output.processing_mode='both'
-    #       output=patches -> output.processing_mode='patches_only' (default)
+    # Maps: output=enriched_only -> processor.processing_mode='enriched_only'
+    #       output=both -> processor.processing_mode='both'
+    #       output=patches -> processor.processing_mode='patches_only'
     if hasattr(cfg, 'output') and isinstance(cfg.output, str):
         output_mode = cfg.output
         # Replace string with proper OutputConfig
@@ -127,8 +127,8 @@ def process_lidar(cfg: DictConfig) -> None:
     # Initialize processor
     logger.info("Initializing LiDAR processor...")
     
-    # Get processing mode
-    processing_mode = OmegaConf.select(cfg, "output.processing_mode", default="patches_only")
+    # Get processing mode from processor config
+    processing_mode = OmegaConf.select(cfg, "processor.processing_mode", default="enriched_only")
     
     # Pass the full config to the processor (modern config-based initialization)
     # This ensures data_sources and all other config sections are available

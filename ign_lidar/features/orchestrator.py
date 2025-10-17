@@ -31,8 +31,25 @@ from typing import Dict, Optional, Any, List
 import numpy as np
 from omegaconf import DictConfig
 
-from .factory import BaseFeatureComputer, CPUFeatureComputer, GPUFeatureComputer
-from .factory import GPUChunkedFeatureComputer, BoundaryAwareFeatureComputer
+# NEW: Strategy Pattern (Week 2 refactoring)
+from .strategies import BaseFeatureStrategy, FeatureComputeMode
+from .strategy_cpu import CPUStrategy
+try:
+    from .strategy_gpu import GPUStrategy
+    from .strategy_gpu_chunked import GPUChunkedStrategy
+except ImportError:
+    GPUStrategy = None
+    GPUChunkedStrategy = None
+from .strategy_boundary import BoundaryAwareStrategy
+
+# LEGACY: Old factory pattern (deprecated, for backward compatibility)
+try:
+    from .factory import BaseFeatureComputer, CPUFeatureComputer, GPUFeatureComputer
+    from .factory import GPUChunkedFeatureComputer, BoundaryAwareFeatureComputer
+    LEGACY_FACTORY_AVAILABLE = True
+except ImportError:
+    LEGACY_FACTORY_AVAILABLE = False
+    
 from .feature_modes import FeatureMode, get_feature_config
 
 logger = logging.getLogger(__name__)
@@ -273,57 +290,125 @@ class FeatureOrchestrator:
     
     def _init_computer(self):
         """
-        Select and create appropriate feature computer based on configuration.
+        Select and create appropriate feature strategy based on configuration.
+        
+        NEW (Week 2): Uses Strategy Pattern instead of Factory Pattern
         
         Strategy selection logic:
-        1. Boundary-aware if use_boundary_aware=True
+        1. Boundary-aware if use_boundary_aware=True (wraps base strategy)
         2. GPU chunked if use_gpu=True and use_gpu_chunked=True
         3. GPU basic if use_gpu=True
         4. CPU otherwise (fallback)
         
-        The created computer is cached in self.computer for reuse.
+        The created strategy is cached in self.computer for reuse.
+        
+        Note: self.computer can be either:
+        - New Strategy Pattern: BaseFeatureStrategy (Week 2)
+        - Old Factory Pattern: BaseFeatureComputer (legacy, deprecated)
         """
         processor_cfg = self.config.get('processor', {})
         features_cfg = self.config.get('features', {})
         
         # Extract parameters
         k_neighbors = features_cfg.get('k_neighbors', 20)
+        radius = features_cfg.get('search_radius', 1.0)
         use_boundary_aware = processor_cfg.get('use_boundary_aware', False)
         use_gpu_chunked = processor_cfg.get('use_gpu_chunked', False)
+        use_strategy_pattern = processor_cfg.get('use_strategy_pattern', True)  # NEW: opt-in
         
         # Initialize size tracking for logging
         gpu_size = None
         
-        # Select strategy
-        if use_boundary_aware:
-            self.strategy_name = "boundary_aware"
-            buffer_size = processor_cfg.get('buffer_size', 10.0)
-            self.computer = BoundaryAwareFeatureComputer(
-                k_neighbors=k_neighbors,
-                buffer_size=buffer_size
-            )
-        elif self.gpu_available and use_gpu_chunked:
-            self.strategy_name = "gpu_chunked"
-            chunk_size = processor_cfg.get('gpu_batch_size', 1_000_000)
-            gpu_size = chunk_size
-            self.computer = GPUChunkedFeatureComputer(
-                k_neighbors=k_neighbors,
-                gpu_batch_size=chunk_size
-            )
-        elif self.gpu_available:
-            self.strategy_name = "gpu"
-            # Pass gpu_batch_size from config to GPU computer
-            batch_size = features_cfg.get('gpu_batch_size', processor_cfg.get('gpu_batch_size', 1_000_000))
-            gpu_size = batch_size
-            self.computer = GPUFeatureComputer(
-                k_neighbors=k_neighbors,
-                gpu_batch_size=batch_size
-            )
+        # NEW (Week 2): Strategy Pattern implementation
+        if use_strategy_pattern:
+            logger.info("🆕 Using Strategy Pattern (Week 2 refactoring)")
+            
+            # Select base strategy
+            if self.gpu_available and use_gpu_chunked:
+                self.strategy_name = "gpu_chunked"
+                chunk_size = processor_cfg.get('gpu_batch_size', 5_000_000)
+                batch_size = 250_000  # Week 1 optimized batch size
+                gpu_size = chunk_size
+                
+                if GPUChunkedStrategy is None:
+                    logger.warning("GPU chunked strategy not available, falling back to CPU")
+                    base_strategy = CPUStrategy(k_neighbors=k_neighbors, radius=radius)
+                else:
+                    base_strategy = GPUChunkedStrategy(
+                        k_neighbors=k_neighbors,
+                        radius=radius,
+                        chunk_size=chunk_size,
+                        batch_size=batch_size
+                    )
+                    
+            elif self.gpu_available:
+                self.strategy_name = "gpu"
+                batch_size = features_cfg.get('gpu_batch_size', processor_cfg.get('gpu_batch_size', 8_000_000))
+                gpu_size = batch_size
+                
+                if GPUStrategy is None:
+                    logger.warning("GPU strategy not available, falling back to CPU")
+                    base_strategy = CPUStrategy(k_neighbors=k_neighbors, radius=radius)
+                else:
+                    base_strategy = GPUStrategy(
+                        k_neighbors=k_neighbors,
+                        radius=radius,
+                        batch_size=batch_size
+                    )
+            else:
+                self.strategy_name = "cpu"
+                base_strategy = CPUStrategy(k_neighbors=k_neighbors, radius=radius)
+            
+            # Wrap with boundary-aware strategy if needed
+            if use_boundary_aware:
+                buffer_size = processor_cfg.get('buffer_size', 10.0)
+                self.computer = BoundaryAwareStrategy(
+                    base_strategy=base_strategy,
+                    boundary_buffer=buffer_size
+                )
+                self.strategy_name = f"boundary_aware({self.strategy_name})"
+            else:
+                self.computer = base_strategy
+        
+        # LEGACY: Old factory pattern (deprecated)
         else:
-            self.strategy_name = "cpu"
-            self.computer = CPUFeatureComputer(
-                k_neighbors=k_neighbors
-            )
+            logger.warning("⚠️  Using legacy Factory Pattern (deprecated, will be removed)")
+            
+            if not LEGACY_FACTORY_AVAILABLE:
+                raise ImportError(
+                    "Legacy factory pattern not available. "
+                    "Set processor.use_strategy_pattern=true in config to use new Strategy Pattern."
+                )
+            
+            # Select strategy (old way)
+            if use_boundary_aware:
+                self.strategy_name = "boundary_aware"
+                buffer_size = processor_cfg.get('buffer_size', 10.0)
+                self.computer = BoundaryAwareFeatureComputer(
+                    k_neighbors=k_neighbors,
+                    buffer_size=buffer_size
+                )
+            elif self.gpu_available and use_gpu_chunked:
+                self.strategy_name = "gpu_chunked"
+                chunk_size = processor_cfg.get('gpu_batch_size', 1_000_000)
+                gpu_size = chunk_size
+                self.computer = GPUChunkedFeatureComputer(
+                    k_neighbors=k_neighbors,
+                    gpu_batch_size=chunk_size
+                )
+            elif self.gpu_available:
+                self.strategy_name = "gpu"
+                batch_size = features_cfg.get('gpu_batch_size', processor_cfg.get('gpu_batch_size', 1_000_000))
+                gpu_size = batch_size
+                self.computer = GPUFeatureComputer(
+                    k_neighbors=k_neighbors,
+                    gpu_batch_size=batch_size
+                )
+            else:
+                self.strategy_name = "cpu"
+                self.computer = CPUFeatureComputer(
+                    k_neighbors=k_neighbors
+                )
         
         logger.debug(f"Selected strategy: {self.strategy_name}")
         if gpu_size is not None:

@@ -7,6 +7,10 @@ Provides Hydra-based structured configuration with:
 - Command-line overrides
 - Validation
 - ConfigStore registration for better type safety
+
+Week 3 Addition:
+- Preset-based configuration system
+- Modern PresetConfigLoader with inheritance
 """
 
 from .schema import (
@@ -19,7 +23,16 @@ from .schema import (
     IGNLiDARConfig,
 )
 
+# Week 3: Modern preset-based configuration loader
+from .preset_loader import (
+    PresetConfigLoader,
+    ConfigLoader,
+    load_config_with_preset,
+    ConfigLoaderError,
+)
+
 __all__ = [
+    # Hydra schemas
     "ProcessorConfig",
     "FeaturesConfig",
     "PreprocessConfig",
@@ -28,6 +41,11 @@ __all__ = [
     "BBoxConfig",
     "IGNLiDARConfig",
     "register_configs",
+    # Week 3: Preset loaders
+    "PresetConfigLoader",
+    "ConfigLoader",
+    "load_config_with_preset",
+    "ConfigLoaderError",
 ]
 
 

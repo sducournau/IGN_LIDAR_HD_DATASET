@@ -530,6 +530,9 @@ class GPUChunkedFeatureComputer:
             )
         
         # QUERY KDTREE IN CHUNKS (reuse tree!)
+        # OPTIMIZATION: Batch GPU transfers - accumulate results on GPU, transfer once
+        chunk_normals_list = []  # Accumulate on GPU for batched transfer
+        
         for chunk_idx in chunk_iterator:
             start_idx = chunk_idx * self.chunk_size
             end_idx = min((chunk_idx + 1) * self.chunk_size, N)
@@ -557,19 +560,33 @@ class GPUChunkedFeatureComputer:
                 points_gpu, indices
             )
             
-            # Store results (transfer to CPU)
-            normals[start_idx:end_idx] = self._to_cpu(chunk_normals)
+            # OPTIMIZATION: Keep results on GPU, accumulate for batch transfer
+            chunk_normals_list.append(chunk_normals)
             
-            # Memory cleanup - less frequent, smarter
-            del chunk_normals, indices
-            if chunk_idx % 10 == 0:  # OPTIMIZED: Was every 3, now every 10
+            # Memory cleanup - REDUCED frequency for better batching
+            del indices
+            if chunk_idx % 20 == 0:  # OPTIMIZED: Was every 10, now every 20
                 self._free_gpu_memory()  # Smart cleanup (only if >80% VRAM)
+        
+        # OPTIMIZATION: Single batched transfer at end (10-100x fewer syncs!)
+        logger.info(f"  📦 Batching {len(chunk_normals_list)} chunks for single GPU transfer...")
+        if self.use_gpu and cp is not None:
+            # Concatenate all results on GPU
+            normals_gpu = cp.concatenate(chunk_normals_list)
+            # Single transfer to CPU
+            normals = self._to_cpu(normals_gpu)
+            # Cleanup
+            del normals_gpu, chunk_normals_list
+        else:
+            # CPU fallback: already have numpy arrays
+            normals = np.concatenate(chunk_normals_list)
+            del chunk_normals_list
         
         # Final cleanup - force cleanup at end
         del knn, points_gpu
         self._free_gpu_memory(force=True)
         
-        logger.info("  ✓ Global KDTree normals computation complete")
+        logger.info("  ✓ Global KDTree normals computation complete (batched transfer)")
         return normals
     
     def _compute_normals_from_neighbors_gpu(

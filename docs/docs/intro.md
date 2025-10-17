@@ -172,7 +172,7 @@ ign-lidar-hd process input_dir=data/ output_dir=patches/
 Training + GIS visualization:
 
 ```bash
-ign-lidar-hd process input_dir=data/ output_dir=both/ output.processing_mode=both
+ign-lidar-hd process input_dir=data/ output_dir=both/ processor.processing_mode=both
 ```
 
 ### Enriched LAZ Only

@@ -14,11 +14,11 @@
 
 # Inherit from V5 base configurations
 defaults:
-  - ../config_v5
+  - ../config
   - _self_
 
 # Override for RTX 4090 maximum performance
-processing:
+processor:
   use_gpu: true
 
   # RTX 4090 maximum performance settings

@@ -6,9 +6,10 @@
 #
 # Usage: ./scripts/run_processing.sh --config configs/advanced/self_supervised_lod2.yaml
 
-# Inherit from V5 base configurations
+# ============================================================================
+# Inherit from base configuration
 defaults:
-  - ../config_v5
+  - ../config
   - _self_
 
 config_version: "5.0.0"
@@ -19,7 +20,7 @@ config_description: "Configuration apprentissage auto-supervisé LOD2"
 # CONFIGURATION DE TRAITEMENT - SELF-SUPERVISED (V5)
 # ============================================================================
 processor:
-  mode: "both" # Patches pour training + tiles enrichis
+  processing_mode: "both" # Patches pour training + tiles enrichis
   lod_level: "LOD2" # Focus LOD2 pour self-supervised
   use_gpu: true
   gpu_batch_size: 2_000_000 # Batch size training
@@ -40,7 +41,7 @@ processor:
 # FEATURES - OPTIMISÉES SELF-SUPERVISED
 # ============================================================================
 features:
-  mode: "self_supervised_lod2" # Mode spécialisé
+  processing_mode: "self_supervised_lod2" # Mode spécialisé
   k_neighbors: 20
   search_radius: 1.5
 
@@ -158,7 +159,7 @@ masked_autoencoding:
 # ============================================================================
 ground_truth:
   enabled: true
-  mode: "pseudo_labeling" # Pseudo-étiquetage
+  processing_mode: "pseudo_labeling" # Pseudo-étiquetage
 
   # Génération pseudo-labels
   pseudo_labeling:

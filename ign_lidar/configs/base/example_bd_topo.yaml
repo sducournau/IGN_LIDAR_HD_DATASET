@@ -34,7 +34,7 @@ config_description: "BD TOPO ground truth integration example"
 # FEATURE COMPUTATION FOR GROUND TRUTH
 # ============================================================================
 features:
-  mode: "asprs_classes" # Optimized for ASPRS classification with ground truth
+  processing_mode: "asprs_classes" # Optimized for ASPRS classification with ground truth
 
   # Enhanced neighborhood analysis for better ground truth matching
   k_neighbors: 30
@@ -223,10 +223,10 @@ output:
     suffix_format: "_bd_topo_enriched"
 
 # ============================================================================
-# PROCESSING CONFIGURATION
+# PROCESSING CONFIGURATION (v5.0 SCHEMA)
 # ============================================================================
-processing:
-  mode: "enriched_only"
+processor:
+  processing_mode: "enriched_only"
   lod_level: "ASPRS"
   use_gpu: true
   num_workers: 1

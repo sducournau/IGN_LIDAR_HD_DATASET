@@ -186,7 +186,7 @@ class IGNLiDARConfig:
     - config.processor.* → config.processing.*
     - config.features.* → config.features.*
     - config.data_sources.bd_topo.enabled → config.data_sources.bd_topo_enabled
-    - config.output.processing_mode → config.processing.mode
+    - config.output.processing_mode → config.processor.processing_mode
     
     Example:
         >>> cfg = IGNLiDARConfig(

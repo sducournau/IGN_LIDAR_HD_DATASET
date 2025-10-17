@@ -1,0 +1,185 @@
+# ============================================================================
+# IGN LiDAR HD - Preset: ASPRS
+# ============================================================================
+# Inherits: base.yaml
+#
+# USE CASE: Ground truth classification, ASPRS LAS 1.4 compliance
+# SPEED: 🏃 MEDIUM (depends on ground truth data availability)
+#
+# FEATURES:
+#   - ASPRS LAS 1.4 standard classification
+#   - Ground truth from BD TOPO
+#   - Geometric and spectral features
+#   - Optional NDVI for vegetation classification
+#   - Reclassification for accuracy improvement
+#
+# WHEN TO USE:
+#   ✓ Standard LAS 1.4 classification needed
+#   ✓ Ground truth training data generation
+#   ✓ Vegetation and ground classification
+#   ✓ Multi-class landscape analysis
+#   ✓ ASPRS-compliant deliverables
+#
+# CLASSIFICATION OUTPUT:
+#   ASPRS LAS 1.4 Classes:
+#     - Class 2: Ground
+#     - Class 3: Low Vegetation (<0.5m)
+#     - Class 4: Medium Vegetation (0.5-2m)
+#     - Class 5: High Vegetation (>2m)
+#     - Class 6: Buildings
+#     - Class 9: Water
+#     - Class 11: Roads
+#     - Class 17: Bridges (optional)
+#     - Class 20: Other
+#
+# USAGE:
+#   ign-lidar-hd process --preset asprs input/ output/
+#
+# ALTERNATIVES:
+#   - For building focus → use 'lod2' or 'lod3' presets
+#   - For quick preview → use 'minimal' preset
+#   - For research → use 'full' preset
+#
+# Version: 5.1.0
+# Week: 3 (Configuration Refactoring)
+# ============================================================================
+
+# Inherit from base configuration
+defaults:
+  - ../base
+  - _self_
+
+# ============================================================================
+# ASPRS PRESET OVERRIDES
+# ============================================================================
+
+# Processor: ASPRS classification scheme
+# NOTE: Inherits from base.yaml but must include all required fields for direct loading
+processor:
+  # Classification scheme
+  lod_level: "ASPRS" # Use ASPRS LAS 1.4 classification
+  processing_mode: "enriched_only" # Enriched LAZ output
+
+  # GPU settings
+  use_gpu: true # Enable GPU acceleration (auto-detects, falls back to CPU)
+  gpu_batch_size: 8_000_000 # 8M points (override default 1M for ASPRS)
+  gpu_memory_target: 0.85 # 85% VRAM usage
+  gpu_streams: 4 # CUDA streams for parallel processing
+
+  # Strategy pattern (Week 2 improvement)
+  use_strategy_pattern: true # Use new Strategy Pattern
+
+  # Optimization flags
+  use_optimized_ground_truth: true # Use optimized ground truth classifier (10× faster)
+  enable_memory_pooling: true # GPU memory pooling
+  enable_async_transfers: true # Async CPU-GPU transfers
+  adaptive_chunk_sizing: true # Dynamic chunk sizing
+
+  # Processing settings
+  num_workers: 1 # Single worker for GPU processing
+  skip_existing: false # Re-process existing files
+  output_format: "laz" # Output format
+  use_stitching: false # Tile stitching disabled by default
+
+  # Patch extraction (for ML training mode)
+  patch_size: 150.0 # Patch size in meters
+  patch_overlap: 0.1 # 10% overlap
+  num_points: 24576 # Points per patch
+  architecture: "direct" # Direct patch extraction
+  augment: false # No augmentation for enriched-only mode
+  num_augmentations: 3 # Augmentations if enabled  # Ground truth settings (override base defaults)
+  ground_truth_method: "auto" # GPU chunked or STRtree
+  ground_truth_chunk_size: 5_000_000 # 5M points per chunk
+
+  # Reclassification (override base defaults)
+  reclassification:
+    enabled: true
+    use_geometric_rules: true # Height, planarity for refinement
+    use_ndvi_classification: true # Enable if NIR available
+    min_confidence: 0.8 # High confidence for ASPRS compliance
+
+# Features: ASPRS-optimized feature set
+features:
+  mode: "asprs_classes" # ASPRS feature mode
+  include_extra: true # Include extra features for classification
+
+  # Geometric parameters
+  k_neighbors: 20 # Standard neighborhood
+  search_radius: 1.0 # 1 meter radius
+
+  # GPU settings for features
+  use_gpu_chunked: true # Use GPU chunked processing for features
+  gpu_batch_size: 1_000_000 # Batch size for feature computation
+
+  # Essential features for ASPRS
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true # Critical for vegetation height
+  compute_geometric: true # Planarity, verticality
+
+  # Architectural features not critical for ASPRS
+  compute_architectural: false
+
+  # Spectral features for vegetation/ground distinction
+  use_rgb: true # Recommended for better vegetation classification
+  use_nir: false # NIR (near-infrared) - enable if available
+  use_infrared: false # Infrared - enable if NIR available (alias for use_nir)
+  compute_ndvi: true # NDVI (requires RGB + NIR) - will auto-disable if NIR unavailable
+
+# Data Sources: Full BD TOPO for ASPRS ground truth
+data_sources:
+  # BD TOPO: Essential for ASPRS ground truth
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true # ASPRS Class 6
+      roads: true # ASPRS Class 11
+      water: true # ASPRS Class 9
+      vegetation: true # ASPRS Classes 3/4/5
+
+  # Additional BD TOPO layers for ASPRS
+  bd_topo_bridges: true # Enable for ASPRS Class 17
+  bd_topo_power_lines: true # Enable for ASPRS Class 14
+
+  # Orthophotos for spectral features
+  orthophoto_rgb: true # Recommended for vegetation
+  orthophoto_nir: true # Enable for NDVI computation
+
+# Output: Standard ASPRS outputs
+output:
+  format: "laz" # Output format (required by CLI)
+  save_enriched: true # Enriched LAZ with ASPRS classes
+  save_patches: false # No patches by default
+  save_metadata: true # Save metadata
+  save_stats: true # Save ASPRS classification statistics
+
+# Preprocessing: Enable for quality control
+preprocess:
+  enabled: false # Disabled by default for ASPRS
+
+# Tile Stitching: Disabled for ASPRS
+stitching:
+  enabled: false # No stitching by default
+  buffer_size: 10.0 # Buffer size in meters if enabled
+
+# ============================================================================
+# EXPECTED PERFORMANCE
+# ============================================================================
+# Processing time (relative to base):
+#   - Variable (depends on BD TOPO availability)
+#   - With ground truth: 2-3× slower than minimal
+#   - Without ground truth: Similar to LOD2
+#
+# Memory usage:
+#   - Moderate to high (8GB+ VRAM recommended)
+#   - Ground truth processing can be memory-intensive
+#
+# Output file size:
+#   - Medium (ASPRS classes + geometric features)
+#   - Larger if RGB/NIR included
+#
+# Classification accuracy:
+#   - Very high with ground truth (90%+ typical)
+#   - Good vegetation classification with NDVI
+#   - Excellent for standard land cover classification
+# ============================================================================

@@ -14,11 +14,11 @@
 
 # Inherit from V5 base configurations
 defaults:
-  - ../config_v5
+  - ../config
   - _self_
 
-# Override for RTX 4080 optimization
-processing:
+# Override processor settings for RTX 4080 optimization
+processor:
   use_gpu: true
 
   # RTX 4080 optimized GPU settings

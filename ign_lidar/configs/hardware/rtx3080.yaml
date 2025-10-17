@@ -14,11 +14,11 @@
 
 # Inherit from V5 base configurations
 defaults:
-  - ../config_v5
+  - ../config
   - _self_
 
 # Override for RTX 3080 optimization (smaller VRAM)
-processing:
+processor:
   use_gpu: true
 
   # RTX 3080 optimized GPU settings (conservative due to 10GB VRAM)

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Test what features are returned by the GPU chunked computer
+
+Updated for Week 2: Uses Strategy Pattern instead of deprecated Factory Pattern
 """
 
 import numpy as np
@@ -16,29 +18,30 @@ points = np.random.randn(N, 3).astype(np.float32) * 10
 classification = np.ones(N, dtype=np.uint8) * 6  # Building
 
 print("="*80)
-print("TESTING GPU CHUNKED FEATURE COMPUTER WITH MODE='full'")
+print("TESTING GPU CHUNKED STRATEGY WITH MODE='full'")
 print("="*80)
 print(f"\nTest data: {N} points")
 
-# Create GPU chunked computer
-from ign_lidar.features.factory import FeatureComputerFactory
+# Create GPU chunked strategy (Week 2: Strategy Pattern)
+from ign_lidar.features.strategies import BaseFeatureStrategy
 
-computer = FeatureComputerFactory.create(
-    use_gpu=True,
-    use_chunked=True,
+# Auto-select will choose GPU chunked for this dataset size
+strategy = BaseFeatureStrategy.auto_select(
+    n_points=N,
+    mode='auto',
     k_neighbors=20,
-    gpu_batch_size=25000
+    chunk_size=25000
 )
 
-print(f"\nComputer type: {type(computer).__name__}")
-print(f"GPU available: {computer.is_available()}")
+print(f"\nStrategy type: {type(strategy).__name__}")
+print(f"Strategy description: {strategy}")
 
 # Compute features with mode='full'
 print("\n" + "="*80)
 print("Computing features with mode='full'")
 print("="*80)
 
-result = computer.compute_features(
+result = strategy.compute(
     points=points,
     classification=classification,
     mode='full'

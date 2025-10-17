@@ -1,0 +1,191 @@
+# ============================================================================
+# V5: Simplified configuration with integrated optimizations
+# IGN LiDAR HD - Multiscale Analysis Preset V5.0 (Simplified)
+# ============================================================================
+# V5: Simplified configuration with integrated optimizations
+# Configuration for multiscale analysis (different patch sizes and neighborhoods)
+# Enables analysis at different spatial scales for research and advanced applications
+#
+# Usage:
+#   ign-lidar-hd process --config-file ign_lidar/configs/presets/multiscale_analysis.yaml
+#   ign-lidar-hd process --config-name multiscale_analysis
+#
+# Focus: Multi-resolution analysis and feature extraction
+# ============================================================================
+# V5: Simplified configuration with integrated optimizations
+
+# Inherit from base configurations and default config
+defaults:
+  - ../config
+  - _self_
+
+# Multiscale analysis specific overrides
+processor:
+  processing_mode: "both" # Generate both enriched tiles and patches
+  lod_level: "ASPRS" # Standard for compatibility
+
+  # GPU settings for multiscale processing
+  gpu_batch_size: 6_000_000 # Adaptive batch size for different scales
+  gpu_memory_target: 0.80 # Conservative for multi-scale processing
+  gpu_streams: 6 # Moderate parallelism
+
+  # GPU methods for consistency
+  ground_truth_method: "gpu_chunked"
+  reclassification_mode: "gpu"
+
+  # Optimizations
+  enable_memory_pooling: true
+  enable_async_transfers: true
+  enable_mixed_precision: false # Disabled for precision in analysis
+  adaptive_chunk_sizing: true
+
+features:
+  processing_mode: "full" # Full feature set for comprehensive analysis
+
+  # Multiscale feature parameters
+  k_neighbors: 30 # Larger neighborhood for context
+  search_radius: 2.0 # Larger radius for multiscale analysis
+
+  # Comprehensive geometric features
+  compute_normals: true
+  compute_planarity: true
+  compute_height_above_ground: true
+  compute_verticality: true
+  compute_architectural_features: true # Enable for advanced analysis
+  compute_multiscale_features: true # Enable multiscale features
+
+  # Full spectral features
+  use_rgb: true
+  use_nir: true # Required for comprehensive analysis
+  compute_ndvi: true # Vegetation analysis
+
+data_sources:
+  # Comprehensive data sources for analysis
+  bd_topo_buildings: true
+  bd_topo_roads: true
+  bd_topo_water: true
+  bd_topo_vegetation: true # Important for multiscale analysis
+  bd_topo_bridges: true
+  bd_topo_power_lines: true
+
+  # Additional sources for rich analysis
+  cadastre_enabled: true # Building context
+  bd_foret_enabled: true # Forest analysis
+  rpg_enabled: true # Agricultural analysis
+
+  # Full spectral data
+  orthophoto_rgb: true
+  orthophoto_nir: true
+
+classification:
+  enabled: true
+  use_ground_truth: true
+  use_geometric_rules: true
+  use_ndvi_classification: true # Important for vegetation analysis
+
+  # Multiscale-optimized thresholds
+  height_low_vegetation: 0.5
+  height_medium_vegetation: 2.0
+  planarity_road: 0.85
+  planarity_building: 0.70
+  ndvi_vegetation: 0.3
+
+preprocess:
+  enabled: true # Enable for analysis quality
+  statistical_outlier_removal:
+    enabled: true
+    k_neighbors: 20 # Larger neighborhood for stability
+    std_threshold: 2.0
+  radius_outlier_removal:
+    enabled: true
+    radius: 1.5 # Larger radius for multiscale
+    min_neighbors: 8
+
+output:
+  format: "laz"
+  save_enriched: true
+  save_patches: true # Important for multiscale analysis
+  save_metadata: true # Full metadata for analysis
+  save_stats: true
+
+optimization:
+  level: "balanced" # Balance between speed and quality
+  memory_management: "balanced"
+  enable_caching: true # Cache for complex analysis
+
+monitoring:
+  log_level: "INFO" # Detailed logging for analysis
+  verbose: true
+  enable_performance_metrics: true
+  enable_gpu_monitoring: true
+
+  # ============================================================================
+# V5: Simplified configuration with integrated optimizations
+  # Multiscale Analysis Notes
+  # ============================================================================
+# V5: Simplified configuration with integrated optimizations
+  #
+  # Designed for:
+  # - Multi-resolution spatial analysis
+  # - Research applications
+  # - Comprehensive feature extraction
+  # - Scale-dependent pattern analysis
+  # - Advanced LiDAR processing research
+  #
+  # Key features:
+  # - Larger neighborhoods (k=30) for context
+  # - Extended search radius (2.0m) for scale analysis
+  # - Multiscale features enabled
+  # - Comprehensive data source integration
+  # - Full spectral analysis (RGB + NIR + NDVI)
+  # - Advanced geometric features
+  #
+  # Performance expectations:
+  # - Processing time: ~8-15 minutes per tile (comprehensive processing)
+  # - Memory usage: High (full feature computation)
+  # - Output quality: Research-grade comprehensive analysis
+  # - Feature richness: Maximum available feature set
+  #
+  # Use cases:
+  # - Spatial scale analysis research
+  # - Feature importance studies
+  # - Multi-resolution object detection
+  # - Landscape pattern analysis
+  # - Advanced algorithm development
+  #
+
+  # Métriques analyse spatiale
+  spatial_metrics:
+    spatial_autocorrelation: true # Autocorrélation spatiale
+    scale_variance: true # Variance inter-échelles
+    pattern_stability: true # Stabilité motifs
+    emergent_patterns: true # Motifs émergents
+
+# ============================================================================
+# V5: Simplified configuration with integrated optimizations
+# PERFORMANCE - OPTIMISÉE MULTISCALE
+# ============================================================================
+# V5: Simplified configuration with integrated optimizations
+performance:
+  max_workers: 1 # GPU processing séquentiel
+  prefetch_factor: 2
+  pin_memory: true
+
+  # Gestion mémoire adaptative
+  adaptive_memory_management:
+    scale_based_allocation: true # Allocation selon échelle
+    dynamic_batch_sizing: true # Taille batch dynamique
+    memory_pooling: true # Pooling mémoire
+    garbage_collection: true # Collection déchets aggressive
+
+  # Cache hiérarchique
+  hierarchical_caching:
+    cache_by_scale: true # Cache par échelle
+    cross_scale_cache: true # Cache inter-échelles
+    intelligent_eviction: true # Éviction intelligente
+
+  # Monitoring avancé
+  advanced_monitoring:
+    scale_performance_tracking: true # Suivi performance échelles
+    resource_utilization_tracking: true # Suivi utilisation ressources
+    bottleneck_detection: true # Détection goulots étranglement

@@ -1,25 +1,29 @@
 """
 Ground Truth Classification Optimization Module
 
-This module provides multiple optimization strategies for ground truth classification:
-1. GPU acceleration (CuPy/cuSpatial) - 100-1000× speedup
-2. Vectorized (GeoPandas spatial joins) - 30-100× speedup
-3. STRtree spatial indexing - 10-30× speedup
-4. Pre-filtering - 2-5× speedup
+Week 2 Consolidation: Unified ground truth classification with automatic optimization.
 
-The module automatically selects the best available optimization at runtime.
+This module provides the GroundTruthOptimizer class that automatically selects
+the best method based on dataset size and available hardware:
+
+1. GPU Chunked (100-1000× speedup) - Large datasets (>10M points) with GPU
+2. GPU Basic (100-500× speedup) - Medium datasets (1-10M points) with GPU
+3. CPU STRtree (10-30× speedup) - Works everywhere, spatial indexing
+4. CPU Vectorized (5-10× speedup) - GeoPandas fallback
 
 Usage:
-    from ign_lidar.optimization import auto_optimize
-    auto_optimize()  # Automatically applies best optimization
+    from ign_lidar.optimization import GroundTruthOptimizer
     
-    # Or use specific optimizers directly:
-    from ign_lidar.optimization.vectorized import VectorizedGroundTruthClassifier
-    from ign_lidar.optimization.strtree import STRtreeGroundTruthClassifier
-    from ign_lidar.optimization.gpu import GPUGroundTruthClassifier
+    optimizer = GroundTruthOptimizer(verbose=True)
+    labels = optimizer.label_points(points, ground_truth_features)
+    
+    # Legacy auto_optimize still available for backward compatibility
+    from ign_lidar.optimization import auto_optimize
+    auto_optimize()
 
 Author: IGN LiDAR HD Team
-Date: October 16, 2025
+Date: October 21, 2025 (Week 2 Consolidation)
+Version: 2.0
 """
 
 from .auto_select import (
@@ -29,6 +33,9 @@ from .auto_select import (
     check_geopandas_available,
     check_strtree_available,
 )
+
+# Week 2: Unified ground truth optimizer (replaces 7 implementations)
+from .ground_truth import GroundTruthOptimizer
 
 
 def apply_strtree_optimization():
@@ -56,6 +63,9 @@ def apply_prefilter_optimization():
 
 
 __all__ = [
+    # Week 2: Primary interface
+    'GroundTruthOptimizer',
+    # Legacy interfaces (backward compatibility)
     'auto_optimize',
     'apply_strtree_optimization',
     'apply_vectorized_optimization',
@@ -68,4 +78,4 @@ __all__ = [
 ]
 
 # Version info
-__version__ = '1.0.0'
+__version__ = '2.0.0'  # Week 2: Unified ground truth optimizer

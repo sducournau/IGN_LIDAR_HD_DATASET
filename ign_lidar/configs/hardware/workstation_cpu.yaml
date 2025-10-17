@@ -6,7 +6,7 @@
 
 # Inherit from V5 base configurations
 defaults:
-  - ../config_v5
+  - ../config
   - _self_
 
 config_version: "5.0.0"

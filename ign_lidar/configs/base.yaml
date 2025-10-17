@@ -1,0 +1,410 @@
+# ============================================================================
+# IGN LiDAR HD Dataset - Base Configuration V5.1
+# ============================================================================
+# This is the single source of truth for all default settings.
+# All presets inherit from this base configuration.
+#
+# Philosophy:
+#   - Smart defaults that work for 80% of use cases
+#   - Auto-detection where possible (GPU, workers, memory)
+#   - Clear inline documentation
+#   - Easy to override via presets or CLI
+#
+# Version: 5.1.0
+# Date: October 17, 2025
+# Week: 3 (Configuration Refactoring)
+# Compatibility: FeatureOrchestrator V5
+# ============================================================================
+
+# ============================================================================
+# CONFIGURATION METADATA
+# ============================================================================
+config_version: "5.1.0"
+config_name: "base"
+config_description: "IGN LiDAR HD V5.1 - Base Configuration (Week 3)"
+
+# ============================================================================
+# PATHS AND BASIC SETTINGS
+# ============================================================================
+# These are typically overridden via CLI or custom configs
+input_dir: null # Required: Specify via CLI or override
+output_dir: null # Required: Specify via CLI or override
+cache_dir: ".cache/ign_lidar" # Optional: Local cache directory
+
+# Optional bounding box filter (WGS84 coordinates)
+bbox:
+  xmin: null
+  ymin: null
+  xmax: null
+  ymax: null
+
+# ============================================================================
+# PROCESSOR CONFIGURATION
+# ============================================================================
+# Controls the main processing pipeline and hardware acceleration
+processor:
+  # ──────────────────────────────────────────────────────────────────────
+  # CLASSIFICATION SCHEME
+  # ──────────────────────────────────────────────────────────────────────
+  # Options: ASPRS, LOD2, LOD3
+  # - ASPRS: Standard LAS 1.4 classification (ground, buildings, vegetation, etc.)
+  # - LOD2: Building-focused (walls, roof types, architectural details)
+  # - LOD3: Detailed architectural (LOD2 + fine details like chimneys, dormers)
+  lod_level: "ASPRS"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PROCESSING MODE
+  # ──────────────────────────────────────────────────────────────────────
+  # Options: enriched_only, patches_only, both
+  # - enriched_only: Outputs enriched LAZ files with classifications
+  # - patches_only: Outputs NPZ patches for ML training
+  # - both: Outputs both enriched LAZ and NPZ patches
+  processing_mode: "enriched_only"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # GPU ACCELERATION (Week 1 Optimization)
+  # ──────────────────────────────────────────────────────────────────────
+  # Auto-detect GPU and optimize batch sizes automatically
+  use_gpu: true # Auto-detects available GPU, falls back to CPU
+
+  # GPU batch size: Number of points processed per GPU batch
+  # Recommendations:
+  #   - RTX 4090 (24GB): 16M points
+  #   - RTX 4080 (16GB): 8M points
+  #   - RTX 3080 (12GB): 4M points
+  #   - CPU only: 1M points
+  # Auto-detection will optimize based on available VRAM
+  gpu_batch_size: 1_000_000 # Conservative default (1M points)
+
+  # GPU memory target: Percentage of VRAM to use (0.0-1.0)
+  # Recommendations:
+  #   - Single process: 0.85-0.90 (85-90%)
+  #   - Multiple processes: 0.70-0.80 (70-80%)
+  #   - Shared GPU: 0.50-0.70 (50-70%)
+  gpu_memory_target: 0.85 # Use 85% of available VRAM
+
+  # GPU streams: Number of concurrent CUDA streams
+  # Recommendations:
+  #   - Ada Lovelace (RTX 40xx): 8 streams
+  #   - Ampere (RTX 30xx): 4-6 streams
+  #   - Older GPUs: 2-4 streams
+  # Auto-detection will optimize based on GPU architecture
+  gpu_streams: 4 # Balanced default
+
+  # ──────────────────────────────────────────────────────────────────────
+  # GROUND TRUTH CLASSIFICATION (Task 1.2 - Week 1 Optimization)
+  # ──────────────────────────────────────────────────────────────────────
+  # Auto-select optimal method based on available hardware and data
+  # Options: auto, gpu_chunked, gpu, strtree, vectorized
+  # - auto: Intelligent selection (gpu_chunked for GPU, strtree for CPU)
+  # - gpu_chunked: GPU with chunking (10× faster, memory efficient)
+  # - gpu: Direct GPU (fastest but memory intensive)
+  # - strtree: CPU with spatial index (good for large datasets)
+  # - vectorized: CPU vectorized (baseline performance)
+  ground_truth_method: "auto"
+
+  # Chunk size for GPU chunked processing (points per chunk)
+  ground_truth_chunk_size: 5_000_000 # 5M points per chunk
+
+  # ──────────────────────────────────────────────────────────────────────
+  # RECLASSIFICATION (Task 1.3 - Week 1 Optimization)
+  # ──────────────────────────────────────────────────────────────────────
+  # Additional refinement pass using geometric rules and NDVI
+  # Provides improved classification accuracy with minimal overhead
+  reclassification:
+    enabled: true # Enable reclassification pass
+
+    # Acceleration mode: auto, gpu, gpu+cuml, cpu
+    # - auto: GPU if available, else CPU
+    # - gpu: GPU with PyTorch/CuPy
+    # - gpu+cuml: GPU with cuML (requires cuML installation)
+    # - cpu: CPU with NumPy
+    acceleration_mode: "auto"
+
+    # Chunk size for GPU reclassification
+    chunk_size: 5_000_000 # 5M points per chunk
+
+    # Minimum confidence threshold for reclassification (0.0-1.0)
+    min_confidence: 0.7 # Only reclassify if confidence >= 70%
+
+    # Use geometric rules (planarity, height, verticality)
+    use_geometric_rules: true
+
+    # Use NDVI for vegetation classification (requires RGB + NIR)
+    use_ndvi_classification: false # Disabled by default (NIR is slow)
+
+    # Show progress bars during reclassification
+    show_progress: true
+
+  # ──────────────────────────────────────────────────────────────────────
+  # STRATEGY PATTERN (Week 2 - Code Consolidation)
+  # ──────────────────────────────────────────────────────────────────────
+  # Use new Strategy Pattern for feature computation (Week 2 improvement)
+  # Set to false for legacy Factory Pattern (deprecated)
+  use_strategy_pattern: true
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PARALLEL PROCESSING
+  # ──────────────────────────────────────────────────────────────────────
+  # Number of CPU workers for parallel processing
+  # Recommendations:
+  #   - GPU processing: 1 worker (GPU handles parallelism)
+  #   - CPU processing: 4-8 workers (depends on CPU cores)
+  # Auto-detection will optimize based on available cores
+  num_workers: 1 # Default for GPU processing
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PATCH EXTRACTION (For ML Training)
+  # ──────────────────────────────────────────────────────────────────────
+  # Only used when processing_mode = "patches_only" or "both"
+  patch_size: 150.0 # Patch size in meters (150m × 150m)
+  patch_overlap: 0.1 # Overlap between patches (10%)
+  num_points: 16384 # Target number of points per patch
+
+  # Architecture type for patch extraction
+  # Options: direct, hybrid
+  # - direct: Extract patches directly from tiles
+  # - hybrid: Use tile stitching before extraction
+  architecture: "direct"
+
+  # Data augmentation for training patches
+  augment: false # Disable by default (enable for training)
+  num_augmentations: 3 # Number of augmentations per patch
+
+  # ──────────────────────────────────────────────────────────────────────
+  # RUNTIME SETTINGS
+  # ──────────────────────────────────────────────────────────────────────
+  skip_existing: false # Re-process existing files
+  output_format: "laz" # Output format: laz, las, hdf5
+  use_stitching: false # Disable tile stitching by default
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ADVANCED GPU OPTIMIZATIONS (Week 1)
+  # ──────────────────────────────────────────────────────────────────────
+  # These are auto-tuned based on GPU architecture, but can be overridden
+  enable_memory_pooling: true # Reduce memory allocation overhead
+  enable_async_transfers: true # Overlap CPU-GPU transfers
+  enable_mixed_precision: false # Use FP16 (experimental, may reduce accuracy)
+  adaptive_chunk_sizing: true # Dynamically adjust chunk sizes
+
+# ============================================================================
+# FEATURES CONFIGURATION
+# ============================================================================
+# Controls which geometric and spectral features are computed
+features:
+  # ──────────────────────────────────────────────────────────────────────
+  # FEATURE MODE (Overridden by presets)
+  # ──────────────────────────────────────────────────────────────────────
+  # Options: minimal, lod2, lod3, asprs_classes, full
+  # - minimal: Normals + basic planarity (fastest)
+  # - lod2: LOD2 features (curvature, architectural)
+  # - lod3: LOD3 features (all geometric + boundaries)
+  # - asprs_classes: ASPRS classification features
+  # - full: All features (slowest, most detailed)
+  mode: "lod2" # Balanced default
+
+  # ──────────────────────────────────────────────────────────────────────
+  # GEOMETRIC PARAMETERS
+  # ──────────────────────────────────────────────────────────────────────
+  # Number of nearest neighbors for feature computation
+  # Recommendations:
+  #   - Minimal: 10 neighbors (fastest)
+  #   - LOD2: 20 neighbors (balanced)
+  #   - LOD3: 30 neighbors (most detail)
+  k_neighbors: 20 # Balanced default
+
+  # Search radius for neighborhood queries (meters)
+  # Smaller radius = faster, larger radius = more context
+  search_radius: 1.0 # 1 meter radius
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ESSENTIAL FEATURES (Always computed)
+  # ──────────────────────────────────────────────────────────────────────
+  compute_normals: true # Surface normals (always needed)
+  compute_curvature: true # Surface curvature
+  compute_height: true # Height above ground
+  compute_geometric: true # Geometric features (planarity, etc.)
+
+  # ──────────────────────────────────────────────────────────────────────
+  # SPECTRAL FEATURES
+  # ──────────────────────────────────────────────────────────────────────
+  # RGB color from orthophotos (slow to fetch)
+  use_rgb: false # Disabled by default for speed
+
+  # Near-infrared from orthophotos (very slow to fetch)
+  use_infrared: false # Disabled by default
+  use_nir: false # Alias for use_infrared
+
+  # Normalized Difference Vegetation Index (requires RGB + NIR)
+  compute_ndvi: false # Disabled by default
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ADVANCED FEATURES
+  # ──────────────────────────────────────────────────────────────────────
+  # Architectural features (for building analysis)
+  compute_architectural: false # Disabled by default
+  architectural_styles: false # Architectural style classification
+
+  # Boundary detection (for LOD3)
+  compute_boundaries: false # Disabled by default (slow)
+
+  # Multi-scale features (for research)
+  compute_multiscale: false # Disabled by default (very slow)
+
+  # ──────────────────────────────────────────────────────────────────────
+  # GPU OPTIMIZATION SETTINGS
+  # ──────────────────────────────────────────────────────────────────────
+  use_gpu: true # Use GPU for feature computation
+  gpu_batch_size: 8_000_000 # 8M points per batch (smaller for neighbor queries)
+
+  # ──────────────────────────────────────────────────────────────────────
+  # CACHING AND AUTO-TUNING (Week 1 Optimization)
+  # ──────────────────────────────────────────────────────────────────────
+  enable_caching: true # Cache computed features
+  enable_auto_tuning: true # Auto-tune batch sizes and parameters
+  cache_max_size: 50 # Maximum cache size in MB
+
+  # ──────────────────────────────────────────────────────────────────────
+  # QUALITY CONTROL
+  # ──────────────────────────────────────────────────────────────────────
+  validate_features: true # Validate feature values
+  handle_nan_values: true # Handle NaN/Inf values gracefully
+
+# ============================================================================
+# DATA SOURCES CONFIGURATION
+# ============================================================================
+# External data sources for ground truth classification and enrichment
+data_sources:
+  # ──────────────────────────────────────────────────────────────────────
+  # IGN BD TOPO® (Primary Ground Truth Source)
+  # ──────────────────────────────────────────────────────────────────────
+  bd_topo:
+    enabled: true # Enable BD TOPO ground truth
+
+    # Feature layers to use
+    features:
+      buildings: true # ASPRS Class 6 (Buildings)
+      roads: true # ASPRS Class 11 (Roads)
+      water: true # ASPRS Class 9 (Water)
+      vegetation: true # ASPRS Class 3/4/5 (Vegetation)
+
+    # WFS Service Configuration
+    wfs_url: "https://data.geopf.fr/wfs"
+    max_features: 10000 # Maximum features per request
+    timeout: 30 # Request timeout in seconds
+
+    # Caching (speeds up repeated processing)
+    cache_enabled: true # Cache downloaded data
+    cache_dir: null # null = auto-set to {input_dir}/cache/ground_truth
+    use_global_cache: false # If true, uses config.cache_dir instead
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ADDITIONAL BD TOPO LAYERS
+  # ──────────────────────────────────────────────────────────────────────
+  bd_topo_bridges: false # ASPRS Class 17 (Bridges)
+  bd_topo_power_lines: false # ASPRS Class 14 (Power lines)
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ORTHOPHOTOS (Spectral Features)
+  # ──────────────────────────────────────────────────────────────────────
+  # WARNING: Orthophotos are slow to download and process
+  orthophoto_rgb: false # RGB orthophotos (slow)
+  orthophoto_nir: false # NIR orthophotos (very slow)
+
+  # ──────────────────────────────────────────────────────────────────────
+  # OPTIONAL EXTERNAL SOURCES (Advanced)
+  # ──────────────────────────────────────────────────────────────────────
+  cadastre_enabled: false # French cadastre (building footprints)
+  bd_foret_enabled: false # Forest database (vegetation types)
+  rpg_enabled: false # Agricultural parcel register
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+# Controls output file formats and content
+output:
+  # ──────────────────────────────────────────────────────────────────────
+  # PRIMARY OUTPUT FORMAT
+  # ──────────────────────────────────────────────────────────────────────
+  format: "laz" # Options: laz, las, hdf5
+
+  # ──────────────────────────────────────────────────────────────────────
+  # OUTPUT MODES
+  # ──────────────────────────────────────────────────────────────────────
+  save_enriched: true # Save enriched LAZ files with classifications
+  save_patches: false # Save NPZ patches for ML training
+  save_metadata: true # Save processing metadata (JSON)
+  save_stats: true # Save classification statistics (CSV)
+
+  # ──────────────────────────────────────────────────────────────────────
+  # COMPRESSION
+  # ──────────────────────────────────────────────────────────────────────
+  compression: null # Auto-detection based on format
+
+  # ──────────────────────────────────────────────────────────────────────
+  # VALIDATION
+  # ──────────────────────────────────────────────────────────────────────
+  validate_output: true # Validate output files after creation
+
+# ============================================================================
+# LOGGING AND MONITORING
+# ============================================================================
+# Controls logging verbosity and performance monitoring
+logging:
+  # ──────────────────────────────────────────────────────────────────────
+  # LOG LEVEL
+  # ──────────────────────────────────────────────────────────────────────
+  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO" # Standard verbosity
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PROGRESS REPORTING
+  # ──────────────────────────────────────────────────────────────────────
+  show_progress: true # Show progress bars
+  detailed_timing: true # Show detailed timing information
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PERFORMANCE METRICS (Week 1 Optimization)
+  # ──────────────────────────────────────────────────────────────────────
+  enable_performance_metrics: true # Track performance metrics
+  enable_profiling: false # Detailed profiling (slow, for debugging)
+
+# ============================================================================
+# OPTIMIZATIONS (Week 1 - Always Enabled in V5)
+# ============================================================================
+# These optimizations are integrated into FeatureOrchestrator V5
+optimizations:
+  # ──────────────────────────────────────────────────────────────────────
+  # CACHING
+  # ──────────────────────────────────────────────────────────────────────
+  enable_caching: true # Cache intermediate results
+  cache_max_size_mb: 100 # Maximum cache size in MB
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PARALLEL PROCESSING
+  # ──────────────────────────────────────────────────────────────────────
+  enable_parallel_processing: true # Enable parallel processing
+  max_workers: null # Auto-detect based on available cores
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ADAPTIVE TUNING
+  # ──────────────────────────────────────────────────────────────────────
+  enable_auto_tuning: true # Auto-tune parameters
+  adaptive_parameters: true # Adapt parameters based on data
+
+# ============================================================================
+# VALIDATION AND RUNTIME
+# ============================================================================
+# Controls validation and hardware detection
+validation:
+  strict_validation: true # Strict parameter validation
+  check_gpu_availability: true # Check GPU before processing
+  check_memory_requirements: true # Estimate memory requirements
+
+# ──────────────────────────────────────────────────────────────────────────
+# HARDWARE DETECTION
+# ──────────────────────────────────────────────────────────────────────────
+hardware:
+  auto_detect: true # Auto-detect hardware capabilities
+  prefer_gpu: true # Prefer GPU if available
+  fallback_cpu: true # Fall back to CPU if GPU unavailable

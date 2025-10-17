@@ -32,7 +32,7 @@ config_description: "Minimal processing example using base configurations"
 # FEATURE COMPUTATION (MINIMAL)
 # ============================================================================
 features:
-  mode: "minimal" # Minimal feature set for basic processing
+  processing_mode: "minimal" # Minimal feature set for basic processing
 
   # Basic neighborhood analysis
   k_neighbors: 20
@@ -76,7 +76,7 @@ output:
 # PROCESSING CONFIGURATION (V5)
 # ============================================================================
 processor:
-  mode: "enriched_only" # Only enriched output
+  processing_mode: "enriched_only" # Only enriched output
   lod_level: "ASPRS" # Basic ASPRS processing
   use_gpu: true # Use GPU if available
   num_workers: 1

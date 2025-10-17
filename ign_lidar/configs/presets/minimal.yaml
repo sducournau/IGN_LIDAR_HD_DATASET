@@ -1,140 +1,154 @@
 # ============================================================================
-# IGN LiDAR HD - Minimal Test Preset V5.0 (Simplified)
+# IGN LiDAR HD - Preset: MINIMAL
 # ============================================================================
-# Minimal configuration for rapid testing and development
-# Reduced features, minimal sources, fast processing
+# Inherits: base.yaml
 #
-# Usage:
-#   ign-lidar-hd process --config-name minimal
-#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name minimal
+# USE CASE: Quick preview, testing, development
+# SPEED: ⚡ FASTEST (2-3× faster than base)
 #
-# Focus: Maximum speed for testing and development
-# V5: Simplified configuration with integrated optimizations
+# FEATURES:
+#   - Normals + basic planarity only
+#   - Minimal external data sources
+#   - Fast processing for rapid iteration
+#
+# WHEN TO USE:
+#   ✓ Testing new datasets quickly
+#   ✓ Development and debugging
+#   ✓ Quick visual preview of point clouds
+#   ✓ Prototyping new processing workflows
+#
+# USAGE:
+#   ign-lidar-hd process --preset minimal input/ output/
+#
+# ALTERNATIVES:
+#   - For building modeling → use 'lod2' preset
+#   - For detailed analysis → use 'lod3' preset
+#   - For classification → use 'asprs' preset
+#
+# Version: 5.1.0
+# Week: 3 (Configuration Refactoring)
 # ============================================================================
 
-# V5 simplified base composition
+# Inherit from base configuration
 defaults:
-  - ../config
+  - ../base
   - _self_
 
-# V5: Minimal configuration overrides (simplified)
+# ============================================================================
+# MINIMAL PRESET OVERRIDES
+# ============================================================================
+
+# Processor: Minimal settings for maximum speed
 processor:
-  mode: "enriched_only" # Enrichment only for speed
+  processing_mode: "enriched_only" # No patch extraction
 
-  # V5 conservative settings for compatibility
-  gpu_batch_size: 4_000_000 # Small batch for compatibility
-  gpu_memory_target: 0.70 # Conservative for testing
-  gpu_streams: 4 # Moderate parallelism
+  # GPU settings (required for direct config loading)
+  use_gpu: true # Enable GPU acceleration (but smaller batches)
+  num_workers: 1 # Single worker for GPU processing
+  patch_overlap: 0.1 # 10% overlap
+  num_points: 16384 # Points per patch
 
-  # Auto-selection for stability
-  ground_truth_method: "auto"
-  reclassification_mode: "auto"
+  # Conservative GPU settings for compatibility
+  gpu_batch_size: 4_000_000 # Smaller batches for stability
+  gpu_memory_target: 0.70 # Conservative memory usage
+  gpu_streams: 2 # Fewer streams for simplicity
 
-  # Disabled for stability
-  enable_mixed_precision: false
-  enable_memory_pooling: true
-  enable_async_transfers: true
-  adaptive_chunk_sizing: true
+  # Strategy pattern
+  use_strategy_pattern: true # Use new Strategy Pattern
 
+  # Optimization flags
+  use_optimized_ground_truth: false # Skip for maximum speed
+  enable_memory_pooling: true # Still use memory pooling
+  enable_async_transfers: false # Skip for simplicity
+  adaptive_chunk_sizing: false # Fixed sizing for speed
+
+  # Processing settings
+  skip_existing: false # Re-process existing files
+  output_format: "laz" # Output format
+  use_stitching: false # Tile stitching disabled
+
+  # Patch extraction
+  patch_size: 150.0 # Patch size in meters
+  architecture: "direct" # Direct patch extraction
+  augment: false # No augmentation
+  num_augmentations: 0 # No augmentations
+
+  # Disable optional processing
+  reclassification:
+    enabled: false # Skip reclassification for speed
+
+# Features: Absolute minimum for fastest processing
 features:
   mode: "minimal" # Minimal feature set
 
-  # Minimal parameters for maximum speed
-  k_neighbors: 10 # Very small neighborhood
+  # Required fields for direct config loading
+  include_extra: false # Minimal features only
+  use_gpu_chunked: true # GPU chunked processing
+  gpu_batch_size: 500_000 # Smaller batches for minimal mode
+  use_nir: false # No NIR
+
+  # Minimal geometric parameters
+  k_neighbors: 10 # Very small neighborhood for speed
   search_radius: 0.5 # Very small radius
 
   # Essential features only
-  compute_normals: true
-  compute_planarity: true
-  compute_height_above_ground: false # Disabled for max speed
-  compute_verticality: false
+  compute_normals: true # Always needed
+  compute_curvature: false # Disabled for speed
+  compute_height: false # Disabled for speed
+  compute_geometric: true # Basic planarity only
 
-  # Disable all expensive features
-  compute_architectural_features: false
-  compute_multiscale_features: false
+  # All advanced features disabled
+  compute_architectural: false
+  compute_boundaries: false
+  compute_multiscale: false
 
-  # No spectral features for speed
+  # No spectral features
   use_rgb: false
-  use_nir: false
+  use_infrared: false
   compute_ndvi: false
 
+# Data Sources: Minimal external data
 data_sources:
-  # Minimal BD TOPO sources
-  bd_topo_buildings: true # Essential only
-  bd_topo_roads: true # Essential only
-  bd_topo_water: false # Disabled for speed
-  bd_topo_vegetation: false # Disabled for speed
-  bd_topo_bridges: false
-  bd_topo_power_lines: false
+  # Minimal BD TOPO (only if needed for basic classification)
+  bd_topo:
+    enabled: false # Disabled for maximum speed
 
-  # Disable all optional sources
+  # No orthophotos
+  orthophoto_rgb: false
+  orthophoto_nir: false
+
+  # No optional sources
   cadastre_enabled: false
   bd_foret_enabled: false
   rpg_enabled: false
 
-  # No orthophotos for speed
-  orthophoto_rgb: false
-  orthophoto_nir: false
-
-classification:
-  enabled: true
-  use_ground_truth: true # Basic ground truth only
-  use_geometric_rules: true # Basic geometric rules
-  use_ndvi_classification: false
-
-  # Standard thresholds
-  height_low_vegetation: 0.5
-  height_medium_vegetation: 2.0
-  planarity_road: 0.85
-  planarity_building: 0.75
-
+# Preprocessing: Required section
 preprocess:
-  enabled: false # Disabled for speed
+  enabled: false # Disabled by default
 
+# Stitching: Required section
+stitching:
+  enabled: false # Disabled by default
+  buffer_size: 10.0 # 10 meter buffer
+
+# Output: Minimal outputs for speed
 output:
-  format: "laz"
-  save_enriched: true
-  save_patches: false
-  save_metadata: false # Minimal output for speed
-  save_stats: false # Minimal output
+  format: "laz" # Output format
+  save_enriched: true # Main output
+  save_patches: false # No patches
+  save_metadata: false # No metadata for speed
+  save_stats: false # No stats for speed
 
-optimization:
-  level: "conservative" # Conservative for testing
-  memory_management: "conservative"
-  enable_caching: false # Disabled for clean testing
-
-monitoring:
-  log_level: "DEBUG" # Debug level for testing
-  verbose: true # Verbose for development
-  enable_performance_metrics: true
-  enable_gpu_monitoring: true
 # ============================================================================
-# Minimal Configuration Notes
+# EXPECTED PERFORMANCE
 # ============================================================================
+# Processing time (relative to base):
+#   - 2-3× faster than base configuration
+#   - 5-10× faster than LOD3
 #
-# Designed for:
-# - Quick testing and development
-# - Compatibility verification
-# - Debugging and troubleshooting
-# - Low-resource environments
-# - CI/CD pipelines
+# Memory usage:
+#   - Minimal (works on GPUs with 4GB+ VRAM)
 #
-# Performance expectations:
-# - Processing time: <30s per tile
-# - Memory usage: Very low
-# - Feature quality: Basic but functional
-# - Classification: Limited but working
-#
-# Limitations:
-# - No spectral features (RGB, NIR, NDVI)
-# - No height above ground computation
-# - No orthophoto integration
-# - No advanced data sources
-# - Conservative memory usage
-#
-# Use cases:
-# - Testing new tiles or data
-# - Verifying installation
-# - Quick quality checks
-# - Development and debugging
-#
+# Output file size:
+#   - Smallest (only essential attributes)
+# ============================================================================

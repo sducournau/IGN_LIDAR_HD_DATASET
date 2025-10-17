@@ -264,21 +264,42 @@ class LiDARProcessor:
             logger.warning(f"⚠️  'data_sources' not found in config! This means ground truth data won't be loaded.")
         
         # Use OmegaConf.select() for compatibility with Hydra configs
-        # Check for individual BD TOPO feature flags (v4.0 flat structure)
-        bd_topo_buildings = OmegaConf.select(config, 'data_sources.bd_topo_buildings', default=False)
-        bd_topo_roads = OmegaConf.select(config, 'data_sources.bd_topo_roads', default=False)
-        bd_topo_water = OmegaConf.select(config, 'data_sources.bd_topo_water', default=False)
-        bd_topo_vegetation = OmegaConf.select(config, 'data_sources.bd_topo_vegetation', default=False)
-        bd_topo_bridges = OmegaConf.select(config, 'data_sources.bd_topo_bridges', default=False)
-        bd_topo_power_lines = OmegaConf.select(config, 'data_sources.bd_topo_power_lines', default=False)
+        # Support both flat (v4.0) and nested (v5.0) structure
+        # Check nested structure FIRST (V5 structure), then fall back to flat structure (V4)
+        bd_topo_enabled = OmegaConf.select(config, 'data_sources.bd_topo.enabled', default=False)
         
-        # BD TOPO is enabled if ANY feature is enabled
-        bd_topo_enabled = any([bd_topo_buildings, bd_topo_roads, bd_topo_water, 
-                              bd_topo_vegetation, bd_topo_bridges, bd_topo_power_lines])
-        
-        # Also check for legacy nested structure for backwards compatibility
-        if not bd_topo_enabled:
-            bd_topo_enabled = OmegaConf.select(config, 'data_sources.bd_topo.enabled', default=False)
+        if bd_topo_enabled:
+            # Extract from nested structure (V5)
+            bd_topo_buildings = OmegaConf.select(config, 'data_sources.bd_topo.features.buildings', default=False)
+            bd_topo_roads = OmegaConf.select(config, 'data_sources.bd_topo.features.roads', default=False)
+            bd_topo_water = OmegaConf.select(config, 'data_sources.bd_topo.features.water', default=False)
+            bd_topo_vegetation = OmegaConf.select(config, 'data_sources.bd_topo.features.vegetation', default=False)
+            # Bridges and power_lines might be in nested OR flat structure
+            bd_topo_bridges = OmegaConf.select(config, 'data_sources.bd_topo.features.bridges', 
+                                              default=OmegaConf.select(config, 'data_sources.bd_topo_bridges', default=False))
+            bd_topo_power_lines = OmegaConf.select(config, 'data_sources.bd_topo.features.power_lines',
+                                                   default=OmegaConf.select(config, 'data_sources.bd_topo_power_lines', default=False))
+            
+            logger.info(f"🔍 DEBUG: Extracted from NESTED structure (V5):")
+            logger.info(f"   buildings={bd_topo_buildings}, roads={bd_topo_roads}, water={bd_topo_water}")
+            logger.info(f"   vegetation={bd_topo_vegetation}, bridges={bd_topo_bridges}, power_lines={bd_topo_power_lines}")
+        else:
+            # Fall back to flat structure (V4)
+            bd_topo_buildings = OmegaConf.select(config, 'data_sources.bd_topo_buildings', default=False)
+            bd_topo_roads = OmegaConf.select(config, 'data_sources.bd_topo_roads', default=False)
+            bd_topo_water = OmegaConf.select(config, 'data_sources.bd_topo_water', default=False)
+            bd_topo_vegetation = OmegaConf.select(config, 'data_sources.bd_topo_vegetation', default=False)
+            bd_topo_bridges = OmegaConf.select(config, 'data_sources.bd_topo_bridges', default=False)
+            bd_topo_power_lines = OmegaConf.select(config, 'data_sources.bd_topo_power_lines', default=False)
+            
+            # Check if ANY feature is enabled
+            bd_topo_enabled = any([bd_topo_buildings, bd_topo_roads, bd_topo_water, 
+                                  bd_topo_vegetation, bd_topo_bridges, bd_topo_power_lines])
+            
+            if bd_topo_enabled:
+                logger.info(f"🔍 DEBUG: Extracted from FLAT structure (V4):")
+                logger.info(f"   buildings={bd_topo_buildings}, roads={bd_topo_roads}, water={bd_topo_water}")
+                logger.info(f"   vegetation={bd_topo_vegetation}, bridges={bd_topo_bridges}, power_lines={bd_topo_power_lines}")
         
         bd_foret_enabled = OmegaConf.select(config, 'data_sources.bd_foret_enabled', default=False)
         rpg_enabled = OmegaConf.select(config, 'data_sources.rpg_enabled', default=False)
@@ -1261,78 +1282,146 @@ class LiDARProcessor:
                 
                 # Apply ground truth classification if BD TOPO data is available
                 if gt_data and 'ground_truth' in gt_data:
-                    from ..core.modules.advanced_classification import AdvancedClassifier
+                    # Check if we should use the new optimized ground truth classifier
+                    use_optimized_gt = self.config.processor.get('use_optimized_ground_truth', True)
                     
-                    # Get building and transport detection modes from config
-                    building_mode = self.config.processor.get('building_detection_mode', 'asprs')
-                    transport_mode = self.config.processor.get('transport_detection_mode', 'asprs_extended')
+                    if use_optimized_gt:
+                        # NEW: Use GroundTruthOptimizer (10-100× faster, GPU-accelerated)
+                        from ..io.ground_truth_optimizer import GroundTruthOptimizer
+                        
+                        # Prepare ground truth features dictionary
+                        ground_truth_features = gt_data['ground_truth']
+                        
+                        # Log what ground truth features are available
+                        available_features = [k for k, v in ground_truth_features.items() if v is not None and len(v) > 0]
+                        if available_features:
+                            logger.info(f"  🗺️  Applying ground truth from BD TOPO® (optimized): {', '.join(available_features)}")
+                            for feat_type in available_features:
+                                logger.info(f"      - {feat_type}: {len(ground_truth_features[feat_type])} features")
+                        else:
+                            logger.warning(f"  ⚠️  No ground truth features found for this tile!")
+                        
+                        # Store original classification for comparison
+                        labels_before = labels_v.copy()
+                        
+                        # Create optimizer with auto-selection of best method
+                        # GPU chunked for large datasets (>10M pts), GPU for medium, CPU STRtree for small
+                        optimizer = GroundTruthOptimizer(
+                            force_method='auto',  # Auto-select best method
+                            gpu_chunk_size=5_000_000,
+                            verbose=True
+                        )
+                        
+                        # Apply ground truth classification
+                        logger.info(f"  🔄 Classifying {len(points_v):,} points with ground truth...")
+                        labels_v = optimizer.label_points(
+                            points=points_v,
+                            ground_truth_features=ground_truth_features,
+                            label_priority=None,  # Use default priority
+                            ndvi=all_features.get('ndvi'),
+                            use_ndvi_refinement=self.config.features.get('compute_ndvi', False),
+                            ndvi_vegetation_threshold=0.3,
+                            ndvi_building_threshold=0.15
+                        )
+                        
+                        # Log classification changes
+                        n_changed = np.sum(labels_v != labels_before)
+                        pct_changed = (n_changed / len(labels_v)) * 100
+                        logger.info(f"  ✅ Ground truth applied: {n_changed:,} points changed ({pct_changed:.2f}%)")
+                        
+                        # Log new classes found
+                        new_classes = np.unique(labels_v)
+                        has_roads = 11 in new_classes
+                        has_rails = 10 in new_classes
+                        has_parking = 40 in new_classes
+                        has_sports = 41 in new_classes
+                        has_cemetery = 42 in new_classes
+                        has_power = 43 in new_classes
+                        
+                        if has_roads or has_rails:
+                            logger.info(f"      🛣️  Roads (11): {'✅' if has_roads else '❌'}")
+                            logger.info(f"      🚂 Railways (10): {'✅' if has_rails else '❌'}")
+                        if has_parking or has_sports or has_cemetery or has_power:
+                            logger.info(f"      🅿️  Parking (40): {'✅' if has_parking else '❌'}")
+                            logger.info(f"      ⚽ Sports (41): {'✅' if has_sports else '❌'}")
+                            logger.info(f"      🪦 Cemetery (42): {'✅' if has_cemetery else '❌'}")
+                            logger.info(f"      ⚡ Power Lines (43): {'✅' if has_power else '❌'}")
                     
-                    # Get BD TOPO parameters from config for ground truth classification
-                    bd_topo_params = self.config.get('data_sources', {}).get('bd_topo', {}).get('parameters', {})
-                    
-                    logger.info(f"  🔧 Building detection mode: {building_mode}")
-                    logger.info(f"  🔧 Transport detection mode: {transport_mode}")
-                    
-                    # Create advanced classifier with appropriate modes and config parameters
-                    classifier = AdvancedClassifier(
-                        use_ground_truth=True,
-                        use_ndvi=self.config.features.get('compute_ndvi', False),
-                        use_geometric=True,
-                        building_detection_mode=building_mode,
-                        transport_detection_mode=transport_mode,
-                        # Pass BD TOPO parameters for road/railway filtering
-                        road_buffer_tolerance=bd_topo_params.get('road_buffer_tolerance', 0.5)
-                    )
-                    
-                    # Prepare ground truth features dictionary
-                    ground_truth_features = gt_data['ground_truth']
-                    
-                    # Log what ground truth features are available
-                    available_features = [k for k, v in ground_truth_features.items() if v is not None and len(v) > 0]
-                    if available_features:
-                        logger.info(f"  🗺️  Applying ground truth from BD TOPO®: {', '.join(available_features)}")
-                        for feat_type in available_features:
-                            logger.info(f"      - {feat_type}: {len(ground_truth_features[feat_type])} features")
                     else:
-                        logger.warning(f"  ⚠️  No ground truth features found for this tile!")
-                    
-                    # Store original classification for comparison
-                    labels_before = labels_v.copy()
-                    
-                    # Apply ground truth classification using the advanced classifier
-                    logger.info(f"  🔄 Classifying points with ground truth...")
-                    labels_v = classifier._classify_by_ground_truth(
-                        labels=labels_v,
-                        points=points_v,
-                        ground_truth_features=ground_truth_features,
-                        ndvi=all_features.get('ndvi'),
-                        height=height_above_ground,  # Use height_above_ground for proper road/rail filtering!
-                        planarity=geo_features.get('planarity'),
-                        intensity=intensity_v
-                    )
-                    
-                    # Log classification changes
-                    n_changed = np.sum(labels_v != labels_before)
-                    pct_changed = (n_changed / len(labels_v)) * 100
-                    logger.info(f"  ✅ Ground truth applied: {n_changed:,} points changed ({pct_changed:.2f}%)")
-                    
-                    # Log new classes found
-                    new_classes = np.unique(labels_v)
-                    has_roads = 11 in new_classes
-                    has_rails = 10 in new_classes
-                    has_parking = 40 in new_classes
-                    has_sports = 41 in new_classes
-                    has_cemetery = 42 in new_classes
-                    has_power = 43 in new_classes
-                    
-                    if has_roads or has_rails:
-                        logger.info(f"      🛣️  Roads (11): {'✅' if has_roads else '❌'}")
-                        logger.info(f"      🚂 Railways (10): {'✅' if has_rails else '❌'}")
-                    if has_parking or has_sports or has_cemetery or has_power:
-                        logger.info(f"      🅿️  Parking (40): {'✅' if has_parking else '❌'}")
-                        logger.info(f"      ⚽ Sports (41): {'✅' if has_sports else '❌'}")
-                        logger.info(f"      🪦 Cemetery (42): {'✅' if has_cemetery else '❌'}")
-                        logger.info(f"      ⚡ Power Lines (43): {'✅' if has_power else '❌'}")
+                        # LEGACY: Use AdvancedClassifier (slower, kept for backward compatibility)
+                        logger.warning("  ⚠️  Using legacy AdvancedClassifier (slower). Set processor.use_optimized_ground_truth=true for 10× speedup")
+                        from ..core.modules.advanced_classification import AdvancedClassifier
+                        
+                        # Get building and transport detection modes from config
+                        building_mode = self.config.processor.get('building_detection_mode', 'asprs')
+                        transport_mode = self.config.processor.get('transport_detection_mode', 'asprs_extended')
+                        
+                        # Get BD TOPO parameters from config for ground truth classification
+                        bd_topo_params = self.config.get('data_sources', {}).get('bd_topo', {}).get('parameters', {})
+                        
+                        logger.info(f"  🔧 Building detection mode: {building_mode}")
+                        logger.info(f"  🔧 Transport detection mode: {transport_mode}")
+                        
+                        # Create advanced classifier with appropriate modes and config parameters
+                        classifier = AdvancedClassifier(
+                            use_ground_truth=True,
+                            use_ndvi=self.config.features.get('compute_ndvi', False),
+                            use_geometric=True,
+                            building_detection_mode=building_mode,
+                            transport_detection_mode=transport_mode,
+                            # Pass BD TOPO parameters for road/railway filtering
+                            road_buffer_tolerance=bd_topo_params.get('road_buffer_tolerance', 0.5)
+                        )
+                        
+                        # Prepare ground truth features dictionary
+                        ground_truth_features = gt_data['ground_truth']
+                        
+                        # Log what ground truth features are available
+                        available_features = [k for k, v in ground_truth_features.items() if v is not None and len(v) > 0]
+                        if available_features:
+                            logger.info(f"  🗺️  Applying ground truth from BD TOPO®: {', '.join(available_features)}")
+                            for feat_type in available_features:
+                                logger.info(f"      - {feat_type}: {len(ground_truth_features[feat_type])} features")
+                        else:
+                            logger.warning(f"  ⚠️  No ground truth features found for this tile!")
+                        
+                        # Store original classification for comparison
+                        labels_before = labels_v.copy()
+                        
+                        # Apply ground truth classification using the advanced classifier
+                        logger.info(f"  🔄 Classifying points with ground truth...")
+                        labels_v = classifier._classify_by_ground_truth(
+                            labels=labels_v,
+                            points=points_v,
+                            ground_truth_features=ground_truth_features,
+                            ndvi=all_features.get('ndvi'),
+                            height=height_above_ground,  # Use height_above_ground for proper road/rail filtering!
+                            planarity=geo_features.get('planarity'),
+                            intensity=intensity_v
+                        )
+                        
+                        # Log classification changes
+                        n_changed = np.sum(labels_v != labels_before)
+                        pct_changed = (n_changed / len(labels_v)) * 100
+                        logger.info(f"  ✅ Ground truth applied: {n_changed:,} points changed ({pct_changed:.2f}%)")
+                        
+                        # Log new classes found
+                        new_classes = np.unique(labels_v)
+                        has_roads = 11 in new_classes
+                        has_rails = 10 in new_classes
+                        has_parking = 40 in new_classes
+                        has_sports = 41 in new_classes
+                        has_cemetery = 42 in new_classes
+                        has_power = 43 in new_classes
+                        
+                        if has_roads or has_rails:
+                            logger.info(f"      🛣️  Roads (11): {'✅' if has_roads else '❌'}")
+                            logger.info(f"      🚂 Railways (10): {'✅' if has_rails else '❌'}")
+                        if has_parking or has_sports or has_cemetery or has_power:
+                            logger.info(f"      🅿️  Parking (40): {'✅' if has_parking else '❌'}")
+                            logger.info(f"      ⚽ Sports (41): {'✅' if has_sports else '❌'}")
+                            logger.info(f"      🪦 Cemetery (42): {'✅' if has_cemetery else '❌'}")
+                            logger.info(f"      ⚡ Power Lines (43): {'✅' if has_power else '❌'}")
                 else:
                     logger.warning(f"  ⚠️  No ground truth data returned from data fetcher!")
                     

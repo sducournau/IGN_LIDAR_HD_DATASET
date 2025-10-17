@@ -69,7 +69,8 @@ try:
         info_command,
         ground_truth_command,
         update_classification_command,
-        auto_config
+        auto_config,
+        presets_command
     )
     
     # Register commands with the CLI group
@@ -81,6 +82,7 @@ try:
     cli.add_command(ground_truth_command, name='ground-truth')
     cli.add_command(update_classification_command, name='update-classification')
     cli.add_command(auto_config, name='auto-config')
+    cli.add_command(presets_command, name='presets')
     
 except ImportError as e:
     logger.warning(f"Some commands may not be available due to missing dependencies: {e}")

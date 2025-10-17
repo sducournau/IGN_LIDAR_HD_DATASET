@@ -1,0 +1,179 @@
+# ============================================================================
+# IGN LiDAR HD - Preset: LOD3
+# ============================================================================
+# Inherits: base.yaml
+#
+# USE CASE: Detailed architectural analysis, heritage documentation
+# SPEED: 🏃 MEDIUM (3× slower than minimal, high detail)
+#
+# FEATURES:
+#   - All LOD2 features
+#   - Boundary detection for fine details
+#   - Enhanced architectural feature extraction
+#   - Higher-resolution geometric analysis
+#   - Optional RGB for texture mapping
+#
+# WHEN TO USE:
+#   ✓ Detailed building modeling (chimneys, dormers, balconies)
+#   ✓ Architectural heritage documentation
+#   ✓ High-fidelity city models
+#   ✓ Facade detail extraction
+#   ✓ Research and detailed analysis
+#
+# CLASSIFICATION OUTPUT:
+#   LOD3 Building Classes (15 detailed classes):
+#     - wall, roof_flat, roof_gable, roof_hip
+#     - chimney, dormer, balcony, overhang
+#     - foundation, window_frame, door_frame
+#     - ground, vegetation (low/high), water, other
+#
+# USAGE:
+#   ign-lidar-hd process --preset lod3 input/ output/
+#
+# ALTERNATIVES:
+#   - For faster building modeling → use 'lod2' preset
+#   - For standard classification → use 'asprs' preset
+#   - For maximum detail → use 'full' preset
+#
+# Version: 5.1.0
+# Week: 3 (Configuration Refactoring)
+# ============================================================================
+
+# Inherit from base configuration
+defaults:
+  - ../base
+  - _self_
+
+# ============================================================================
+# LOD3 PRESET OVERRIDES
+# ============================================================================
+
+# Processor: LOD3 classification scheme
+processor:
+  lod_level: "LOD3" # Use LOD3 detailed classification
+  processing_mode: "enriched_only" # Enriched LAZ output
+
+  # GPU settings (required for direct config loading)
+  use_gpu: true # Enable GPU acceleration
+  num_workers: 1 # Single worker for GPU processing
+  patch_overlap: 0.1 # 10% overlap
+  num_points: 32768 # Points per patch
+
+  # Higher GPU settings for detailed processing
+  gpu_batch_size: 8_000_000 # 8M points
+  gpu_memory_target: 0.85 # 85% VRAM usage
+  gpu_streams: 4 # CUDA streams for parallel processing
+
+  # Strategy pattern
+  use_strategy_pattern: true # Use new Strategy Pattern
+
+  # Optimization flags
+  use_optimized_ground_truth: true # Use optimized ground truth classifier
+  enable_memory_pooling: true # GPU memory pooling
+  enable_async_transfers: true # Async CPU-GPU transfers
+  adaptive_chunk_sizing: true # Dynamic chunk sizing
+
+  # Processing settings
+  skip_existing: false # Re-process existing files
+  output_format: "laz" # Output format
+  use_stitching: false # Tile stitching disabled by default
+
+  # Patch extraction
+  patch_size: 150.0 # Patch size in meters
+  architecture: "direct" # Direct patch extraction
+  augment: false # No augmentation for enriched-only mode
+  num_augmentations: 3 # Augmentations if enabled
+
+  # Ground truth settings
+  ground_truth_method: "auto" # GPU chunked or STRtree
+  ground_truth_chunk_size: 5_000_000 # 5M points per chunk
+
+  # Enable reclassification for detailed classification
+  reclassification:
+    enabled: true
+    use_geometric_rules: true
+    min_confidence: 0.75 # Higher confidence for LOD3
+
+# Features: LOD3-optimized feature set (maximum detail)
+features:
+  mode: "lod3" # LOD3 feature mode
+
+  # Required fields for direct config loading
+  include_extra: true # Include additional features
+  use_gpu_chunked: true # GPU chunked processing
+  gpu_batch_size: 1_000_000 # 1M points per batch
+  use_nir: false # No NIR by default
+
+  # Higher-resolution geometric parameters
+  k_neighbors: 30 # More neighbors for detail
+  search_radius: 1.5 # Larger radius for context
+
+  # All geometric features enabled
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: true
+
+  # Full architectural feature extraction
+  compute_architectural: true
+  architectural_styles: true # Detailed style analysis
+
+  # Boundary detection for fine details
+  compute_boundaries: true # Essential for LOD3
+
+  # Optional: Enable RGB for texture mapping
+  use_rgb: false # Can enable if needed (slower)
+  use_infrared: false
+  compute_ndvi: false
+
+# Data Sources: Full BD TOPO for context
+data_sources:
+  # BD TOPO: All features for comprehensive context
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true # Essential for LOD3
+      roads: true # Context
+      water: true # Context
+      vegetation: true # Context
+
+  # Orthophotos optional (slow but useful for LOD3)
+  orthophoto_rgb: false # Enable if texture mapping needed
+  orthophoto_nir: false
+
+# Preprocessing: Required section
+preprocess:
+  enabled: false # Disabled by default
+
+# Stitching: Required section
+stitching:
+  enabled: false # Disabled by default
+  buffer_size: 10.0 # 10 meter buffer
+
+# Output: Comprehensive outputs
+output:
+  format: "laz" # Output format
+  save_enriched: true # Enriched LAZ with LOD3 classes
+  save_patches: false # No patches by default
+  save_metadata: true # Save detailed metadata
+  save_stats: true # Save detailed statistics
+
+# ============================================================================
+# EXPECTED PERFORMANCE
+# ============================================================================
+# Processing time (relative to base):
+#   - 3× slower than minimal
+#   - 2× slower than LOD2
+#   - Comparable to ASPRS with full features
+#
+# Memory usage:
+#   - High (requires GPUs with 12GB+ VRAM recommended)
+#
+# Output file size:
+#   - Large (15 detailed classes + all geometric features)
+#
+# Classification accuracy:
+#   - Very high for architectural details
+#   - Excellent for heritage documentation
+#   - Best-in-class for detailed building analysis
+# ============================================================================
