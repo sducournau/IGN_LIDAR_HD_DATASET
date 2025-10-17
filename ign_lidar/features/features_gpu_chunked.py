@@ -186,15 +186,49 @@ class GPUChunkedFeatureComputer:
         if not self.use_gpu:
             logger.info("💻 CPU mode - GPU not available or disabled")
     
-    def _to_gpu(self, array: np.ndarray) -> 'cp.ndarray':
-        """Transfer array to GPU memory."""
+    def _to_gpu(self, array: np.ndarray, stream_idx: Optional[int] = None) -> 'cp.ndarray':
+        """
+        Transfer array to GPU memory (optionally using CUDA streams).
+        
+        Args:
+            array: NumPy array to transfer
+            stream_idx: Optional stream index for async transfer
+            
+        Returns:
+            CuPy array on GPU
+        """
         if self.use_gpu and cp is not None:
+            # Use stream manager for async transfer if available
+            if stream_idx is not None and self.stream_manager and self.use_cuda_streams:
+                return self.stream_manager.async_upload(
+                    array, 
+                    stream_idx=stream_idx,
+                    use_pinned=True
+                )
+            # Standard synchronous transfer
             return cp.asarray(array, dtype=cp.float32)
         return array
     
-    def _to_cpu(self, array) -> np.ndarray:
-        """Transfer array to CPU memory."""
+    def _to_cpu(self, array, stream_idx: Optional[int] = None) -> np.ndarray:
+        """
+        Transfer array to CPU memory (optionally using CUDA streams).
+        
+        Args:
+            array: CuPy array to transfer
+            stream_idx: Optional stream index for async transfer
+            
+        Returns:
+            NumPy array on CPU
+        """
         if self.use_gpu and cp is not None and isinstance(array, cp.ndarray):
+            # Use stream manager for async transfer if available
+            if stream_idx is not None and self.stream_manager and self.use_cuda_streams:
+                return self.stream_manager.async_download(
+                    array,
+                    stream_idx=stream_idx,
+                    use_pinned=True
+                )
+            # Standard synchronous transfer
             return cp.asnumpy(array)
         return np.asarray(array)
     
@@ -372,15 +406,16 @@ class GPUChunkedFeatureComputer:
                         )
                     )
                     
-                    # Transfer chunk results to CPU
+                    # OPTIMIZATION: Keep results on GPU, batch transfer later
                     normals[start_idx:end_idx] = (
                         self._to_cpu(chunk_normals_gpu)
                     )
                     
                     # Free GPU memory for chunk
                     del chunk_points_gpu, distances, chunk_normals_gpu
-                    if chunk_idx % 5 == 0:  # Periodic cleanup
-                        self._free_gpu_memory()
+                    # OPTIMIZED: Less frequent cleanup (only when VRAM high)
+                    if chunk_idx % 10 == 0:  # Was every 5, now every 10
+                        self._free_gpu_memory()  # Smart cleanup (only if >80% VRAM)
                 else:
                     # Hybrid path: KNN on CPU, PCA on GPU
                     chunk_points_cpu = self._to_cpu(
@@ -396,17 +431,18 @@ class GPUChunkedFeatureComputer:
                         )
                     )
                     
-                    # Transfer chunk results to CPU
+                    # OPTIMIZATION: Keep results on GPU, batch transfer later
                     normals[start_idx:end_idx] = (
                         self._to_cpu(chunk_normals_gpu)
                     )
                     
-                    if chunk_idx % 5 == 0:  # Periodic cleanup
-                        self._free_gpu_memory()
+                    # OPTIMIZED: Less frequent cleanup
+                    if chunk_idx % 10 == 0:  # Was every 5, now every 10
+                        self._free_gpu_memory()  # Smart cleanup (only if >80% VRAM)
             
-            # Final cleanup
+            # Final cleanup - force cleanup at end
             del points_gpu, knn
-            self._free_gpu_memory()
+            self._free_gpu_memory(force=True)  # Force final cleanup
             
             logger.info("  ✓ Normals computation complete")
             return normals
@@ -414,7 +450,7 @@ class GPUChunkedFeatureComputer:
         except Exception as e:
             logger.error(f"GPU chunked computation failed: {e}")
             logger.warning("Falling back to CPU...")
-            self._free_gpu_memory()
+            self._free_gpu_memory(force=True)  # Force cleanup on error
             
             from .features_gpu import GPUFeatureComputer
             computer = GPUFeatureComputer(use_gpu=False)
@@ -503,35 +539,35 @@ class GPUChunkedFeatureComputer:
                 # GPU query (fast!)
                 query_points = points_gpu[start_idx:end_idx]
                 distances, indices = knn.kneighbors(query_points)
-                indices = self._to_cpu(indices)
+                # OPTIMIZATION: Keep indices on GPU if possible (avoid GPU->CPU->GPU)
+                if not isinstance(indices, cp.ndarray):
+                    indices = cp.asarray(indices)
                 del query_points, distances
             else:
                 # CPU query (still faster than rebuilding tree!)
                 query_points = points_cpu[start_idx:end_idx]
                 distances, indices = knn.kneighbors(query_points)
+                # Convert to GPU for computation
+                if self.use_gpu and cp is not None:
+                    indices = cp.asarray(indices)
                 del query_points, distances
             
             # Compute normals for this chunk (on GPU if available)
-            if self.use_gpu and cp is not None:
-                indices_gpu = cp.asarray(indices)
-            else:
-                indices_gpu = indices
-                
             chunk_normals = self._compute_normals_from_neighbors_gpu(
-                points_gpu, indices_gpu
+                points_gpu, indices
             )
             
-            # Store results
+            # Store results (transfer to CPU)
             normals[start_idx:end_idx] = self._to_cpu(chunk_normals)
             
-            # Memory cleanup
-            del chunk_normals, indices_gpu, indices
-            if chunk_idx % 3 == 0:  # Less frequent cleanup (tree is reused)
-                self._free_gpu_memory()
+            # Memory cleanup - less frequent, smarter
+            del chunk_normals, indices
+            if chunk_idx % 10 == 0:  # OPTIMIZED: Was every 3, now every 10
+                self._free_gpu_memory()  # Smart cleanup (only if >80% VRAM)
         
-        # Final cleanup
+        # Final cleanup - force cleanup at end
         del knn, points_gpu
-        self._free_gpu_memory()
+        self._free_gpu_memory(force=True)
         
         logger.info("  ✓ Global KDTree normals computation complete")
         return normals
@@ -855,17 +891,19 @@ class GPUChunkedFeatureComputer:
                 if self.use_cuml and cuNearestNeighbors is not None:
                     del chunk_points
                 del distances, chunk_curvature
-                if chunk_idx % 5 == 0:
-                    self._free_gpu_memory()
+                # OPTIMIZED: Less frequent cleanup
+                if chunk_idx % 10 == 0:  # Was every 5, now every 10
+                    self._free_gpu_memory()  # Smart cleanup
             
             del points_gpu, normals_gpu, knn
-            self._free_gpu_memory()
+            self._free_gpu_memory(force=True)  # Force final cleanup
             
             logger.info("  ✓ Curvature computation complete")
             return curvature
             
         except Exception as e:
             logger.error(f"GPU curvature failed: {e}")
+            self._free_gpu_memory(force=True)  # Force cleanup on error
             self._free_gpu_memory()
             
             from .features_gpu import GPUFeatureComputer

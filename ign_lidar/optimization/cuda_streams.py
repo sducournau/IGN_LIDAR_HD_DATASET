@@ -280,7 +280,8 @@ class CUDAStreamManager:
         self,
         gpu_data: cp.ndarray,
         stream_idx: int = 0,
-        use_pinned: bool = True
+        use_pinned: bool = True,
+        synchronize: bool = False
     ) -> np.ndarray:
         """
         Asynchronously download data from GPU.
@@ -289,6 +290,7 @@ class CUDAStreamManager:
             gpu_data: CuPy array to download
             stream_idx: Stream index to use
             use_pinned: Use pinned memory for faster transfer
+            synchronize: If True, wait for transfer to complete (default: False for async)
             
         Returns:
             NumPy array on CPU
@@ -305,8 +307,10 @@ class CUDAStreamManager:
             with stream:
                 cp.copyto(cp.asarray(pinned), gpu_data)
             
-            # Wait for transfer to complete
-            stream.synchronize()
+            # OPTIMIZATION: Only wait if synchronize=True
+            # Otherwise, caller should use events or synchronize_all()
+            if synchronize:
+                stream.synchronize()
             
             # Copy to regular array and return pinned to pool
             result = np.copy(pinned)
@@ -316,7 +320,10 @@ class CUDAStreamManager:
             # Direct transfer
             with stream:
                 cpu_array = cp.asnumpy(gpu_data)
-            stream.synchronize()
+            
+            # OPTIMIZATION: Only wait if synchronize=True
+            if synchronize:
+                stream.synchronize()
             return cpu_array
     
     def pipeline_process(
