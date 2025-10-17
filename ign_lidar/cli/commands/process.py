@@ -9,6 +9,7 @@ import click
 from omegaconf import DictConfig, OmegaConf
 
 from ...core.processor import LiDARProcessor
+from ...core.performance import PerformanceMonitor
 from ..hydra_runner import HydraRunner
 
 logger = logging.getLogger(__name__)
@@ -132,36 +133,68 @@ def process_lidar(cfg: DictConfig) -> None:
     # This ensures data_sources and all other config sections are available
     processor = LiDARProcessor(config=cfg)
     
-    # Process
-    logger.info("Starting processing...")
-    start_time = time.time()
+    # Initialize performance monitoring
+    enable_monitoring = cfg.get('enable_performance_monitoring', True)
+    enable_gpu_monitoring = cfg.processor.get('use_gpu', False)
     
-    try:
-        total_patches = processor.process_directory(
-            input_dir=input_dir,
-            output_dir=output_dir,
-            num_workers=cfg.processor.num_workers,
-            skip_existing=True
-        )
+    with PerformanceMonitor(
+        update_interval=2.0,
+        enable_gpu_monitoring=enable_gpu_monitoring,
+        enable_progress_bar=True
+    ) as monitor:
         
-        elapsed_time = time.time() - start_time
+        if enable_monitoring:
+            monitor.start_operation("LiDAR Processing", total_items=None)
+            logger.info("📊 Performance monitoring enabled")
+            
+            # Add custom monitoring callback for detailed metrics
+            def processing_callback(metrics):
+                if metrics.points_processed > 0 and metrics.elapsed_time > 10:
+                    # Log performance update every 10 seconds
+                    if int(metrics.elapsed_time) % 10 == 0:
+                        logger.info(f"⚡ Performance: {metrics.points_per_second:,.0f} pts/sec, "
+                                  f"GPU: {metrics.gpu_utilization:.1f}%, "
+                                  f"RAM: {metrics.memory_utilization:.1f}%")
+            
+            monitor.add_update_callback(processing_callback)
         
-        # Summary
-        logger.info("="*70)
-        logger.info("✅ Processing complete!")
-        if OmegaConf.select(cfg, "output.only_enriched_laz", default=False):
-            logger.info(f"  Mode: Enriched LAZ only (no patches)")
-            logger.info(f"  Enriched LAZ files: {output_dir / 'enriched'}")
-        else:
-            logger.info(f"  Total patches: {total_patches:,}")
-        logger.info(f"  Processing time: {elapsed_time:.1f}s ({elapsed_time/60:.1f} min)")
-        logger.info(f"  Output directory: {output_dir}")
-        logger.info(f"  Configuration: {config_save_path}")
-        logger.info("="*70)
+        # Process
+        logger.info("Starting processing...")
+        start_time = time.time()
         
-    except Exception as e:
-        logger.error(f"Processing failed: {e}", exc_info=True)
-        raise
+        try:
+            total_patches = processor.process_directory(
+                input_dir=input_dir,
+                output_dir=output_dir,
+                num_workers=cfg.processor.num_workers,
+                skip_existing=True
+            )
+            
+            if enable_monitoring:
+                monitor.finish_operation("LiDAR Processing")
+            
+            elapsed_time = time.time() - start_time
+            
+            # Summary
+            logger.info("="*70)
+            logger.info("✅ Processing complete!")
+            if OmegaConf.select(cfg, "output.only_enriched_laz", default=False):
+                logger.info(f"  Mode: Enriched LAZ only (no patches)")
+                logger.info(f"  Enriched LAZ files: {output_dir / 'enriched'}")
+            else:
+                logger.info(f"  Total patches: {total_patches:,}")
+            logger.info(f"  Processing time: {elapsed_time:.1f}s ({elapsed_time/60:.1f} min)")
+            logger.info(f"  Output directory: {output_dir}")
+            logger.info(f"  Configuration: {config_save_path}")
+            
+            # Performance monitoring will automatically print summary on exit
+            logger.info("="*70)
+            
+        except Exception as e:
+            if enable_monitoring:
+                monitor.log_error(f"Processing failed: {e}")
+            logger.error(f"Processing failed: {e}", exc_info=True)
+            raise
 
 
 @click.command()

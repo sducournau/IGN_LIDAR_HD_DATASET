@@ -1,27 +1,26 @@
 # ============================================================================
-# IGN LiDAR HD - Vegetation Analysis Preset v4.0
+# V5: Simplified configuration with integrated optimizations
+# IGN LiDAR HD - Vegetation Analysis Preset V5.0 (Simplified)
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # Optimized configuration for vegetation analysis and forest classification
 # Focuses on vegetation height, density, and species classification using NDVI
 #
 # Usage:
-#   ign-lidar-hd process --config-name vegetation_analysis_v4
-#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name vegetation_analysis_v4
+#   ign-lidar-hd process --config-name vegetation_analysis
+#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name vegetation_analysis
 #
 # Specialized for: Forest, vegetation, NDVI analysis
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 
 # Inherit from base configurations and default config
 defaults:
-  - ../base/features
-  - ../base/data_sources
-  - ../base/classification
-  - ../base/output
   - ../config
   - _self_
 
 # Vegetation analysis specific overrides
-processing:
+processor:
   lod_level: "ASPRS" # ASPRS for vegetation classification
   mode: "enriched_only" # Focus on enriched LAZ output
 
@@ -91,8 +90,10 @@ optimization:
   level: "conservative" # Conservative for NIR processing
   memory_management: "conservative"
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # Vegetation Analysis Notes
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 #
 # Specialized for:
 # - Forest classification and analysis

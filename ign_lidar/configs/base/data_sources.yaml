@@ -1,155 +1,23 @@
 # ============================================================================
-# IGN LiDAR HD - Base Data Sources Configuration v4.0
+# V5 Base Configuration: Data Sources (Simplified)
 # ============================================================================
-# Base configuration for external data sources integration
-# BD TOPO, orthophotos, cadastre, and other reference data
-#
-# Usage:
-#   defaults:
-#     - base/data_sources
-#
-# Override specific settings in your config:
-#   data_sources:
-#     bd_topo_buildings: true
-#     orthophoto_rgb: true
-# ============================================================================
+# Essential external data sources for classification and enrichment.
 
-# @package data_sources
 data_sources:
-  # BD TOPO (IGN topographic database) - Flat structure for v4.0
-  bd_topo_buildings: false # ASPRS Class 6 (Buildings)
-  bd_topo_roads: false # ASPRS Class 11 (Roads)
-  bd_topo_railways: false # ASPRS Class 11 (Railways)
-  bd_topo_water: false # ASPRS Class 9 (Water)
-  bd_topo_vegetation: false # ASPRS Classes 3,4,5 (Vegetation)
-  bd_topo_bridges: false # ASPRS Class 17 (Bridges)
-  bd_topo_parking: false # ASPRS Class 11 (Parking areas)
-  bd_topo_cemeteries: false # ASPRS Class 2 (Cemeteries)
-  bd_topo_power_lines: false # ASPRS Class 14 (Power lines)
-  bd_topo_sports: false # ASPRS Class 11 (Sports facilities)
-
-  # BD TOPO parameters (flat structure)
-  bd_topo_road_width_fallback: 4.0 # Default road width (m)
-  bd_topo_railway_width_fallback: 3.5 # Default railway width (m)
-  bd_topo_power_line_buffer: 2.0 # Power line buffer (m)
-  bd_topo_building_buffer: 0.0 # Building outline buffer (m)
-  bd_topo_water_buffer: 0.5 # Water body buffer (m)
-
-  # Orthophotos (IGN orthophoto service)
-  orthophoto_rgb: true # RGB orthophotos for spectral features
-  orthophoto_nir: false # NIR orthophotos (slower to fetch)
-  orthophoto_resolution: 0.2 # Target resolution (m/pixel)
-  orthophoto_cache_enabled: true # Cache orthophoto tiles
-
-  # Cadastre (land registry data)
-  cadastre_enabled: false # Enable cadastre data
-  cadastre_group_by_parcel: false # Group buildings by parcel
-  cadastre_include_building_outlines: true # Use building outlines
-  cadastre_parcel_buffer: 0.0 # Buffer around parcels (m)
-
-  # BD Forêt (forest database)
-  bd_foret_enabled: false # Enable BD Forêt data
-  bd_foret_vegetation_types: ["all"] # Vegetation types to include
-  bd_foret_confidence_threshold: 0.8 # Confidence threshold
-
-  # RPG (Registre Parcellaire Graphique - agricultural registry)
-  rpg_enabled: false # Enable RPG data
-  rpg_year: 2024 # RPG year to use
-  rpg_crop_categories: ["all"] # Crop categories to include
-
-  # Additional data sources
-
-  # OpenStreetMap (experimental)
-  osm_enabled: false # Enable OpenStreetMap data
-  osm_features: ["buildings", "roads", "water"] # OSM features to include
-  osm_buffer: 1.0 # Buffer for OSM features (m)
-
-  # Digital Terrain Model
-  dtm_enabled: false # Enable DTM for height normalization
-  dtm_resolution: 1.0 # DTM resolution (m)
-  dtm_source: "ign" # DTM source (ign, copernicus)
-
-  # Corine Land Cover
-  corine_enabled: false # Enable Corine Land Cover
-  corine_year: 2018 # Corine year to use
-  corine_level: 3 # Corine nomenclature level (1, 2, 3)
-
-  # Data fetching configuration
-  fetching:
-    # Connection settings
-    timeout: 30 # Request timeout (seconds)
-    max_retries: 3 # Maximum retry attempts
-    retry_delay: 1.0 # Delay between retries (seconds)
-
-    # Parallel fetching
-    parallel_requests: 4 # Number of parallel requests
-    chunk_size: 1000 # Number of points per request chunk
-
-    # Rate limiting
-    rate_limit: 10 # Requests per second limit
-    respect_server_limits: true # Respect server rate limits
-
-    # Caching
-    cache_enabled: true # Enable response caching
-    cache_expiry: 86400 # Cache expiry time (seconds, 24h)
-    cache_directory: "${cache_dir}/data_sources" # Cache directory
-
-  # Quality control for external data
-  quality_control:
-    # Geometry validation
-    validate_geometries: true # Validate external geometries
-    fix_invalid_geometries: true # Attempt to fix invalid geometries
-
-    # Coverage validation
-    min_coverage_ratio: 0.05 # Minimum coverage ratio to consider useful
-    warn_low_coverage: true # Warn about low coverage areas
-
-    # Consistency checks
-    check_crs_consistency: true # Check coordinate system consistency
-    check_temporal_consistency: true # Check temporal consistency
-
-    # Data freshness
-    max_data_age: null # Maximum acceptable data age (days, null = no limit)
-    warn_old_data: true # Warn about potentially outdated data
-
-  # Integration parameters
-  integration:
-    # Spatial operations
-    buffer_tolerance: 0.1 # Spatial buffer tolerance (m)
-    simplification_tolerance: 0.05 # Geometry simplification tolerance (m)
-
-    # Attribute handling
-    preserve_source_attributes: false # Preserve original attributes
-    standardize_attributes: true # Standardize attribute names/values
-
-    # Conflict resolution
-    overlap_resolution: "union" # How to handle overlapping features (union, intersection, priority)
-    priority_order: ["bd_topo", "cadastre", "osm"] # Priority order for conflicts
-
-  # Performance optimization
-  performance:
-    # Spatial indexing
-    use_spatial_index: true # Use spatial indexing for faster queries
-    index_type: "rtree" # Spatial index type (rtree, quadtree)
-
-    # Memory management
-    max_memory_usage: "2GB" # Maximum memory for data source operations
-    stream_large_datasets: true # Stream large datasets instead of loading in memory
-
-    # Parallel processing
-    parallel_processing: true # Enable parallel data source processing
-    max_workers: 4 # Maximum worker processes
-
-  # Error handling
-  error_handling:
-    # Missing data
-    continue_on_missing_data: true # Continue if some data sources are unavailable
-    fallback_to_geometric: true # Fall back to geometric rules if data unavailable
-
-    # Network errors
-    continue_on_network_errors: true # Continue if network requests fail
-    offline_mode: false # Enable offline mode (use only cached data)
-
-    # Data errors
-    skip_invalid_features: true # Skip features with invalid geometries
-    log_skipped_features: true # Log information about skipped features
+  # Primary ground truth source
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true
+      roads: true
+      water: true
+      vegetation: true
+    
+  # Orthophotos
+  orthophoto_rgb: false    # RGB orthophotos (slow to fetch)
+  orthophoto_nir: false    # NIR orthophotos (very slow)
+  
+  # Optional external sources (disabled by default for performance)
+  cadastre_enabled: false
+  bd_foret_enabled: false
+  rpg_enabled: false

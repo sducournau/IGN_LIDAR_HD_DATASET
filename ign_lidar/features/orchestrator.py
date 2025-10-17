@@ -116,11 +116,14 @@ class FeatureOrchestrator:
         # ✅ OPTIMIZATION: Cache frequently accessed config values (Phase 1 - Quick Win)
         self._cache_config_values()
         
+        # ✅ OPTIMIZATION: Initialize advanced optimizations (V5 consolidation)
+        self._init_optimizations()
+        
         # Log feature configuration with data availability
         self._log_feature_config()
         
         logger.info(
-            f"FeatureOrchestrator initialized | "
+            f"FeatureOrchestrator V5 initialized | "
             f"strategy={self.strategy_name} | "
             f"mode={self.feature_mode} | "
             f"gpu={self.gpu_available}"
@@ -423,6 +426,272 @@ class FeatureOrchestrator:
             elif has_nir_fetcher is False and not self.use_infrared:
                 logger.debug("   ⚠️  NIR channel required but NIR fetcher not available (will attempt to load from LAZ)")
     
+    # =========================================================================
+    # OPTIMIZATION FEATURES (V5 Consolidation)
+    # =========================================================================
+    
+    def _init_optimizations(self):
+        """Initialize optimization subsystems consolidated from EnhancedFeatureOrchestrator."""
+        self._init_caching()
+        self._init_parallel_processing()
+        self._init_adaptive_parameters()
+        self._init_performance_monitoring()
+        
+        logger.debug("FeatureOrchestrator V5 optimizations initialized")
+    
+    def _init_caching(self):
+        """Initialize intelligent feature caching system."""
+        features_cfg = self.config.get('features', {})
+        
+        self._enable_feature_cache = features_cfg.get('enable_caching', True)
+        self._cache_max_size = features_cfg.get('cache_max_size', 100)  # MB
+        self._feature_cache = {}
+        self._current_cache_size = 0
+        
+        if self._enable_feature_cache:
+            logger.debug("Feature caching enabled")
+    
+    def _init_parallel_processing(self):
+        """Initialize parallel processing for RGB/NIR operations."""
+        from concurrent.futures import ThreadPoolExecutor
+        
+        processor_cfg = self.config.get('processor', {})
+        num_workers = processor_cfg.get('num_workers', 1)
+        
+        # Create thread pools for different operations
+        self._rgb_nir_executor = ThreadPoolExecutor(
+            max_workers=min(4, max(1, num_workers // 2)),
+            thread_name_prefix="rgb_nir"
+        )
+        self._feature_executor = ThreadPoolExecutor(
+            max_workers=min(2, max(1, num_workers)),
+            thread_name_prefix="features"
+        )
+        
+        logger.debug(f"Parallel processing initialized: "
+                    f"rgb_nir_workers={self._rgb_nir_executor._max_workers}, "
+                    f"feature_workers={self._feature_executor._max_workers}")
+    
+    def _init_adaptive_parameters(self):
+        """Initialize adaptive parameter tuning."""
+        features_cfg = self.config.get('features', {})
+        
+        # Base parameters that can be adapted
+        self._adaptive_parameters = {
+            'k_neighbors': features_cfg.get('k_neighbors', 20),
+            'search_radius': features_cfg.get('search_radius', 1.0),
+            'batch_size': features_cfg.get('gpu_batch_size', 1_000_000)
+        }
+        
+        # Adaptation history
+        self._parameter_history = {}
+        self._adaptation_enabled = features_cfg.get('enable_auto_tuning', True)
+        
+        if self._adaptation_enabled:
+            logger.debug("Adaptive parameter tuning enabled")
+    
+    def _init_performance_monitoring(self):
+        """Initialize performance monitoring and metrics collection."""
+        monitoring_cfg = self.config.get('monitoring', {})
+        
+        self._enable_profiling = monitoring_cfg.get('enable_profiling', False)
+        self._enable_performance_metrics = monitoring_cfg.get('enable_performance_metrics', True)
+        
+        # Performance tracking
+        self._processing_times = []
+        self._memory_usage = []
+        self._gpu_utilization = []
+        
+        if self._enable_performance_metrics:
+            logger.debug("Performance monitoring enabled")
+    
+    def _generate_cache_key(self, points, classification, kwargs):
+        """Generate a unique cache key for the given inputs."""
+        import hashlib
+        
+        # Create a hash from point statistics and parameters
+        data_hash = hashlib.md5()
+        data_hash.update(str(points.shape).encode())
+        data_hash.update(str(np.mean(points, axis=0)).encode())
+        data_hash.update(str(np.std(points, axis=0)).encode())
+        data_hash.update(str(np.unique(classification)).encode())
+        data_hash.update(str(sorted(kwargs.items())).encode())
+        
+        return data_hash.hexdigest()
+    
+    def _optimize_parameters_for_data(self, points, classification):
+        """
+        Optimize parameters based on data characteristics.
+        
+        Args:
+            points: Point cloud data
+            classification: Classification codes
+            
+        Returns:
+            Optimized parameters
+        """
+        n_points = len(points)
+        
+        # Analyze point density
+        bbox_volume = self._estimate_point_cloud_volume(points)
+        point_density = n_points / bbox_volume if bbox_volume > 0 else 1000
+        
+        # Base parameters
+        optimized = self._adaptive_parameters.copy()
+        
+        # Optimize k_neighbors based on density
+        base_k = optimized['k_neighbors']
+        if point_density > 10000:  # Very dense
+            optimized['k_neighbors'] = min(base_k + 10, 50)
+        elif point_density > 1000:  # Dense
+            optimized['k_neighbors'] = base_k
+        else:  # Sparse
+            optimized['k_neighbors'] = max(base_k - 5, 10)
+        
+        # Optimize search radius based on data distribution
+        z_range = np.ptp(points[:, 2])  # Z-axis range
+        base_radius = optimized['search_radius']
+        if z_range > 100:  # Building/urban area
+            optimized['search_radius'] = base_radius * 1.5
+        elif z_range < 10:  # Flat area
+            optimized['search_radius'] = base_radius * 0.8
+        
+        # Optimize batch size for GPU processing
+        base_batch_size = optimized['batch_size']
+        if n_points > 10_000_000:  # Very large
+            optimized['batch_size'] = min(base_batch_size, 500_000)
+        elif n_points > 5_000_000:  # Large
+            optimized['batch_size'] = min(base_batch_size, 1_000_000)
+        
+        logger.debug(f"Optimized parameters: k={optimized['k_neighbors']}, "
+                    f"radius={optimized['search_radius']:.2f}, "
+                    f"batch_size={optimized['batch_size']:,}")
+        
+        return optimized
+    
+    def _estimate_point_cloud_volume(self, points):
+        """Estimate the volume of the point cloud bounding box."""
+        if len(points) == 0:
+            return 1.0
+        
+        min_coords = np.min(points, axis=0)
+        max_coords = np.max(points, axis=0)
+        dimensions = max_coords - min_coords
+        
+        # Avoid zero volume
+        dimensions = np.maximum(dimensions, 0.1)
+        
+        return np.prod(dimensions)
+    
+    def _should_cache_features(self, points, features):
+        """Determine if features should be cached."""
+        if not self._enable_feature_cache:
+            return False
+        
+        # Estimate feature size
+        feature_size = sum(arr.nbytes for arr in features.values()) / (1024 * 1024)  # MB
+        
+        # Don't cache if it would exceed max size
+        if self._current_cache_size + feature_size > self._cache_max_size:
+            return False
+        
+        # Cache if it's a reasonably sized result
+        return 1 < feature_size < 50  # Cache features between 1MB and 50MB
+    
+    def _cache_features(self, cache_key, features):
+        """Cache computed features."""
+        feature_size = sum(arr.nbytes for arr in features.values()) / (1024 * 1024)  # MB
+        
+        # Clean cache if needed
+        while self._current_cache_size + feature_size > self._cache_max_size and self._feature_cache:
+            oldest_key = next(iter(self._feature_cache))
+            old_features = self._feature_cache.pop(oldest_key)
+            old_size = sum(arr.nbytes for arr in old_features.values()) / (1024 * 1024)
+            self._current_cache_size -= old_size
+        
+        # Cache features
+        self._feature_cache[cache_key] = features
+        self._current_cache_size += feature_size
+        
+        logger.debug(f"Cached features ({feature_size:.1f}MB), total cache: {self._current_cache_size:.1f}MB")
+    
+    def _update_performance_metrics(self, processing_time, num_points):
+        """Update performance metrics."""
+        if not self._enable_performance_metrics:
+            return
+        
+        self._processing_times.append(processing_time)
+        
+        # Keep only recent metrics (last 100 computations)
+        if len(self._processing_times) > 100:
+            self._processing_times.pop(0)
+        
+        points_per_second = num_points / processing_time if processing_time > 0 else 0
+        logger.debug(f"Performance: {processing_time:.2f}s, {points_per_second:.0f} points/sec")
+    
+    def clear_cache(self):
+        """Clear feature cache."""
+        self._feature_cache.clear()
+        self._current_cache_size = 0
+        logger.info("Feature cache cleared")
+    
+    def get_performance_summary(self):
+        """Get performance summary."""
+        if not hasattr(self, '_processing_times') or not self._processing_times:
+            return {}
+        
+        return {
+            'total_computations': len(self._processing_times),
+            'avg_processing_time': np.mean(self._processing_times),
+            'min_processing_time': np.min(self._processing_times),
+            'max_processing_time': np.max(self._processing_times),
+            'cache_hit_ratio': len(self._feature_cache) / len(self._processing_times) if self._processing_times else 0,
+            'current_cache_size_mb': getattr(self, '_current_cache_size', 0),
+            'strategy': self.strategy_name,
+            'feature_mode': str(self.feature_mode),
+            'adaptive_parameters': getattr(self, '_adaptive_parameters', {}).copy()
+        }
+    
+    def _start_parallel_rgb_nir_processing(self, tile_data):
+        """Start parallel RGB/NIR processing."""
+        def fetch_rgb_nir():
+            """Fetch RGB/NIR data in parallel."""
+            results = {}
+            points = tile_data['points']
+            
+            if self.use_rgb and self.rgb_fetcher:
+                try:
+                    rgb_data = self.rgb_fetcher.fetch_for_points(points)
+                    results['rgb'] = rgb_data
+                except Exception as e:
+                    logger.warning(f"RGB fetch failed: {e}")
+            
+            if self.use_infrared and self.infrared_fetcher:
+                try:
+                    nir_data = self.infrared_fetcher.fetch_for_points(points)
+                    results['nir'] = nir_data
+                except Exception as e:
+                    logger.warning(f"NIR fetch failed: {e}")
+            
+            return results
+        
+        return self._rgb_nir_executor.submit(fetch_rgb_nir)
+    
+    def _compute_geometric_features_optimized(self, points, classification, optimized_params, **kwargs):
+        """Compute geometric features with optimized parameters."""
+        # Apply optimized parameters temporarily
+        if optimized_params and hasattr(self.computer, 'k_neighbors'):
+            original_k = getattr(self.computer, 'k_neighbors', 20)
+            setattr(self.computer, 'k_neighbors', optimized_params.get('k_neighbors', original_k))
+        
+        try:
+            # Use the existing _compute_geometric_features method
+            return self._compute_geometric_features(points, classification, **kwargs)
+        finally:
+            # Restore original parameters
+            if optimized_params and hasattr(self.computer, 'k_neighbors'):
+                setattr(self.computer, 'k_neighbors', original_k)
+    
     def validate_mode(self, mode: FeatureMode) -> bool:
         """
         Validate that a feature mode is supported.
@@ -511,14 +780,14 @@ class FeatureOrchestrator:
         use_enriched: bool = False
     ) -> Dict[str, np.ndarray]:
         """
-        Compute all features for a point cloud tile.
+        Compute all features for a point cloud tile with V5 optimizations.
         
-        This is the main entry point for feature computation. It orchestrates:
-        1. Checking for existing enriched features
-        2. Computing geometric features (if needed)
-        3. Adding spectral features (RGB, NIR, NDVI)
-        4. Adding architectural style features
-        5. Enforcing feature mode
+        This enhanced version includes:
+        1. Intelligent caching with memory management
+        2. Automatic parameter optimization based on data characteristics
+        3. Parallel RGB/NIR processing
+        4. Performance monitoring and adaptive tuning
+        5. All original feature computation capabilities
         
         Args:
             tile_data: Dictionary containing:
@@ -533,28 +802,32 @@ class FeatureOrchestrator:
             use_enriched: If True and enriched features exist, use them
             
         Returns:
-            Dictionary of computed features with keys like:
-                - normals: (N, 3) surface normals
-                - curvature: (N,) curvature values
-                - height: (N,) height above ground
-                - intensity: (N,) intensity values
-                - return_number: (N,) return numbers
-                - [geometric features]: (N,) each
-                - rgb: (N, 3) if requested
-                - nir: (N,) if requested
-                - ndvi: (N,) if requested
-                - architectural_style: (N,) or (N, K) if requested
-        
-        Example:
-            >>> features = orchestrator.compute_features(tile_data)
-            >>> print(f"Computed {len(features)} feature arrays")
-            >>> print(f"Point cloud size: {features['normals'].shape[0]}")
+            Dictionary of computed features with optimizations applied
         """
+        import time
+        start_time = time.time()
+        
         points = tile_data['points']
         classification = tile_data['classification']
         intensity = tile_data['intensity']
         return_number = tile_data['return_number']
         enriched_features = tile_data.get('enriched_features', {})
+        
+        # V5 OPTIMIZATION: Check cache first
+        cache_key = None
+        if hasattr(self, '_enable_feature_cache') and self._enable_feature_cache:
+            cache_key = self._generate_cache_key(points, classification, {
+                'use_enriched': use_enriched, 
+                'mode': str(self.feature_mode)
+            })
+            if cache_key in self._feature_cache:
+                logger.debug("Features retrieved from cache")
+                return self._feature_cache[cache_key]
+        
+        # V5 OPTIMIZATION: Optimize parameters based on data characteristics
+        optimized_params = {}
+        if hasattr(self, '_adaptive_parameters'):
+            optimized_params = self._optimize_parameters_for_data(points, classification)
         
         all_features = {}
         
@@ -579,10 +852,27 @@ class FeatureOrchestrator:
             has_rgb = tile_data.get('input_rgb') is not None or (self.rgb_fetcher is not None)
             has_nir = tile_data.get('input_nir') is not None or (self.infrared_fetcher is not None)
             
-            # Compute features
-            normals, curvature, height, geo_features = self._compute_geometric_features(
-                points, classification, has_rgb=has_rgb, has_nir=has_nir
+            # V5 OPTIMIZATION: Start parallel RGB/NIR processing if available
+            rgb_nir_future = None
+            if hasattr(self, '_rgb_nir_executor') and (self.use_rgb or self.use_infrared):
+                rgb_nir_future = self._start_parallel_rgb_nir_processing(tile_data)
+            
+            # Compute features with optimized parameters
+            normals, curvature, height, geo_features = self._compute_geometric_features_optimized(
+                points, classification, optimized_params, has_rgb=has_rgb, has_nir=has_nir
             )
+            
+            # V5 OPTIMIZATION: Integrate parallel RGB/NIR results
+            if rgb_nir_future is not None:
+                try:
+                    parallel_rgb_nir = rgb_nir_future.result(timeout=30)
+                    # Merge parallel results into tile_data for later processing
+                    if 'rgb' in parallel_rgb_nir:
+                        tile_data['fetched_rgb'] = parallel_rgb_nir['rgb']
+                    if 'nir' in parallel_rgb_nir:
+                        tile_data['fetched_nir'] = parallel_rgb_nir['nir']
+                except Exception as e:
+                    logger.warning(f"Parallel RGB/NIR processing failed: {e}")
         
         # Add main features
         all_features['normals'] = normals
@@ -617,6 +907,15 @@ class FeatureOrchestrator:
             logger.debug(
                 f"  🔽 Filtered to {len(all_features)} features for mode {self.feature_mode.value}"
             )
+        
+        # V5 OPTIMIZATION: Cache results and update performance metrics
+        processing_time = time.time() - start_time
+        
+        if hasattr(self, '_enable_feature_cache') and cache_key and self._should_cache_features(points, all_features):
+            self._cache_features(cache_key, all_features)
+        
+        if hasattr(self, '_enable_performance_metrics') and self._enable_performance_metrics:
+            self._update_performance_metrics(processing_time, len(points))
         
         return all_features
     
@@ -910,3 +1209,13 @@ class FeatureOrchestrator:
             f"rgb={self.has_rgb}, "
             f"nir={self.has_infrared})"
         )
+    
+    def __del__(self):
+        """Cleanup resources on deletion."""
+        try:
+            if hasattr(self, '_rgb_nir_executor'):
+                self._rgb_nir_executor.shutdown(wait=False)
+            if hasattr(self, '_feature_executor'):
+                self._feature_executor.shutdown(wait=False)
+        except Exception:
+            pass  # Ignore cleanup errors

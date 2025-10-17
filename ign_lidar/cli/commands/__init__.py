@@ -9,6 +9,7 @@ This package contains modular command implementations:
 - info: Package and configuration information
 - ground_truth: Ground truth fetching from IGN BD TOPO®
 - update_classification: Update LAZ classification with ground truth and NDVI
+- auto_config: Auto-configuration based on system capabilities
 """
 
 from .process import process_command
@@ -18,6 +19,7 @@ from .batch_convert import batch_convert_command
 from .info import info_command
 from .ground_truth import ground_truth_command
 from .update_classification import update_classification_command
+from .auto_config import auto_config
 
 __all__ = [
     'process_command',
@@ -26,5 +28,6 @@ __all__ = [
     'batch_convert_command',
     'info_command',
     'ground_truth_command',
-    'update_classification_command'
+    'update_classification_command',
+    'auto_config'
 ]

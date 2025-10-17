@@ -1,5 +1,5 @@
 # ========================================================================
-# Versailles Dataset Processing - ASPRS Classification
+# Versailles Dataset Processing - ASPRS Classification V5.0 (Simplified)
 # ========================================================================
 # Purpose: Process Versailles LiDAR data with ASPRS LAS 1.4 standard
 #          classification (Ground, Vegetation, Building, Water, etc.)
@@ -10,18 +10,15 @@
 # - Optimal preprocessing (outlier removal)
 # - Outputs: LAZ (enriched tiles) + NPZ (training patches)
 # - ASPRS-compliant classification codes
+# - V5: Simplified configuration with integrated optimizations
 #
 # Usage:
 #   ign-lidar-hd process --config config_versailles_asprs.yaml
 # ========================================================================
 
+# V5 simplified configuration
 defaults:
-  - processor: default
-  - features: full
-  - preprocess: default
-  - stitching: enabled
-  - output: default
-  - ground_truth: enabled
+  - ../ign_lidar/configs/config
   - _self_
 
 # ============================================================================

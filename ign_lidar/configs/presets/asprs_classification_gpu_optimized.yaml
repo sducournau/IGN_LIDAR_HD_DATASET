@@ -1,6 +1,7 @@
 # ============================================================================
-# IGN LiDAR HD - ASPRS Classification GPU Optimized v4.0
+# IGN LiDAR HD - ASPRS Classification GPU Optimized V5.0 (Simplified)
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # Optimized configuration for ASPRS LAS 1.4 standard classification
 # OPTIMIZED FOR RTX 4080 SUPER (16GB VRAM)
 #
@@ -13,19 +14,16 @@
 # - Optimized memory targets and stream settings
 # ============================================================================
 
-# Inherit from base configurations and default config
+# V5 simplified base composition - inherit all base configurations
 defaults:
-  - ../base/features
-  - ../base/data_sources
-  - ../base/classification
-  - ../base/output
   - ../config
   - _self_
 
-# ASPRS-specific overrides with GPU optimizations
-processing:
+# V5: Asprs Classification Gpu Optimized overrides (simplified) with GPU optimizations
+processor:
   lod_level: "ASPRS" # Use ASPRS classification scheme
   mode: "enriched_only" # Focus on enriched LAZ output
+  processing_mode: "enriched_only" # Processing mode for output
   use_gpu: true
   use_gpu_chunked: true # IMPORTANT: Enable chunked processing for large batches
 
@@ -38,9 +36,21 @@ processing:
   enable_mixed_precision: false # Disable for stability, can enable for speed
   adaptive_chunk_sizing: true # Auto-adjust chunk size based on data
 
-processor:
-  use_gpu: true
-  gpu_batch_size: 16_000_000 # Match processing batch size
+  # Processing parameters
+  skip_existing: false
+  output_format: "laz"
+  use_stitching: false # Disable stitching for simplified processing
+  num_workers: 1 # GPU works best with 1 worker
+
+  # Patch processing parameters (required even for enriched_only mode)
+  patch_size: 150.0 # 150m patches for processing
+  patch_overlap: 0.1 # 10% overlap between patches
+  num_points: 16384 # Target number of points per patch
+
+  # Additional parameters for V5 compatibility
+  architecture: "direct"
+  augment: false
+  num_augmentations: 3
 
 features:
   mode: "asprs_classes" # ASPRS-optimized feature set
@@ -78,11 +88,22 @@ classification:
   use_geometric_rules: true # Geometric classification rules
   use_ndvi_classification: true # Enabled with NIR
 
-  # ASPRS-specific thresholds
+  # ASPRS-specific thresholds (optimized for better road detection)
   height_low_vegetation: 0.5 # 0.5m threshold for low vegetation
   height_medium_vegetation: 2.0 # 2.0m threshold for medium vegetation
-  planarity_road: 0.85 # High planarity for roads
+  planarity_road: 0.65 # Reduced from 0.85 for better road detection
   planarity_building: 0.75 # Moderate planarity for buildings
+
+  # Road-specific improvements
+  road_height_max: 2.5 # Allow slightly elevated road sections
+  road_buffer_tolerance: 1.0 # Increase buffer around BD TOPO roads
+  use_lenient_road_filtering: true # Enable more permissive road detection
+
+  # V5 additional thresholds
+  ndvi_vegetation: 0.35
+  post_processing_enabled: true
+  reclassify_unclassified: true
+  apply_morphological_filters: true
 
 preprocess:
   enabled: true # Enable preprocessing for quality
@@ -90,12 +111,19 @@ preprocess:
     enabled: true
     k_neighbors: 12
     std_threshold: 2.0
+  radius_outlier_removal:
+    enabled: false
+    radius: 1.0
+    min_neighbors: 5
 
 output:
   format: "laz" # LAZ format for ASPRS compatibility
   save_enriched: true
+  save_patches: false
   save_metadata: true
   save_stats: true
+  compression: null
+  validate_output: true
 
 monitoring:
   log_level: "INFO"
@@ -103,15 +131,30 @@ monitoring:
   enable_gpu_monitoring: true # Monitor GPU usage
   verbose: true
 
+stitching:
+  enabled: false # Disable stitching for simplified processing
+  buffer_size: 0.0
+  auto_detect_neighbors: false
+
 optimization:
   level: "aggressive" # Use aggressive optimizations
   enable_auto_tuning: true # Auto-tune batch sizes
   memory_management: "cuda" # Use CUDA memory management
   enable_parallel_processing: true
   enable_caching: true
+  cache_optimization_results: true
+
+validation:
+  strict_validation: true
+  enable_legacy_support: true
+  migrate_old_configs: true
+  check_gpu_availability: true
+  check_memory_requirements: true
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # GPU Optimization Notes for RTX 4080 Super
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 #
 # RTX 4080 Super specifications:
 # - 16GB GDDR6X VRAM

@@ -1,6 +1,8 @@
 # ============================================================================
-# IGN LiDAR HD - Architectural Heritage Preset v4.0
+# V5: Simplified configuration with integrated optimizations
+# IGN LiDAR HD - Architectural Heritage Preset V5.0 (Simplified)
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # Specialized configuration for architectural heritage analysis
 # Focus on detailed building analysis, architectural features, and heritage preservation
 #
@@ -10,18 +12,15 @@
 #
 # Focus: High-detail architectural analysis and heritage documentation
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 
 # Inherit from base configurations and default config
 defaults:
-  - ../base/features
-  - ../base/data_sources
-  - ../base/classification
-  - ../base/output
   - ../config
   - _self_
 
 # Architectural heritage specific overrides
-processing:
+processor:
   mode: "both" # Generate both enriched tiles and detailed patches
   lod_level: "LOD3" # Maximum detail level for heritage
 
@@ -119,8 +118,10 @@ monitoring:
   enable_gpu_monitoring: true
 
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # Architectural Heritage Notes
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 #
 # Specialized for:
 # - Heritage building documentation
@@ -154,8 +155,10 @@ monitoring:
 #
 
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # GROUND TRUTH - SPÉCIALISÉ PATRIMOINE
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 ground_truth:
   enabled: true
   update_classification: true
@@ -182,8 +185,10 @@ ground_truth:
     atlas_patrimoine: true # Atlas du patrimoine
     psmv_zones: true # PSMV (Plans de Sauvegarde)
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # ANALYSIS - MODULES SPÉCIALISÉS PATRIMOINE
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 analysis:
   # Analyse stylistique
   architectural_style_analysis:
@@ -216,8 +221,10 @@ analysis:
     orthophoto_generation: true
 
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # PRÉPROCESSING - ADAPTÉ PATRIMOINE
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 preprocessing:
   enabled: true
 
@@ -239,8 +246,10 @@ preprocessing:
     enabled: false
 
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # QUALITY CONTROL - RENFORCÉ PATRIMOINE
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 quality_control:
   enabled: true
 
@@ -259,8 +268,10 @@ quality_control:
     heritage_completeness: true
 
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # LOGGING - DÉTAILLÉ PATRIMOINE
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 logging:
   level: "DEBUG" # Logs détaillés pour patrimoine
   log_gpu_usage: true
@@ -273,8 +284,10 @@ logging:
   log_conservation_metrics: true
 
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # PERFORMANCE - ADAPTÉE COMPLEXITÉ PATRIMOINE
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 performance:
   max_workers: 1 # Processing séquentiel pour précision
   prefetch_factor: 1 # Conservateur

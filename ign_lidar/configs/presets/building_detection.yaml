@@ -1,31 +1,28 @@
 # ============================================================================
-# IGN LiDAR HD - Building Detection Preset v4.0
+# IGN LiDAR HD - Building Detection Preset V5.0 (Simplified)
 # ============================================================================
 # Optimized configuration for high-accuracy building detection and classification
 # Focuses on building footprint extraction and roof structure analysis
 #
 # Usage:
-#   ign-lidar-hd process --config-name building_detection_v4
-#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name building_detection_v4
+#   ign-lidar-hd process --config-name building_detection
+#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name building_detection
 #
 # Specialized for: Buildings, roofs, architectural features
+# V5: Simplified configuration with integrated optimizations
 # ============================================================================
 
-# Inherit from base configurations and default config
+# V5 simplified base composition
 defaults:
-  - ../base/features
-  - ../base/data_sources
-  - ../base/classification
-  - ../base/output
   - ../config
   - _self_
 
-# Building detection specific overrides
-processing:
+# V5: Building detection specific overrides (simplified)
+processor:
+  mode: "full_pipeline" # Full processing for building detail
   lod_level: "LOD2" # LOD2 for building detail
-  mode: "enriched_only" # Focus on enriched LAZ output
 
-  # Optimized for building feature requirements
+  # V5 GPU optimizations (integrated)
   gpu_batch_size: 10_000_000 # Moderate batch size for complex features
   gpu_memory_target: 0.85 # Conservative for complex computation
 

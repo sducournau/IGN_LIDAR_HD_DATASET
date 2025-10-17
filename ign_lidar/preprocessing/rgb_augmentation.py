@@ -289,6 +289,31 @@ class IGNOrthophotoFetcher:
         rgb_colors = ortho_img[py, px]
         
         return rgb_colors.astype(np.uint8)
+    
+    def fetch_for_points(
+        self,
+        points: np.ndarray,
+        bbox: Optional[Tuple[float, float, float, float]] = None,
+        resolution: float = 0.2
+    ) -> np.ndarray:
+        """
+        Fetch RGB colors for points (alias for augment_points_with_rgb).
+        
+        This method provides compatibility with the orchestrator interface.
+        
+        Args:
+            points: Point cloud array [N, 3] (X, Y, Z)
+            bbox: Bounding box (xmin, ymin, xmax, ymax). If None, computed from points
+            resolution: Orthophoto resolution in meters per pixel (default: 0.2m = 20cm)
+        
+        Returns:
+            RGB colors array [N, 3] with values in range [0, 255]
+        """
+        return self.augment_points_with_rgb(
+            points=points,
+            bbox=bbox,
+            resolution=resolution
+        )
 
 
 def add_rgb_to_patch(

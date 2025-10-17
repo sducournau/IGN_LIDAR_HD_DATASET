@@ -43,8 +43,11 @@ from .modules.patch_extractor import (
 from .modules.tile_loader import TileLoader
 # Note: FeatureComputer has been replaced by FeatureOrchestrator in Phase 4.3
 
-# Phase 4.3: New unified orchestrator
+# Phase 4.3: New unified orchestrator V5 (consolidated)
 from ..features.orchestrator import FeatureOrchestrator
+
+# Optimization factory for intelligent strategy selection
+from .optimization_factory import optimization_factory, auto_optimize_config
 
 # Dataset manager for ML dataset creation with train/val/test splits
 from ..datasets.dataset_manager import DatasetManager, DatasetConfig
@@ -133,6 +136,31 @@ class LiDARProcessor:
         # Validate configuration
         self._validate_config(config)
         
+        # Apply auto-optimization if enabled
+        if OmegaConf.select(config, 'processing.auto_optimize', default=False):
+            logger.info("🧠 Auto-optimization enabled - analyzing system capabilities...")
+            
+            # Get optimization recommendations
+            recommendations = optimization_factory.recommend_optimization(OmegaConf.to_object(config))
+            
+            if recommendations.get('config_updates'):
+                logger.info(f"📈 Applying optimization strategy: {recommendations['strategy'].value}")
+                
+                # Apply recommended updates
+                for key, value in recommendations['config_updates'].items():
+                    if key == 'architecture':
+                        OmegaConf.update(config, 'processing.architecture', value)
+                    else:
+                        OmegaConf.update(config, f'processor.{key}', value)
+                
+                # Log performance expectations
+                if recommendations.get('estimated_performance'):
+                    logger.info(f"⚡ Expected improvement: {recommendations['estimated_performance']}")
+                
+                # Log any warnings
+                for warning in recommendations.get('warnings', []):
+                    logger.warning(f"⚠️  {warning}")
+        
         # Store config
         self.config = config
         
@@ -158,7 +186,9 @@ class LiDARProcessor:
         # Validate processing mode
         ConfigValidator.validate_processing_mode(self.processing_mode)
         
-        # Phase 4.3: Initialize unified feature orchestrator (replaces FeatureManager + FeatureComputer)
+        # Phase 4.3: Initialize unified feature orchestrator V5 (consolidated)
+        # All optimizations are now built into the main FeatureOrchestrator
+        logger.info("🚀 Using FeatureOrchestrator V5 with integrated optimizations")
         self.feature_orchestrator = FeatureOrchestrator(config)
         
         # Keep backward-compatible references for legacy code

@@ -98,4 +98,4 @@ See [translation_tools/README.md](translation_tools/README.md) for translation w
 
 ---
 
-_Documentation website for IGN LiDAR HD v2.4.2_
+_Documentation website for IGN LiDAR HD v3.0.0_

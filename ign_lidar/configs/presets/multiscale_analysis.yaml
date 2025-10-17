@@ -1,6 +1,8 @@
 # ============================================================================
-# IGN LiDAR HD - Multiscale Analysis Preset v4.0
+# V5: Simplified configuration with integrated optimizations
+# IGN LiDAR HD - Multiscale Analysis Preset V5.0 (Simplified)
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # Configuration for multiscale analysis (different patch sizes and neighborhoods)
 # Enables analysis at different spatial scales for research and advanced applications
 #
@@ -10,18 +12,15 @@
 #
 # Focus: Multi-resolution analysis and feature extraction
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 
 # Inherit from base configurations and default config
 defaults:
-  - ../base/features
-  - ../base/data_sources
-  - ../base/classification
-  - ../base/output
   - ../config
   - _self_
 
 # Multiscale analysis specific overrides
-processing:
+processor:
   mode: "both" # Generate both enriched tiles and patches
   lod_level: "ASPRS" # Standard for compatibility
 
@@ -121,8 +120,10 @@ monitoring:
   enable_gpu_monitoring: true
 
   # ============================================================================
+# V5: Simplified configuration with integrated optimizations
   # Multiscale Analysis Notes
   # ============================================================================
+# V5: Simplified configuration with integrated optimizations
   #
   # Designed for:
   # - Multi-resolution spatial analysis
@@ -161,8 +162,10 @@ monitoring:
     emergent_patterns: true # Motifs émergents
 
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # PERFORMANCE - OPTIMISÉE MULTISCALE
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 performance:
   max_workers: 1 # GPU processing séquentiel
   prefetch_factor: 2

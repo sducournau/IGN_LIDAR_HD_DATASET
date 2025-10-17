@@ -4,17 +4,17 @@ IGN LiDAR HD Dataset Processing Library
 A Python library for processing IGN LiDAR HD data into machine learning-ready datasets
 with building LOD (Level of Detail) classification support.
 
-Version 2.5.3 - Critical Fix Release:
-- Fixed ground truth classification from BD TOPO® (roads, cemeteries, power lines, sports)
-- Fixed ASPRS mode classification (was incorrectly using LOD3 mapping)
-- Added proper DataFetcher integration with all BD TOPO features
-- New data_sources configuration directory for multi-source integration
-- Enhanced configuration files with consistent parameter structure
+Version 3.0.0 - Major Release:
+- Complete configuration system overhaul with unified v4.0 schema
+- Enhanced GPU optimization with significantly improved utilization
+- Streamlined presets for common processing scenarios  
+- Better hardware-specific configurations and performance tuning
+- Improved documentation and migration tools from legacy versions
 
-All ground truth classifications now work correctly across ASPRS, LOD2, and LOD3 modes.
+All features now work with the new unified configuration architecture.
 """
 
-__version__ = "2.5.3"
+__version__ = "3.0.0"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 

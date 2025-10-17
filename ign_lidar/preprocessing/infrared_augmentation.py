@@ -293,6 +293,31 @@ class IGNInfraredFetcher:
         nir_values = nir_img[py, px]
         
         return nir_values.astype(np.uint8)
+    
+    def fetch_for_points(
+        self,
+        points: np.ndarray,
+        bbox: Optional[Tuple[float, float, float, float]] = None,
+        resolution: float = 0.2
+    ) -> np.ndarray:
+        """
+        Fetch infrared values for points (alias for augment_points_with_infrared).
+        
+        This method provides compatibility with the orchestrator interface.
+        
+        Args:
+            points: Point cloud array [N, 3] (X, Y, Z)
+            bbox: Bounding box (xmin, ymin, xmax, ymax). If None, computed from points
+            resolution: Orthophoto resolution in meters per pixel (default: 0.2m = 20cm)
+        
+        Returns:
+            Infrared values array [N] with values in range [0, 255]
+        """
+        return self.augment_points_with_infrared(
+            points=points,
+            bbox=bbox,
+            resolution=resolution
+        )
 
 
 def add_infrared_to_patch(

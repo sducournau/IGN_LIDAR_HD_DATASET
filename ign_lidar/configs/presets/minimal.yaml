@@ -1,28 +1,27 @@
 # ============================================================================
-# IGN LiDAR HD - Minimal Test Preset v4.0
+# IGN LiDAR HD - Minimal Test Preset V5.0 (Simplified)
 # ============================================================================
 # Minimal configuration for rapid testing and development
 # Reduced features, minimal sources, fast processing
 #
 # Usage:
-#   ign-lidar-hd process --config-file ign_lidar/configs/presets/minimal.yaml
 #   ign-lidar-hd process --config-name minimal
+#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name minimal
 #
 # Focus: Maximum speed for testing and development
+# V5: Simplified configuration with integrated optimizations
 # ============================================================================
 
-# Inherit from base configurations and default config
+# V5 simplified base composition
 defaults:
-  - ../base/features
-  - ../base/output
   - ../config
   - _self_
 
-# Minimal configuration overrides
-processing:
+# V5: Minimal configuration overrides (simplified)
+processor:
   mode: "enriched_only" # Enrichment only for speed
 
-  # Conservative settings for compatibility
+  # V5 conservative settings for compatibility
   gpu_batch_size: 4_000_000 # Small batch for compatibility
   gpu_memory_target: 0.70 # Conservative for testing
   gpu_streams: 4 # Moderate parallelism

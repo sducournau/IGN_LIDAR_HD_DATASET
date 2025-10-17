@@ -1,5 +1,5 @@
 # ========================================================================
-# Versailles Dataset Processing - LOD2 Building Classification
+# Versailles Dataset Processing - LOD2 Building Classification V5.0 (Simplified)
 # ========================================================================
 # Purpose: Process Versailles LiDAR data with LOD2 building-focused
 #          classification (15 classes: walls, roof types, details)
@@ -19,14 +19,12 @@
 # Usage:
 #   ign-lidar-hd process --config config_versailles_lod2.yaml
 # ========================================================================
+# V5: Simplified configuration with integrated optimizations
+#
 
+# V5 simplified configuration
 defaults:
-  - processor: default
-  - features: full
-  - preprocess: default
-  - stitching: enabled
-  - output: default
-  - ground_truth: enabled
+  - ../ign_lidar/configs/config
   - _self_
 
 # ============================================================================
@@ -56,7 +54,7 @@ processor:
   pin_memory: true
 
 # ============================================================================
-# FEATURES CONFIGURATION - FULL FEATURES
+# FEATURES CONFIGURATION - FULL FEATURES V5.0 (Simplified)
 # ============================================================================
 features:
   mode: full # Compute all features
@@ -80,7 +78,7 @@ features:
   use_gpu_chunked: true
 
 # ============================================================================
-# PREPROCESSING - OPTIMAL SETTINGS
+# PREPROCESSING - OPTIMAL SETTINGS V5.0 (Simplified)
 # ============================================================================
 preprocess:
   enabled: true
@@ -98,7 +96,7 @@ preprocess:
   voxel_size: 0.1
 
 # ============================================================================
-# STITCHING - BOUNDARY HANDLING
+# STITCHING - BOUNDARY HANDLING V5.0 (Simplified)
 # ============================================================================
 stitching:
   enabled: true

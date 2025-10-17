@@ -1,33 +1,52 @@
 # ============================================================================
-# IGN LiDAR HD - ASPRS Classification Preset v4.0
+# IGN LiDAR HD - ASPRS Classification Preset V5.0 (Simplified)
 # ============================================================================
 # Optimized configuration for ASPRS LAS 1.4 standard classification
 # Focuses on standard ASPRS classes: Ground, Buildings, Vegetation, Water, etc.
 #
 # Usage:
-#   ign-lidar-hd process --config-name asprs_classification_v4
-#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name asprs_classification_v4
+#   ign-lidar-hd process --config-name asprs_classification
+#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name asprs_classification
 #
 # Target classes: ASPRS standard (1-18)
+# V5: Simplified configuration with integrated optimizations
 # ============================================================================
 
-# Inherit from base configurations and default config
+# V5 simplified base composition - inherit all base configurations
 defaults:
-  - ../base/features
-  - ../base/data_sources
-  - ../base/classification
-  - ../base/output
   - ../config
   - _self_
 
-# ASPRS-specific overrides
-processing:
+# V5: ASPRS-specific overrides (simplified)
+processor:
+  # Core processing settings
   lod_level: "ASPRS" # Use ASPRS classification scheme
   mode: "enriched_only" # Focus on enriched LAZ output
+  processing_mode: "enriched_only" # Processing mode for output
 
-  # Optimized for ASPRS feature requirements
+  # GPU configuration
+  use_gpu: true # Enable GPU acceleration
   gpu_batch_size: 12_000_000 # Balanced for ASPRS features
   gpu_memory_target: 0.85 # Conservative memory usage
+  num_workers: 1 # GPU works best with 1 worker
+
+  # Processing parameters
+  skip_existing: false
+  output_format: "laz"
+  use_stitching: false # Disable stitching for simplified processing
+
+  # Patch processing parameters (required even for enriched_only mode)
+  patch_size: 50.0 # 50m patches for processing
+  patch_overlap: 0.1 # 10% overlap between patches
+  num_points: 16384 # Target number of points per patch
+
+  # Additional parameters for V5 compatibility
+  architecture: "pointnet++"
+  augment: false
+  num_augmentations: 3
+  batch_size: "auto"
+  prefetch_factor: 2
+  pin_memory: false
 
 features:
   mode: "asprs_classes" # ASPRS-optimized feature set
@@ -82,6 +101,13 @@ output:
   save_enriched: true
   save_metadata: true
   save_stats: true
+
+stitching:
+  enabled: false # Disable for simplified processing
+  buffer_size: 10.0
+  auto_detect_neighbors: true
+  auto_download_neighbors: false
+  cache_enabled: true
 
 monitoring:
   log_level: "INFO"

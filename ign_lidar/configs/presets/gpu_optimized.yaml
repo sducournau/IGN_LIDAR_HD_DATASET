@@ -1,6 +1,8 @@
 # ============================================================================
-# IGN LiDAR HD - GPU Optimized Preset v4.0
+# V5: Simplified configuration with integrated optimizations
+# IGN LiDAR HD - GPU Optimized Preset V5.0 (Simplified)
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # High-performance GPU configuration for RTX 4080/RTX 3080 and similar
 # Optimized for maximum GPU utilization and processing speed
 #
@@ -10,17 +12,15 @@
 #
 # Target: >80% GPU utilization, <1 minute per tile
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 
 # Inherit from base configurations and default config
 defaults:
-  - ../base/features
-  - ../base/performance
-  - ../base/output
   - ../config
   - _self_
 
 # GPU optimization overrides
-processing:
+processor:
   mode: "enriched_only" # Focus on speed
 
   # Maximum GPU performance settings
@@ -109,8 +109,10 @@ monitoring:
   enable_performance_metrics: true # Keep metrics
   enable_gpu_monitoring: true
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # GPU Optimization Performance Notes
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 #
 # Optimized for:
 # - High-end GPUs (RTX 4080, RTX 3080, RTX 4090)

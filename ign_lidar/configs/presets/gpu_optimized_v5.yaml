@@ -1,0 +1,58 @@
+# ============================================================================
+# IGN LiDAR HD - GPU Optimized Preset V5.0 (Simplified)
+# ============================================================================
+# High-performance GPU configuration with V5 integrated optimizations.
+# Optimizations are now built into FeatureOrchestrator V5.
+#
+# Usage:
+#   ign-lidar-hd process --config-name gpu_optimized_v5
+#
+# Target: Maximum GPU utilization with integrated optimizations
+# ============================================================================
+
+# V5 simplified base composition
+defaults:
+  - ../config_v5
+  - _self_
+
+# V5 GPU optimization overrides (simplified)
+processor:
+  mode: "enriched_only"
+  use_gpu: true
+  gpu_batch_size: 16000000  # 16M points for high-memory GPU
+  num_workers: 1
+
+features:
+  mode: "asprs_classes"  # Balanced features
+  k_neighbors: 16        # Speed-optimized
+  search_radius: 0.8     # Reduced for speed
+  use_gpu: true
+  gpu_batch_size: 16000000
+
+# V5 integrated optimizations (always enabled, configure behavior)
+optimizations:
+  enable_caching: true
+  cache_max_size_mb: 200       # Larger cache for GPU
+  enable_parallel_processing: true
+  max_workers: 4               # More parallel workers
+  enable_auto_tuning: true
+  adaptive_parameters: true
+  enable_performance_metrics: true
+
+# Hardware-specific settings
+hardware:
+  prefer_gpu: true
+  fallback_cpu: false  # Force GPU only
+
+# Output settings
+output:
+  format: "laz"
+  save_enriched: true
+  save_patches: false
+  validate_output: true
+
+# Monitoring
+monitoring:
+  log_level: "INFO"
+  enable_gpu_monitoring: true
+  enable_performance_metrics: true

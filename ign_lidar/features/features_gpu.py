@@ -168,8 +168,9 @@ class GPUFeatureComputer:
                 - geo_features: dict with geometric features
         """
         # Handle mode-based feature computation
-        if mode is not None:
-            # Fallback to CPU implementation for mode-based features
+        if mode is not None and mode not in ['asprs_classes', 'asprs', 'minimal', 'lod2']:
+            # Only fallback for complex modes that GPU doesn't support yet
+            print(f"⚠️ GPU doesn't support mode '{mode}', falling back to CPU")
             from .features import compute_features_by_mode
             return compute_features_by_mode(
                 points=points,
@@ -181,6 +182,10 @@ class GPUFeatureComputer:
                 use_radius=False,
                 radius=0.8  # Default radius value
             )
+        
+        # GPU supports ASPRS and basic modes - continue with GPU processing
+        if mode in ['asprs_classes', 'asprs', 'minimal', 'lod2']:
+            print(f"✓ Computing {mode} features on GPU")
         
         # Compute individual features
         normals = self.compute_normals(points, k=k)

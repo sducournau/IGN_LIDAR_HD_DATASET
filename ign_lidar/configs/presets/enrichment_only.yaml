@@ -1,6 +1,8 @@
 # ============================================================================
-# IGN LiDAR HD - Enrichment Only Preset v4.0
+# V5: Simplified configuration with integrated optimizations
+# IGN LiDAR HD - Enrichment Only Preset V5.0 (Simplified)
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # Fast enrichment configuration for LAZ processing only (no ML patches)
 # Optimized for maximum speed in production enriched LAZ generation
 #
@@ -10,17 +12,15 @@
 #
 # Focus: Speed over detailed features
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 
 # Inherit from base configurations and default config
 defaults:
-  - ../base/features
-  - ../base/classification
-  - ../base/output
   - ../config
   - _self_
 
 # Enrichment-only specific overrides
-processing:
+processor:
   mode: "enriched_only" # LAZ enrichment only
   architecture: "direct" # Direct processing for speed
 
@@ -103,8 +103,10 @@ optimization:
   level: "aggressive" # Aggressive optimization for speed
   memory_management: "aggressive"
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 # Enrichment Only Performance Notes
 # ============================================================================
+# V5: Simplified configuration with integrated optimizations
 #
 # Optimized for:
 # - Maximum processing speed

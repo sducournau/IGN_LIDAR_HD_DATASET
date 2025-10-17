@@ -18,18 +18,13 @@ Legacy modules (deprecated):
 - features_boundary: Boundary-aware feature extraction
 """
 
-# Unified API (recommended)
-from .unified_api import (
-    FeatureMode,
+# Core implementations (V5 consolidated)
+from .core import (
     compute_verticality,
     extract_geometric_features,
     compute_all_features,
     compute_normals,
     compute_curvature,
-)
-
-# Core implementations
-from .core import (
     compute_all_features as core_compute_all_features,
     ComputeMode,
 )

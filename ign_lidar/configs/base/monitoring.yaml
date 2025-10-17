@@ -1,0 +1,17 @@
+# ============================================================================
+# V5 Base Configuration: Monitoring (Simplified)
+# ============================================================================
+# Essential monitoring and logging settings.
+
+monitoring:
+  # Logging
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  verbose: true
+  
+  # Performance monitoring (V5 integrated)
+  enable_gpu_monitoring: true
+  enable_performance_metrics: true
+  save_metrics: true
+  
+  # Profiling (development only)
+  enable_profiling: false

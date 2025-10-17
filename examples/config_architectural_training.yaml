@@ -24,6 +24,8 @@
 #   ign-lidar-hd process experiment=architectural_training \
 #     input_dir=/path/to/tiles output_dir=/path/to/patches
 # ========================================================================
+# V5: Simplified configuration with integrated optimizations
+#
 
 processor:
   lod_level: LOD3 # LOD3 for detailed architectural features

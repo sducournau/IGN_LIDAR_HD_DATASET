@@ -1,0 +1,25 @@
+# ============================================================================
+# V5 Base Configuration: Processor
+# ============================================================================
+# Simplified processor configuration that removes legacy parameters and
+# focuses on the core processing settings.
+
+# Core processing settings
+processor:
+  # Level of detail (simplified from V4)
+  lod_level: "ASPRS" # Options: ASPRS, LOD2, LOD3
+
+  # Processing mode (simplified)
+  mode: "enriched_only" # Options: enriched_only, patches_only, both
+
+  # GPU configuration (simplified)
+  use_gpu: true
+  gpu_batch_size: 8_000_000 # 8M points per batch
+  gpu_memory_target: 0.85 # Use 85% of available VRAM
+
+  # Core parameters
+  num_workers: 1 # GPU works best with 1 worker
+  skip_existing: false
+
+  # Output format
+  output_format: "laz"
