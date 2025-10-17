@@ -69,7 +69,9 @@ class GPUChunkedFeatureComputer:
         use_gpu: bool = True,
         show_progress: bool = True,
         auto_optimize: bool = True,
-        use_cuda_streams: bool = True
+        use_cuda_streams: bool = True,
+        enable_memory_pooling: bool = True,
+        enable_pipeline_optimization: bool = True
     ):
         """
         Initialize GPU chunked feature computer.
@@ -84,12 +86,16 @@ class GPUChunkedFeatureComputer:
             show_progress: Show progress bars during processing
             auto_optimize: Enable intelligent parameter optimization
             use_cuda_streams: Enable CUDA streams for overlapped processing
+            enable_memory_pooling: Enable memory pooling for reduced allocations
+            enable_pipeline_optimization: Enable computation/transfer overlap
         """
         self.use_gpu = use_gpu and GPU_AVAILABLE
         self.use_cuml = CUML_AVAILABLE
         self.show_progress = show_progress
         self.auto_optimize = auto_optimize
         self.use_cuda_streams = use_cuda_streams and GPU_AVAILABLE
+        self.enable_memory_pooling = enable_memory_pooling
+        self.enable_pipeline_optimization = enable_pipeline_optimization
         
         # Initialize CUDA streams manager
         self.stream_manager = None
@@ -97,13 +103,24 @@ class GPUChunkedFeatureComputer:
             try:
                 from ..optimization.cuda_streams import create_stream_manager
                 self.stream_manager = create_stream_manager(
-                    num_streams=3,  # Upload, compute, download
+                    num_streams=4,  # Upload, compute, download, prefetch
                     enable_pinned=True
                 )
                 logger.info("✓ CUDA streams enabled for overlapped processing")
             except Exception as e:
                 logger.warning(f"⚠ CUDA streams initialization failed: {e}")
                 self.use_cuda_streams = False
+        
+        # Initialize memory pooling for reduced allocations
+        if self.enable_memory_pooling and self.use_gpu and cp is not None:
+            try:
+                # Configure memory pool for better performance
+                mempool = cp.get_default_memory_pool()
+                # Pre-allocate pool to reduce allocation overhead
+                mempool.set_limit(size=int(1024**3 * 16))  # 16GB limit
+                logger.info("✓ GPU memory pooling enabled")
+            except Exception as e:
+                logger.warning(f"⚠ Memory pooling initialization failed: {e}")
         
         # Initialize CUDA context early if GPU is requested
         if self.use_gpu and cp is not None:

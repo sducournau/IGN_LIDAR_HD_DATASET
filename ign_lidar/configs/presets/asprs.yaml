@@ -109,7 +109,7 @@ features:
 
   # GPU settings for features
   use_gpu_chunked: true # Use GPU chunked processing for features
-  gpu_batch_size: 1_000_000 # Batch size for feature computation
+  gpu_batch_size: 2_000_000 # Batch size for feature computation
 
   # Essential features for ASPRS
   compute_normals: true

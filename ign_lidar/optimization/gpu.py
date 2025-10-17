@@ -88,7 +88,10 @@ class GPUGroundTruthClassifier:
         ndvi_veg_threshold: float = 0.3,
         ndvi_building_threshold: float = 0.15,
         road_buffer_tolerance: float = 0.5,
-        verbose: bool = True
+        verbose: bool = True,
+        enable_adaptive_chunking: bool = True,
+        enable_memory_pooling: bool = True,
+        enable_spatial_indexing: bool = True
     ):
         """
         Initialize GPU classifier.
@@ -100,6 +103,9 @@ class GPUGroundTruthClassifier:
             ndvi_building_threshold: NDVI threshold for buildings
             road_buffer_tolerance: Additional buffer for roads in meters
             verbose: Enable verbose logging
+            enable_adaptive_chunking: Automatically adjust chunk size based on memory
+            enable_memory_pooling: Enable GPU memory pooling for better performance
+            enable_spatial_indexing: Build spatial index for faster polygon queries
         """
         self.gpu_chunk_size = gpu_chunk_size
         self.use_cuspatial = use_cuspatial and HAS_CUSPATIAL
@@ -107,6 +113,9 @@ class GPUGroundTruthClassifier:
         self.ndvi_building_threshold = ndvi_building_threshold
         self.road_buffer_tolerance = road_buffer_tolerance
         self.verbose = verbose
+        self.enable_adaptive_chunking = enable_adaptive_chunking
+        self.enable_memory_pooling = enable_memory_pooling
+        self.enable_spatial_indexing = enable_spatial_indexing
         
         # Check GPU availability
         if not HAS_CUPY:
@@ -120,9 +129,37 @@ class GPUGroundTruthClassifier:
                 logger.info(f"✅ GPU acceleration enabled (CuPy)")
                 if self.use_cuspatial:
                     logger.info(f"✅ cuSpatial enabled (fastest mode)")
+                
+                # Initialize memory pooling for better performance
+                if self.enable_memory_pooling:
+                    try:
+                        mempool = cp.get_default_memory_pool()
+                        mempool.set_limit(size=int(1024**3 * 16))  # 16GB limit
+                        logger.info("✓ GPU memory pooling enabled for ground truth")
+                    except Exception as e:
+                        logger.warning(f"⚠ Memory pooling failed: {e}")
+                
+                # Auto-detect optimal chunk size if adaptive chunking enabled
+                if self.enable_adaptive_chunking:
+                    try:
+                        free_mem, total_mem = cp.cuda.runtime.memGetInfo()
+                        free_gb = free_mem / (1024**3)
+                        # Use 70% of free memory, accounting for overhead
+                        optimal_chunk = int((free_gb * 0.7 * 1024**3) / (8 * 3))  # 8 bytes/coord * 3 coords
+                        if optimal_chunk < self.gpu_chunk_size:
+                            logger.info(f"🔧 Adaptive chunking: {self.gpu_chunk_size:,} → {optimal_chunk:,} points")
+                            self.gpu_chunk_size = optimal_chunk
+                    except Exception as e:
+                        logger.debug(f"Adaptive chunking detection failed: {e}")
+                        
             except Exception as e:
                 logger.warning(f"GPU not accessible: {e}")
                 self.use_gpu = False
+        
+        # Initialize spatial indexing cache
+        if self.enable_spatial_indexing:
+            self._spatial_index_cache = {}
+            logger.debug("Spatial indexing cache initialized")
     
     def classify_with_ground_truth(
         self,

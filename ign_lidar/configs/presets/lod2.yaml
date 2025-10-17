@@ -99,7 +99,7 @@ features:
   # Required fields for direct config loading
   include_extra: true # Include additional features
   use_gpu_chunked: true # GPU chunked processing
-  gpu_batch_size: 1_000_000 # 1M points per batch
+  gpu_batch_size: 2_000_000 # 1M points per batch
   use_nir: false # No NIR by default
 
   # Balanced geometric parameters
