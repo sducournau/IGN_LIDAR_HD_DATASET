@@ -26,8 +26,13 @@ processor:
 
   # GPU configuration
   use_gpu: true # Enable GPU acceleration
-  gpu_batch_size: 12_000_000 # Balanced for ASPRS features
+  use_gpu_chunked: true # Enable chunked processing
+  gpu_batch_size: 8_000_000 # OPTIMIZED: Balanced for ASPRS features
   gpu_memory_target: 0.85 # Conservative memory usage
+  gpu_streams: 8
+  enable_memory_pooling: true
+  enable_async_transfers: true
+  adaptive_chunk_sizing: true
   num_workers: 1 # GPU works best with 1 worker
 
   # Processing parameters
@@ -50,9 +55,10 @@ processor:
 
 features:
   mode: "asprs_classes" # ASPRS-optimized feature set
+  gpu_batch_size: 8_000_000 # OPTIMIZED: Match processor batch size
 
   # Essential features for ASPRS classification
-  k_neighbors: 20
+  k_neighbors: 10 # OPTIMIZED: Reduced from 20 for faster processing
   search_radius: 1.0
   compute_normals: true
   compute_planarity: true
@@ -61,21 +67,26 @@ features:
 
   # Spectral features for vegetation/ground distinction
   use_rgb: true
-  use_nir: true # Optional, slow to fetch
-  compute_ndvi: true # Requires NIR
+  use_nir: false # DISABLED: Slow to fetch, can enable if needed
+  compute_ndvi: false # DISABLED: Requires NIR
 
 data_sources:
   # Essential sources for ASPRS ground truth
-  bd_topo_buildings: true # ASPRS Class 6 (Buildings)
-  bd_topo_roads: true # ASPRS Class 11 (Roads)
-  bd_topo_water: true # ASPRS Class 9 (Water)
-  bd_topo_vegetation: true # ASPRS Class 3/4/5 (Vegetation)
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true # ASPRS Class 6 (Buildings)
+      roads: true # ASPRS Class 11 (Roads)
+      water: true # ASPRS Class 9 (Water)
+      vegetation: true # ASPRS Class 3/4/5 (Vegetation)
+    cache_enabled: true
+    use_global_cache: false
   bd_topo_bridges: true # ASPRS Class 17 (Bridges)
-  bd_topo_power_lines: true # ASPRS Class 14 (optional)
+  bd_topo_power_lines: false # DISABLED: Can enable if needed
 
   # Orthophotos for spectral features
   orthophoto_rgb: true
-  orthophoto_nir: true # Optional for NDVI
+  orthophoto_nir: false # DISABLED: Slow to fetch
 
 classification:
   enabled: true

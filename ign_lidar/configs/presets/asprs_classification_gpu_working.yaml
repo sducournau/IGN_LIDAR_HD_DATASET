@@ -17,7 +17,7 @@ processor:
   lod_level: "ASPRS"
   mode: "enriched_only"
   use_gpu: true
-  use_gpu_chunked: false # Use basic GPU mode
+  use_gpu_chunked: true # ✅ UPDATED: Enable chunked mode for optimized performance
 
   # Conservative but working batch sizes
   gpu_batch_size: 1_000_000

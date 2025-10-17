@@ -21,20 +21,30 @@ defaults:
 
 # V5: Asprs Classification Gpu Optimized overrides (simplified) with GPU optimizations
 processor:
+  use_gpu: true
+  use_gpu_chunked: true # ✅ CRITICAL: Enable GPU chunked mode for optimized processing
+
+  # RTX 4080 optimized GPU settings
+  gpu_batch_size: 16_000_000 # 16M points (~12-14GB VRAM usage)
+  gpu_memory_target: 0.90 # 90% VRAM utilization (~14.4GB)
+  gpu_streams: 8 # Optimal for Ada Lovelace architecture
+
+  # Ground truth processing
+  ground_truth_method: "gpu_chunked" # Force GPU chunked for RTX 4080
+  ground_truth_chunk_size: 5_000_000 # 5M points per chunk
+
   lod_level: "ASPRS" # Use ASPRS classification scheme
   mode: "enriched_only" # Focus on enriched LAZ output
   processing_mode: "enriched_only" # Processing mode for output
-  use_gpu: true
-  use_gpu_chunked: true # IMPORTANT: Enable chunked processing for large batches
+  # Reclassification
+  reclassification_mode: "gpu" # Force GPU reclassification
+  reclassification_chunk_size: 5_000_000
 
-  # GPU optimizations for RTX 4080 Super
-  gpu_batch_size: 16_000_000 # OPTIMIZED: 16M points per batch for maximum throughput
-  gpu_memory_target: 0.90 # Use 90% of GPU memory (RTX 4080 Super has plenty)
-  gpu_streams: 8 # More streams for better utilization
-  enable_memory_pooling: true # Faster memory allocation
-  enable_async_transfers: true # Overlap CPU-GPU transfers
-  enable_mixed_precision: false # Disable for stability, can enable for speed
-  adaptive_chunk_sizing: true # Auto-adjust chunk size based on data
+  # RTX 4080 specific optimizations
+  enable_memory_pooling: true # Important for Ada Lovelace
+  enable_async_transfers: true # High memory bandwidth
+  enable_mixed_precision: true # 4th gen Tensor Cores
+  adaptive_chunk_sizing: true # Dynamic adaptation
 
   # Processing parameters
   skip_existing: false
@@ -54,10 +64,10 @@ processor:
 
 features:
   mode: "asprs_classes" # ASPRS-optimized feature set
-  gpu_batch_size: 16_000_000 # OPTIMIZED: Large batch for GPU efficiency
+  gpu_batch_size: 8_000_000 # OPTIMIZED: Smaller batch for faster neighbor queries
 
   # Essential features for ASPRS classification
-  k_neighbors: 20
+  k_neighbors: 10 # OPTIMIZED: Reduced for faster processing (20 is slower)
   search_radius: 1.0
   compute_normals: true
   compute_planarity: true
@@ -66,8 +76,8 @@ features:
 
   # Spectral features for vegetation/ground distinction
   use_rgb: true
-  use_nir: true # Optional, slow to fetch but enables NDVI
-  compute_ndvi: true # Requires NIR
+  use_nir: false # DISABLED: NIR is slow to fetch, disable for faster testing
+  compute_ndvi: false # DISABLED: Requires NIR
 
 data_sources:
   # Essential sources for ASPRS ground truth

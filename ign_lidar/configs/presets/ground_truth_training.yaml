@@ -23,27 +23,28 @@ defaults:
 processor:
   mode: "both" # Generate enriched tiles AND training patches
   lod_level: "LOD2" # Optimized for building training
+  use_gpu: true
+  use_gpu_chunked: true # Enable chunked processing
 
   # GPU optimized for ground truth processing
-  gpu_batch_size: 4_000_000 # Batch size adapted for training
+  gpu_batch_size: 8_000_000 # OPTIMIZED: Batch size adapted for training
   gpu_memory_target: 0.80 # Conservative to avoid OOM
-  gpu_streams: 6 # Moderate parallelism
-
-  # Force GPU methods for consistency
-  ground_truth_method: "gpu_chunked" # Optimal method
-  reclassification_mode: "gpu" # Force GPU for consistency
-
-  # Advanced optimizations for training quality
+  gpu_streams: 8 # More parallelism
   enable_memory_pooling: true
   enable_async_transfers: true
   enable_mixed_precision: false # Disabled for precision in training
   adaptive_chunk_sizing: true
 
+  # Force GPU methods for consistency
+  ground_truth_method: "gpu_chunked" # Optimal method
+  reclassification_mode: "gpu" # Force GPU for consistency
+
 features:
   mode: "lod2" # LOD2 features for building training
+  gpu_batch_size: 8_000_000 # OPTIMIZED: Match processor batch size
 
   # Enhanced parameters for training quality
-  k_neighbors: 24 # Larger neighborhood for better features
+  k_neighbors: 15 # OPTIMIZED: Balanced for quality and speed (was 24)
   search_radius: 1.5 # Larger radius for context
 
   # Comprehensive geometric features
@@ -55,26 +56,31 @@ features:
 
   # Full spectral features for training
   use_rgb: true
-  use_nir: true # Important for vegetation/building distinction
-  compute_ndvi: true # Valuable for training
+  use_nir: false # DISABLED: Slow to fetch, can enable if truly needed
+  compute_ndvi: false # DISABLED: Requires NIR
 
 data_sources:
   # Comprehensive ground truth sources
-  bd_topo_buildings: true # Primary building source
-  bd_topo_roads: true # Road context
-  bd_topo_water: true # Water bodies
-  bd_topo_vegetation: true # Vegetation ground truth
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true # Primary building source
+      roads: true # Road context
+      water: true # Water bodies
+      vegetation: true # Vegetation ground truth
+    cache_enabled: true
+    use_global_cache: false
   bd_topo_bridges: true # Bridge structures
-  bd_topo_power_lines: true # Infrastructure
+  bd_topo_power_lines: false # DISABLED: Can enable if needed
 
   # Additional sources for rich training data
-  cadastre_enabled: true # Building footprints
-  bd_foret_enabled: true # Forest classification
-  rpg_enabled: true # Agricultural data
+  cadastre_enabled: false # DISABLED: Very slow, can enable if needed
+  bd_foret_enabled: false # DISABLED: Can enable if needed
+  rpg_enabled: false # DISABLED: Can enable if needed
 
   # Full spectral data
   orthophoto_rgb: true
-  orthophoto_nir: true # Required for NDVI
+  orthophoto_nir: false # DISABLED: Slow to fetch
 
 classification:
   enabled: true
@@ -119,10 +125,10 @@ monitoring:
   enable_gpu_monitoring: true
 
   # ============================================================================
-# V5: Simplified configuration with integrated optimizations
+  # V5: Simplified configuration with integrated optimizations
   # Ground Truth Training Notes
   # ============================================================================
-# V5: Simplified configuration with integrated optimizations
+  # V5: Simplified configuration with integrated optimizations
   #
   # Optimized for:
   # - ML training data generation

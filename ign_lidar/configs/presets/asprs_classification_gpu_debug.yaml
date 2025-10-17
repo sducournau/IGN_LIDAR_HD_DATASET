@@ -17,7 +17,7 @@ processor:
   lod_level: "ASPRS"
   mode: "enriched_only"
   use_gpu: true
-  use_gpu_chunked: false # DISABLED: Use basic GPU mode first
+  use_gpu_chunked: true # ✅ UPDATED: Enable chunked mode (now optimized!)
 
   # Conservative batch sizes for testing
   gpu_batch_size: 1_000_000 # CONSERVATIVE: 1M points per batch

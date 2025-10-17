@@ -23,11 +23,16 @@ defaults:
 processor:
   mode: "enriched_only" # LAZ enrichment only
   architecture: "direct" # Direct processing for speed
+  use_gpu: true
+  use_gpu_chunked: true # Enable chunked processing
 
   # Performance optimized for speed
-  gpu_batch_size: 12_000_000 # Balanced performance/stability
+  gpu_batch_size: 8_000_000 # OPTIMIZED: Balanced performance/stability
   gpu_memory_target: 0.85 # Conservative memory usage
-  gpu_streams: 6 # Moderate parallelism
+  gpu_streams: 8 # More parallelism
+  enable_memory_pooling: true
+  enable_async_transfers: true
+  adaptive_chunk_sizing: true
 
   # Auto-selection for stability
   ground_truth_method: "auto"
@@ -35,10 +40,11 @@ processor:
 
 features:
   mode: "asprs_classes" # Minimal features for speed
+  gpu_batch_size: 8_000_000 # OPTIMIZED: Match processor batch size
 
   # Reduced parameters for maximum speed
-  k_neighbors: 16 # Reduced from default 20
-  search_radius: 0.8 # Smaller radius for speed
+  k_neighbors: 10 # OPTIMIZED: Reduced from 16 for faster processing
+  search_radius: 1.0 # Standard radius
 
   # Essential features only
   compute_normals: true
@@ -57,10 +63,15 @@ features:
 
 data_sources:
   # Essential BD TOPO sources only
-  bd_topo_buildings: true # Essential for classification
-  bd_topo_roads: true # Essential for classification
-  bd_topo_water: true # Essential for classification
-  bd_topo_vegetation: false # Disabled for speed
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true # Essential for classification
+      roads: true # Essential for classification
+      water: true # Essential for classification
+      vegetation: false # Disabled for speed
+    cache_enabled: true
+    use_global_cache: false
   bd_topo_bridges: false # Optional, disabled for speed
   bd_topo_power_lines: false # Optional, disabled for speed
 

@@ -1151,20 +1151,93 @@ class GPUChunkedFeatureComputer:
             'surface_roughness': surface_roughness.astype(np.float32),
         }
 
+    def _compute_geometric_features_from_neighbors(
+        self,
+        points: np.ndarray,
+        neighbors_indices: np.ndarray,
+        chunk_points: np.ndarray,
+        points_gpu=None  # NEW: Optional pre-cached GPU array to avoid re-transfer
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute geometric features directly from pre-computed neighbor indices.
+        
+        This avoids rebuilding KDTree (major optimization for chunked processing).
+        
+        Args:
+            points: [N_total, 3] full point cloud for neighbor lookup
+            neighbors_indices: [N_chunk, k] indices of k-nearest neighbors  
+            chunk_points: [N_chunk, 3] points for this chunk
+            points_gpu: Optional pre-cached GPU array (avoids re-transfer, HUGE speedup!)
+            
+        Returns:
+            Dictionary of geometric features for the chunk
+        """
+        N = len(chunk_points)
+        k = neighbors_indices.shape[1]
+        
+        # OPTIMIZED: Use GPU for fancy indexing if available (10-100x faster than CPU!)
+        if self.use_gpu and cp is not None and points_gpu is not None:
+            # Keep everything on GPU to avoid slow CPU fancy indexing
+            neighbors_indices_gpu = cp.asarray(neighbors_indices)
+            neighbors_gpu = points_gpu[neighbors_indices_gpu]  # GPU fancy indexing is FAST!
+            neighbors = self._to_cpu(neighbors_gpu)  # Transfer result only
+            del neighbors_indices_gpu, neighbors_gpu
+        else:
+            # CPU fallback (slower)
+            neighbors = points[neighbors_indices]  # [N, k, 3]
+        
+        # Compute eigenvalues from neighborhood covariance
+        centroids = np.mean(neighbors, axis=1, keepdims=True)  # [N, 1, 3]
+        centered = neighbors - centroids  # [N, k, 3]
+        
+        # Covariance matrices: [N, 3, 3]
+        cov_matrices = np.einsum('nki,nkj->nij', centered, centered) / (k - 1)
+        
+        # Compute eigenvalues: [N, 3]
+        eigenvalues = np.linalg.eigvalsh(cov_matrices)
+        eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
+        eigenvalues = np.maximum(eigenvalues, 1e-10)  # Avoid division by zero
+        
+        λ0 = eigenvalues[:, 0]
+        λ1 = eigenvalues[:, 1]
+        λ2 = eigenvalues[:, 2]
+        λ_sum = λ0 + λ1 + λ2
+        
+        # Compute geometric features
+        features = {
+            'linearity': np.clip((λ0 - λ1) / (λ0 + 1e-8), 0.0, 1.0),
+            'planarity': np.clip((λ1 - λ2) / (λ0 + 1e-8), 0.0, 1.0),
+            'sphericity': np.clip(λ2 / (λ0 + 1e-8), 0.0, 1.0),
+            'anisotropy': np.clip((λ0 - λ2) / (λ0 + 1e-8), 0.0, 1.0),
+            'roughness': np.clip(λ2 / (λ_sum + 1e-8), 0.0, 1.0),
+        }
+        
+        # Compute density (inverse of mean distance)
+        distances = np.linalg.norm(neighbors - chunk_points[:, np.newaxis, :], axis=2)
+        mean_distances = np.mean(distances[:, 1:], axis=1)  # Exclude self
+        features['density'] = np.clip(1.0 / (mean_distances + 1e-8), 0.0, 1000.0)
+        
+        # Convert to float32
+        for key in features:
+            features[key] = features[key].astype(np.float32)
+        
+        return features
+
     def compute_density_features(
         self,
         points: np.ndarray,
         neighbors_indices: np.ndarray,
         radius_2m: float = 2.0,
         start_idx: int = None,
-        end_idx: int = None
+        end_idx: int = None,
+        points_gpu=None  # NEW: Optional pre-cached GPU array
     ) -> Dict[str, np.ndarray]:
         """
-        Compute density and neighborhood features (FULL GPU-accelerated with chunking).
+        Compute density and neighborhood features (OPTIMIZED: avoids rebuilding KDTree).
         
         Features:
         - density: Local point density (1/mean_distance)
-        - num_points_2m: Number of points within 2m radius
+        - num_points_2m: Number of points within 2m radius (approximated from k-NN)
         - neighborhood_extent: Maximum distance to k-th neighbor
         - height_extent_ratio: Ratio of vertical to spatial extent
         
@@ -1174,6 +1247,7 @@ class GPUChunkedFeatureComputer:
             radius_2m: Radius for counting nearby points (default 2.0m)
             start_idx: Start index of chunk in full array (optional)
             end_idx: End index of chunk in full array (optional)
+            points_gpu: Pre-cached GPU array (optional, avoids re-transfer)
             
         Returns:
             Dictionary of density features for the chunk
@@ -1194,12 +1268,39 @@ class GPUChunkedFeatureComputer:
         use_gpu = self.use_gpu and cp is not None
         xp = cp if use_gpu else np
         
-        # Transfer to GPU if available
+        # Transfer to GPU if available (OPTIMIZED: reuse cached GPU array if provided)
         if use_gpu:
-            points_gpu = self._to_gpu(points)  # Full array for neighbor lookup
+            if points_gpu is None:
+                points_gpu = self._to_gpu(points)  # Full array for neighbor lookup
             chunk_points_gpu = self._to_gpu(chunk_points)  # Chunk for center point computations
             neighbors_indices_gpu = cp.asarray(neighbors_indices)
-            neighbors = points_gpu[neighbors_indices_gpu]
+            
+            # OPTIMIZED: Batch the neighbor indexing to avoid GPU memory thrashing
+            # For large chunks (>1M points), fancy indexing points_gpu[neighbors_indices_gpu]
+            # can cause massive slowdowns. Batch it to keep GPU responsive.
+            NEIGHBOR_BATCH_SIZE = 500_000  # Process 500K points at a time for neighbor lookup
+            if N > NEIGHBOR_BATCH_SIZE:
+                num_neighbor_batches = (N + NEIGHBOR_BATCH_SIZE - 1) // NEIGHBOR_BATCH_SIZE
+                neighbors_list = []
+                
+                # DEBUG: Log batching progress
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug(f"    Batching neighbor lookup: {N:,} points → {num_neighbor_batches} batches")
+                
+                for nb_idx in range(num_neighbor_batches):
+                    nb_start = nb_idx * NEIGHBOR_BATCH_SIZE
+                    nb_end = min((nb_idx + 1) * NEIGHBOR_BATCH_SIZE, N)
+                    batch_indices = neighbors_indices_gpu[nb_start:nb_end]
+                    batch_neighbors = points_gpu[batch_indices]
+                    neighbors_list.append(batch_neighbors)
+                    del batch_indices, batch_neighbors
+                
+                neighbors = cp.vstack(neighbors_list) if len(neighbors_list) > 1 else neighbors_list[0]
+                del neighbors_list
+            else:
+                # Small chunk, direct indexing is fine
+                neighbors = points_gpu[neighbors_indices_gpu]
         else:
             neighbors = points[neighbors_indices]
         
@@ -1229,27 +1330,18 @@ class GPUChunkedFeatureComputer:
         spatial_extent = neighborhood_extent + 1e-8
         height_extent_ratio = z_std / spatial_extent
         
-        # Number of points within 2m radius
-        # For GPU: use efficient radius counting with neighbor distances
-        # For CPU: use KDTree for accurate radius search
+        # Number of points within 2m radius - OPTIMIZED: use k-NN approximation instead of rebuilding KDTree
+        # Count neighbors within radius from existing k-NN results (works for both GPU and CPU)
+        within_radius = xp.sum(distances <= radius_2m, axis=1)
+        num_points_2m = within_radius.astype(xp.float32)
+        
+        # Transfer results back to CPU if using GPU
         if use_gpu:
-            # GPU-accelerated approach: approximate using k-NN distances
-            # Count neighbors within radius from existing k-NN results
-            within_radius = xp.sum(distances <= radius_2m, axis=1)
-            num_points_2m = within_radius.astype(xp.float32)
-            
-            # Transfer results back to CPU
             density = self._to_cpu(density)
             num_points_2m = self._to_cpu(num_points_2m)
             neighborhood_extent = self._to_cpu(neighborhood_extent)
             height_extent_ratio = self._to_cpu(height_extent_ratio)
             vertical_std = self._to_cpu(vertical_std)
-        else:
-            # CPU fallback: use KDTree for accurate radius search
-            from sklearn.neighbors import KDTree
-            tree = KDTree(points, metric='euclidean')
-            neighbors_2m = tree.query_radius(points, r=radius_2m)
-            num_points_2m = np.array([len(n) for n in neighbors_2m], dtype=np.float32)
         
         return {
             'density': density.astype(np.float32),
@@ -1730,8 +1822,10 @@ class GPUChunkedFeatureComputer:
         architectural_feature_names = {
             'edge_strength', 'corner_likelihood', 'overhang_indicator', 'surface_roughness'
         }
+        # FIXED: Only ADVANCED density features (not basic 'density' which is in geometric features)
         density_feature_names = {
-            'density', 'density_2d', 'density_vertical', 'local_point_density'
+            'density_2d', 'density_vertical', 'local_point_density', 'num_points_2m',
+            'neighborhood_extent', 'height_extent_ratio'
         }
         
         compute_eigenvalues = feature_set is None or any(feat in feature_set for feat in eigenvalue_feature_names)
@@ -1753,11 +1847,12 @@ class GPUChunkedFeatureComputer:
             else:
                 logger.info(f"     ⚡ FAST MODE: Skipping advanced features (not needed for mode '{mode}')")
         
-        # Progress bar
+        # Progress bar with GPU/CPU indicator
+        backend_label = "GPU" if (self.use_cuml and cuNearestNeighbors is not None) else "CPU"
         chunk_iterator = range(num_chunks)
         if self.show_progress:
             bar_fmt = ('{l_bar}{bar}| {n_fmt}/{total_fmt} chunks '
-                       '[{elapsed}<{remaining}, {rate_fmt}]')
+                       f'[{{elapsed}}<{{remaining}}, {{rate_fmt}}, {backend_label}]')
             chunk_iterator = tqdm(
                 chunk_iterator,
                 desc=f"     Computing features",
@@ -1782,31 +1877,50 @@ class GPUChunkedFeatureComputer:
             if self.use_cuml and cuNearestNeighbors is not None:
                 # GPU query
                 query_points = points_gpu[start_idx:end_idx]
-                distances, global_indices = knn.kneighbors(query_points)
-                global_indices = self._to_cpu(global_indices)
+                distances, global_indices_gpu = knn.kneighbors(query_points)
+                # Keep indices on GPU to avoid slow transfer!
                 del query_points, distances
+                
+                # Compute normals on GPU (REUSE neighbor indices!)
+                chunk_normals = self._compute_normals_from_neighbors_gpu(
+                    points_gpu, global_indices_gpu
+                )
+                normals[start_idx:end_idx] = self._to_cpu(chunk_normals)
+                
+                # Transfer indices to CPU only when needed
+                global_indices = self._to_cpu(global_indices_gpu)
             else:
                 # CPU query
                 query_points = points_cpu[start_idx:end_idx]
                 distances, global_indices = knn.kneighbors(query_points)
                 del query_points, distances
-            
-            # Compute normals for this chunk (REUSE neighbor indices!)
-            if self.use_gpu and cp is not None:
-                global_indices_gpu = cp.asarray(global_indices)
-            else:
                 global_indices_gpu = global_indices
-            
-            chunk_normals = self._compute_normals_from_neighbors_gpu(
-                points_gpu, global_indices_gpu
-            )
-            normals[start_idx:end_idx] = self._to_cpu(chunk_normals)
+                
+                # Compute normals for this chunk (REUSE neighbor indices!)
+                chunk_normals = self._compute_normals_from_neighbors_gpu(
+                    points_gpu if self.use_gpu else points, global_indices_gpu
+                )
+                normals[start_idx:end_idx] = self._to_cpu(chunk_normals) if self.use_gpu else chunk_normals
             
             # Compute curvature (vectorized, REUSE neighbor indices!)
-            chunk_normals_cpu = self._to_cpu(chunk_normals)
-            neighbor_normals = normals[global_indices]
-            normals_expanded = chunk_normals_cpu[:, np.newaxis, :]
-            normal_diff = neighbor_normals - normals_expanded
+            # OPTIMIZED: Use GPU for fancy indexing if available (much faster!)
+            if self.use_gpu and cp is not None:
+                # Keep on GPU for fast fancy indexing
+                normals_gpu = self._to_gpu(normals)  # Transfer once
+                neighbor_normals_gpu = normals_gpu[global_indices_gpu]  # GPU fancy indexing (fast!)
+                neighbor_normals = self._to_cpu(neighbor_normals_gpu)  # Transfer result
+                del normals_gpu, neighbor_normals_gpu
+                
+                chunk_normals_cpu = self._to_cpu(chunk_normals)
+                normals_expanded = chunk_normals_cpu[:, np.newaxis, :]
+                normal_diff = neighbor_normals - normals_expanded
+            else:
+                # CPU fallback (slower)
+                chunk_normals_cpu = self._to_cpu(chunk_normals)
+                neighbor_normals = normals[global_indices]  # CPU fancy indexing
+                normals_expanded = chunk_normals_cpu[:, np.newaxis, :]
+                normal_diff = neighbor_normals - normals_expanded
+            
             curv_norms = np.linalg.norm(normal_diff, axis=2)
             chunk_curvature = np.mean(curv_norms, axis=1).astype(np.float32)
             curvature[start_idx:end_idx] = chunk_curvature
@@ -1819,12 +1933,11 @@ class GPUChunkedFeatureComputer:
             )
             height[start_idx:end_idx] = chunk_height
             
-            # Compute geometric features (REUSE neighbor indices!)
-            chunk_geo = gpu_computer.extract_geometric_features(
-                chunk_points_cpu,
-                chunk_normals_cpu,
-                k=k,
-                radius=radius if radius is not None else 0.8
+            # OPTIMIZED: Compute geometric features directly from neighbor indices
+            # This avoids rebuilding KDTree for each chunk (major bottleneck!)
+            # Pass points_gpu to use GPU for fast fancy indexing (10-100x speedup!)
+            chunk_geo = self._compute_geometric_features_from_neighbors(
+                points, global_indices, chunk_points_cpu, points_gpu=points_gpu
             )
             
             # Store geometric features
@@ -1888,9 +2001,11 @@ class GPUChunkedFeatureComputer:
             
             if compute_density_advanced:
                 # Compute density features using GPU-accelerated helper method
-                # Pass full arrays for neighbor lookup, but only compute for chunk
+                # Pass cached points_gpu to avoid redundant transfers
                 density_feats = self.compute_density_features(
-                    points, global_indices, radius_2m=2.0, start_idx=start_idx, end_idx=end_idx
+                    points, global_indices, radius_2m=2.0, 
+                    start_idx=start_idx, end_idx=end_idx,
+                    points_gpu=points_gpu  # OPTIMIZED: reuse cached GPU array
                 )
                 for key, values in density_feats.items():
                     if key not in geo_features:

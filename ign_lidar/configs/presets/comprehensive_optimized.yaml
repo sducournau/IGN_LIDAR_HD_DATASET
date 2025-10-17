@@ -23,10 +23,10 @@ processor:
 
   # GPU Configuration - Optimized for RTX 4080 Super
   use_gpu: true
-  use_gpu_chunked: false # Use optimized basic GPU mode
-  gpu_batch_size: 2_000_000 # Optimized batch size
+  use_gpu_chunked: true # Enable chunked processing
+  gpu_batch_size: 8_000_000 # OPTIMIZED: Smaller batches for faster KDTree queries
   gpu_memory_target: 0.8 # Conservative memory usage
-  gpu_streams: 6 # Optimal for RTX 4080 Super
+  gpu_streams: 8 # Optimal for RTX 4080 Super
 
   # Memory Management
   enable_memory_pooling: true
@@ -49,7 +49,7 @@ processor:
 # === ENHANCED FEATURE COMPUTATION ===
 features:
   # Adaptive Parameters (will be auto-tuned)
-  k_neighbors: 20 # Base value, will adapt based on point density
+  k_neighbors: 10 # OPTIMIZED: Reduced from 20 for faster processing
   search_radius: 1.0 # Base value, will adapt based on data
 
   # Core Features - Optimized Selection
@@ -62,8 +62,8 @@ features:
 
   # RGB/NIR Processing - Parallel Enabled
   use_rgb: true
-  use_nir: true
-  compute_ndvi: true
+  use_nir: false # DISABLED: Slow to fetch
+  compute_ndvi: false # DISABLED: Requires NIR
   parallel_rgb_nir: true # Enable parallel fetching
 
   # Advanced Features (selective enable)
@@ -74,7 +74,7 @@ features:
   # Optimization Settings
   normalize_xyz: true
   normalize_features: true
-  gpu_batch_size: 2_000_000
+  gpu_batch_size: 8_000_000 # OPTIMIZED: Match processor batch size
 
   # Caching Configuration
   enable_caching: true

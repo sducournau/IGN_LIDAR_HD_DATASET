@@ -49,6 +49,11 @@ class EnrichmentConfig:
         use_gpu_chunked: Whether to use chunked GPU processing for large datasets
         gpu_batch_size: Batch size for GPU chunked processing
         use_stitching: Whether to use boundary-aware tile stitching
+        reuse_existing_features: Whether to reuse features from LAZ if available
+        override_rgb: Force recompute RGB even if present in LAZ
+        override_nir: Force recompute NIR even if present in LAZ
+        override_normals: Force recompute normals even if present in LAZ
+        override_all_features: Force recompute all features (ignore existing)
     """
     include_rgb: bool = True
     include_infrared: bool = False
@@ -59,6 +64,12 @@ class EnrichmentConfig:
     use_gpu_chunked: bool = True
     gpu_batch_size: int = 100_000
     use_stitching: bool = False
+    # Feature reuse options (NEW)
+    reuse_existing_features: bool = True
+    override_rgb: bool = False
+    override_nir: bool = False
+    override_normals: bool = False
+    override_all_features: bool = False
 
 
 @dataclass
@@ -438,9 +449,80 @@ def enrich_point_cloud(
     
     result = EnrichmentResult()
     
+    # ===== Feature Reuse Check (NEW) =====
+    reused_features = {}
+    if config.reuse_existing_features and laz_file is not None:
+        try:
+            from .feature_reuse import (
+                FeatureReusePolicy,
+                create_reuse_plan,
+                load_existing_features,
+                log_reuse_plan
+            )
+            
+            # Create reuse policy from config
+            policy = FeatureReusePolicy(
+                reuse_rgb=not config.override_rgb,
+                reuse_nir=not config.override_nir,
+                reuse_normals=not config.override_normals,
+                reuse_curvature=True,
+                reuse_height=True,
+                reuse_geometric=config.include_extra_features,
+                override_all=config.override_all_features,
+                check_k_neighbors=True
+            )
+            
+            # Determine which features are requested
+            requested_features = {'normals', 'curvature', 'height'}
+            if config.include_rgb:
+                requested_features.update({'red', 'green', 'blue'})
+            if config.include_infrared:
+                requested_features.add('nir')
+            if config.include_extra_features:
+                requested_features.update({
+                    'planarity', 'linearity', 'sphericity', 'anisotropy',
+                    'verticality', 'horizontality', 'density'
+                })
+            
+            # Create reuse plan
+            to_reuse, to_compute, inventory = create_reuse_plan(
+                laz_file, requested_features, policy, config.k_neighbors
+            )
+            
+            if to_reuse:
+                log_reuse_plan(to_reuse, to_compute, log)
+                reused_features = load_existing_features(laz_file, to_reuse)
+                
+                # Apply reused features to result
+                if 'normals' in reused_features:
+                    result.normals = reused_features['normals']
+                if 'curvature' in reused_features:
+                    result.curvature = reused_features['curvature']
+                if 'height' in reused_features:
+                    result.height = reused_features['height']
+                
+                # Store geometric features
+                result.geo_features = {}
+                for feat_name in ['planarity', 'linearity', 'sphericity', 'anisotropy',
+                                  'verticality', 'horizontality', 'density']:
+                    if feat_name in reused_features:
+                        result.geo_features[feat_name] = reused_features[feat_name]
+        
+        except Exception as e:
+            log.warning(f"  ⚠️  Feature reuse failed: {e}")
+            reused_features = {}
+    
     # ===== Step 1: RGB Colors =====
     if config.include_rgb:
-        if rgb_from_laz is not None:
+        # Check if reused from file
+        if 'red' in reused_features and 'green' in reused_features and 'blue' in reused_features:
+            result.rgb = np.vstack([
+                reused_features['red'],
+                reused_features['green'],
+                reused_features['blue']
+            ]).T
+            log.info("  ✓ Using RGB from existing LAZ features")
+        elif rgb_from_laz is not None:
             log.info("  ✓ Using RGB from LAZ file")
             result.rgb = rgb_from_laz
         elif rgb_fetcher is not None:
@@ -450,7 +532,11 @@ def enrich_point_cloud(
     
     # ===== Step 2: Infrared/NIR =====
     if config.include_infrared:
-        if nir_from_laz is not None:
+        # Check if reused from file
+        if 'nir' in reused_features:
+            result.nir = reused_features['nir']
+            log.info("  ✓ Using NIR from existing LAZ features")
+        elif nir_from_laz is not None:
             log.info("  ✓ Using NIR from LAZ file")
             result.nir = nir_from_laz
         elif infrared_fetcher is not None:
@@ -463,64 +549,71 @@ def enrich_point_cloud(
         result.ndvi = compute_ndvi(result.rgb, result.nir, log)
     
     # ===== Step 4: Geometric Features =====
-    log.info("  🔧 Computing geometric features...")
-    feature_start = time.time()
+    # Only compute if not already reused
+    skip_geometry = (result.normals is not None and result.curvature is not None and 
+                     result.height is not None and result.geo_features is not None)
     
-    # Determine if we should use boundary-aware stitching
-    use_boundary_aware = False
-    if config.use_stitching and stitcher is not None and laz_file is not None:
-        # Check if neighbors exist for boundary-aware processing
-        neighbors_exist = stitcher.check_neighbors_exist(laz_file)
-        if neighbors_exist:
-            use_boundary_aware = True
+    if not skip_geometry:
+        log.info("  🔧 Computing geometric features...")
+        feature_start = time.time()
+    
+        # Determine if we should use boundary-aware stitching
+        use_boundary_aware = False
+        if config.use_stitching and stitcher is not None and laz_file is not None:
+            # Check if neighbors exist for boundary-aware processing
+            neighbors_exist = stitcher.check_neighbors_exist(laz_file)
+            if neighbors_exist:
+                use_boundary_aware = True
+                
+                try:
+                    feature_dict, num_boundary = compute_geometric_features_boundary_aware(
+                        laz_file=laz_file,
+                        stitcher=stitcher,
+                        k_neighbors=config.k_neighbors,
+                        logger_instance=log
+                    )
+                    
+                    result.normals = feature_dict['normals']
+                    result.curvature = feature_dict['curvature']
+                    result.height = feature_dict['height']
+                    result.geo_features = feature_dict['geo_features']
+                    result.num_boundary_points = num_boundary
+                    result.used_boundary_aware = True
+                    
+                except Exception as e:
+                    log.warning(
+                        f"  ⚠️  Tile stitching failed, falling back to standard: {e}"
+                    )
+                    use_boundary_aware = False
+        
+        # Standard feature computation (no stitching or fallback)
+        if not use_boundary_aware:
+            if feature_computer_factory is None:
+                log.error("  ❌ Feature computer factory required for standard processing")
+                raise ValueError("feature_computer_factory required when not using boundary-aware processing")
             
-            try:
-                feature_dict, num_boundary = compute_geometric_features_boundary_aware(
-                    laz_file=laz_file,
-                    stitcher=stitcher,
-                    k_neighbors=config.k_neighbors,
-                    logger_instance=log
-                )
-                
-                result.normals = feature_dict['normals']
-                result.curvature = feature_dict['curvature']
-                result.height = feature_dict['height']
-                result.geo_features = feature_dict['geo_features']
-                result.num_boundary_points = num_boundary
-                result.used_boundary_aware = True
-                
-            except Exception as e:
-                log.warning(
-                    f"  ⚠️  Tile stitching failed, falling back to standard: {e}"
-                )
-                use_boundary_aware = False
-    
-    # Standard feature computation (no stitching or fallback)
-    if not use_boundary_aware:
-        if feature_computer_factory is None:
-            log.error("  ❌ Feature computer factory required for standard processing")
-            raise ValueError("feature_computer_factory required when not using boundary-aware processing")
+            feature_dict = compute_geometric_features_standard(
+                points=points,
+                classification=classification,
+                feature_computer_factory=feature_computer_factory,
+                k_neighbors=config.k_neighbors,
+                use_gpu=config.use_gpu,
+                use_gpu_chunked=config.use_gpu_chunked,
+                gpu_batch_size=config.gpu_batch_size,
+                include_extra=config.include_extra_features,
+                logger_instance=log
+            )
+            
+            result.normals = feature_dict['normals']
+            result.curvature = feature_dict['curvature']
+            result.height = feature_dict['height']
+            result.geo_features = feature_dict['geo_features']
+            result.used_boundary_aware = False
         
-        feature_dict = compute_geometric_features_standard(
-            points=points,
-            classification=classification,
-            feature_computer_factory=feature_computer_factory,
-            k_neighbors=config.k_neighbors,
-            use_gpu=config.use_gpu,
-            use_gpu_chunked=config.use_gpu_chunked,
-            gpu_batch_size=config.gpu_batch_size,
-            include_extra=config.include_extra_features,
-            logger_instance=log
-        )
-        
-        result.normals = feature_dict['normals']
-        result.curvature = feature_dict['curvature']
-        result.height = feature_dict['height']
-        result.geo_features = feature_dict['geo_features']
-        result.used_boundary_aware = False
-    
-    feature_time = time.time() - feature_start
-    log.info(f"  ⏱️  Features computed: {feature_time:.1f}s")
+        feature_time = time.time() - feature_start
+        log.info(f"  ⏱️  Features computed: {feature_time:.1f}s")
+    else:
+        log.info("  ✨ All geometric features reused from LAZ file - computation skipped!")
     
     # Record total processing time
     result.processing_time = time.time() - start_time

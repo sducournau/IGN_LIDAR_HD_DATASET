@@ -29,37 +29,59 @@ const sidebars: SidebarsConfig = {
       ],
     },
 
-    // Core Documentation
+    // Configuration V5 (NEW SECTION)
     {
       type: "category",
-      label: "📖 Core Concepts",
+      label: "⚙️ Configuration V5",
       items: [
-        "architecture",
-        "workflows",
-        "guides/configuration-v3",
-        "guides/configuration-system",
+        "guides/configuration-v5",
+        "guides/migration-v4-to-v5",
         "guides/processing-modes",
         "guides/feature-modes-guide",
-        "guides/data-sources",
+        "reference/config-examples",
       ],
     },
 
-    // User Guides
+    // Core Features
     {
       type: "category",
-      label: "🔧 User Guides",
+      label: "� Core Features",
       items: [
-        "guides/cli-commands",
-        "guides/hydra-cli",
-        "guides/auto-params",
-        "guides/preprocessing",
-        "guides/complete-workflow",
-        "guides/unified-pipeline",
-        "guides/regional-processing",
-        "guides/performance",
-        "guides/troubleshooting",
-        "guides/migration-v2-to-v3",
-        "guides/migration-v1-to-v2",
+        "features/smart-skip",
+        "features/format-preferences",
+        "features/enriched-laz-only",
+        "features/geometric-features",
+        "features/feature-modes",
+        "features/boundary-aware",
+        "features/tile-stitching",
+        "features/pipeline-configuration",
+      ],
+    },
+
+    // Classification Systems (NEW SECTION)
+    {
+      type: "category",
+      label: "🏗️ Classification Systems",
+      items: [
+        "reference/classification-workflow",
+        "reference/asprs-classification",
+        "reference/lod-classification",
+        "features/ground-truth-classification",
+        "reference/bd-topo-integration",
+      ],
+    },
+
+    // Advanced Features
+    {
+      type: "category",
+      label: "🎨 Advanced Features",
+      items: [
+        "features/rgb-augmentation",
+        "features/infrared-augmentation",
+        "features/ground-truth-ndvi-refinement",
+        "features/axonometry",
+        "features/multi-architecture",
+        "features/architectural-styles",
       ],
     },
 
@@ -75,27 +97,33 @@ const sidebars: SidebarsConfig = {
       ],
     },
 
-    // Features
+    // Examples & Tutorials (NEW SECTION)
     {
       type: "category",
-      label: "🚀 Features",
+      label: "📊 Examples & Tutorials",
       items: [
-        "features/smart-skip",
-        "features/format-preferences",
-        "features/lod3-classification",
-        "features/rgb-augmentation",
-        "features/infrared-augmentation",
-        "features/pipeline-configuration",
-        "features/enriched-laz-only",
-        "features/geometric-features",
-        "features/feature-modes",
-        "features/boundary-aware",
-        "features/tile-stitching",
-        "features/ground-truth-fetching",
-        "features/ground-truth-ndvi-refinement",
-        "features/axonometry",
-        "features/multi-architecture",
-        "features/architectural-styles",
+        "examples/ground-truth-classification-example",
+        "examples/tile-stitching-example",
+        "examples/asprs-classification-example",
+        "examples/lod2-classification-example",
+        "tutorials/custom-features",
+      ],
+    },
+
+    // User Guides
+    {
+      type: "category",
+      label: "📖 User Guides",
+      items: [
+        "guides/cli-commands",
+        "guides/hydra-cli",
+        "guides/auto-params",
+        "guides/preprocessing",
+        "guides/complete-workflow",
+        "guides/unified-pipeline",
+        "guides/regional-processing",
+        "guides/performance",
+        "guides/troubleshooting",
       ],
     },
 
@@ -108,13 +136,6 @@ const sidebars: SidebarsConfig = {
         "guides/qgis-troubleshooting",
         "guides/visualization",
       ],
-    },
-
-    // Tutorials
-    {
-      type: "category",
-      label: "📖 Tutorials",
-      items: ["tutorials/custom-features"],
     },
 
     // CLI Reference
@@ -135,12 +156,14 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "📚 Technical Reference",
       items: [
-        "reference/config-examples",
+        "architecture",
+        "workflows",
         "reference/workflow-diagrams",
         "reference/memory-optimization",
         "reference/classification-taxonomy",
         "reference/architectural-styles",
         "reference/historical-analysis",
+        "guides/data-sources",
         "mermaid-reference",
       ],
     },
@@ -158,7 +181,17 @@ const sidebars: SidebarsConfig = {
         "api/gpu-api",
         "api/rgb-augmentation",
         "api/architectural-style-api",
-        "api/auto-params",
+      ],
+    },
+
+    // Legacy & Migration
+    {
+      type: "category",
+      label: "🔄 Legacy & Migration",
+      items: [
+        "guides/configuration-system",
+        "features/lod3-classification",
+        "features/ground-truth-fetching",
       ],
     },
 
