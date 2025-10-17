@@ -77,7 +77,11 @@ def auto_config_command(input_dir: Path,
     """
     # Setup logging
     log_level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(level=log_level, format='[%(levelname)s] %(message)s')
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - [%(levelname)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
     
     logger.info("🧠 IGN LiDAR HD Auto-Configuration")
     logger.info("="*50)

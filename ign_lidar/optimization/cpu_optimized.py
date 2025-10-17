@@ -154,7 +154,7 @@ def create_optimized_point_in_polygon():
 optimized_point_in_polygon = create_optimized_point_in_polygon()
 
 
-class EnhancedCPUOptimizer:
+class CPUOptimizer:
     """
     Enhanced CPU optimizer with advanced spatial indexing and vectorization.
     
@@ -543,14 +543,14 @@ def enhance_existing_cpu_optimizer():
         from ..io.ground_truth_optimizer import GroundTruthOptimizer
         
         # Create enhanced CPU processor
-        cpu_enhancer = EnhancedCPUOptimizer()
+        cpu_enhancer = CPUOptimizer()
         
         # Store original methods
         if not hasattr(GroundTruthOptimizer, '_label_strtree_original'):
             GroundTruthOptimizer._label_strtree_original = GroundTruthOptimizer._label_strtree
         
         # Replace with enhanced version
-        def enhanced_cpu_method(
+        def cpu_method(
             self,
             points: np.ndarray,
             ground_truth_features: Dict[str, 'gpd.GeoDataFrame'],
@@ -573,7 +573,7 @@ def enhance_existing_cpu_optimizer():
             )
         
         # Monkey patch
-        GroundTruthOptimizer._label_strtree = enhanced_cpu_method
+        GroundTruthOptimizer._label_strtree = cpu_method
         
         logger.info("✅ Enhanced CPU optimization applied to GroundTruthOptimizer")
         logger.info(f"   Expected additional speedup: 3-10× (advanced CPU processing)")
@@ -587,7 +587,7 @@ def enhance_existing_cpu_optimizer():
 
 if __name__ == '__main__':
     # Demonstrate enhanced CPU optimization
-    optimizer = EnhancedCPUOptimizer()
+    optimizer = CPUOptimizer()
     
     print("Enhanced CPU Optimizer Configuration:")
     print(f"  R-tree indexing: {optimizer.enable_rtree}")

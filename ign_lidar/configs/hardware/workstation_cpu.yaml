@@ -1,15 +1,15 @@
-# IGN LiDAR HD - Workstation CPU Profile v4.0
+# IGN LiDAR HD - Workstation CPU Profile V5.0
 # ==========================================
 # Profil matériel pour CPU haute performance (Intel i9/AMD Ryzen 9)
 # Configuration optimisée pour traitement CPU intensif
+# V5: Simplified configuration with integrated optimizations
 
-# Inherit from base configurations
+# Inherit from V5 base configurations
 defaults:
-  - ../base/performance
-  - ../config
+  - ../config_v5
   - _self_
 
-config_version: "4.0.0"
+config_version: "5.0.0"
 hardware_profile: "workstation_cpu"
 description: "Profil CPU haute performance - Multi-core workstation"
 
@@ -30,36 +30,32 @@ hardware_specs:
   fallback_gpu: "integrated" # Intel UHD / AMD Radeon
 
 # ============================================================================
-# CONFIGURATION TRAITEMENT - CPU OPTIMISÉ
+# CONFIGURATION TRAITEMENT - CPU OPTIMISÉ (V5)
 # ============================================================================
-processing:
+processor:
   use_gpu: false # Désactivé explicitement
+  num_workers: 24 # Utilise tous les cores
+  thread_affinity: true # Affinité threads
+  numa_optimization: true # Optimisation NUMA
 
-  # CPU multi-threading optimisé
-  cpu:
-    num_workers: 24 # Utilise tous les cores
-    thread_affinity: true # Affinité threads
-    numa_optimization: true # Optimisation NUMA
+  # Batch sizes adaptés mémoire CPU
+  cpu_batch_size: 1_000_000 # Batch CPU optimisé
+  memory_target: 0.75 # 75% RAM disponible
 
-    # Batch sizes adaptés mémoire CPU
-    features_batch_size: 1_000_000 # Batch CPU optimisé
-    memory_target: 0.75 # 75% RAM disponible
+  # Méthodes CPU optimisées
+  ground_truth_method: "cpu_parallel" # Parallélisme CPU
 
-    # Méthodes CPU optimisées
-    ground_truth_method: "cpu_parallel" # Parallélisme CPU
-    reclassification_mode: "cpu_optimized"
+  # Optimisations CPU avancées
+  cpu_optimizations:
+    enable_avx512: true # Instructions AVX-512
+    enable_openmp: true # OpenMP parallélisme
+    enable_mkl: true # Intel MKL / AMD BLIS
+    vectorization: "aggressive" # Vectorisation aggressive
 
-    # Optimisations CPU avancées
-    cpu_optimizations:
-      enable_avx512: true # Instructions AVX-512
-      enable_openmp: true # OpenMP parallélisme
-      enable_mkl: true # Intel MKL / AMD BLIS
-      vectorization: "aggressive" # Vectorisation aggressive
-
-      # Optimisations mémoire
-      memory_pool_size: "32GB" # Pool mémoire large
-      numa_policy: "local" # Politique NUMA locale
-      huge_pages: true # Pages mémoire larges
+    # Optimisations mémoire
+    memory_pool_size: "32GB" # Pool mémoire large
+    numa_policy: "local" # Politique NUMA locale
+    huge_pages: true # Pages mémoire larges
 
 # ============================================================================
 # FEATURES - OPTIMISÉES CPU

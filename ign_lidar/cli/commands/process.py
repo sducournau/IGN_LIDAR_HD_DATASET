@@ -20,7 +20,8 @@ def setup_logging(cfg: DictConfig) -> None:
     log_level = getattr(logging, cfg.get('log_level', 'INFO').upper(), logging.INFO)
     logging.basicConfig(
         level=log_level,
-        format='[%(levelname)s] %(message)s'
+        format='%(asctime)s - [%(levelname)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
     )
 
 
@@ -138,25 +139,23 @@ def process_lidar(cfg: DictConfig) -> None:
     enable_gpu_monitoring = cfg.processor.get('use_gpu', False)
     
     with PerformanceMonitor(
-        update_interval=2.0,
+        monitoring_interval=2.0,
         enable_gpu_monitoring=enable_gpu_monitoring,
-        enable_progress_bar=True
+        enable_real_time=True
     ) as monitor:
         
         if enable_monitoring:
             monitor.start_operation("LiDAR Processing", total_items=None)
             logger.info("📊 Performance monitoring enabled")
             
-            # Add custom monitoring callback for detailed metrics
-            def processing_callback(metrics):
-                if metrics.points_processed > 0 and metrics.elapsed_time > 10:
-                    # Log performance update every 10 seconds
-                    if int(metrics.elapsed_time) % 10 == 0:
-                        logger.info(f"⚡ Performance: {metrics.points_per_second:,.0f} pts/sec, "
-                                  f"GPU: {metrics.gpu_utilization:.1f}%, "
-                                  f"RAM: {metrics.memory_utilization:.1f}%")
+            # Add custom monitoring callback for detailed metrics (using alert callback)
+            def processing_callback(alert_type, alert_data):
+                # Log performance alerts
+                if alert_type == "performance_alert":
+                    for alert in alert_data.get('alerts', []):
+                        logger.warning(f"⚠️  {alert}")
             
-            monitor.add_update_callback(processing_callback)
+            monitor.add_alert_callback(processing_callback)
         
         # Process
         logger.info("Starting processing...")
@@ -171,7 +170,7 @@ def process_lidar(cfg: DictConfig) -> None:
             )
             
             if enable_monitoring:
-                monitor.finish_operation("LiDAR Processing")
+                monitor.end_stage("LiDAR Processing")
             
             elapsed_time = time.time() - start_time
             
@@ -192,7 +191,7 @@ def process_lidar(cfg: DictConfig) -> None:
             
         except Exception as e:
             if enable_monitoring:
-                monitor.log_error(f"Processing failed: {e}")
+                logger.error(f"Processing failed: {e}")
             logger.error(f"Processing failed: {e}", exc_info=True)
             raise
 

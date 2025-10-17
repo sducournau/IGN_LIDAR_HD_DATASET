@@ -1,39 +1,34 @@
-# IGN LiDAR HD - Self-Supervised Learning Configuration v4.0
+# IGN LiDAR HD - Self-Supervised Learning Configuration V5.0
 # ==========================================================
 # Configuration avancée pour l'apprentissage auto-supervisé LOD2
 # Basée sur l'expériment legacy lod2_selfsupervised.yaml
+# V5: Simplified configuration with integrated optimizations
 #
 # Usage: ./scripts/run_processing.sh --config configs/advanced/self_supervised_lod2.yaml
 
-# Inherit from base configurations
+# Inherit from V5 base configurations
 defaults:
-  - ../base/features
-  - ../base/classification
-  - ../base/output
-  - ../base/performance
-  - ../config
+  - ../config_v5
   - _self_
 
-config_version: "4.0.0"
+config_version: "5.0.0"
 config_name: "self_supervised_lod2"
 config_description: "Configuration apprentissage auto-supervisé LOD2"
 
 # ============================================================================
-# CONFIGURATION DE TRAITEMENT - SELF-SUPERVISED
+# CONFIGURATION DE TRAITEMENT - SELF-SUPERVISED (V5)
 # ============================================================================
-processing:
+processor:
   mode: "both" # Patches pour training + tiles enrichis
   lod_level: "LOD2" # Focus LOD2 pour self-supervised
   use_gpu: true
+  gpu_batch_size: 2_000_000 # Batch size training
+  gpu_memory_target: 0.75 # Conservateur pour training stable
 
-  # GPU optimisé pour training
-  gpu:
-    features_batch_size: 2_000_000 # Batch size training
-    vram_target: 0.75 # Conservateur pour training stable
-    ground_truth_method: "self_supervised" # Méthode spécialisée
-    reclassification_mode: "gpu"
+  # Ground truth settings
+  ground_truth_method: "self_supervised" # Méthode spécialisée
 
-  # Paramètres training
+  # Training parameters
   training_mode: "self_supervised"
   training_params:
     epochs: 100

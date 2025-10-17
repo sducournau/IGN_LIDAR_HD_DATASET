@@ -72,7 +72,8 @@ def setup_logging(cfg: DictConfig) -> None:
     log_level = getattr(logging, cfg.log_level.upper(), logging.INFO)
     logging.basicConfig(
         level=log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
     )
 
 

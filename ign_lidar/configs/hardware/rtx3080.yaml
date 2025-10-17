@@ -1,5 +1,5 @@
 # ============================================================================
-# IGN LiDAR HD - RTX 3080 Hardware Configuration v4.0
+# IGN LiDAR HD - RTX 3080 Hardware Configuration V5.0
 # ============================================================================
 # Optimized configuration for NVIDIA RTX 3080
 # VRAM: 10GB GDDR6X | CUDA Cores: 8704 | Memory Bandwidth: 760 GB/s
@@ -9,12 +9,12 @@
 #   ign-lidar-hd process --config-path ign_lidar/configs/hardware --config-name rtx3080
 #
 # Expected performance: ~70-80% GPU utilization, ~2-3 min per tile
+# V5: Simplified configuration with integrated optimizations
 # ============================================================================
 
-# Inherit from base configurations and default config
+# Inherit from V5 base configurations
 defaults:
-  - ../base/performance
-  - ../config
+  - ../config_v5
   - _self_
 
 # Override for RTX 3080 optimization (smaller VRAM)

@@ -1,8 +1,8 @@
 """
 DEPRECATION NOTICE: Enhanced Optimization Modules
 
-The "enhanced" optimization modules (optimizer_v2.py, gpu_optimized.py, 
-cpu_optimized.py, integration_v2.py) have been consolidated into the base
+The optimization modules (optimizer.py, gpu_optimized.py, 
+cpu_optimized.py, integration.py) have been consolidated into the base
 optimization modules to reduce code duplication and maintenance burden.
 
 All optimizations previously available in the "enhanced" modules are now
@@ -10,15 +10,15 @@ integrated directly into the main optimization classes:
 
 - gpu_optimized.py functionality → gpu.py
 - cpu_optimized.py functionality → strtree.py and vectorized.py  
-- optimizer_v2.py functionality → auto_select.py
+- optimizer.py functionality → auto_select.py
 - integration_v2.py functionality → performance_monitor.py
 
 MIGRATION GUIDE:
 
 OLD (deprecated):
 ```python
-from ign_lidar.optimization.integration_v2 import EnhancedOptimizationManager
-manager = EnhancedOptimizationManager()
+from ign_lidar.optimization.integration import OptimizationManager
+manager = OptimizationManager()
 ```
 
 NEW (recommended):
@@ -29,8 +29,8 @@ optimizer = AutoOptimizer()
 
 OLD (deprecated):
 ```python
-from ign_lidar.optimization.gpu_optimized import EnhancedGPUOptimizer
-optimizer = EnhancedGPUOptimizer()
+from ign_lidar.optimization.gpu_optimized import GPUOptimizer
+optimizer = GPUOptimizer()
 ```
 
 NEW (recommended):

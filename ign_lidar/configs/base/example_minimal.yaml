@@ -1,5 +1,5 @@
 # ============================================================================
-# IGN LiDAR HD - Example: Minimal Processing with Base Configurations v4.0
+# IGN LiDAR HD - Example: Minimal Processing with Base Configurations V5.0
 # ============================================================================
 # Demonstrates minimal processing setup using base configurations
 # Suitable for testing, development, or basic enrichment workflows
@@ -11,10 +11,12 @@
 # - Minimal component selection
 # - Basic feature computation
 # - Simple output configuration
+# V5: Simplified configuration with integrated optimizations
 # ============================================================================
 
 # Include only essential base configurations
 defaults:
+  - processor # Core processor settings
   - features # Basic feature computation
   - output # Output handling
   - _self_ # This file overrides
@@ -22,7 +24,7 @@ defaults:
 # ============================================================================
 # METADATA
 # ============================================================================
-config_version: "4.0.1"
+config_version: "5.0.0"
 config_name: "minimal_example"
 config_description: "Minimal processing example using base configurations"
 
@@ -71,20 +73,21 @@ output:
     enabled: false # Disable for speed
 
 # ============================================================================
-# PROCESSING CONFIGURATION
+# PROCESSING CONFIGURATION (V5)
 # ============================================================================
-processing:
+processor:
   mode: "enriched_only" # Only enriched output
   lod_level: "ASPRS" # Basic ASPRS processing
   use_gpu: true # Use GPU if available
   num_workers: 1
+  gpu_batch_size: 5_000_000 # Smaller batches for compatibility
 
 # ============================================================================
-# PERFORMANCE (MINIMAL)
+# OPTIMIZATIONS (V5 - INTEGRATED)
 # ============================================================================
-# Override performance settings for minimal processing
-gpu_batch_size: 5_000_000 # Smaller batches for compatibility
-enable_performance_metrics: false # Disable monitoring
+optimizations:
+  enable_performance_metrics: false # Disable monitoring for speed
+  enable_caching: false # Disable caching for minimal setup
 
 # ============================================================================
 # GLOBAL SETTINGS

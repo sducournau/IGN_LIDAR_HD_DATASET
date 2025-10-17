@@ -1,123 +1,84 @@
 # ============================================================================
-# V5: Simplified configuration with integrated optimizations
 # IGN LiDAR HD - GPU Optimized Preset V5.0 (Simplified)
 # ============================================================================
-# V5: Simplified configuration with integrated optimizations
-# High-performance GPU configuration for RTX 4080/RTX 3080 and similar
-# Optimized for maximum GPU utilization and processing speed
+# High-performance GPU configuration with V5 integrated optimizations.
+# Optimizations are now built into FeatureOrchestrator V5.
 #
 # Usage:
-#   ign-lidar-hd process --config-file ign_lidar/configs/presets/gpu_optimized.yaml
 #   ign-lidar-hd process --config-name gpu_optimized
+#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name gpu_optimized
 #
-# Target: >80% GPU utilization, <1 minute per tile
+# Target: Maximum GPU utilization with integrated optimizations
 # ============================================================================
-# V5: Simplified configuration with integrated optimizations
 
-# Inherit from base configurations and default config
+# V5 simplified base composition
 defaults:
-  - ../config
+  - ../config_v5
   - _self_
 
-# GPU optimization overrides
+# V5 GPU optimization overrides (simplified)
 processor:
-  mode: "enriched_only" # Focus on speed
-
-  # Maximum GPU performance settings
+  mode: "enriched_only"
+  use_gpu: true
   gpu_batch_size: 16_000_000 # 16M points for high-memory GPU
   gpu_memory_target: 0.90 # 90% VRAM utilization
-  gpu_streams: 8 # More parallel streams
-
-  # Force GPU for all operations
-  ground_truth_method: "gpu_chunked" # Force GPU ground truth
-  ground_truth_chunk_size: 5_000_000 # Larger chunks
-  reclassification_mode: "gpu" # Force GPU reclassification
-  reclassification_chunk_size: 5_000_000
-
-  # Advanced GPU optimizations
-  enable_mixed_precision: true # Mixed precision for performance
-  enable_memory_pooling: true
-  enable_async_transfers: true
-  adaptive_chunk_sizing: true
+  num_workers: 1
 
 features:
   mode: "asprs_classes" # Balanced features
-
-  # Speed-optimized parameters
-  k_neighbors: 16 # Slightly reduced for speed
+  k_neighbors: 16 # Speed-optimized
   search_radius: 0.8 # Reduced for speed
+  use_gpu: true
+  gpu_batch_size: 16_000_000
 
-  # Essential features only
-  compute_normals: true
-  compute_planarity: true
-  compute_height_above_ground: true
-  compute_verticality: false # Disabled for max speed
-  compute_architectural_features: false
+# V5 integrated optimizations (always enabled, configure behavior)
+optimizations:
+  enable_caching: true
+  cache_max_size_mb: 200 # Larger cache for GPU
+  enable_parallel_processing: true
+  max_workers: 4 # More parallel workers
+  enable_auto_tuning: true
+  adaptive_parameters: true
+  enable_performance_metrics: true
 
-  # Basic spectral features
-  use_rgb: true
-  use_nir: false # Disabled for speed
-  compute_ndvi: false
+# Hardware-specific settings
+hardware:
+  prefer_gpu: true
+  fallback_cpu: false # Force GPU only
 
-data_sources:
-  # Essential sources only
-  bd_topo_buildings: true
-  bd_topo_roads: true
-  bd_topo_water: true
-  bd_topo_vegetation: false # Disabled for speed
-  bd_topo_bridges: false
-  bd_topo_power_lines: false
-
-  # Disable slow sources
-  cadastre_enabled: false # Always disabled in speed mode
-  bd_foret_enabled: false
-  rpg_enabled: false
-
-  # Basic orthophotos
-  orthophoto_rgb: true
-  orthophoto_nir: false
-
-classification:
-  enabled: true
-  use_ground_truth: true
-  use_geometric_rules: true
-  use_ndvi_classification: false
-
-  # Standard thresholds
-  height_low_vegetation: 0.5
-  height_medium_vegetation: 2.0
-  planarity_road: 0.85
-  planarity_building: 0.75
-
-preprocess:
-  enabled: false # Disabled for speed
-
+# Output settings
 output:
   format: "laz"
   save_enriched: true
   save_patches: false
-  save_metadata: false # Minimal for speed
-  save_stats: true
+  validate_output: true
 
-optimization:
-  level: "aggressive" # Aggressive optimizations
-  memory_management: "aggressive"
-  enable_caching: true
-
+# Monitoring
 monitoring:
-  log_level: "WARNING" # Reduced logging for speed
-  enable_performance_metrics: true # Keep metrics
+  log_level: "INFO"
   enable_gpu_monitoring: true
-# ============================================================================
-# V5: Simplified configuration with integrated optimizations
-# GPU Optimization Performance Notes
-# ============================================================================
-# V5: Simplified configuration with integrated optimizations
-#
-# Optimized for:
-# - High-end GPUs (RTX 4080, RTX 3080, RTX 4090)
-# - Maximum processing speed
-# - Batch processing workflows
+  enable_performance_metrics: true
+
+# Data sources - minimal for speed
+data_sources:
+  bd_topo_buildings: true
+  bd_topo_roads: true
+  bd_topo_water: true
+  bd_topo_vegetation: false
+  bd_topo_bridges: false
+  cadastre_enabled: false
+  orthophoto_rgb: true
+  orthophoto_nir: false
+
+# Classification settings
+classification:
+  enabled: true
+  use_ground_truth: true
+  use_geometric_rules: true
+  planarity_road: 0.85
+  planarity_building: 0.75
+  height_low_vegetation: 0.5
+  height_medium_vegetation: 2.0
 # - Production environments
 #
 # Performance expectations:

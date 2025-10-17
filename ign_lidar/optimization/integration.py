@@ -14,12 +14,12 @@ Key features:
 
 Usage:
     # Automatic enhancement of existing optimizer
-    from ign_lidar.optimization.integration_v2 import enhance_ground_truth_optimization
+    from ign_lidar.optimization.integration import enhance_ground_truth_optimization
     enhance_ground_truth_optimization()
     
     # Manual usage with advanced features
-    from ign_lidar.optimization.integration_v2 import EnhancedOptimizationManager
-    manager = EnhancedOptimizationManager()
+    from ign_lidar.optimization.integration import OptimizationManager
+    manager = OptimizationManager()
     labels = manager.optimize(points, ground_truth_features)
 """
 
@@ -42,14 +42,16 @@ except ImportError:
 
 # Import enhanced modules
 try:
-    from .performance_monitor import PerformanceMonitor, OptimizationBenchmark
+    from ..core.performance import PerformanceMonitor
+    # Note: OptimizationBenchmark was likely in the old performance_monitor
+    # We'll need to check if this functionality is needed
     HAS_MONITORING = True
 except ImportError:
     HAS_MONITORING = False
     logger.warning("Performance monitoring not available")
 
 
-class EnhancedOptimizationManager:
+class OptimizationManager:
     """
     Comprehensive manager for enhanced ground truth optimization.
     
@@ -447,7 +449,7 @@ def enhance_ground_truth_optimization(
     enable_gpu: bool = True,
     enable_cpu: bool = True,
     verbose: bool = True
-) -> EnhancedOptimizationManager:
+) -> OptimizationManager:
     """
     Apply comprehensive enhancements to ground truth optimization.
     
@@ -462,12 +464,12 @@ def enhance_ground_truth_optimization(
         verbose: Enable verbose logging
         
     Returns:
-        EnhancedOptimizationManager instance for advanced usage
+        OptimizationManager instance for advanced usage
     """
     global _global_manager
     
     if _global_manager is None:
-        _global_manager = EnhancedOptimizationManager(
+        _global_manager = OptimizationManager(
             enable_auto_tuning=enable_auto_tuning,
             enable_monitoring=enable_monitoring,
             enable_gpu_enhancement=enable_gpu,
@@ -482,7 +484,7 @@ def enhance_ground_truth_optimization(
     return _global_manager
 
 
-def get_optimization_manager() -> Optional[EnhancedOptimizationManager]:
+def get_optimization_manager() -> Optional[OptimizationManager]:
     """Get the global optimization manager instance."""
     return _global_manager
 

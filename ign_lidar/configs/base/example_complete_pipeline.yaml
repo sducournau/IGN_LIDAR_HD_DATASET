@@ -1,5 +1,5 @@
 # ============================================================================
-# IGN LiDAR HD - Example: Complete Pipeline with Base Configurations v4.0
+# IGN LiDAR HD - Example: Complete Pipeline with Base Configurations V5.0
 # ============================================================================
 # Demonstrates how to use base configurations to build a complete processing
 # pipeline with all components enabled and properly configured.
@@ -11,23 +11,22 @@
 # - How to include multiple base configurations
 # - How to override specific settings
 # - Best practices for component integration
+# V5: Simplified configuration with integrated optimizations
 # ============================================================================
 
-# Include all base configurations
+# Include all V5 base configurations
 defaults:
-  - preprocessing # Point cloud cleaning and preparation
+  - processor # Core processing settings
   - features # Feature computation and extraction
   - data_sources # External data source integration
-  - ground_truth # Ground truth processing
-  - classification # Classification rules and algorithms
   - output # Output formats and validation
-  - performance # Hardware optimization
+  - monitoring # Logging and monitoring
   - _self_ # This file has highest priority
 
 # ============================================================================
 # METADATA
 # ============================================================================
-config_version: "4.0.1"
+config_version: "5.0.0"
 config_name: "complete_pipeline_example"
 config_description: "Complete pipeline example using base configurations"
 

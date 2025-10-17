@@ -172,7 +172,7 @@ if HAS_NUMBA:
         pass
 
 
-class EnhancedGroundTruthOptimizer:
+class GroundTruthOptimizer:
     """
     Enhanced Ground Truth Optimizer with advanced optimizations for CPU, GPU, and GPU chunked processing.
     
@@ -224,7 +224,7 @@ class EnhancedGroundTruthOptimizer:
         self.optimal_chunk_sizes = {}  # method -> optimal chunk size
         
         # Detect hardware
-        if EnhancedGroundTruthOptimizer._gpu_available is None:
+        if GroundTruthOptimizer._gpu_available is None:
             self._detect_hardware()
         
         # Initialize memory pool

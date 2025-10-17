@@ -39,7 +39,8 @@ def setup_logging(verbose: bool = False) -> None:
     log_level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
-        format='[%(levelname)s] %(message)s'
+        format='%(asctime)s - [%(levelname)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
     )
 
 

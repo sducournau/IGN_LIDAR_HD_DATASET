@@ -1,5 +1,5 @@
 # ============================================================================
-# IGN LiDAR HD - Example: BD TOPO Ground Truth Integration v4.0
+# IGN LiDAR HD - Example: BD TOPO Ground Truth Integration V5.0
 # ============================================================================
 # Demonstrates comprehensive BD TOPO integration using base configurations
 # Optimized for high-quality ground truth classification using IGN reference data
@@ -11,21 +11,22 @@
 # - BD TOPO data source configuration
 # - Ground truth integration
 # - Classification with external reference data
+# V5: Simplified configuration with integrated optimizations
 # ============================================================================
 
-# Include relevant base configurations
+# Include relevant V5 base configurations
 defaults:
+  - processor # Core processing with ground truth support
   - features # Feature computation optimized for classification
   - data_sources # External data source configuration
-  - ground_truth # Ground truth processing
-  - classification # Classification with ground truth
   - output # Output with validation
+  - monitoring # Logging and monitoring
   - _self_ # This file overrides
 
 # ============================================================================
 # METADATA
 # ============================================================================
-config_version: "4.0.1"
+config_version: "5.0.0"
 config_name: "bd_topo_integration_example"
 config_description: "BD TOPO ground truth integration example"
 

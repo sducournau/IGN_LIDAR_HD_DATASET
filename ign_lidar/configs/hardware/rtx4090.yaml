@@ -1,5 +1,5 @@
 # ============================================================================
-# IGN LiDAR HD - RTX 4090 Hardware Configuration v4.0
+# IGN LiDAR HD - RTX 4090 Hardware Configuration V5.0
 # ============================================================================
 # Optimized configuration for NVIDIA RTX 4090
 # VRAM: 24GB GDDR6X | CUDA Cores: 16384 | Memory Bandwidth: 1008 GB/s
@@ -8,13 +8,13 @@
 #   ign-lidar-hd process --config-name rtx4090
 #   ign-lidar-hd process --config-path ign_lidar/configs/hardware --config-name rtx4090
 #
-# Expected performance: >90% GPU utilization, ~30s-1 min per tile
+# Expected performance: >90% GPU utilization, <30s per tile
+# V5: Simplified configuration with integrated optimizations
 # ============================================================================
 
-# Inherit from base configurations and default config
+# Inherit from V5 base configurations
 defaults:
-  - ../base/performance
-  - ../config
+  - ../config_v5
   - _self_
 
 # Override for RTX 4090 maximum performance

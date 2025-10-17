@@ -35,7 +35,7 @@ except ImportError:
     HAS_SPATIAL = False
 
 
-class EnhancedGPUOptimizer:
+class GPUOptimizer:
     """
     Enhanced GPU optimizer with advanced memory management and processing optimizations.
     
@@ -414,7 +414,7 @@ def enhance_existing_optimizer():
         from ..io.ground_truth_optimizer import GroundTruthOptimizer
         
         # Create enhanced GPU processor
-        gpu_enhancer = EnhancedGPUOptimizer()
+        gpu_enhancer = GPUOptimizer()
         
         if gpu_enhancer.gpu_available:
             # Store original method
@@ -422,7 +422,7 @@ def enhance_existing_optimizer():
                 GroundTruthOptimizer._label_gpu_chunked_original = GroundTruthOptimizer._label_gpu_chunked
             
             # Replace with enhanced version
-            def enhanced_gpu_chunked(
+            def gpu_chunked(
                 self,
                 points: np.ndarray,
                 ground_truth_features: Dict[str, 'gpd.GeoDataFrame'],
@@ -450,7 +450,7 @@ def enhance_existing_optimizer():
                 return labels
             
             # Monkey patch
-            GroundTruthOptimizer._label_gpu_chunked = enhanced_gpu_chunked
+            GroundTruthOptimizer._label_gpu_chunked = gpu_chunked
             
             logger.info("✅ Enhanced GPU optimization applied to GroundTruthOptimizer")
             logger.info(f"   Expected additional speedup: 2-5× (enhanced GPU processing)")
@@ -464,7 +464,7 @@ def enhance_existing_optimizer():
 
 if __name__ == '__main__':
     # Demonstrate enhanced GPU optimization
-    enhancer = EnhancedGPUOptimizer()
+    enhancer = GPUOptimizer()
     
     if enhancer.gpu_available:
         print(f"Enhanced GPU optimizer ready with {enhancer.gpu_memory_gb:.1f}GB GPU memory")
