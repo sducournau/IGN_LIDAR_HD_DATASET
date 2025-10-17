@@ -1,6 +1,7 @@
 ---
 sidebar_position: 11
 title: Tile Stitching
+description: Seamless multi-tile processing with automatic neighbor detection
 ---
 
 # Tile Stitching for Multi-Tile Datasets
@@ -23,7 +24,7 @@ Seamlessly combine multiple LiDAR tiles into unified training datasets with auto
 
 ## 🚀 Quick Start
 
-### Basic Stitching
+### Basic Stitching (V5 Configuration)
 
 ```bash
 # Process multiple tiles as unified dataset
@@ -41,6 +42,7 @@ ign-lidar-hd process \
   input_dir=data/raw/ \
   output_dir=output/ \
   stitching.enabled=true \
+  processor.patch_overlap=0.1 \
   features.boundary_aware=true \
   features.buffer_size=5.0
 ```
@@ -90,17 +92,62 @@ Each tile knows its 8 potential neighbors:
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Configuration (V5)
+
+### Complete V5 Configuration
+
+```yaml
+# config.yaml (V5)
+defaults:
+  - base/processor
+  - base/features
+  - base/data_sources
+  - base/output
+  - base/monitoring
+  - _self_
+
+# Tile stitching configuration
+stitching:
+  enabled: true
+
+  # Tile grid settings
+  auto_detect_neighbors: true
+  tile_size: 1000.0 # Expected tile size in meters
+  naming_pattern: "{x}_{y}" # Tile naming convention
+
+  # Buffer settings
+  buffer_size: 0.0 # No buffer by default
+  overlap_handling: "average" # How to handle overlaps: average, first, last
+
+  # Processing options
+  unified_normalization: true # Use global statistics
+  cross_tile_features: false # Compute features across tile boundaries
+
+# Processor overlap (for boundary-aware processing)
+processor:
+  patch_size: 100.0
+  patch_overlap: 0.1 # 10% overlap between patches
+
+# Boundary-aware features (optional)
+features:
+  boundary_aware: false # Enable cross-tile feature computation
+  buffer_size: 5.0 # Buffer zone for boundary features (meters)
+
+# Output settings
+output:
+  save_stitched_metadata: true # Save tile relationship metadata
+  include_tile_id: true # Include source tile ID in patches
+```
 
 ### Key Parameters
 
-| Parameter                     | Type   | Default | Description                  |
-| ----------------------------- | ------ | ------- | ---------------------------- |
-| `stitching.enabled`           | bool   | `false` | Enable tile stitching        |
-| `stitching.tile_size`         | float  | `1000`  | Expected tile size in meters |
-| `stitching.overlap_tolerance` | float  | `10`    | Allowed overlap in meters    |
-| `stitching.min_points`        | int    | `1000`  | Minimum points per tile      |
-| `stitching.neighbor_search`   | string | `auto`  | Neighbor detection method    |
+| Parameter                     | Type   | Default  | Description                  |
+| ----------------------------- | ------ | -------- | ---------------------------- |
+| `stitching.enabled`           | bool   | `false`  | Enable tile stitching        |
+| `stitching.tile_size`         | float  | `1000.0` | Expected tile size in meters |
+| `stitching.overlap_tolerance` | float  | `10`     | Allowed overlap in meters    |
+| `stitching.min_points`        | int    | `1000`   | Minimum points per tile      |
+| `stitching.neighbor_search`   | string | `auto`   | Neighbor detection method    |
 
 ### Neighbor Search Methods
 

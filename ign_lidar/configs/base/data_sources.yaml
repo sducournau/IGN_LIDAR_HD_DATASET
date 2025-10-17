@@ -12,11 +12,21 @@ data_sources:
       roads: true
       water: true
       vegetation: true
-    
+
+    # WFS Configuration
+    wfs_url: "https://data.geopf.fr/wfs"
+    max_features: 10000
+    timeout: 30
+
+    # Cache configuration - uses input_dir by default
+    cache_enabled: true
+    cache_dir: null # null = auto-set to {input_dir}/cache/ground_truth
+    use_global_cache: false # If true, uses config.cache_dir instead
+
   # Orthophotos
-  orthophoto_rgb: false    # RGB orthophotos (slow to fetch)
-  orthophoto_nir: false    # NIR orthophotos (very slow)
-  
+  orthophoto_rgb: false # RGB orthophotos (slow to fetch)
+  orthophoto_nir: false # NIR orthophotos (very slow)
+
   # Optional external sources (disabled by default for performance)
   cadastre_enabled: false
   bd_foret_enabled: false

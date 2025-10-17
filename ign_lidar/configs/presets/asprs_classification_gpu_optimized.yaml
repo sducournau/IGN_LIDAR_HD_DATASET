@@ -71,10 +71,20 @@ features:
 
 data_sources:
   # Essential sources for ASPRS ground truth
-  bd_topo_buildings: true # ASPRS Class 6 (Buildings)
-  bd_topo_roads: true # ASPRS Class 11 (Roads)
-  bd_topo_water: true # ASPRS Class 9 (Water)
-  bd_topo_vegetation: true # ASPRS Class 3/4/5 (Vegetation)
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true # ASPRS Class 6 (Buildings)
+      roads: true # ASPRS Class 11 (Roads)
+      water: true # ASPRS Class 9 (Water)
+      vegetation: true # ASPRS Class 3/4/5 (Vegetation)
+
+    # Cache in input folder for easy access
+    cache_enabled: true
+    cache_dir: null # Auto-set to {input_dir}/cache/ground_truth
+    use_global_cache: false
+
+  # Additional BD TOPO features
   bd_topo_bridges: true # ASPRS Class 17 (Bridges)
   bd_topo_power_lines: true # ASPRS Class 14 (optional)
 

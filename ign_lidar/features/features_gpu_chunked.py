@@ -1722,6 +1722,37 @@ class GPUChunkedFeatureComputer:
         # ========================================================================
         logger.info(f"  ⚡ Phase 2/3: Querying neighbors & computing features...")
         
+        # Determine which advanced feature groups to compute
+        eigenvalue_feature_names = {
+            'eigenvalue_1', 'eigenvalue_2', 'eigenvalue_3', 
+            'sum_eigenvalues', 'eigenentropy', 'omnivariance', 'change_curvature'
+        }
+        architectural_feature_names = {
+            'edge_strength', 'corner_likelihood', 'overhang_indicator', 'surface_roughness'
+        }
+        density_feature_names = {
+            'density', 'density_2d', 'density_vertical', 'local_point_density'
+        }
+        
+        compute_eigenvalues = feature_set is None or any(feat in feature_set for feat in eigenvalue_feature_names)
+        compute_architectural = feature_set is None or any(feat in feature_set for feat in architectural_feature_names)
+        compute_density_advanced = feature_set is None or any(feat in feature_set for feat in density_feature_names)
+        
+        # Log what's being computed
+        if feature_set is not None:
+            feature_groups = []
+            if compute_eigenvalues:
+                feature_groups.append("eigenvalues")
+            if compute_architectural:
+                feature_groups.append("architectural")
+            if compute_density_advanced:
+                feature_groups.append("density")
+            
+            if feature_groups:
+                logger.info(f"     Computing advanced features: {', '.join(feature_groups)}")
+            else:
+                logger.info(f"     ⚡ FAST MODE: Skipping advanced features (not needed for mode '{mode}')")
+        
         # Progress bar
         chunk_iterator = range(num_chunks)
         if self.show_progress:
@@ -1831,41 +1862,54 @@ class GPUChunkedFeatureComputer:
             geo_features['roof_score'][start_idx:end_idx] = roof_score_chunk
             
             # === ADVANCED FEATURES FOR FULL MODE (GPU-ACCELERATED) ===
-            # Compute eigenvalue features using GPU-accelerated helper method
-            # Pass full arrays for neighbor lookup, but only compute for chunk
-            eigenvalue_feats = self.compute_eigenvalue_features(
-                points, normals, global_indices, start_idx, end_idx
-            )
-            for key, values in eigenvalue_feats.items():
-                if key not in geo_features:
-                    geo_features[key] = np.zeros(N, dtype=np.float32)
-                geo_features[key][start_idx:end_idx] = values
+            # Only compute if needed for the selected feature mode (use pre-computed flags)
             
-            # Compute architectural features using GPU-accelerated helper method
-            # Pass full arrays for neighbor lookup, but only compute for chunk
-            architectural_feats = self.compute_architectural_features(
-                points, normals, global_indices, start_idx, end_idx
-            )
-            for key, values in architectural_feats.items():
-                if key not in geo_features:
-                    geo_features[key] = np.zeros(N, dtype=np.float32)
-                geo_features[key][start_idx:end_idx] = values
+            if compute_eigenvalues:
+                # Compute eigenvalue features using GPU-accelerated helper method
+                # Pass full arrays for neighbor lookup, but only compute for chunk
+                eigenvalue_feats = self.compute_eigenvalue_features(
+                    points, normals, global_indices, start_idx, end_idx
+                )
+                for key, values in eigenvalue_feats.items():
+                    if key not in geo_features:
+                        geo_features[key] = np.zeros(N, dtype=np.float32)
+                    geo_features[key][start_idx:end_idx] = values
             
-            # Compute density features using GPU-accelerated helper method
-            # Pass full arrays for neighbor lookup, but only compute for chunk
-            density_feats = self.compute_density_features(
-                points, global_indices, radius_2m=2.0, start_idx=start_idx, end_idx=end_idx
-            )
-            for key, values in density_feats.items():
-                if key not in geo_features:
-                    geo_features[key] = np.zeros(N, dtype=np.float32)
-                geo_features[key][start_idx:end_idx] = values
+            if compute_architectural:
+                # Compute architectural features using GPU-accelerated helper method
+                # Pass full arrays for neighbor lookup, but only compute for chunk
+                architectural_feats = self.compute_architectural_features(
+                    points, normals, global_indices, start_idx, end_idx
+                )
+                for key, values in architectural_feats.items():
+                    if key not in geo_features:
+                        geo_features[key] = np.zeros(N, dtype=np.float32)
+                    geo_features[key][start_idx:end_idx] = values
             
-            # Cleanup (OPTIMIZED: minimal cleanup, no per-chunk variables)
+            if compute_density_advanced:
+                # Compute density features using GPU-accelerated helper method
+                # Pass full arrays for neighbor lookup, but only compute for chunk
+                density_feats = self.compute_density_features(
+                    points, global_indices, radius_2m=2.0, start_idx=start_idx, end_idx=end_idx
+                )
+                for key, values in density_feats.items():
+                    if key not in geo_features:
+                        geo_features[key] = np.zeros(N, dtype=np.float32)
+                    geo_features[key][start_idx:end_idx] = values
+            
+            # Cleanup (OPTIMIZED: minimal cleanup, only delete what was created)
             del chunk_normals, chunk_normals_cpu, global_indices_gpu, global_indices
             del chunk_geo, chunk_points_cpu, chunk_classification
             del verticality_chunk, horizontality_chunk, wall_score_chunk, roof_score_chunk
-            del eigenvalue_feats, architectural_feats, density_feats
+            
+            # Conditionally delete advanced feature results if they were computed
+            if 'eigenvalue_feats' in locals():
+                del eigenvalue_feats
+            if 'architectural_feats' in locals():
+                del architectural_feats
+            if 'density_feats' in locals():
+                del density_feats
+            
             # Less frequent GPU cleanup since we're reusing tree
             if chunk_idx % 3 == 0:
                 self._free_gpu_memory()
