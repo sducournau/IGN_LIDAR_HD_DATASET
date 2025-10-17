@@ -1,0 +1,293 @@
+# IGN LiDAR HD - Workstation CPU Profile v4.0
+# ==========================================
+# Profil matériel pour CPU haute performance (Intel i9/AMD Ryzen 9)
+# Configuration optimisée pour traitement CPU intensif
+
+# Inherit from base configurations
+defaults:
+  - ../base/performance
+  - ../config
+  - _self_
+
+config_version: "4.0.0"
+hardware_profile: "workstation_cpu"
+description: "Profil CPU haute performance - Multi-core workstation"
+
+# ============================================================================
+# SPÉCIFICATIONS MATÉRIEL
+# ============================================================================
+hardware_specs:
+  cpu_model: "Intel i9-13900K / AMD Ryzen 9 7950X"
+  cpu_cores: 24 # P-cores + E-cores / 16 cores
+  cpu_threads: 32 # Hyperthreading / SMT
+  base_clock: "3.0-3.5 GHz"
+  boost_clock: "5.4-5.7 GHz"
+  cache_l3: "36-64 MB"
+  recommended_ram: "64GB+"
+
+  # Pas de GPU ou GPU intégré seulement
+  gpu_available: false
+  fallback_gpu: "integrated" # Intel UHD / AMD Radeon
+
+# ============================================================================
+# CONFIGURATION TRAITEMENT - CPU OPTIMISÉ
+# ============================================================================
+processing:
+  use_gpu: false # Désactivé explicitement
+
+  # CPU multi-threading optimisé
+  cpu:
+    num_workers: 24 # Utilise tous les cores
+    thread_affinity: true # Affinité threads
+    numa_optimization: true # Optimisation NUMA
+
+    # Batch sizes adaptés mémoire CPU
+    features_batch_size: 1_000_000 # Batch CPU optimisé
+    memory_target: 0.75 # 75% RAM disponible
+
+    # Méthodes CPU optimisées
+    ground_truth_method: "cpu_parallel" # Parallélisme CPU
+    reclassification_mode: "cpu_optimized"
+
+    # Optimisations CPU avancées
+    cpu_optimizations:
+      enable_avx512: true # Instructions AVX-512
+      enable_openmp: true # OpenMP parallélisme
+      enable_mkl: true # Intel MKL / AMD BLIS
+      vectorization: "aggressive" # Vectorisation aggressive
+
+      # Optimisations mémoire
+      memory_pool_size: "32GB" # Pool mémoire large
+      numa_policy: "local" # Politique NUMA locale
+      huge_pages: true # Pages mémoire larges
+
+# ============================================================================
+# FEATURES - OPTIMISÉES CPU
+# ============================================================================
+features:
+  # Paramètres adaptés CPU
+  k_neighbors: 20 # K standard pour CPU
+  search_radius: 1.5 # Rayon standard
+
+  # CPU processing settings
+  cpu_batch_size: 1_000_000 # Batch CPU
+  use_cpu_parallel: true # Parallélisme CPU
+
+  # Features activées (CPU capable)
+  include_extra: true
+  use_rgb: true
+  use_nir: true
+  compute_ndvi: true
+
+  # Features complexes réduites
+  include_architectural_style: true
+  style_encoding: "constant" # Encoding simple pour CPU
+
+  # Optimisations CPU spécifiques
+  cpu_optimizations:
+    spatial_indexing: "kdtree" # KD-Tree optimisé CPU
+    neighbor_search: "optimized" # Recherche voisins optimisée
+    feature_computation: "vectorized" # Calcul vectorisé
+
+    # Parallel computing
+    parallel_feature_extraction: true
+    parallel_neighbor_search: true
+    parallel_indexing: true
+
+# ============================================================================
+# PATCHES - CONFIGURATION CPU
+# ============================================================================
+patches:
+  # Patches adaptés CPU
+  size: 100.0 # Taille standard
+  overlap: 0.15
+  num_points: 8192 # Points réduits pour CPU
+
+  # Traitement CPU parallèle
+  cpu_processing:
+    parallel_patches: true # Patches parallèles
+    patch_queue_size: 48 # Queue large (2x cores)
+    memory_per_patch: "2GB" # Mémoire par patch
+
+    # Load balancing
+    dynamic_load_balancing: true
+    work_stealing: true # Vol de travail
+    adaptive_batch_sizing: true
+
+# ============================================================================
+# GROUND TRUTH - OPTIMISÉ CPU
+# ============================================================================
+ground_truth:
+  # Optimisations CPU
+  optimization:
+    force_method: "cpu_parallel"
+    memory_limit: "32GB" # Large pour CPU
+    chunk_size: 500_000 # Chunks CPU optimisés
+    parallel_chunks: 12 # Parallélisme modéré
+
+    # CPU specific optimizations
+    cpu_specific:
+      enable_simd: true # Instructions SIMD
+      cache_optimization: true # Optimisation cache
+      memory_prefetching: true # Prefetch mémoire
+      loop_unrolling: true # Déroulage boucles
+
+# ============================================================================
+# ALGORITHMES - ADAPTÉS CPU
+# ============================================================================
+algorithms:
+  # Algorithmes optimisés CPU
+  spatial_indexing:
+    method: "kdtree" # KD-Tree efficace CPU
+    leaf_size: 30 # Taille feuille optimisée
+    balanced_tree: true # Arbre équilibré
+
+  neighbor_search:
+    method: "radius_search" # Recherche par rayon
+    optimization: "cache_friendly" # Cache-friendly
+
+  clustering:
+    method: "kmeans" # K-means efficace CPU
+    implementation: "lloyd" # Lloyd's algorithm
+
+  classification:
+    method: "random_forest" # Random Forest CPU
+    n_estimators: 100
+    max_depth: 20
+
+# ============================================================================
+# PERFORMANCE - CONFIGURATION CPU
+# ============================================================================
+performance:
+  # Workers CPU
+  max_workers: 24 # Tous les cores
+  worker_type: "process" # Multiprocessing
+
+  # Memory management CPU
+  memory_management:
+    shared_memory: true # Mémoire partagée
+    memory_mapping: true # Memory mapping
+    copy_on_write: true # Copy-on-write
+
+  # Cache CPU
+  use_cache: true
+  cache_size: "16GB" # Cache large CPU
+  cache_algorithm: "lru" # LRU eviction
+
+  # Optimisations système
+  system_optimizations:
+    process_priority: "high" # Priorité haute
+    cpu_governor: "performance" # Mode performance
+    disable_swap: true # Désactive swap
+
+  # Monitoring CPU
+  monitoring:
+    cpu_monitoring_frequency: 1.0 # 1 Hz
+    memory_monitoring: true
+    load_balancing_monitoring: true
+    thermal_monitoring: true
+
+# ============================================================================
+# THROUGHPUT - OBJECTIFS PERFORMANCE CPU
+# ============================================================================
+throughput_targets:
+  # Objectifs réalistes CPU
+  points_per_second: 5_000_000 # 5M points/sec
+  tiles_per_hour: 20 # 20 tiles/heure
+  patches_per_minute: 50 # 50 patches/min
+
+  # Efficiency targets
+  cpu_utilization_target: 0.90 # 90% utilisation CPU
+  memory_efficiency_target: 0.80 # 80% efficacité mémoire
+
+# ============================================================================
+# LIMITES ET CONTRAINTES CPU
+# ============================================================================
+limits:
+  # Limites matérielles
+  max_memory_usage: "48GB" # Sécurité 16GB
+  max_cpu_temperature: 85 # °C
+  max_power_draw: "250W" # TDP CPU
+
+  # Limites logicielles
+  max_open_files: 65536
+  max_processes: 1024
+  stack_size: "8MB"
+
+# ============================================================================
+# PROFILS SPÉCIALISÉS CPU
+# ============================================================================
+specialized_profiles:
+  # Profil throughput maximum
+  max_throughput:
+    num_workers: 32 # Hyperthreading complet
+    features_batch_size: 1_500_000
+    aggressive_parallelism: true
+
+  # Profil mémoire conservateur
+  memory_conservative:
+    num_workers: 16 # Cores physiques seulement
+    features_batch_size: 500_000
+    memory_target: 0.60
+
+  # Profil équilibré
+  balanced:
+    num_workers: 24
+    features_batch_size: 1_000_000
+    memory_target: 0.75
+
+# ============================================================================
+# OPTIMISATIONS SPÉCIFIQUES ARCHITECTURE
+# ============================================================================
+architecture_optimizations:
+  # Intel spécifique
+  intel_optimizations:
+    enable_mkl: true # Intel MKL
+    enable_ipp: true # Intel IPP
+    enable_tbb: true # Intel TBB
+    avx512_instructions: true # AVX-512
+
+  # AMD spécifique
+  amd_optimizations:
+    enable_blis: true # AMD BLIS
+    enable_libflame: true # AMD LibFLAME
+    zen_optimizations: true # Zen architecture
+    avx2_instructions: true # AVX2
+
+# ============================================================================
+# DIAGNOSTICS ET VALIDATION CPU
+# ============================================================================
+diagnostics:
+  # Tests performance CPU
+  performance_tests:
+    cpu_benchmark: true
+    memory_bandwidth_test: true
+    cache_performance_test: true
+    vectorization_test: true
+
+  # Validation configuration
+  validation_tests:
+    numa_topology_test: true
+    thermal_stability_test: true
+    sustained_performance_test: true
+    scaling_efficiency_test: true
+
+# ============================================================================
+# RECOMMANDATIONS SYSTÈME CPU
+# ============================================================================
+system_recommendations:
+  # Hardware optimal
+  motherboard: "Z790 / X670E chipset"
+  ram: "64GB DDR5-5600 CL36"
+  storage: "NVMe SSD 4TB+ (Gen4)"
+  cooling: "240mm AIO / High-end air cooler"
+
+  # Software stack
+  os: "Ubuntu 22.04 LTS / Windows 11 Pro"
+  compiler: "GCC 12+ / Intel ICC / MSVC 2022"
+  libraries: "Intel MKL / OpenBLAS / AMD BLIS"
+
+  # Configuration système
+  kernel_params: "transparent_hugepage=always"
+  cpu_governor: "performance"
+  numa_balancing: "disabled"

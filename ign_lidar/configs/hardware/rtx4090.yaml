@@ -1,0 +1,88 @@
+# ============================================================================
+# IGN LiDAR HD - RTX 4090 Hardware Configuration v4.0
+# ============================================================================
+# Optimized configuration for NVIDIA RTX 4090
+# VRAM: 24GB GDDR6X | CUDA Cores: 16384 | Memory Bandwidth: 1008 GB/s
+#
+# Usage:
+#   ign-lidar-hd process --config-name rtx4090
+#   ign-lidar-hd process --config-path ign_lidar/configs/hardware --config-name rtx4090
+#
+# Expected performance: >90% GPU utilization, ~30s-1 min per tile
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/performance
+  - ../config
+  - _self_
+
+# Override for RTX 4090 maximum performance
+processing:
+  use_gpu: true
+
+  # RTX 4090 maximum performance settings
+  gpu_batch_size: 24_000_000 # 24M points (~18-20GB VRAM usage)
+  gpu_memory_target: 0.92 # 92% VRAM utilization (~22GB)
+  gpu_streams: 12 # Maximum streams for Ada Lovelace
+
+  # Ground truth processing - aggressive
+  ground_truth_method: "gpu_chunked" # Force GPU chunked
+  ground_truth_chunk_size: 8_000_000 # 8M points per chunk (large)
+
+  # Reclassification - aggressive
+  reclassification_mode: "gpu" # Force GPU reclassification
+  reclassification_chunk_size: 8_000_000
+
+  # RTX 4090 maximum optimizations
+  enable_memory_pooling: true # Essential for large batches
+  enable_async_transfers: true # Highest memory bandwidth
+  enable_mixed_precision: true # 4th gen Tensor Cores
+  adaptive_chunk_sizing: true # Fine-tuned adaptation
+
+features:
+  # Enhanced parameters for RTX 4090 power
+  k_neighbors: 24 # Increased from default 20
+  search_radius: 1.2 # Larger search radius
+  mode: "full" # Full feature set
+
+  # RTX 4090 can handle more complex features
+  compute_architectural_features: true
+  compute_multiscale_features: false # Still slow, keep disabled
+
+monitoring:
+  # Enhanced monitoring for maximum performance
+  enable_gpu_monitoring: true
+  enable_performance_metrics: true
+  log_level: "INFO"
+
+optimization:
+  level: "aggressive" # Maximum optimization
+  memory_management: "aggressive" # Use all available VRAM
+
+# ============================================================================
+# RTX 4090 Performance Notes
+# ============================================================================
+#
+# Recommended for:
+# - High-end workstations
+# - Production batch processing
+# - Research and development
+# - Maximum throughput scenarios
+#
+# Expected performance:
+# - Features: ~15-30s per tile
+# - Ground truth: ~5-15s per tile
+# - Total: ~30s-1 minute per tile
+#
+# Memory usage:
+# - Base features: ~12-16GB VRAM
+# - Ground truth: ~6-8GB VRAM
+# - Peak usage: ~20-22GB VRAM (92% of 24GB)
+#
+# Performance advantages:
+# - Can handle largest tiles without chunking
+# - Mixed precision for maximum speed
+# - Enhanced feature computation possible
+# - Highest throughput for batch processing
+#

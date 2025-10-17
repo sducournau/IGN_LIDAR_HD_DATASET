@@ -1,0 +1,82 @@
+# ============================================================================
+# IGN LiDAR HD - RTX 3080 Hardware Configuration v4.0
+# ============================================================================
+# Optimized configuration for NVIDIA RTX 3080
+# VRAM: 10GB GDDR6X | CUDA Cores: 8704 | Memory Bandwidth: 760 GB/s
+#
+# Usage:
+#   ign-lidar-hd process --config-name rtx3080
+#   ign-lidar-hd process --config-path ign_lidar/configs/hardware --config-name rtx3080
+#
+# Expected performance: ~70-80% GPU utilization, ~2-3 min per tile
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/performance
+  - ../config
+  - _self_
+
+# Override for RTX 3080 optimization (smaller VRAM)
+processing:
+  use_gpu: true
+
+  # RTX 3080 optimized GPU settings (conservative due to 10GB VRAM)
+  gpu_batch_size: 10_000_000 # 10M points (~8-9GB VRAM usage)
+  gpu_memory_target: 0.85 # 85% VRAM utilization (~8.5GB)
+  gpu_streams: 6 # Reduced for smaller VRAM
+
+  # Ground truth processing
+  ground_truth_method: "gpu_chunked" # Force GPU chunked
+  ground_truth_chunk_size: 3_000_000 # 3M points per chunk (smaller)
+
+  # Reclassification
+  reclassification_mode: "gpu" # Force GPU reclassification
+  reclassification_chunk_size: 3_000_000
+
+  # RTX 3080 specific optimizations
+  enable_memory_pooling: true # Important for memory management
+  enable_async_transfers: true # High memory bandwidth
+  enable_mixed_precision: false # Disabled for stability on smaller VRAM
+  adaptive_chunk_sizing: true # Dynamic adaptation crucial
+
+features:
+  # Reduced parameters for 10GB VRAM constraint
+  k_neighbors: 16 # Slightly reduced from default 20
+  search_radius: 0.8 # Reduced search radius
+  mode: "asprs_classes" # Balanced feature set
+
+monitoring:
+  # Enhanced monitoring for VRAM constraints
+  enable_gpu_monitoring: true
+  enable_performance_metrics: true
+  log_level: "INFO"
+
+optimization:
+  level: "balanced" # More conservative than RTX 4080
+  memory_management: "conservative" # Careful VRAM management
+
+# ============================================================================
+# RTX 3080 Performance Notes
+# ============================================================================
+#
+# Recommended for:
+# - Standard workstations
+# - Moderate batch processing
+# - Cost-effective high performance
+#
+# Expected performance:
+# - Features: ~40-60s per tile
+# - Ground truth: ~20-30s per tile
+# - Total: ~2-3 minutes per tile
+#
+# Memory usage:
+# - Base features: ~6-7GB VRAM
+# - Ground truth: ~3-4GB VRAM
+# - Peak usage: ~8-9GB VRAM (85% of 10GB)
+#
+# VRAM limitations:
+# - Cannot handle very large tiles without chunking
+# - Mixed precision disabled for stability
+# - Smaller batch sizes required
+#

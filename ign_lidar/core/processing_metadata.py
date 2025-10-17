@@ -80,7 +80,7 @@ class ProcessingMetadata:
                 'compute_curvature': config.features.compute_curvature,
                 'compute_architectural_features': config.features.get('compute_architectural_features', False),
                 'use_rgb': config.features.use_rgb,
-                'use_infrared': config.features.use_infrared,
+                'use_infrared': config.features.use_nir,
                 'compute_ndvi': config.features.compute_ndvi,
                 'include_extra': config.features.include_extra,
             },

@@ -1,0 +1,166 @@
+# ============================================================================
+# IGN LiDAR HD - Base Output Configuration v4.0
+# ============================================================================
+# Base configuration for output formats, validation, and metadata generation
+# Handles LAZ/LAS output, patch generation, and quality control
+#
+# Usage:
+#   defaults:
+#     - base/output
+#
+# Override specific settings in your config:
+#   output:
+#     format: "las"
+#     save_patches: true
+# ============================================================================
+
+# @package output
+output:
+  # Primary output format
+  format: "laz" # Options: laz, las, hdf5, ply, xyz
+
+  # Output modes
+  save_enriched: true # Save enriched point clouds with new classifications/features
+  save_patches: false # Save ML training patches
+  save_metadata: true # Save processing metadata
+  save_stats: true # Save processing and classification statistics
+  save_logs: true # Save processing logs
+
+  # LAZ/LAS specific settings
+  las_settings:
+    # Version and format
+    las_version: "1.4" # LAS version (1.2, 1.3, 1.4)
+    point_format: 6 # Point data record format (0-10)
+
+    # Compression
+    compression: "auto" # Options: auto, none, laz
+    compression_level: 7 # LazZIP compression level (1-9)
+
+    # Coordinate system
+    preserve_crs: true # Preserve original coordinate system
+    crs_override: null # Override CRS (EPSG code or WKT)
+
+    # Scaling and offset
+    auto_scale: true # Automatically determine scale factors
+    auto_offset: true # Automatically determine offset
+    scale_factor: [0.01, 0.01, 0.01] # Manual scale factors (if auto_scale=false)
+
+    # Extra bytes for custom attributes
+    extra_bytes: true # Include extra bytes for custom attributes
+    include_features: false # Include computed features as extra bytes
+    include_confidence: false # Include classification confidence
+
+  # HDF5 specific settings (for large datasets)
+  hdf5_settings:
+    chunk_size: 100000 # HDF5 chunk size
+    compression: "gzip" # HDF5 compression (gzip, lzf, szip)
+    compression_level: 6 # Compression level
+    shuffle: true # Enable byte shuffling
+
+  # Patch generation (for ML training)
+  patches:
+    enabled: false # Enable patch generation
+
+    # Patch parameters
+    patch_size: 150.0 # Patch size in meters
+    patch_overlap: 0.0 # Overlap between patches (meters)
+    num_points_per_patch: 16384 # Target number of points per patch
+
+    # Patch selection
+    random_sampling: true # Random patch sampling
+    grid_sampling: false # Regular grid sampling
+    density_based_sampling: false # Density-based sampling
+
+    # Patch filtering
+    min_points_per_patch: 1000 # Minimum points per valid patch
+    max_height_variance: 20.0 # Maximum height variance in patch
+
+    # Output format for patches
+    patch_format: "npy" # Options: npy, h5, las
+    include_labels: true # Include ground truth labels
+    normalize_patches: true # Normalize patch coordinates
+
+  # Metadata generation
+  metadata:
+    enabled: true # Generate metadata files
+
+    # Metadata content
+    include_processing_params: true # Include processing parameters
+    include_statistics: true # Include point cloud statistics
+    include_performance_metrics: true # Include performance metrics
+    include_quality_metrics: true # Include quality assessment metrics
+    include_provenance: true # Include data provenance information
+
+    # Metadata format
+    format: "json" # Options: json, yaml, xml
+    detailed: true # Include detailed metadata
+
+  # Quality control and validation
+  validation:
+    enabled: true # Enable output validation
+
+    # File validation
+    validate_file_format: true # Validate output file format
+    validate_coordinate_system: true # Validate coordinate system
+    validate_point_count: true # Validate point count consistency
+
+    # Content validation
+    validate_classifications: true # Validate classification codes
+    validate_features: false # Validate computed features
+    check_missing_data: true # Check for missing data
+
+    # Quality metrics
+    compute_quality_metrics: true # Compute quality assessment metrics
+    quality_report: true # Generate quality report
+
+  # Statistics generation
+  statistics:
+    enabled: true # Generate statistics
+
+    # Basic statistics
+    point_count_stats: true # Point count statistics
+    classification_stats: true # Classification distribution
+    height_stats: true # Height distribution
+    density_stats: false # Point density statistics
+
+    # Advanced statistics
+    feature_stats: false # Feature statistics (if features computed)
+    spatial_stats: false # Spatial distribution statistics
+    temporal_stats: false # Temporal statistics (if timestamps available)
+
+    # Statistics format
+    format: "json" # Options: json, csv, excel
+
+  # File organization
+  organization:
+    # Directory structure
+    preserve_input_structure: true # Preserve input directory structure
+    create_subdirectories: false # Create subdirectories by type
+
+    # Naming conventions
+    naming_convention: "preserve" # Options: preserve, sequential, timestamp
+    add_suffix: true # Add processing suffix to filenames
+    suffix_format: "_enriched" # Suffix format
+
+    # File grouping
+    group_by_date: false # Group files by processing date
+    group_by_region: false # Group files by spatial region
+
+  # Backup and versioning
+  backup:
+    enabled: false # Enable backup of original files
+    backup_directory: "backup" # Backup directory name
+    versioning: false # Enable version control for outputs
+
+  # Performance settings
+  performance:
+    parallel_writing: true # Enable parallel file writing
+    write_buffer_size: "32MB" # Write buffer size
+    async_writing: false # Enable asynchronous writing (experimental)
+
+  # Error handling
+  error_handling:
+    continue_on_error: true # Continue processing if individual files fail
+    save_error_log: true # Save detailed error logs
+    retry_failed_writes: true # Retry failed write operations
+    max_write_retries: 3 # Maximum number of write retries

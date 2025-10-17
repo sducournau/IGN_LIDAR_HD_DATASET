@@ -66,8 +66,9 @@ features:
 
   # Spectral features
   use_rgb: true # RGB colors
-  use_infrared: true # NIR (infrared)
+  use_nir: true # NIR (infrared)
   compute_ndvi: true # NDVI = (NIR - R) / (NIR + R)
+  include_architectural_style: false # Not needed for LOD2
 
   # PointNet++ settings for patch processing
   sampling_method: fps # Farthest point sampling

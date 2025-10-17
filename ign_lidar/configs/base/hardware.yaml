@@ -1,0 +1,139 @@
+# ============================================================================
+# IGN LiDAR HD - Base Hardware Configuration v4.0
+# ============================================================================
+# Base configuration for hardware detection and optimization
+# Handles GPU detection, memory management, and fallback strategies
+#
+# Usage:
+#   defaults:
+#     - base/hardware
+#
+# Override specific settings in your config:
+#   hardware:
+#     force_cpu: true
+#     gpu_device_id: 1
+# ============================================================================
+
+# @package hardware
+hardware:
+  # Automatic hardware detection
+  auto_detect: true # Automatically detect available hardware
+
+  # GPU configuration
+  gpu:
+    enabled: true # Enable GPU usage (auto-detected if available)
+    device_id: 0 # GPU device ID for multi-GPU systems
+    force_gpu: false # Force GPU usage (fail if not available)
+
+    # GPU requirements
+    min_vram_gb: 4.0 # Minimum VRAM required (GB)
+    preferred_vram_gb: 8.0 # Preferred VRAM for optimal performance (GB)
+
+    # GPU architecture detection
+    detect_architecture: true # Auto-detect GPU architecture
+    cuda_capability: null # Minimum CUDA compute capability (auto-detected)
+
+  # CPU configuration
+  cpu:
+    force_cpu: false # Force CPU-only processing
+    min_cores: 4 # Minimum CPU cores
+    preferred_cores: 8 # Preferred CPU cores for optimal performance
+
+    # CPU detection
+    detect_architecture: true # Auto-detect CPU architecture
+    use_all_cores: false # Use all available CPU cores
+    max_workers: null # Maximum worker processes (null = auto-detect)
+
+  # Memory configuration
+  memory:
+    min_system_ram_gb: 8.0 # Minimum system RAM (GB)
+    preferred_system_ram_gb: 32.0 # Preferred system RAM (GB)
+
+    # Memory monitoring
+    monitor_usage: true # Monitor memory usage during processing
+    memory_warning_threshold: 0.85 # Warning threshold (85% usage)
+    memory_critical_threshold: 0.95 # Critical threshold (95% usage)
+
+  # Fallback strategies
+  fallback:
+    # GPU fallback
+    gpu_fallback_enabled: true # Enable automatic GPU fallback
+    fallback_on_oom: true # Fall back to CPU on GPU out-of-memory
+    fallback_on_error: true # Fall back to CPU on GPU errors
+
+    # CPU fallback
+    reduce_workers_on_memory_pressure: true # Reduce workers if memory pressure
+    min_workers: 1 # Minimum number of workers
+
+    # Graceful degradation
+    enable_degraded_mode: true # Enable degraded processing mode
+    degraded_batch_size: 500_000 # Batch size in degraded mode
+
+  # Performance optimization
+  optimization:
+    # Automatic optimization
+    auto_optimize: true # Automatically optimize for detected hardware
+
+    # Benchmark-based optimization
+    run_benchmark: false # Run performance benchmark (slow)
+    benchmark_tiles: 3 # Number of tiles for benchmarking
+
+    # Hardware-specific optimizations
+    enable_gpu_optimizations: true # Enable GPU-specific optimizations
+    enable_cpu_optimizations: true # Enable CPU-specific optimizations
+
+  # Hardware profiles (for known configurations)
+  profiles:
+    # Automatic profile selection
+    auto_select_profile: true # Automatically select hardware profile
+
+    # Manual profile override
+    override_profile: null # Manual profile selection (rtx4080, rtx4090, etc.)
+
+    # Profile validation
+    validate_profile: true # Validate selected profile against hardware
+
+  # Monitoring and diagnostics
+  monitoring:
+    # Hardware monitoring
+    monitor_gpu_usage: true # Monitor GPU utilization
+    monitor_gpu_memory: true # Monitor GPU memory usage
+    monitor_cpu_usage: true # Monitor CPU utilization
+    monitor_system_memory: true # Monitor system memory usage
+
+    # Temperature monitoring
+    monitor_gpu_temperature: false # Monitor GPU temperature (if available)
+    gpu_temperature_warning: 85 # GPU temperature warning (°C)
+    gpu_temperature_critical: 95 # GPU temperature critical (°C)
+
+    # Performance metrics
+    save_hardware_metrics: true # Save hardware performance metrics
+    metrics_interval: 30 # Metrics collection interval (seconds)
+
+  # Compatibility settings
+  compatibility:
+    # CUDA compatibility
+    cuda_version_check: true # Check CUDA version compatibility
+    min_cuda_version: "11.0" # Minimum CUDA version
+
+    # Driver compatibility
+    nvidia_driver_check: true # Check NVIDIA driver version
+    min_nvidia_driver: "470.0" # Minimum NVIDIA driver version
+
+    # Software compatibility
+    check_dependencies: true # Check software dependencies
+    warn_on_missing_dependencies: true # Warn about missing optional dependencies
+
+  # Error handling
+  error_handling:
+    # Hardware errors
+    retry_on_gpu_error: true # Retry operations on GPU errors
+    max_gpu_retries: 3 # Maximum GPU error retries
+
+    # Memory errors
+    handle_oom_gracefully: true # Handle out-of-memory errors gracefully
+    oom_recovery_strategy: "reduce_batch_size" # OOM recovery strategy
+
+    # Critical errors
+    fail_on_critical_errors: true # Fail processing on critical hardware errors
+    log_hardware_errors: true # Log detailed hardware error information

@@ -1,0 +1,157 @@
+# ============================================================================
+# IGN LiDAR HD - Base Performance Configuration v4.0
+# ============================================================================
+# Base configuration for performance optimization and hardware utilization
+# GPU settings, memory management, and parallel processing
+#
+# Usage:
+#   defaults:
+#     - base/performance
+#
+# Override specific settings in your config:
+#   performance:
+#     gpu_batch_size: 16_000_000
+#     num_workers: 2
+# ============================================================================
+
+# @package performance
+performance:
+  # GPU configuration
+  gpu:
+    enabled: true # Enable GPU acceleration
+    device_id: 0 # GPU device ID (for multi-GPU systems)
+
+    # Memory management
+    memory_target: 0.85 # Target GPU memory usage (85%)
+    memory_reserve: 0.1 # Reserve memory percentage (10%)
+    enable_memory_pooling: true # Enable memory pooling
+
+    # Batch processing
+    batch_size: 8_000_000 # Default batch size for GPU processing
+    adaptive_batch_size: true # Automatically adjust batch size
+    min_batch_size: 1_000_000 # Minimum batch size
+    max_batch_size: 20_000_000 # Maximum batch size
+
+    # CUDA streams
+    num_streams: 6 # Number of CUDA streams
+    enable_async_transfers: true # Enable asynchronous memory transfers
+
+    # Precision settings
+    enable_mixed_precision: false # Mixed precision (experimental)
+    force_fp32: false # Force single precision
+
+  # CPU configuration
+  cpu:
+    num_workers: 1 # Number of worker processes
+    max_workers: null # Maximum workers (null = auto-detect)
+    worker_memory_limit: "2GB" # Memory limit per worker
+
+    # Threading
+    enable_threading: true # Enable multi-threading
+    thread_pool_size: null # Thread pool size (null = auto-detect)
+
+  # Memory management
+  memory:
+    # System memory limits
+    max_system_memory: "80%" # Maximum system memory usage
+    memory_monitoring: true # Monitor memory usage
+
+    # Chunk processing
+    enable_chunking: true # Enable chunk processing for large datasets
+    chunk_size: 2_000_000 # Default chunk size
+    adaptive_chunking: true # Automatically adjust chunk size
+
+    # Memory optimization
+    enable_garbage_collection: true # Enable aggressive garbage collection
+    gc_frequency: 10 # Garbage collection frequency (every N tiles)
+
+  # I/O optimization
+  io:
+    # File reading
+    read_buffer_size: "64MB" # File read buffer size
+    enable_prefetching: true # Enable data prefetching
+    prefetch_workers: 2 # Number of prefetch workers
+
+    # File writing
+    write_buffer_size: "32MB" # File write buffer size
+    enable_compression: true # Enable output compression
+    compression_level: 6 # Compression level (1-9)
+
+    # Caching
+    enable_file_caching: true # Enable file caching
+    cache_size: "1GB" # Cache size limit
+
+  # Parallel processing
+  parallel:
+    enabled: true # Enable parallel processing
+
+    # Tile-level parallelism
+    tile_parallel: false # Process multiple tiles in parallel (experimental)
+    max_parallel_tiles: 2 # Maximum parallel tiles
+
+    # Feature-level parallelism
+    feature_parallel: true # Parallelize feature computation
+
+    # Ground truth parallelism
+    ground_truth_parallel: true # Parallelize ground truth processing
+
+  # Auto-tuning
+  auto_tuning:
+    enabled: false # Enable automatic performance tuning
+
+    # Tuning parameters
+    tune_batch_size: true # Auto-tune batch size
+    tune_chunk_size: true # Auto-tune chunk size
+    tune_workers: false # Auto-tune number of workers
+
+    # Tuning strategy
+    strategy: "conservative" # Options: conservative, balanced, aggressive
+    measurement_tiles: 5 # Number of tiles for performance measurement
+
+  # Monitoring
+  monitoring:
+    enabled: true # Enable performance monitoring
+
+    # GPU monitoring
+    gpu_monitoring: true # Monitor GPU usage
+    gpu_memory_monitoring: true # Monitor GPU memory
+
+    # System monitoring
+    cpu_monitoring: true # Monitor CPU usage
+    memory_monitoring: true # Monitor system memory
+
+    # I/O monitoring
+    io_monitoring: false # Monitor I/O performance
+
+    # Reporting
+    save_performance_metrics: true # Save performance metrics
+    metrics_output_file: "performance_metrics.json" # Metrics output file
+
+  # Optimization strategies
+  optimization:
+    # Level of optimization
+    level: "balanced" # Options: conservative, balanced, aggressive
+
+    # Specific optimizations
+    enable_vectorization: true # Enable vectorized operations
+    enable_loop_unrolling: false # Enable loop unrolling (experimental)
+    enable_memory_mapping: false # Enable memory mapping for large files
+
+    # Cache optimization
+    enable_result_caching: true # Cache intermediate results
+    cache_features: false # Cache computed features
+    cache_ground_truth: true # Cache ground truth data
+
+  # Fallback strategies
+  fallback:
+    # GPU fallback
+    cpu_fallback: true # Fall back to CPU if GPU fails
+    memory_fallback: true # Fall back to smaller batches if memory issues
+
+    # Error handling
+    retry_on_failure: true # Retry failed operations
+    max_retries: 3 # Maximum number of retries
+
+    # Degraded mode
+    enable_degraded_mode: true # Enable degraded mode for critical errors
+    degraded_batch_size: 500_000 # Batch size in degraded mode

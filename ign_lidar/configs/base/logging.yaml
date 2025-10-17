@@ -1,0 +1,190 @@
+# ============================================================================
+# IGN LiDAR HD - Base Logging Configuration v4.0
+# ============================================================================
+# Base configuration for logging, monitoring, and debugging
+# Handles log levels, output formats, and performance monitoring
+#
+# Usage:
+#   defaults:
+#     - base/logging
+#
+# Override specific settings in your config:
+#   logging:
+#     level: "DEBUG"
+#     save_logs: true
+# ============================================================================
+
+# @package logging
+logging:
+  # Basic logging configuration
+  level: "INFO" # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  verbose: true # Enable verbose output
+
+  # Log output configuration
+  console_output: true # Output logs to console
+  file_output: false # Save logs to file (disabled by default for performance)
+
+  # Log file settings (if file_output=true)
+  log_file: "ign_lidar_processing.log" # Log file name
+  log_file_max_size: "100MB" # Maximum log file size
+  log_file_backup_count: 5 # Number of backup log files
+  log_rotation: true # Enable log rotation
+
+  # Log formatting
+  format: "detailed" # Options: simple, detailed, json
+  include_timestamp: true # Include timestamps in logs
+  include_thread_info: false # Include thread information
+  include_process_info: false # Include process information
+
+  # Component-specific logging levels
+  components:
+    core: "INFO" # Core processing components
+    features: "INFO" # Feature computation
+    classification: "INFO" # Classification algorithms
+    ground_truth: "INFO" # Ground truth processing
+    data_sources: "WARNING" # External data sources (reduce noise)
+    io: "WARNING" # Input/output operations
+    gpu: "INFO" # GPU operations
+    memory: "WARNING" # Memory management
+
+  # Performance logging
+  performance:
+    enabled: true # Enable performance logging
+
+    # Timing information
+    log_processing_times: true # Log processing times per tile
+    log_component_times: true # Log times for individual components
+    log_gpu_times: false # Log detailed GPU timing (expensive)
+
+    # Memory usage logging
+    log_memory_usage: true # Log memory usage
+    memory_check_interval: 60 # Memory check interval (seconds)
+    log_peak_memory: true # Log peak memory usage
+
+    # GPU performance logging
+    log_gpu_utilization: true # Log GPU utilization
+    log_gpu_memory: true # Log GPU memory usage
+    gpu_check_interval: 30 # GPU check interval (seconds)
+
+  # Progress reporting
+  progress:
+    enabled: true # Enable progress reporting
+
+    # Progress bar configuration
+    show_progress_bar: true # Show progress bar in console
+    progress_update_interval: 1.0 # Progress update interval (seconds)
+
+    # Progress details
+    show_eta: true # Show estimated time remaining
+    show_processing_rate: true # Show processing rate (tiles/minute)
+    show_current_tile: true # Show currently processing tile
+
+  # Debug logging
+  debug:
+    enabled: false # Enable debug logging (performance impact)
+
+    # Debug categories
+    configuration: false # Debug configuration loading/validation
+    features: false # Debug feature computation
+    classification: false # Debug classification logic
+    memory: false # Debug memory operations
+    gpu: false # Debug GPU operations
+    data_flow: false # Debug data flow between components
+
+    # Debug output
+    save_debug_data: false # Save intermediate debug data
+    debug_output_dir: "debug_output" # Debug data output directory
+
+  # Error logging
+  errors:
+    # Error detail level
+    detailed_errors: true # Include detailed error information
+    include_stack_traces: true # Include stack traces in error logs
+    log_warnings_as_errors: false # Treat warnings as errors
+
+    # Error reporting
+    save_error_summary: true # Save error summary at end of processing
+    error_summary_file: "error_summary.json" # Error summary file
+
+    # Error recovery logging
+    log_recovery_attempts: true # Log error recovery attempts
+    log_fallback_usage: true # Log fallback mechanism usage
+
+  # Statistics logging
+  statistics:
+    enabled: true # Enable statistics logging
+
+    # Processing statistics
+    log_tile_statistics: true # Log statistics per tile
+    log_classification_statistics: true # Log classification distribution
+    log_feature_statistics: false # Log feature computation statistics
+
+    # Performance statistics
+    log_performance_summary: true # Log performance summary
+    performance_summary_file: "performance_summary.json" # Performance summary file
+
+    # Quality statistics
+    log_quality_metrics: true # Log quality assessment metrics
+    quality_metrics_file: "quality_metrics.json" # Quality metrics file
+
+  # Monitoring integration
+  monitoring:
+    # External monitoring systems
+    prometheus_enabled: false # Enable Prometheus metrics export
+    prometheus_port: 9090 # Prometheus metrics port
+
+    # Telemetry
+    enable_telemetry: false # Enable anonymous telemetry (opt-in)
+    telemetry_endpoint: null # Telemetry endpoint URL
+
+  # Log filtering
+  filtering:
+    # Noise reduction
+    suppress_repetitive_warnings: true # Suppress repetitive warnings
+    repetitive_warning_threshold: 10 # Threshold for repetitive warnings
+
+    # Component filtering
+    filter_external_library_logs: true # Filter logs from external libraries
+    external_library_log_level: "WARNING" # Log level for external libraries
+
+    # Content filtering
+    filter_sensitive_info: true # Filter potentially sensitive information
+    filter_file_paths: true # Filter or shorten file paths in logs
+
+  # Development and testing
+  development:
+    # Development mode
+    dev_mode: false # Enable development mode (more verbose)
+
+    # Testing support
+    capture_logs: false # Capture logs for testing
+    log_buffer_size: 1000 # Log buffer size for testing
+
+    # Profiling support
+    enable_profiling_logs: false # Enable profiling-related logs
+    profile_log_interval: 10 # Profiling log interval (seconds)
+
+  # Output customization
+  output:
+    # Console output customization
+    colored_output: true # Enable colored console output (if supported)
+    unicode_symbols: true # Use Unicode symbols for better formatting
+
+    # Progress indicators
+    spinner_style: "dots" # Spinner style for progress indication
+    progress_bar_width: 50 # Progress bar width (characters)
+
+    # Compact mode
+    compact_mode: false # Enable compact logging mode
+    single_line_progress: false # Show progress on single line
+
+  # Log archiving
+  archiving:
+    # Automatic archiving
+    auto_archive: false # Automatically archive old logs
+    archive_after_days: 30 # Archive logs older than N days
+    archive_format: "zip" # Archive format (zip, tar.gz)
+
+    # Cleanup
+    auto_cleanup: false # Automatically cleanup very old logs
+    cleanup_after_days: 90 # Delete logs older than N days

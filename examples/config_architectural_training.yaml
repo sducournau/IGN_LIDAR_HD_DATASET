@@ -58,7 +58,7 @@ features:
 
   # Spectral features
   use_rgb: true
-  use_infrared: false
+  use_nir: false
   compute_ndvi: false
 
   # Architectural style features

@@ -1,0 +1,91 @@
+# ============================================================================
+# IGN LiDAR HD - Base Features Configuration v4.0
+# ============================================================================
+# Base configuration for feature computation and extraction
+# Defines geometric, spectral, and advanced features for classification
+#
+# Usage:
+#   defaults:
+#     - base/features
+#
+# Override specific settings in your config:
+#   features:
+#     mode: "asprs_classes"
+#     k_neighbors: 30
+# ============================================================================
+
+# @package features
+features:
+  # Feature computation mode
+  mode: "minimal" # Options: minimal, asprs_classes, lod2, lod3, full
+
+  # Neighborhood parameters
+  k_neighbors: 20 # Number of neighbors for feature computation
+  search_radius: 1.0 # Search radius in meters
+
+  # Basic geometric features
+  compute_normals: true # Surface normals
+  compute_planarity: true # Planarity coefficient
+  compute_sphericity: false # Sphericity coefficient (expensive)
+  compute_linearity: false # Linearity coefficient (expensive)
+  compute_curvature: false # Surface curvature (expensive)
+  compute_height_above_ground: true # Height above ground
+  compute_verticality: false # Verticality measure
+  compute_density: false # Local point density
+
+  # Advanced geometric features
+  compute_eigenvalues: false # Eigenvalue features (expensive)
+  compute_geometric_moments: false # Geometric moments (expensive)
+  compute_shape_index: false # Shape index (expensive)
+
+  # Spectral features
+  use_rgb: true # RGB color channels
+  use_nir: false # Near-infrared channel (slow to fetch)
+  compute_ndvi: false # Normalized Difference Vegetation Index (requires NIR)
+  compute_spectral_indices: false # Additional spectral indices
+
+  # Multiscale features
+  compute_multiscale_features: false # Multiscale geometric features
+  multiscale_radii: [0.5, 1.0, 2.0, 5.0] # Radii for multiscale computation
+
+  # Architectural features
+  compute_architectural_features: false # Architectural style features
+  include_architectural_style: false # Legacy architectural style encoding
+  style_encoding: "one_hot" # Style encoding method
+
+  # Advanced features
+  compute_statistical_features: false # Statistical neighborhood features
+  compute_texture_features: false # Texture-based features
+  compute_structural_features: false # Structural features
+
+  # Feature normalization
+  normalize_xyz: true # Normalize XYZ coordinates
+  normalize_features: true # Normalize computed features
+  normalization_method: "zscore" # Options: zscore, minmax, robust
+
+  # Feature selection
+  feature_selection:
+    enabled: false # Enable automatic feature selection
+    method: "variance_threshold" # Options: variance_threshold, correlation, mutual_info
+    variance_threshold: 0.01 # Variance threshold for feature selection
+    correlation_threshold: 0.95 # Correlation threshold for redundant features
+
+  # Performance settings
+  use_gpu: true # Use GPU acceleration
+  gpu_batch_size: 1_000_000 # GPU batch size
+  parallel_workers: 1 # Number of parallel workers
+
+  # Memory management
+  memory_efficient: true # Use memory-efficient computation
+  chunk_processing: true # Process in chunks for large datasets
+  cache_features: false # Cache computed features
+
+  # Quality control
+  validate_features: true # Validate computed features
+  handle_nan_values: true # Handle NaN values in features
+  nan_replacement_strategy: "median" # Strategy for NaN replacement
+
+  # Output settings
+  save_feature_importance: false # Save feature importance scores
+  save_feature_statistics: true # Save feature statistics
+  feature_output_format: "float32" # Feature output precision

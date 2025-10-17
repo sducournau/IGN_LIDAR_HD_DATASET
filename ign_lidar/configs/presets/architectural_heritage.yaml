@@ -1,0 +1,289 @@
+# ============================================================================
+# IGN LiDAR HD - Architectural Heritage Preset v4.0
+# ============================================================================
+# Specialized configuration for architectural heritage analysis
+# Focus on detailed building analysis, architectural features, and heritage preservation
+#
+# Usage:
+#   ign-lidar-hd process --config-file ign_lidar/configs/presets/architectural_heritage.yaml
+#   ign-lidar-hd process --config-name architectural_heritage
+#
+# Focus: High-detail architectural analysis and heritage documentation
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/features
+  - ../base/data_sources
+  - ../base/classification
+  - ../base/output
+  - ../config
+  - _self_
+
+# Architectural heritage specific overrides
+processing:
+  mode: "both" # Generate both enriched tiles and detailed patches
+  lod_level: "LOD3" # Maximum detail level for heritage
+
+  # Conservative GPU settings for detailed processing
+  gpu_batch_size: 2_000_000 # Smaller batch for LOD3 complexity
+  gpu_memory_target: 0.75 # Conservative for complex processing
+  gpu_streams: 4 # Moderate parallelism for precision
+
+  # GPU methods for consistency
+  ground_truth_method: "gpu_chunked"
+  reclassification_mode: "gpu"
+
+  # Precision-focused optimizations
+  enable_memory_pooling: true
+  enable_async_transfers: true
+  enable_mixed_precision: false # Disabled for maximum precision
+  adaptive_chunk_sizing: true
+
+features:
+  mode: "lod3" # LOD3 features for architectural detail
+
+  # Enhanced parameters for architectural analysis
+  k_neighbors: 30 # Large neighborhood for architectural context
+  search_radius: 2.0 # Extended radius for building structures
+
+  # Comprehensive geometric features
+  compute_normals: true
+  compute_planarity: true
+  compute_height_above_ground: true
+  compute_verticality: true # Critical for architectural elements
+  compute_architectural_features: true # Enable architectural features
+
+  # Spectral features for material analysis
+  use_rgb: true # Important for material/texture analysis
+  use_nir: true # Material distinction
+  compute_ndvi: false # Not priority for heritage buildings
+
+data_sources:
+  # Essential for heritage building analysis
+  bd_topo_buildings: true # Primary building source
+  bd_topo_roads: true # Context roads
+  bd_topo_water: true # Water features
+  bd_topo_vegetation: false # Less relevant for heritage
+  bd_topo_bridges: true # Bridge heritage structures
+  bd_topo_power_lines: false # Not relevant for heritage
+
+  # Cadastral data essential for heritage
+  cadastre_enabled: true # Building footprints and boundaries
+  bd_foret_enabled: false # Not relevant for heritage
+  rpg_enabled: false # Not relevant for heritage
+
+  # Full spectral data for material analysis
+  orthophoto_rgb: true
+  orthophoto_nir: true # Material analysis
+
+classification:
+  enabled: true
+  use_ground_truth: true
+  use_geometric_rules: true # Important for architectural elements
+  use_ndvi_classification: false # Not relevant for heritage
+
+  # Heritage-optimized thresholds
+  height_low_vegetation: 0.3 # Lower threshold around buildings
+  height_medium_vegetation: 1.5 # Conservative around heritage
+  planarity_road: 0.90 # High precision for heritage context
+  planarity_building: 0.60 # Lower for complex heritage roofs
+
+preprocess:
+  enabled: true # Important for heritage quality
+  statistical_outlier_removal:
+    enabled: true
+    k_neighbors: 25 # Large neighborhood for stability
+    std_threshold: 1.5 # Stricter filtering for precision
+  radius_outlier_removal:
+    enabled: true
+    radius: 1.0
+    min_neighbors: 10 # Higher minimum for quality
+
+output:
+  format: "laz"
+  save_enriched: true
+  save_patches: true # Important for detailed analysis
+  save_metadata: true # Full documentation for heritage
+  save_stats: true
+
+optimization:
+  level: "conservative" # Conservative for heritage precision
+  memory_management: "conservative"
+  enable_caching: true
+
+monitoring:
+  log_level: "INFO" # Detailed logging for heritage work
+  verbose: true
+  enable_performance_metrics: true
+  enable_gpu_monitoring: true
+
+# ============================================================================
+# Architectural Heritage Notes
+# ============================================================================
+#
+# Specialized for:
+# - Heritage building documentation
+# - Architectural feature extraction
+# - Building material analysis
+# - Structural element identification
+# - Heritage preservation planning
+#
+# Key features:
+# - LOD3 maximum detail level
+# - Large neighborhoods (k=30) for architectural context
+# - Extended search radius (2.0m) for building structures
+# - Architectural features enabled
+# - Cadastral data integration for boundaries
+# - Spectral analysis for materials (RGB + NIR)
+# - Conservative preprocessing for precision
+#
+# Performance expectations:
+# - Processing time: ~10-20 minutes per tile (high detail)
+# - Memory usage: Conservative (75% VRAM)
+# - Output quality: Heritage documentation grade
+# - Precision: Maximum available for architectural elements
+#
+# Use cases:
+# - Heritage building surveys
+# - Architectural documentation
+# - 3D heritage model generation
+# - Building condition assessment
+# - Cultural heritage preservation
+# - Archaeological site documentation
+#
+
+# ============================================================================
+# GROUND TRUTH - SPÉCIALISÉ PATRIMOINE
+# ============================================================================
+ground_truth:
+  enabled: true
+  update_classification: true
+  save_updated_tiles: true
+
+  # Classification détaillée patrimoine
+  classification_mode: "heritage_extended" # Classes patrimoine étendues
+
+  # Sources patrimoine
+  fetch_buildings: true
+  fetch_heritage_sites: true # Sites patrimoniaux
+  fetch_monuments: true # Monuments historiques
+  fetch_archaeological_sites: true # Sites archéologiques
+
+  # BD TOPO étendu pour patrimoine
+  building_buffer: 0.2 # Buffer fin pour précision
+  preserve_building_nature: true
+  include_building_metadata: true # Métadonnées bâtiments
+
+  # Sources spécialisées patrimoine
+  heritage_sources:
+    merimee_database: true # Base Mérimée MH
+    palissy_database: true # Base Palissy objets
+    atlas_patrimoine: true # Atlas du patrimoine
+    psmv_zones: true # PSMV (Plans de Sauvegarde)
+# ============================================================================
+# ANALYSIS - MODULES SPÉCIALISÉS PATRIMOINE
+# ============================================================================
+analysis:
+  # Analyse stylistique
+  architectural_style_analysis:
+    enabled: true
+    style_classification: true
+    period_estimation: true
+    regional_variants: true
+
+  # Analyse de conservation
+  conservation_analysis:
+    enabled: true
+    damage_detection: true
+    weathering_analysis: true
+    structural_integrity: true
+    material_degradation: true
+
+  # Analyse historique
+  historical_analysis:
+    enabled: true
+    evolution_tracking: true # Évolution temporelle
+    modification_detection: true # Détection modifications
+    authenticity_assessment: true # Évaluation authenticité
+
+  # Documentation 3D
+  documentation_3d:
+    enabled: true
+    detailed_modeling: true
+    texture_mapping: true
+    measurement_extraction: true
+    orthophoto_generation: true
+
+# ============================================================================
+# PRÉPROCESSING - ADAPTÉ PATRIMOINE
+# ============================================================================
+preprocessing:
+  enabled: true
+
+  # Filtrage précautionneux
+  height_filter:
+    enabled: true
+    min_height: -5.0 # Inclut fouilles archéologiques
+    max_height: 200.0 # Tours, clochers
+
+  # Débruitage fin
+  noise_removal:
+    enabled: true
+    statistical_outlier: true
+    radius_outlier: true
+    preserve_fine_details: true # Préserve détails fins
+
+  # Pas d'augmentation (préservation données originales)
+  augmentation:
+    enabled: false
+
+# ============================================================================
+# QUALITY CONTROL - RENFORCÉ PATRIMOINE
+# ============================================================================
+quality_control:
+  enabled: true
+
+  # Validation patrimoine
+  heritage_validation:
+    geometric_accuracy: true
+    classification_accuracy: true
+    style_consistency: true
+    metadata_completeness: true
+
+  # Métriques qualité
+  quality_metrics:
+    point_density: true
+    classification_confidence: true
+    feature_reliability: true
+    heritage_completeness: true
+
+# ============================================================================
+# LOGGING - DÉTAILLÉ PATRIMOINE
+# ============================================================================
+logging:
+  level: "DEBUG" # Logs détaillés pour patrimoine
+  log_gpu_usage: true
+  log_memory_usage: true
+  log_timing: true
+
+  # Logs spécialisés
+  log_heritage_analysis: true
+  log_style_detection: true
+  log_conservation_metrics: true
+
+# ============================================================================
+# PERFORMANCE - ADAPTÉE COMPLEXITÉ PATRIMOINE
+# ============================================================================
+performance:
+  max_workers: 1 # Processing séquentiel pour précision
+  prefetch_factor: 1 # Conservateur
+  pin_memory: true
+
+  # Cache désactivé (données uniques)
+  use_cache: false
+
+  # Monitoring renforcé
+  profile_memory: true
+  profile_gpu: true
+  monitor_quality: true

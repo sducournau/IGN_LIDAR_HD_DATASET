@@ -1,404 +1,285 @@
-# Configuration Files Guide
+# IGN LiDAR HD - Configuration v4.0 Guide
 
-**Last Updated:** October 15, 2025 (v2.5.1)
+## 🎯 Vue d'ensemble
 
-## Overview
+Ce dossier contient la **configuration unifiée v4.0** pour IGN LiDAR HD Dataset, remplaçant les systèmes fragmentés des versions précédentes.
 
-This directory contains Hydra configuration files for the IGN LiDAR HD processing pipeline. Configurations are organized by component and can be composed using Hydra's defaults mechanism.
+### ✨ Nouveautés v4.0
 
-**Key Improvements (v2.5.1):**
-
-- ✨ **Base configs** for better reusability and maintainability
-- 📦 **Simplified experiment configs** with inheritance
-- 🗄️ **Consolidated configs** - 67% reduction in duplication
-- 📚 **Improved documentation** throughout
-
-## Directory Structure
-
-```
-configs/
-├── config.yaml                 # Root configuration
-├── experiment/                 # ✨ Experiment presets (USE THESE!)
-│   ├── _base/                 # ✨ NEW: Reusable base configurations
-│   │   ├── buildings_common.yaml        # Building experiment base
-│   │   ├── boundary_aware_common.yaml   # Boundary-aware base
-│   │   ├── training_common.yaml         # Training base
-│   │   ├── dataset_common.yaml          # ✨ NEW: Dataset generation base
-│   │   └── ground_truth_common.yaml     # ✨ NEW: Ground truth base
-│   │
-│   ├── buildings_lod2.yaml              # LOD2 building classification
-│   ├── buildings_lod3.yaml              # LOD3 building classification
-│   │
-│   ├── dataset_50m.yaml                 # 50m patches (refactored)
-│   ├── dataset_100m.yaml                # 100m patches (refactored)
-│   ├── dataset_150m.yaml                # 150m patches (refactored)
-│   ├── dataset_multiscale.yaml          # Multi-scale combined
-│   │
-│   ├── lod2_ground_truth.yaml           # ✨ NEW: Unified LOD2 GT (all scales)
-│   ├── lod2_gt_50m.yaml                 # ⚠️ Deprecated (use lod2_ground_truth)
-│   ├── lod2_gt_100m.yaml                # ⚠️ Deprecated (use lod2_ground_truth)
-│   ├── lod2_gt_150m.yaml                # ⚠️ Deprecated (use lod2_ground_truth)
-│   │
-│   ├── ground_truth_patches.yaml        # Ground truth patch generation
-│   ├── ground_truth_training.yaml       # Ground truth training dataset
-│   │
-│   ├── fast.yaml                        # Quick testing
-│   ├── semantic_sota.yaml               # Semantic segmentation SOTA
-│   ├── vegetation_ndvi.yaml             # Vegetation analysis
-│   ├── architectural_heritage.yaml      # Heritage buildings
-│   ├── pointnet_training.yaml           # PointNet++ training
-│   ├── lod2_selfsupervised.yaml         # Self-supervised LOD2
-│   │
-│   ├── classify_enriched_tiles.yaml     # Classify pre-enriched tiles
-│   ├── boundary_aware_autodownload.yaml # With auto-download
-│   └── boundary_aware_offline.yaml      # Without auto-download
-│
-├── processor/                  # Processing configurations
-│   ├── default.yaml           # CPU processing
-│   └── ...
-├── features/                   # Feature extraction configs
-│   ├── full.yaml              # All features (LOD3)
-│   ├── lod2.yaml              # LOD2 features
-│   ├── lod3.yaml              # LOD3 features
-│   ├── minimal.yaml           # Basic features
-│   └── ...
-├── stitching/                  # Tile stitching configs
-│   ├── disabled.yaml          # No stitching
-│   ├── enabled.yaml           # Basic stitching
-│   ├── enhanced.yaml          # Advanced stitching
-│   └── auto_download.yaml     # Auto-download neighbors
-├── preprocess/                 # Preprocessing configs
-├── output/                     # Output format configs
-└── ground_truth/               # Ground truth configs
-    ├── disabled.yaml
-    ├── enabled.yaml
-    └── update_classification.yaml
-```
-
-## Tile Stitching Configurations
-
-### 🆕 New Feature: Auto-Download Neighbors
-
-The stitching system now supports **automatic downloading of missing adjacent tiles** from IGN WFS service.
-
-#### Configuration Files
-
-##### 1. `stitching/disabled.yaml`
-
-```yaml
-enabled: false
-```
-
-**Use when:** No boundary processing needed, fastest processing
-
-##### 2. `stitching/enabled.yaml`
-
-```yaml
-enabled: true
-buffer_size: 10.0
-auto_detect_neighbors: true
-auto_download_neighbors: false # Default: disabled
-cache_enabled: true
-```
-
-**Use when:** Basic boundary processing with local tiles only
-
-##### 3. `stitching/enhanced.yaml`
-
-```yaml
-enabled: true
-buffer_size: 15.0
-auto_detect_neighbors: true
-auto_download_neighbors: false # Can be overridden
-adaptive_buffer: true
-boundary_smoothing: true
-parallel_loading: true
-# ... many advanced options
-```
-
-**Use when:** Production processing with advanced quality settings
-
-##### 4. `stitching/auto_download.yaml` 🆕
-
-```yaml
-enabled: true
-buffer_size: 15.0
-auto_detect_neighbors: true
-auto_download_neighbors: true # ⚡ Downloads enabled!
-validate_tiles: true
-download_max_concurrent: 2
-# ... download-specific settings
-```
-
-**Use when:**
-
-- Processing tiles without pre-downloaded neighbors
-- Automatic recovery from corrupted tiles
-- Exploratory analysis
-
-## Usage Examples
-
-### Example 1: Basic Processing (No Stitching)
-
-```bash
-python -m ign_lidar.cli.process \
-  input_dir=/path/to/tiles \
-  output_dir=/path/to/output \
-  stitching=disabled
-```
-
-### Example 2: Boundary-Aware with Local Tiles
-
-```bash
-python -m ign_lidar.cli.process \
-  input_dir=/path/to/tiles \
-  output_dir=/path/to/output \
-  stitching=enhanced \
-  processor.use_stitching=true
-```
-
-### Example 3: Auto-Download Missing Neighbors 🆕
-
-```bash
-python -m ign_lidar.cli.process \
-  input_dir=/path/to/tiles \
-  output_dir=/path/to/output \
-  stitching=auto_download \
-  processor.use_stitching=true
-```
-
-### Example 4: Override Auto-Download on Enhanced Config
-
-```bash
-python -m ign_lidar.cli.process \
-  input_dir=/path/to/tiles \
-  output_dir=/path/to/output \
-  stitching=enhanced \
-  stitching.auto_download_neighbors=true  # Override to enable
-```
-
-### Example 5: Use Experiment Config
-
-```bash
-python -m ign_lidar.cli.process \
-  --config-name boundary_aware_autodownload \
-  input_dir=/path/to/tiles \
-  output_dir=/path/to/output
-```
-
-## Configuration Override Examples
-
-### Enable Auto-Download on Any Config
-
-```bash
-# Add to any command:
-stitching.auto_download_neighbors=true
-```
-
-### Adjust Buffer Size
-
-```bash
-# Larger buffer for better accuracy:
-stitching.buffer_size=20.0
-```
-
-### Change Download Concurrency
-
-```bash
-# Download up to 4 tiles in parallel:
-stitching.download_max_concurrent=4
-```
-
-### Disable Validation (Not Recommended)
-
-```bash
-stitching.validate_tiles=false
-```
-
-## Auto-Download Behavior
-
-### When Enabled (`auto_download_neighbors: true`)
-
-1. **Load core tile**
-2. **Detect adjacent tiles** using bounding box checks
-3. **For each expected neighbor position (N, S, E, W, NE, NW, SE, SW):**
-   - Check if tile exists locally
-   - If exists → Validate tile integrity
-   - If valid → Use existing tile
-   - If corrupted → Delete and download fresh copy
-   - If missing → Query IGN WFS and download
-4. **Validate all downloaded tiles**
-5. **Extract buffer zones** (15m by default)
-6. **Compute boundary-aware features**
-
-### Validation Checks
-
-Each tile (existing or downloaded) is validated:
-
-- ✓ File exists
-- ✓ File size > 1 MB
-- ✓ Can be opened with laspy
-- ✓ Contains points (not empty)
-- ✓ Coordinates are valid (not NaN/zeros)
-
-### Storage Requirements
-
-- **Per tile:** ~100-300 MB
-- **8 neighbors:** ~1-2 GB
-- Downloaded tiles are **cached** and **reused** across processing runs
-- Only **missing or corrupted** tiles are downloaded
-
-### Network Requirements
-
-- **Internet connection** required for WFS queries
-- **IGN WFS service** must be accessible
-- **Download speed:** Typically 1-2 MB/s
-- **First tile:** 10-20 minutes (downloads neighbors)
-- **Subsequent tiles:** <1 minute (reuses neighbors)
-
-## Configuration Composition
-
-### Using Defaults
-
-```yaml
-# In your config file:
-defaults:
-  - override /processor: gpu
-  - override /features: full
-  - override /stitching: auto_download # 🆕
-  - override /output: default
-```
-
-### Programmatic Composition
-
-```python
-from hydra import compose, initialize
-from omegaconf import OmegaConf
-
-with initialize(config_path="configs"):
-    cfg = compose(
-        config_name="config",
-        overrides=[
-            "stitching=auto_download",
-            "processor.use_gpu=true",
-            "stitching.buffer_size=20.0"
-        ]
-    )
-```
-
-## Best Practices
-
-### 1. For Production Pipelines
-
-```yaml
-# Use enhanced config, disable auto-download
-stitching: enhanced
-stitching.auto_download_neighbors: false
-# Pre-download all needed tiles separately
-# Then process offline
-```
-
-### 2. For Exploratory Analysis
-
-```yaml
-# Use auto-download for convenience
-stitching: auto_download
-stitching.buffer_size: 15.0
-```
-
-### 3. For Research/Testing
-
-```yaml
-# Use enhanced with custom settings
-stitching: enhanced
-stitching.auto_download_neighbors: true # Enable on demand
-stitching.save_stitching_stats: true # Monitor performance
-stitching.verbose_logging: true # Detailed logs
-```
-
-### 4. For Offline Processing
-
-```yaml
-# Disable auto-download explicitly
-stitching: enhanced
-stitching.auto_download_neighbors: false
-```
-
-## Troubleshooting
-
-### Auto-Download Not Working?
-
-**Check these settings:**
-
-```bash
-# Verify stitching is enabled:
-stitching.enabled=true
-
-# Verify auto-detection is enabled:
-stitching.auto_detect_neighbors=true
-
-# Verify auto-download is enabled:
-stitching.auto_download_neighbors=true
-
-# Verify processor uses stitching:
-processor.use_stitching=true
-```
-
-### Downloads Failing?
-
-1. **Check network connection**
-2. **Verify IGN WFS is accessible**: https://data.geopf.fr/wfs
-3. **Check logs** for specific error messages
-4. **Try with fewer concurrent downloads**: `stitching.download_max_concurrent=1`
-
-### Corrupted Tiles?
-
-System will automatically:
-
-- Detect corrupted tiles via validation
-- Delete corrupted files
-- Re-download fresh copies
-
-Or manually delete and re-run:
-
-```bash
-rm /path/to/corrupted_tile.laz
-# Re-run processing - will auto-download
-```
-
-## Related Documentation
-
-- [Main Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
-- [Configuration Reference](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/api/configuration)
-- [Hydra Documentation](https://hydra.cc/) - Configuration framework
-
-## Configuration Schema
-
-### Stitching Configuration
-
-```yaml
-enabled: bool # Enable tile stitching
-buffer_size: float # Buffer zone width in meters
-auto_detect_neighbors: bool # Auto-detect adjacent tiles
-auto_download_neighbors: bool # 🆕 Download missing neighbors
-validate_tiles: bool # Validate tile integrity
-download_max_concurrent: int # Max concurrent downloads
-cache_enabled: bool # Cache loaded tiles
-parallel_loading: bool # Load neighbors in parallel
-boundary_smoothing: bool # Smooth at boundaries
-edge_artifact_removal: bool # Remove edge artifacts
-compute_boundary_features: bool # Special boundary features
-verbose_logging: bool # Detailed logging
-save_stitching_stats: bool # Save statistics
-```
-
-## Version History
-
-- **v2.4.2** (Oct 2025): Complete GPU acceleration for all advanced features
-- **v2.3.0**: Processing modes and YAML configurations
-- **v2.1**: Auto-download neighbors feature
-- **v2.0**: Enhanced tile stitching with bbox-based detection
+- **Configuration unifiée** : Un seul schéma cohérent pour tous les cas d'usage
+- **Presets intelligents** : Configurations prêtes à l'emploi pour différents scenarios
+- **Profils hardware** : Optimisations spécifiques par carte graphique
+- **Performance GPU** : Résolution de la régression GPU (17% → >80% utilisation)
+- **Interface simplifiée** : Réduction de 80% des paramètres CLI nécessaires
 
 ---
 
-_Configuration guide for IGN LiDAR HD v2.4.2_
+## 📁 Structure des Configurations
+
+```text
+configs/
+├── config.yaml              # 🎯 Configuration par défaut
+├── presets/                  # 🚀 Presets prêts à l'emploi
+│   ├── gpu_optimized.yaml   #     Performance GPU maximale
+│   ├── asprs_classification.yaml #  Classification ASPRS standard
+│   ├── enrichment_only.yaml #     LAZ enrichis uniquement
+│   ├── minimal.yaml         #     Tests rapides/debugging
+│   ├── ground_truth_training.yaml # Entraînement avec ground truth
+│   ├── architectural_heritage.yaml # Patrimoine architectural
+│   ├── building_detection.yaml #   Détection bâtiments optimisée
+│   ├── vegetation_analysis.yaml #  Analyse végétation NDVI
+│   └── multiscale_analysis.yaml #  Analyse multi-échelle
+├── advanced/                 # 🔬 Configurations avancées
+│   └── self_supervised_lod2.yaml # Apprentissage auto-supervisé
+├── hardware/                 # ⚡ Profils hardware optimisés
+│   ├── rtx4080.yaml         #     RTX 4080 (16GB) - Recommandé
+│   ├── rtx3080.yaml         #     RTX 3080 (10GB)
+│   ├── rtx4090.yaml         #     RTX 4090 (24GB) - Haute performance
+│   ├── workstation_cpu.yaml #     CPU haute performance
+│   └── cpu_only.yaml        #     Fallback CPU basique
+└── README.md                 # 📚 Ce guide
+```
+
+## 🚀 Utilisation Rapide
+
+### Commandes Simplifiées
+
+```bash
+# Preset GPU optimisé (recommandé RTX 4080)
+ign-lidar-hd process --preset gpu_optimized --input /data/tiles --output /data/processed
+
+# Classification ASPRS standard
+ign-lidar-hd process --preset asprs_classification --input /data/tiles
+
+# Enrichissement LAZ uniquement (le plus rapide)
+ign-lidar-hd process --preset enrichment_only --input /data/tiles
+
+# Test rapide sur un échantillon
+ign-lidar-hd process --preset minimal --input /data/test
+```
+
+### Avec Profils Hardware
+
+```bash
+# Auto-détection + optimisation RTX 4080
+ign-lidar-hd process --preset gpu_optimized --hardware rtx4080
+
+# Fallback CPU si pas de GPU
+ign-lidar-hd process --preset asprs_classification --hardware cpu_only
+```
+
+### Overrides Ciblés (Optionnel)
+
+```bash
+# Ajuster uniquement la VRAM si nécessaire
+ign-lidar-hd process --preset gpu_optimized \
+    processing.gpu.vram_target=0.95
+
+# Activer le cadastre (attention: très lent)
+ign-lidar-hd process --preset asprs_classification \
+    data_sources.cadastre_enabled=true
+```
+
+## 🔧 Structure de Configuration v4.0
+
+### Paramètres Principaux
+
+```yaml
+# Métadonnées
+config_version: "4.0.0" # Version du schéma
+config_name: "default" # Nom de la configuration
+
+# Traitement principal
+processing:
+  mode: "enriched_only" # enriched_only | patches_only | both
+  lod_level: "ASPRS" # ASPRS | LOD2 | LOD3
+  use_gpu: true # Activation GPU
+
+  # ⭐ NOUVEAU: GPU centralisé
+  gpu:
+    features_batch_size: 8_000_000 # Points par batch GPU
+    vram_target: 0.85 # % VRAM utilisée
+    cuda_streams: 6 # Streams parallèles
+    ground_truth_method: "auto" # auto | gpu_chunked | gpu | strtree
+    reclassification_mode: "auto" # auto | gpu | cpu
+
+# Features simplifiées
+features:
+  mode: "asprs_classes" # minimal | asprs_classes | lod2 | lod3 | full
+  k_neighbors: 20 # Voisins pour features
+  compute_normals: true # Features géométriques de base
+  use_rgb: true # Features spectrales
+
+# ⭐ NOUVEAU: Sources de données aplaties
+data_sources:
+  bd_topo_enabled: true # Activation BD TOPO
+  bd_topo_buildings: true # Bâtiments → ASPRS Class 6
+  bd_topo_roads: true # Routes → ASPRS Class 11
+  bd_topo_water: true # Eau → ASPRS Class 9
+  cadastre_enabled: false # Cadastre (lent)
+```
+
+### Nouveautés v4.0
+
+1. **GPU Centralisé** : Tous les paramètres GPU dans `processing.gpu`
+2. **Data Sources Aplaties** : Paramètres BD TOPO/Cadastre simplifiés
+3. **Presets Intelligents** : Configurations prêtes pour chaque usage
+4. **Hardware Profiles** : Optimisations par carte graphique
+5. **Migration Automatique** : Transition transparente depuis v2.x/v3.0
+
+## 📊 Comparaison des Versions
+
+| Aspect            | v2.x                        | v3.0                     | v4.0 ✨                       |
+| ----------------- | --------------------------- | ------------------------ | ----------------------------- |
+| **Schémas**       | `processor.*`, `features.*` | `processing.*` mixé      | `processing.*` unifié         |
+| **GPU Config**    | Éparpillé dans `features.*` | Partiellement centralisé | Centralisé `processing.gpu.*` |
+| **Presets**       | ❌ Aucun                    | ⚠️ Basiques              | ✅ Intelligents avec hardware |
+| **CLI Overrides** | 🔴 50+ paramètres           | 🟡 20+ paramètres        | 🟢 <10 paramètres             |
+| **Migration**     | ❌ Manuelle                 | ⚠️ Partielle             | ✅ Automatique                |
+| **Performance**   | 🔴 CPU fallback fréquent    | 🟡 GPU sous-optimal      | 🟢 GPU optimisé               |
+
+## 🔄 Migration depuis v2.x/v3.0
+
+### Migration Automatique
+
+```bash
+# Fichier unique
+python scripts/migrate_config_v4.py \
+    --input configs/config_old.yaml \
+    --output configs_v4/migrated.yaml
+
+# Migration en lot
+python scripts/migrate_config_v4.py \
+    --batch configs/ \
+    --output-dir configs_v4/migrated/
+
+# Dry-run (aperçu)
+python scripts/migrate_config_v4.py \
+    --input configs/config_old.yaml \
+    --dry-run
+```
+
+### Correspondances Principales
+
+| v2.x/v3.0                                      | v4.0                                   |
+| ---------------------------------------------- | -------------------------------------- |
+| `processor.use_gpu`                            | `processing.use_gpu`                   |
+| `features.gpu_batch_size`                      | `processing.gpu.features_batch_size`   |
+| `features.vram_utilization_target`             | `processing.gpu.vram_target`           |
+| `processor.reclassification.acceleration_mode` | `processing.gpu.reclassification_mode` |
+| `ground_truth.optimization.force_method`       | `processing.gpu.ground_truth_method`   |
+
+## ⚡ Optimisations de Performance
+
+### GPU Optimisé (RTX 4080)
+
+```yaml
+processing:
+  gpu:
+    features_batch_size: 16_000_000 # 16M points
+    vram_target: 0.90 # 90% VRAM
+    cuda_streams: 8 # 8 streams
+    ground_truth_method: "gpu_chunked" # Force GPU
+    reclassification_mode: "gpu" # Force GPU
+```
+
+**Résultat attendu** :
+
+- Utilisation GPU : >85% (vs 17% avant)
+- Temps par tuile : 30-60s (vs 5-10 minutes)
+- Ground truth : 10-100× plus rapide
+
+### CPU Fallback Automatique
+
+```yaml
+processing:
+  gpu:
+    ground_truth_method: "auto" # Auto-fallback si GPU OOM
+    reclassification_mode: "auto" # Auto-fallback
+```
+
+Le système bascule automatiquement en CPU si :
+
+- GPU non disponible
+- Mémoire GPU insuffisante
+- Erreurs CUDA
+
+## 🛠️ Développement et Debug
+
+### Configuration de Debug
+
+```bash
+# Test rapide avec logs détaillés
+ign-lidar-hd process --preset minimal \
+    monitoring.log_level=DEBUG \
+    monitoring.enable_profiling=true
+```
+
+### Monitoring GPU
+
+```bash
+# Pendant le processing, dans un autre terminal
+./scripts/gpu_monitor.sh 300  # Monitor 5 minutes
+
+# Validation complète
+./scripts/validate_gpu_acceleration.sh
+```
+
+### Création de Nouveaux Presets
+
+```yaml
+# configs_v4/presets/mon_preset.yaml
+defaults:
+  - ../config # Hérite de la base
+  - _self_ # Override local
+
+# Mes modifications spécifiques
+processing:
+  gpu:
+    features_batch_size: 12_000_000 # Ajusté pour ma config
+
+data_sources:
+  cadastre_enabled: true # J'active le cadastre
+```
+
+## 📚 Ressources Additionnelles
+
+- **Scripts de Validation** : `scripts/validate_gpu_acceleration.sh`
+- **Monitoring** : `scripts/gpu_monitor.sh`
+- **Migration** : `scripts/migrate_config_v4.py`
+- **Audit** : `scripts/audit_configs.py`
+
+## 🆘 Dépannage
+
+### Problèmes Fréquents
+
+**GPU non utilisé (17% utilisation)** :
+
+```yaml
+processing:
+  gpu:
+    reclassification_mode: "gpu" # Au lieu de "cpu"
+    ground_truth_method: "gpu_chunked" # Au lieu de "auto"
+```
+
+**Erreurs CUDA Out of Memory** :
+
+```yaml
+processing:
+  gpu:
+    features_batch_size: 4_000_000 # Réduire la batch size
+    vram_target: 0.70 # Réduire VRAM target
+```
+
+**Performance lente** :
+
+```bash
+# Utiliser le preset optimisé
+ign-lidar-hd process --preset gpu_optimized
+```
+
+---
+
+**Version** : 4.0.0  
+**Date** : 2025-10-17  
+**Maintenance** : Configuration unifiée, performances optimisées

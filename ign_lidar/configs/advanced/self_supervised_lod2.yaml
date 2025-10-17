@@ -1,0 +1,313 @@
+# IGN LiDAR HD - Self-Supervised Learning Configuration v4.0
+# ==========================================================
+# Configuration avancée pour l'apprentissage auto-supervisé LOD2
+# Basée sur l'expériment legacy lod2_selfsupervised.yaml
+#
+# Usage: ./scripts/run_processing.sh --config configs/advanced/self_supervised_lod2.yaml
+
+# Inherit from base configurations
+defaults:
+  - ../base/features
+  - ../base/classification
+  - ../base/output
+  - ../base/performance
+  - ../config
+  - _self_
+
+config_version: "4.0.0"
+config_name: "self_supervised_lod2"
+config_description: "Configuration apprentissage auto-supervisé LOD2"
+
+# ============================================================================
+# CONFIGURATION DE TRAITEMENT - SELF-SUPERVISED
+# ============================================================================
+processing:
+  mode: "both" # Patches pour training + tiles enrichis
+  lod_level: "LOD2" # Focus LOD2 pour self-supervised
+  use_gpu: true
+
+  # GPU optimisé pour training
+  gpu:
+    features_batch_size: 2_000_000 # Batch size training
+    vram_target: 0.75 # Conservateur pour training stable
+    ground_truth_method: "self_supervised" # Méthode spécialisée
+    reclassification_mode: "gpu"
+
+  # Paramètres training
+  training_mode: "self_supervised"
+  training_params:
+    epochs: 100
+    batch_size: 64
+    learning_rate: 0.001
+    weight_decay: 0.0001
+
+# ============================================================================
+# FEATURES - OPTIMISÉES SELF-SUPERVISED
+# ============================================================================
+features:
+  mode: "self_supervised_lod2" # Mode spécialisé
+  k_neighbors: 20
+  search_radius: 1.5
+
+  # Features pour apprentissage
+  include_extra: true
+  use_rgb: true
+  use_nir: false # Pas nécessaire pour self-supervised
+  compute_ndvi: false
+
+  # Self-supervised specific features
+  self_supervised_features:
+    geometric_pretext_tasks: true # Tâches prétexte géométriques
+    spatial_context_tasks: true # Tâches contexte spatial
+    temporal_consistency_tasks: false # Pas de données temporelles
+    multi_view_consistency: true # Cohérence multi-vues
+
+  # Augmentation pour self-supervised
+  augmentation:
+    enabled: true
+    rotation: true
+    scaling: true
+    noise_injection: true
+    point_dropout: true
+    spatial_jittering: true
+
+# ============================================================================
+# SELF-SUPERVISED LEARNING - CONFIGURATION AVANCÉE
+# ============================================================================
+self_supervised_learning:
+  # Méthodes d'apprentissage
+  learning_methods:
+    contrastive_learning: true # Apprentissage contrastif
+    masked_autoencoding: true # Auto-encodage masqué
+    geometric_pretext_tasks: true # Tâches prétexte géométriques
+    spatial_reasoning: true # Raisonnement spatial
+
+  # Tâches prétexte
+  pretext_tasks:
+    # Tâches géométriques
+    point_cloud_reconstruction: true # Reconstruction nuage points
+    normal_estimation: true # Estimation normales
+    curvature_prediction: true # Prédiction courbure
+
+    # Tâches spatiales
+    relative_position_prediction: true # Prédiction positions relatives
+    spatial_context_prediction: true # Prédiction contexte spatial
+    neighborhood_prediction: true # Prédiction voisinage
+
+    # Tâches structurelles
+    structure_completion: true # Complétion structures
+    pattern_recognition: true # Reconnaissance motifs
+    symmetry_detection: true # Détection symétries
+
+  # Architecture réseau
+  network_architecture:
+    backbone: "pointnet++" # PointNet++ backbone
+    encoder_dim: 256
+    hidden_dim: 512
+    output_dim: 128
+
+    # Heads spécialisés
+    contrastive_head: true
+    reconstruction_head: true
+    classification_head: true
+
+# ============================================================================
+# CONTRASTIVE LEARNING - PARAMÈTRES
+# ============================================================================
+contrastive_learning:
+  # Stratégie échantillonnage
+  sampling_strategy:
+    positive_pairs: "spatial_neighbors" # Voisins spatiaux comme positifs
+    negative_pairs: "random_distant" # Points distants comme négatifs
+    hard_negative_mining: true # Mining négatifs difficiles
+
+  # Paramètres loss
+  loss_params:
+    temperature: 0.1 # Température softmax
+    margin: 0.5 # Marge contrastive
+    weight_positive: 1.0 # Poids pairs positives
+    weight_negative: 1.0 # Poids pairs négatives
+
+  # Augmentations contrastives
+  contrastive_augmentations:
+    geometric_transforms: true # Transformations géométriques
+    noise_variations: true # Variations bruit
+    scale_variations: true # Variations échelle
+    density_variations: true # Variations densité
+
+# ============================================================================
+# MASKED AUTOENCODING - PARAMÈTRES
+# ============================================================================
+masked_autoencoding:
+  # Stratégie masquage
+  masking_strategy:
+    mask_ratio: 0.25 # 25% points masqués
+    masking_pattern: "random" # Motif masquage aléatoire
+    adaptive_masking: true # Masquage adaptatif selon complexité
+
+  # Architecture autoencoder
+  autoencoder_architecture:
+    encoder_layers: [256, 512, 256]
+    decoder_layers: [256, 512, 256]
+    latent_dim: 128
+    skip_connections: true
+
+  # Loss reconstruction
+  reconstruction_loss:
+    l2_loss: true # Loss L2 principale
+    perceptual_loss: false # Loss perceptuelle (optionnelle)
+    adversarial_loss: false # Loss adversariale (optionnelle)
+
+# ============================================================================
+# GROUND TRUTH - PSEUDO-LABELS AUTO-SUPERVISÉS
+# ============================================================================
+ground_truth:
+  enabled: true
+  mode: "pseudo_labeling" # Pseudo-étiquetage
+
+  # Génération pseudo-labels
+  pseudo_labeling:
+    confidence_threshold: 0.8 # Seuil confiance pseudo-labels
+    iterative_refinement: true # Raffinement itératif
+    consistency_regularization: true # Régularisation cohérence
+
+  # Sources pour validation
+  fetch_buildings: true
+  fetch_roads: false
+  fetch_water: false
+  fetch_vegetation: false
+
+  # Paramètres conservateurs
+  building_buffer: 0.5
+  preserve_building_nature: true
+
+# ============================================================================
+# TRAINING - CONFIGURATION APPRENTISSAGE
+# ============================================================================
+training:
+  # Paramètres optimisation
+  optimizer:
+    type: "adamw"
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    betas: [0.9, 0.999]
+
+  # Scheduler learning rate
+  lr_scheduler:
+    type: "cosine_annealing"
+    T_max: 100
+    eta_min: 0.00001
+
+  # Paramètres training
+  training_params:
+    epochs: 100
+    batch_size: 64
+    accumulation_steps: 1 # Accumulation gradients
+    clip_grad_norm: 1.0 # Clipping gradients
+
+  # Validation
+  validation:
+    validation_split: 0.2 # 20% validation
+    validation_frequency: 5 # Validation tous les 5 epochs
+    early_stopping_patience: 15 # Arrêt précoce
+
+# ============================================================================
+# DATA SOURCES - MINIMALES SELF-SUPERVISED
+# ============================================================================
+data_sources:
+  # Sources minimales (auto-supervisé)
+  bd_topo_enabled: true
+  bd_topo_buildings: true # Seulement pour validation
+  bd_topo_roads: false
+  bd_topo_water: false
+  bd_topo_vegetation: false
+
+  # Pas de sources externes nécessaires
+  cadastre_enabled: false
+  fetch_orthophotos: true # RGB pour features visuelles
+  fetch_infrared: false
+
+# ============================================================================
+# EVALUATION - MÉTRIQUES SELF-SUPERVISED
+# ============================================================================
+evaluation:
+  # Métriques intrinsèques
+  intrinsic_metrics:
+    reconstruction_error: true # Erreur reconstruction
+    contrastive_accuracy: true # Précision contrastive
+    feature_quality: true # Qualité features apprises
+
+  # Métriques downstream
+  downstream_metrics:
+    classification_accuracy: true # Précision classification
+    segmentation_quality: true # Qualité segmentation
+    transfer_learning_performance: true # Performance transfer learning
+
+  # Métriques représentations
+  representation_metrics:
+    feature_separability: true # Séparabilité features
+    cluster_quality: true # Qualité clusters
+    dimensionality_analysis: true # Analyse dimensionalité
+
+# ============================================================================
+# OUTPUT - SPÉCIALISÉ SELF-SUPERVISED
+# ============================================================================
+output:
+  format: "las"
+  compression: true
+  precision: 0.01
+
+  # Outputs spécialisés training
+  training_outputs:
+    model_checkpoints: true # Checkpoints modèle
+    learned_features: true # Features apprises
+    training_logs: true # Logs training
+    validation_metrics: true # Métriques validation
+
+  # Outputs évaluation
+  evaluation_outputs:
+    feature_visualizations: true # Visualisations features
+    cluster_analysis: true # Analyse clusters
+    representation_analysis: true # Analyse représentations
+
+# ============================================================================
+# MONITORING - TRAINING MONITORING
+# ============================================================================
+monitoring:
+  # Monitoring training
+  training_monitoring:
+    loss_tracking: true # Suivi loss
+    gradient_tracking: true # Suivi gradients
+    learning_rate_tracking: true # Suivi learning rate
+
+  # Monitoring système
+  system_monitoring:
+    gpu_utilization: true # Utilisation GPU
+    memory_usage: true # Usage mémoire
+    training_speed: true # Vitesse training
+
+  # Alertes
+  alerts:
+    loss_explosion: true # Explosion loss
+    gradient_explosion: true # Explosion gradients
+    memory_overflow: true # Débordement mémoire
+
+# ============================================================================
+# PERFORMANCE - OPTIMISÉE TRAINING
+# ============================================================================
+performance:
+  max_workers: 1 # Training GPU séquentiel
+  prefetch_factor: 4 # Prefetch élevé pour training
+  pin_memory: true
+
+  # Optimisations training
+  training_optimizations:
+    mixed_precision: true # Précision mixte
+    gradient_checkpointing: false # Checkpointing gradients
+    dataloader_optimization: true # Optimisation dataloader
+
+  # Cache training
+  training_cache:
+    cache_preprocessed_data: true # Cache données preprocessées
+    cache_augmented_data: false # Pas de cache augmentations
+    persistent_workers: true # Workers persistants

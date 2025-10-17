@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 2.5.3** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
+**Version 4.0.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [⚙️ Configuration v4.0](configs/README.md)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -34,7 +34,35 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ---
 
-## ✨ What's New in v2.5.4
+## ✨ What's New in v4.0.0
+
+### 🎯 **Unified Configuration System**
+
+**v4.0.0 introduces a completely redesigned configuration architecture!**
+
+- **Unified Schema**: Single, coherent configuration system replacing fragmented v2.x/v3.0 configs
+- **GPU Optimized**: Default configurations deliver >80% GPU utilization (vs 17% in legacy)
+- **Smart Presets**: Ready-to-use configs for common scenarios
+- **Hardware Profiles**: Optimized settings for RTX 4080, RTX 3080, CPU fallback
+- **Migration Tools**: Automatic conversion from legacy configurations
+
+```bash
+# New simplified usage with presets
+./scripts/run_processing.sh --preset gpu_optimized --input /data/tiles
+
+# Hardware-specific optimization
+./scripts/run_processing.sh --preset asprs_classification --hardware rtx4080
+
+# Migration from legacy configs
+python scripts/migrate_config_v4.py --input old_config.yaml --output new_config.yaml
+```
+
+**Performance Improvements:**
+
+- ⚡ **10-100× faster** ground truth processing with forced GPU acceleration
+- 🎮 **>80% GPU utilization** (vs 17% with CPU fallback in legacy configs)
+- 🔧 **<10 CLI parameters** needed (vs 50+ in legacy scripts)
+- 📦 **90 config files → 6** consolidated presets
 
 ### 🆕 Optional Reclassification in Main Pipeline
 

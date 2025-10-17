@@ -1,0 +1,131 @@
+# ============================================================================
+# IGN LiDAR HD - Enrichment Only Preset v4.0
+# ============================================================================
+# Fast enrichment configuration for LAZ processing only (no ML patches)
+# Optimized for maximum speed in production enriched LAZ generation
+#
+# Usage:
+#   ign-lidar-hd process --config-file ign_lidar/configs/presets/enrichment_only.yaml
+#   ign-lidar-hd process --config-name enrichment_only
+#
+# Focus: Speed over detailed features
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/features
+  - ../base/classification
+  - ../base/output
+  - ../config
+  - _self_
+
+# Enrichment-only specific overrides
+processing:
+  mode: "enriched_only" # LAZ enrichment only
+  architecture: "direct" # Direct processing for speed
+
+  # Performance optimized for speed
+  gpu_batch_size: 12_000_000 # Balanced performance/stability
+  gpu_memory_target: 0.85 # Conservative memory usage
+  gpu_streams: 6 # Moderate parallelism
+
+  # Auto-selection for stability
+  ground_truth_method: "auto"
+  reclassification_mode: "auto"
+
+features:
+  mode: "asprs_classes" # Minimal features for speed
+
+  # Reduced parameters for maximum speed
+  k_neighbors: 16 # Reduced from default 20
+  search_radius: 0.8 # Smaller radius for speed
+
+  # Essential features only
+  compute_normals: true
+  compute_planarity: true
+  compute_height_above_ground: true
+  compute_verticality: false # Disabled for speed
+
+  # Disable expensive features
+  compute_architectural_features: false
+  compute_multiscale_features: false
+
+  # Basic spectral features
+  use_rgb: true
+  use_nir: false # Disabled for speed
+  compute_ndvi: false # Requires NIR
+
+data_sources:
+  # Essential BD TOPO sources only
+  bd_topo_buildings: true # Essential for classification
+  bd_topo_roads: true # Essential for classification
+  bd_topo_water: true # Essential for classification
+  bd_topo_vegetation: false # Disabled for speed
+  bd_topo_bridges: false # Optional, disabled for speed
+  bd_topo_power_lines: false # Optional, disabled for speed
+
+  # Disable slow sources
+  cadastre_enabled: false # Very slow, disabled
+  bd_foret_enabled: false # Not needed for basic enrichment
+  rpg_enabled: false # Not needed for basic enrichment
+
+  # Basic orthophotos only
+  orthophoto_rgb: true
+  orthophoto_nir: false # Disabled for speed
+
+classification:
+  enabled: true
+  use_ground_truth: true # BD TOPO ground truth
+  use_geometric_rules: true # Basic geometric rules
+  use_ndvi_classification: false # Disabled without NIR
+
+  # Standard thresholds
+  height_low_vegetation: 0.5
+  height_medium_vegetation: 2.0
+  planarity_road: 0.85
+  planarity_building: 0.75
+
+preprocess:
+  enabled: false # Disabled for speed
+
+output:
+  format: "laz" # LAZ format only
+  save_enriched: true
+  save_patches: false # No ML patches
+  save_metadata: false # Minimal metadata for speed
+  save_stats: true
+
+monitoring:
+  log_level: "WARNING" # Reduced logging for speed
+  enable_performance_metrics: true
+
+optimization:
+  level: "aggressive" # Aggressive optimization for speed
+  memory_management: "aggressive"
+# ============================================================================
+# Enrichment Only Performance Notes
+# ============================================================================
+#
+# Optimized for:
+# - Maximum processing speed
+# - Production LAZ enrichment
+# - Batch processing workflows
+# - Minimal resource usage
+#
+# Performance expectations:
+# - Processing time: ~30s-1 min per tile (GPU)
+# - Memory usage: Conservative
+# - Feature quality: Basic but sufficient
+# - Classification accuracy: Good for standard ASPRS classes
+#
+# Speed optimizations:
+# - Reduced neighborhood size (k=16 vs k=20)
+# - Disabled expensive features (NIR, NDVI, architectural)
+# - Minimal data sources (BD TOPO core only)
+# - No preprocessing overhead
+# - Aggressive optimization settings
+#
+# - Mode le plus rapide
+# - Sortie: LAZ enrichis uniquement
+# - Pas de patches ML
+# - Idéal pour production batch

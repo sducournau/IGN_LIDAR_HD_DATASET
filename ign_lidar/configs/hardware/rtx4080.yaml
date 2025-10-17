@@ -1,0 +1,79 @@
+# ============================================================================
+# IGN LiDAR HD - RTX 4080 Hardware Configuration v4.0
+# ============================================================================
+# Optimized configuration for NVIDIA RTX 4080
+# VRAM: 16GB GDDR6X | CUDA Cores: 9728 | Memory Bandwidth: 717 GB/s
+#
+# Usage:
+#   ign-lidar-hd process --config-name rtx4080
+#   ign-lidar-hd process --config-path ign_lidar/configs/hardware --config-name rtx4080
+#
+# Expected performance: >80% GPU utilization, ~1-2 min per tile
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/performance
+  - ../config
+  - _self_
+
+# Override for RTX 4080 optimization
+processing:
+  use_gpu: true
+
+  # RTX 4080 optimized GPU settings
+  gpu_batch_size: 16_000_000 # 16M points (~12-14GB VRAM usage)
+  gpu_memory_target: 0.90 # 90% VRAM utilization (~14.4GB)
+  gpu_streams: 8 # Optimal for Ada Lovelace architecture
+
+  # Ground truth processing
+  ground_truth_method: "gpu_chunked" # Force GPU chunked for RTX 4080
+  ground_truth_chunk_size: 5_000_000 # 5M points per chunk
+
+  # Reclassification
+  reclassification_mode: "gpu" # Force GPU reclassification
+  reclassification_chunk_size: 5_000_000
+
+  # RTX 4080 specific optimizations
+  enable_memory_pooling: true # Important for Ada Lovelace
+  enable_async_transfers: true # High memory bandwidth
+  enable_mixed_precision: true # 4th gen Tensor Cores
+  adaptive_chunk_sizing: true # Dynamic adaptation
+
+features:
+  # Standard parameters work well with RTX 4080
+  k_neighbors: 20
+  search_radius: 1.0
+
+  # RTX 4080 can handle slightly larger neighborhoods
+  mode: "asprs_classes" # Balance between features and speed
+
+monitoring:
+  # Enhanced monitoring for GPU optimization
+  enable_gpu_monitoring: true
+  enable_performance_metrics: true
+  log_level: "INFO"
+
+optimization:
+  level: "aggressive" # RTX 4080 can handle aggressive optimization
+  memory_management: "aggressive" # Use available VRAM efficiently
+
+# ============================================================================
+# RTX 4080 Performance Notes
+# ============================================================================
+#
+# Recommended for:
+# - High-performance workstations
+# - Batch processing multiple tiles
+# - Mixed feature computation workloads
+#
+# Expected performance:
+# - Features: ~20-40s per tile
+# - Ground truth: ~10-20s per tile
+# - Total: ~1-2 minutes per tile
+#
+# Memory usage:
+# - Base features: ~8-10GB VRAM
+# - Ground truth: ~4-6GB VRAM
+# - Peak usage: ~14-15GB VRAM (90% of 16GB)
+#

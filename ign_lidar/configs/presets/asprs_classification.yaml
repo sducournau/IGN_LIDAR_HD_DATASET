@@ -1,0 +1,115 @@
+# ============================================================================
+# IGN LiDAR HD - ASPRS Classification Preset v4.0
+# ============================================================================
+# Optimized configuration for ASPRS LAS 1.4 standard classification
+# Focuses on standard ASPRS classes: Ground, Buildings, Vegetation, Water, etc.
+#
+# Usage:
+#   ign-lidar-hd process --config-name asprs_classification_v4
+#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name asprs_classification_v4
+#
+# Target classes: ASPRS standard (1-18)
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/features
+  - ../base/data_sources
+  - ../base/classification
+  - ../base/output
+  - ../config
+  - _self_
+
+# ASPRS-specific overrides
+processing:
+  lod_level: "ASPRS" # Use ASPRS classification scheme
+  mode: "enriched_only" # Focus on enriched LAZ output
+
+  # Optimized for ASPRS feature requirements
+  gpu_batch_size: 12_000_000 # Balanced for ASPRS features
+  gpu_memory_target: 0.85 # Conservative memory usage
+
+features:
+  mode: "asprs_classes" # ASPRS-optimized feature set
+
+  # Essential features for ASPRS classification
+  k_neighbors: 20
+  search_radius: 1.0
+  compute_normals: true
+  compute_planarity: true
+  compute_height_above_ground: true
+  compute_verticality: true # Important for buildings vs vegetation
+
+  # Spectral features for vegetation/ground distinction
+  use_rgb: true
+  use_nir: true # Optional, slow to fetch
+  compute_ndvi: true # Requires NIR
+
+data_sources:
+  # Essential sources for ASPRS ground truth
+  bd_topo_buildings: true # ASPRS Class 6 (Buildings)
+  bd_topo_roads: true # ASPRS Class 11 (Roads)
+  bd_topo_water: true # ASPRS Class 9 (Water)
+  bd_topo_vegetation: true # ASPRS Class 3/4/5 (Vegetation)
+  bd_topo_bridges: true # ASPRS Class 17 (Bridges)
+  bd_topo_power_lines: true # ASPRS Class 14 (optional)
+
+  # Orthophotos for spectral features
+  orthophoto_rgb: true
+  orthophoto_nir: true # Optional for NDVI
+
+classification:
+  enabled: true
+  use_ground_truth: true # BD TOPO ground truth
+  use_geometric_rules: true # Geometric classification rules
+  use_ndvi_classification: true # Enabled with NIR
+
+  # ASPRS-specific thresholds
+  height_low_vegetation: 0.5 # 0.5m threshold for low vegetation
+  height_medium_vegetation: 2.0 # 2.0m threshold for medium vegetation
+  planarity_road: 0.85 # High planarity for roads
+  planarity_building: 0.75 # Moderate planarity for buildings
+
+preprocess:
+  enabled: true # Enable preprocessing for quality
+  statistical_outlier_removal:
+    enabled: true
+    k_neighbors: 12
+    std_threshold: 2.0
+
+output:
+  format: "laz" # LAZ format for ASPRS compatibility
+  save_enriched: true
+  save_metadata: true
+  save_stats: true
+
+monitoring:
+  log_level: "INFO"
+  enable_performance_metrics: true
+# ============================================================================
+# ASPRS Classification Notes
+# ============================================================================
+#
+# Target ASPRS classes:
+# - Class 1: Unclassified
+# - Class 2: Ground
+# - Class 3: Low Vegetation (< 0.5m)
+# - Class 4: Medium Vegetation (0.5-2m)
+# - Class 5: High Vegetation (> 2m)
+# - Class 6: Buildings
+# - Class 9: Water
+# - Class 11: Roads
+# - Class 17: Bridges (optional)
+#
+# Performance expectations:
+# - Enriched LAZ output with ASPRS classifications
+# - Processing time: ~1-3 minutes per tile (GPU)
+# - High accuracy on buildings, roads, water
+# - Good vegetation height classification
+#
+# Quality factors:
+# - Ground truth from BD TOPO for buildings/roads/water
+# - Height-based vegetation classification
+# - Geometric rules for road/building distinction
+# - Optional spectral features with orthophotos
+#

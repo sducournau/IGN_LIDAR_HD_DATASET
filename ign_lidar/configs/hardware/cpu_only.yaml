@@ -1,0 +1,105 @@
+# ============================================================================
+# IGN LiDAR HD - CPU-Only Hardware Configuration v4.0
+# ============================================================================
+# Optimized configuration for CPU-only processing (no GPU available)
+# Designed for compatibility and fallback scenarios
+#
+# Usage:
+#   ign-lidar-hd process --config-name cpu_only
+#   ign-lidar-hd process --config-path ign_lidar/configs/hardware --config-name cpu_only
+#
+# Expected performance: ~5-15 min per tile (varies by CPU)
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/performance
+  - ../config
+  - _self_
+
+# Override for CPU-only processing
+processing:
+  use_gpu: false # Disable GPU
+  num_workers: 4 # Use multiple CPU cores
+
+  # CPU processing settings
+  gpu_batch_size: 1_000_000 # Smaller batches for CPU
+  gpu_memory_target: 0.0 # Not applicable for CPU
+  gpu_streams: 0 # Not applicable for CPU
+
+  # Ground truth processing - CPU method
+  ground_truth_method: "cpu" # Force CPU processing
+  ground_truth_chunk_size: 500_000 # Smaller chunks for CPU
+
+  # Reclassification - CPU method
+  reclassification_mode: "cpu" # Force CPU reclassification
+  reclassification_chunk_size: 500_000
+
+  # CPU optimizations
+  enable_memory_pooling: false # Not beneficial for CPU
+  enable_async_transfers: false # Not applicable for CPU
+  enable_mixed_precision: false # Not supported on CPU
+  adaptive_chunk_sizing: false # Fixed chunking for CPU
+
+features:
+  # Conservative parameters for CPU processing
+  k_neighbors: 16 # Reduced for CPU efficiency
+  search_radius: 0.8 # Smaller search radius
+  mode: "minimal" # Minimal feature set for speed
+
+  # Disable expensive features
+  compute_architectural_features: false
+  compute_multiscale_features: false
+  use_nir: false # Slow on CPU
+  compute_ndvi: false # Requires NIR
+
+data_sources:
+  # Disable slow data sources for CPU
+  bd_topo_vegetation: false # Very slow on CPU
+  orthophoto_nir: false # Slow to fetch and process
+  cadastre_enabled: false # Very slow on CPU
+
+preprocess:
+  enabled: false # Disable preprocessing for speed
+
+monitoring:
+  # CPU-focused monitoring
+  enable_gpu_monitoring: false # No GPU to monitor
+  enable_performance_metrics: true
+  log_level: "WARNING" # Reduced logging for speed
+
+optimization:
+  level: "conservative" # Conservative CPU optimization
+  memory_management: "conservative"
+  enable_parallel_processing: true # Use multiple CPU cores
+
+# ============================================================================
+# CPU-Only Performance Notes
+# ============================================================================
+#
+# Recommended for:
+# - Systems without compatible GPU
+# - Testing and development
+# - Small-scale processing
+# - Fallback scenarios
+#
+# Expected performance (varies by CPU):
+# - Features: ~3-8 minutes per tile
+# - Ground truth: ~2-5 minutes per tile
+# - Total: ~5-15 minutes per tile
+#
+# Memory usage:
+# - System RAM: ~2-4GB per tile
+# - No GPU memory required
+#
+# Performance tips:
+# - Use fewer workers if memory constrained
+# - Process smaller tiles if possible
+# - Consider disabling complex features
+# - Use SSD storage for better I/O performance
+#
+# CPU compatibility:
+# - Modern multi-core CPUs recommended (8+ cores)
+# - Minimum 16GB RAM for comfortable processing
+# - AVX2 instruction set beneficial but not required
+#

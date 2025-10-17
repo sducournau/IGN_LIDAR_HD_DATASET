@@ -1,0 +1,290 @@
+# ============================================================================
+# IGN LiDAR HD - Example: BD TOPO Ground Truth Integration v4.0
+# ============================================================================
+# Demonstrates comprehensive BD TOPO integration using base configurations
+# Optimized for high-quality ground truth classification using IGN reference data
+#
+# Usage:
+#   ign-lidar-hd process --config-file configs/base/example_bd_topo.yaml
+#
+# This example shows:
+# - BD TOPO data source configuration
+# - Ground truth integration
+# - Classification with external reference data
+# ============================================================================
+
+# Include relevant base configurations
+defaults:
+  - features # Feature computation optimized for classification
+  - data_sources # External data source configuration
+  - ground_truth # Ground truth processing
+  - classification # Classification with ground truth
+  - output # Output with validation
+  - _self_ # This file overrides
+
+# ============================================================================
+# METADATA
+# ============================================================================
+config_version: "4.0.1"
+config_name: "bd_topo_integration_example"
+config_description: "BD TOPO ground truth integration example"
+
+# ============================================================================
+# FEATURE COMPUTATION FOR GROUND TRUTH
+# ============================================================================
+features:
+  mode: "asprs_classes" # Optimized for ASPRS classification with ground truth
+
+  # Enhanced neighborhood analysis for better ground truth matching
+  k_neighbors: 30
+  search_radius: 2.0 # Larger radius for stable features
+
+  # Essential features for ground truth integration
+  compute_normals: true
+  compute_planarity: true
+  compute_height_above_ground: true
+  compute_verticality: true # Important for building/vegetation distinction
+
+  # Spectral features for vegetation classification
+  use_rgb: true # RGB for material/vegetation distinction
+  use_nir: false # Disabled for performance
+
+  # Feature normalization for consistency
+  normalize_xyz: true
+  normalize_features: true
+
+# ============================================================================
+# BD TOPO DATA SOURCES (COMPREHENSIVE)
+# ============================================================================
+data_sources:
+  # Enable all major BD TOPO features
+  bd_topo_buildings: true # ASPRS Class 6 (Buildings)
+  bd_topo_roads: true # ASPRS Class 11 (Roads)
+  bd_topo_railways: true # ASPRS Class 11 (Railways)
+  bd_topo_water: true # ASPRS Class 9 (Water)
+  bd_topo_vegetation: true # ASPRS Classes 3,4,5 (Vegetation)
+  bd_topo_bridges: true # ASPRS Class 17 (Bridges)
+  bd_topo_parking: true # ASPRS Class 11 (Parking)
+  bd_topo_cemeteries: true # ASPRS Class 2 (Cemeteries)
+  bd_topo_power_lines: false # ASPRS Class 14 (Optional, slow)
+  bd_topo_sports: true # ASPRS Class 11 (Sports facilities)
+
+  # Enhanced buffer parameters for better coverage
+  bd_topo_road_width_fallback: 6.0 # Wider roads for better coverage
+  bd_topo_railway_width_fallback: 4.0 # Wider railways
+  bd_topo_building_buffer: 0.3 # Small buffer for building precision
+  bd_topo_water_buffer: 1.0 # Buffer for water body edges
+
+  # RGB orthophotos for spectral enhancement
+  orthophoto_rgb: true
+  orthophoto_resolution: 0.2 # High resolution
+
+  # Optimized fetching for BD TOPO
+  fetching:
+    parallel_requests: 8 # More parallel requests for BD TOPO
+    chunk_size: 3000 # Larger chunks for efficiency
+    timeout: 45 # Longer timeout for complex queries
+    cache_enabled: true # Enable caching for repeated processing
+    cache_expiry: 604800 # 1 week cache expiry
+
+# ============================================================================
+# GROUND TRUTH INTEGRATION
+# ============================================================================
+ground_truth:
+  enabled: true
+  method: "gpu_chunked" # Use GPU for large datasets
+  chunk_size: 3_000_000 # Larger chunks for BD TOPO processing
+
+  # BD TOPO configuration
+  bd_topo:
+    enabled: true # Auto-enabled based on data_sources
+
+    # Enhanced classification mapping
+    classification_mapping:
+      buildings: 6 # ASPRS Building
+      roads: 11 # ASPRS Road
+      railways: 11 # ASPRS Road (railways)
+      water: 9 # ASPRS Water
+      low_vegetation: 3 # ASPRS Low vegetation
+      medium_vegetation: 4 # ASPRS Medium vegetation
+      high_vegetation: 5 # ASPRS High vegetation
+      bridges: 17 # ASPRS Bridge
+      parking: 11 # ASPRS Road (parking)
+      cemeteries: 2 # ASPRS Ground
+      sports: 11 # ASPRS Road (sports facilities)
+
+  # Priority-based integration with BD TOPO as primary source
+  integration:
+    method: "priority_based"
+    priority:
+      bd_topo: 100 # Highest priority for BD TOPO
+      orthophoto: 50 # Medium priority for spectral analysis
+      geometric_rules: 10 # Lowest priority for fallback
+
+    # Strict conflict resolution favoring BD TOPO
+    conflict_resolution:
+      method: "highest_priority"
+      confidence_threshold: 0.9 # High confidence for BD TOPO
+
+  # Enhanced quality control
+  quality_control:
+    enabled: true
+    validate_geometries: true
+    check_coverage: true
+    min_coverage_ratio: 0.3 # Expect good BD TOPO coverage
+
+# ============================================================================
+# CLASSIFICATION WITH GROUND TRUTH
+# ============================================================================
+classification:
+  enabled: true
+
+  # Prioritize ground truth over geometric rules
+  use_ground_truth: true # Primary classification method
+  use_geometric_rules: true # Fallback for uncovered areas
+  use_ndvi_classification: false # Disabled (no NIR)
+
+  # Refined geometric rules as fallback
+  geometric_rules:
+    # ASPRS standard vegetation thresholds
+    height_low_vegetation: 0.5
+    height_medium_vegetation: 2.0
+    height_high_vegetation: 5.0
+
+    # Enhanced planarity thresholds
+    planarity_ground: 0.95
+    planarity_road: 0.88
+    planarity_building: 0.70
+    planarity_roof: 0.85
+
+    # Building detection (fallback for missing BD TOPO)
+    building_min_height: 2.5
+    vertical_normal_threshold: 0.6
+
+  # Enhanced post-processing for ground truth integration
+  post_processing:
+    enabled: true
+    apply_morphological_filters: true
+    apply_smoothing: true
+    smoothing_radius: 1.0 # Larger smoothing for BD TOPO integration
+    smoothing_iterations: 3 # More iterations
+
+  # Conservative reclassification (trust ground truth)
+  reclassification:
+    enabled: true
+    reclassify_unclassified: true
+    unclassified_strategy: "geometric_rules"
+    confidence_based: true
+    min_confidence: 0.8 # High confidence threshold
+
+# ============================================================================
+# OUTPUT WITH GROUND TRUTH VALIDATION
+# ============================================================================
+output:
+  format: "laz"
+
+  # Comprehensive output for ground truth analysis
+  save_enriched: true
+  save_metadata: true # Important for ground truth provenance
+  save_stats: true # Classification statistics
+  save_logs: true # Detailed processing logs
+
+  # Enhanced LAZ with ground truth attribution
+  las_settings:
+    las_version: "1.4"
+    point_format: 6 # RGB + GPS time
+    compression_level: 7
+    extra_bytes: true # Store ground truth source information
+    include_confidence: true # Include classification confidence
+
+  # Comprehensive validation for ground truth quality
+  validation:
+    enabled: true
+    validate_file_format: true
+    validate_classifications: true
+    check_missing_data: true
+    compute_quality_metrics: true
+    quality_report: true
+
+  # Detailed statistics for ground truth analysis
+  statistics:
+    enabled: true
+    point_count_stats: true
+    classification_stats: true
+    height_stats: true
+    spatial_stats: true # Spatial distribution analysis
+    format: "json"
+
+  # Organized output with ground truth metadata
+  organization:
+    preserve_input_structure: true
+    add_suffix: true
+    suffix_format: "_bd_topo_enriched"
+
+# ============================================================================
+# PROCESSING CONFIGURATION
+# ============================================================================
+processing:
+  mode: "enriched_only"
+  lod_level: "ASPRS"
+  use_gpu: true
+  num_workers: 1
+  gpu_batch_size: 12_000_000 # Larger batches for ground truth processing
+
+# ============================================================================
+# PERFORMANCE OPTIMIZATION FOR BD TOPO
+# ============================================================================
+performance:
+  gpu:
+    memory_target: 0.80 # Conservative for complex ground truth processing
+    adaptive_batch_size: true
+
+  memory:
+    max_system_memory: "70%" # Reserve memory for BD TOPO data
+    enable_chunking: true
+
+  monitoring:
+    enabled: true
+    save_performance_metrics: true
+
+# ============================================================================
+# GLOBAL SETTINGS
+# ============================================================================
+cache_dir: "data/cache"
+
+monitoring:
+  log_level: "INFO"
+  verbose: true
+  enable_performance_metrics: true
+
+validation:
+  strict_validation: true
+  check_gpu_availability: true
+# ============================================================================
+# USAGE NOTES
+# ============================================================================
+# This configuration is optimized for high-quality ground truth classification
+# using BD TOPO reference data. It provides:
+#
+# 1. Comprehensive BD TOPO feature integration (buildings, roads, water, etc.)
+# 2. High-quality feature computation optimized for ground truth matching
+# 3. Priority-based classification with BD TOPO as primary source
+# 4. Geometric rules as fallback for uncovered areas
+# 5. Enhanced post-processing and validation
+# 6. Detailed output with ground truth provenance
+#
+# Expected performance (RTX 4080):
+# - ~2-3 minutes per tile (due to BD TOPO fetching)
+# - ~1-2 minutes for BD TOPO data fetching and processing
+# - ~30-60 seconds for feature computation
+# - ~15-30 seconds for classification and post-processing
+#
+# Expected classification quality:
+# - 90-95% accuracy for buildings (with BD TOPO coverage)
+# - 85-90% accuracy for roads and water
+# - 80-85% accuracy for vegetation (depends on BD TOPO vegetation coverage)
+#
+# Requirements:
+# - Internet connection for BD TOPO data fetching
+# - Sufficient disk space for caching BD TOPO data
+# - GPU recommended for large datasets

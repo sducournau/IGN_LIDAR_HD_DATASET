@@ -1,0 +1,125 @@
+# ============================================================================
+# IGN LiDAR HD - Vegetation Analysis Preset v4.0
+# ============================================================================
+# Optimized configuration for vegetation analysis and forest classification
+# Focuses on vegetation height, density, and species classification using NDVI
+#
+# Usage:
+#   ign-lidar-hd process --config-name vegetation_analysis_v4
+#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name vegetation_analysis_v4
+#
+# Specialized for: Forest, vegetation, NDVI analysis
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/features
+  - ../base/data_sources
+  - ../base/classification
+  - ../base/output
+  - ../config
+  - _self_
+
+# Vegetation analysis specific overrides
+processing:
+  lod_level: "ASPRS" # ASPRS for vegetation classification
+  mode: "enriched_only" # Focus on enriched LAZ output
+
+  # Moderate performance for spectral processing
+  gpu_batch_size: 8_000_000 # Smaller batch for NIR processing
+  gpu_memory_target: 0.80 # Conservative for spectral computation
+
+features:
+  mode: "full" # Full features for vegetation analysis
+
+  # Vegetation-optimized features
+  k_neighbors: 20 # Standard neighborhood
+  search_radius: 2.0 # Larger radius for vegetation structure
+  compute_normals: true
+  compute_planarity: false # Less relevant for vegetation
+  compute_height_above_ground: true # Critical for vegetation height
+  compute_verticality: false # Not useful for vegetation
+
+  # Essential spectral features for vegetation
+  use_rgb: true # RGB for visual analysis
+  use_nir: true # NIR essential for NDVI
+  compute_ndvi: true # Primary vegetation indicator
+
+data_sources:
+  # Vegetation-focused data sources
+  bd_topo_buildings: false # Not needed for vegetation
+  bd_topo_roads: false # Not needed for vegetation
+  bd_topo_water: true # Water bodies affect vegetation
+  bd_topo_vegetation: true # Vegetation ground truth
+  bd_topo_bridges: false # Not relevant
+
+  # Forest-specific sources
+  bd_foret_enabled: true # Forest database
+  rpg_enabled: true # Agricultural registry for crop classification
+
+  # Essential for NDVI computation
+  orthophoto_rgb: true
+  orthophoto_nir: true # Required for NDVI
+
+classification:
+  enabled: true
+  use_ground_truth: true # BD TOPO vegetation data
+  use_geometric_rules: true # Height-based classification
+  use_ndvi_classification: true # NDVI-based vegetation classification
+
+  # Vegetation-specific thresholds
+  height_low_vegetation: 0.5 # Low vegetation < 0.5m
+  height_medium_vegetation: 5.0 # Medium vegetation 0.5-5m (trees start here)
+  planarity_road: 0.9 # High planarity excludes vegetation
+  planarity_building: 0.8 # High planarity excludes vegetation
+  ndvi_vegetation: 0.3 # NDVI threshold for vegetation
+
+preprocess:
+  enabled: false # Disable for natural vegetation variance
+
+output:
+  format: "laz"
+  save_enriched: true
+  save_metadata: true
+  save_stats: true
+
+monitoring:
+  log_level: "INFO"
+  enable_performance_metrics: true
+
+optimization:
+  level: "conservative" # Conservative for NIR processing
+  memory_management: "conservative"
+# ============================================================================
+# Vegetation Analysis Notes
+# ============================================================================
+#
+# Specialized for:
+# - Forest classification and analysis
+# - Vegetation height estimation
+# - NDVI-based vegetation health assessment
+# - Agricultural crop classification
+# - Tree species differentiation (basic)
+#
+# Key features enabled:
+# - NIR spectral band processing for NDVI
+# - Height-based vegetation classification
+# - Integration with BD Forêt and RPG databases
+# - Larger search radius for vegetation structure
+# - NDVI computation for vegetation health
+#
+# Performance expectations:
+# - Processing time: ~3-5 minutes per tile (due to NIR)
+# - Detailed vegetation classification
+# - NDVI values for vegetation health
+# - Multi-class vegetation (low/medium/high)
+#
+# Quality factors:
+# - Multi-source ground truth (BD TOPO + BD Forêt + RPG)
+# - NDVI-based classification for accuracy
+# - Height-based vegetation structure analysis
+# - Conservative thresholds for vegetation identification
+#
+# Note: NIR processing significantly increases processing time
+# but provides much better vegetation classification accuracy
+#

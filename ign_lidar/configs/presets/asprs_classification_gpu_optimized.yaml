@@ -1,0 +1,137 @@
+# ============================================================================
+# IGN LiDAR HD - ASPRS Classification GPU Optimized v4.0
+# ============================================================================
+# Optimized configuration for ASPRS LAS 1.4 standard classification
+# OPTIMIZED FOR RTX 4080 SUPER (16GB VRAM)
+#
+# Usage:
+#   ign-lidar-hd process --config-file "ign_lidar/configs/presets/asprs_classification_gpu_optimized.yaml"
+#
+# Key optimizations:
+# - Large GPU batch sizes (16M points) to maximize GPU utilization
+# - GPU chunked processing for memory efficiency
+# - Optimized memory targets and stream settings
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/features
+  - ../base/data_sources
+  - ../base/classification
+  - ../base/output
+  - ../config
+  - _self_
+
+# ASPRS-specific overrides with GPU optimizations
+processing:
+  lod_level: "ASPRS" # Use ASPRS classification scheme
+  mode: "enriched_only" # Focus on enriched LAZ output
+  use_gpu: true
+  use_gpu_chunked: true # IMPORTANT: Enable chunked processing for large batches
+
+  # GPU optimizations for RTX 4080 Super
+  gpu_batch_size: 16_000_000 # OPTIMIZED: 16M points per batch for maximum throughput
+  gpu_memory_target: 0.90 # Use 90% of GPU memory (RTX 4080 Super has plenty)
+  gpu_streams: 8 # More streams for better utilization
+  enable_memory_pooling: true # Faster memory allocation
+  enable_async_transfers: true # Overlap CPU-GPU transfers
+  enable_mixed_precision: false # Disable for stability, can enable for speed
+  adaptive_chunk_sizing: true # Auto-adjust chunk size based on data
+
+processor:
+  use_gpu: true
+  gpu_batch_size: 16_000_000 # Match processing batch size
+
+features:
+  mode: "asprs_classes" # ASPRS-optimized feature set
+  gpu_batch_size: 16_000_000 # OPTIMIZED: Large batch for GPU efficiency
+
+  # Essential features for ASPRS classification
+  k_neighbors: 20
+  search_radius: 1.0
+  compute_normals: true
+  compute_planarity: true
+  compute_height_above_ground: true
+  compute_verticality: true # Important for buildings vs vegetation
+
+  # Spectral features for vegetation/ground distinction
+  use_rgb: true
+  use_nir: true # Optional, slow to fetch but enables NDVI
+  compute_ndvi: true # Requires NIR
+
+data_sources:
+  # Essential sources for ASPRS ground truth
+  bd_topo_buildings: true # ASPRS Class 6 (Buildings)
+  bd_topo_roads: true # ASPRS Class 11 (Roads)
+  bd_topo_water: true # ASPRS Class 9 (Water)
+  bd_topo_vegetation: true # ASPRS Class 3/4/5 (Vegetation)
+  bd_topo_bridges: true # ASPRS Class 17 (Bridges)
+  bd_topo_power_lines: true # ASPRS Class 14 (optional)
+
+  # Orthophotos for spectral features
+  orthophoto_rgb: true
+  orthophoto_nir: true # Optional for NDVI
+
+classification:
+  enabled: true
+  use_ground_truth: true # BD TOPO ground truth
+  use_geometric_rules: true # Geometric classification rules
+  use_ndvi_classification: true # Enabled with NIR
+
+  # ASPRS-specific thresholds
+  height_low_vegetation: 0.5 # 0.5m threshold for low vegetation
+  height_medium_vegetation: 2.0 # 2.0m threshold for medium vegetation
+  planarity_road: 0.85 # High planarity for roads
+  planarity_building: 0.75 # Moderate planarity for buildings
+
+preprocess:
+  enabled: true # Enable preprocessing for quality
+  statistical_outlier_removal:
+    enabled: true
+    k_neighbors: 12
+    std_threshold: 2.0
+
+output:
+  format: "laz" # LAZ format for ASPRS compatibility
+  save_enriched: true
+  save_metadata: true
+  save_stats: true
+
+monitoring:
+  log_level: "INFO"
+  enable_performance_metrics: true
+  enable_gpu_monitoring: true # Monitor GPU usage
+  verbose: true
+
+optimization:
+  level: "aggressive" # Use aggressive optimizations
+  enable_auto_tuning: true # Auto-tune batch sizes
+  memory_management: "cuda" # Use CUDA memory management
+  enable_parallel_processing: true
+  enable_caching: true
+# ============================================================================
+# GPU Optimization Notes for RTX 4080 Super
+# ============================================================================
+#
+# RTX 4080 Super specifications:
+# - 16GB GDDR6X VRAM
+# - 10,240 CUDA cores
+# - Memory bandwidth: 736 GB/s
+#
+# Optimizations applied:
+# 1. Large batch sizes (16M points) to keep GPU busy
+# 2. Chunked processing to handle memory efficiently
+# 3. Multiple streams for overlapping computation
+# 4. Async transfers to minimize CPU-GPU wait times
+# 5. Memory pooling for faster allocation
+#
+# Expected performance:
+# - GPU utilization: 85-95%
+# - Processing time: ~30-60s per tile (down from 3+ minutes CPU)
+# - Memory usage: ~12-14GB VRAM (90% of 16GB)
+#
+# Monitoring:
+# - Use scripts/monitor_gpu_usage.py to track utilization
+# - Check nvidia-smi during processing
+# - Monitor for memory allocation errors
+#

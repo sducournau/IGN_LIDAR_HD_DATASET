@@ -1,35 +1,45 @@
-# IGN LiDAR HD v2.0 - Root Configuration
+# ============================================================================
+# IGN LiDAR HD Dataset - Configuration v4.0 Unified & Simplified
+# ============================================================================
+# Default configuration for IGN LiDAR HD processing with simplified schema
 #
-# This is the main configuration file that composes all sub-configurations.
-# Use Hydra to override values: python -m ign_lidar.cli.main processor.use_gpu=true
-# Use experiments: python -m ign_lidar.cli.main experiment=buildings_lod2
+# This configuration provides a clean, unified interface that:
+# - Simplifies parameter naming and reduces nesting
+# - Provides sensible defaults for most use cases
+# - Enables easy hardware-specific optimization
+# - Supports all processing modes (enriched_only, patches_only, both)
+#
+# Version: 4.0.1
+# Date: 2025-10-17
+# Compatibility: RTX 4080, RTX 3080, RTX 4090, CPU fallback
+# ============================================================================
 
+# Include base configurations for modular design
 defaults:
-  - processor: default
-  - features: full
-  - preprocess: default
-  - stitching: enabled
-  - output: default
-  - ground_truth: disabled
+  - base/features
+  - base/data_sources
+  - base/classification
+  - base/output
+  - base/performance
+  - base/hardware
+  - base/logging
   - _self_
-  - optional experiment: null # Optional experiment presets (override config defaults)
 
 # ============================================================================
-# I/O PATHS (Required - must be provided via command line or override)
+# CONFIGURATION METADATA
 # ============================================================================
-input_dir: ??? # Path to directory containing LAZ files
-output_dir: ??? # Path to output directory for patches
+config_version: "4.0.1"
+config_name: "default"
+config_description: "IGN LiDAR HD v4.0 - Unified Default Configuration"
 
 # ============================================================================
-# GLOBAL SETTINGS
+# INPUT/OUTPUT PATHS
 # ============================================================================
-num_workers: 4 # Number of parallel workers
-verbose: true # Verbose logging
-log_level: INFO # Logging level (DEBUG, INFO, WARNING, ERROR)
+input_dir: null # Specify via CLI or override
+output_dir: null # Specify via CLI or override
+cache_dir: ".cache/ign_lidar"
 
-# ============================================================================
-# BOUNDING BOX (Optional spatial filtering)
-# ============================================================================
+# Optional bounding box (WGS84 format)
 bbox:
   xmin: null
   ymin: null
@@ -37,34 +47,250 @@ bbox:
   ymax: null
 
 # ============================================================================
-# HYDRA CONFIGURATION
+# PROCESSING CONFIGURATION (UNIFIED v4.0 SCHEMA)
 # ============================================================================
-hydra:
-  run:
-    # Output directory for this run
-    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+processing:
+  # Core processing mode
+  mode: "enriched_only" # Options: enriched_only, patches_only, both
 
-  sweep:
-    # Output directory for multi-run sweeps
-    dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
-    subdir: ${hydra.job.num}
+  # Target level of detail
+  lod_level: "ASPRS" # Options: ASPRS, LOD2, LOD3
 
-  job:
-    # Job configuration
-    name: ign_lidar_hd
-    chdir: false # Don't change working directory
+  # Processing architecture
+  architecture: "direct" # Options: direct, patches, hybrid
 
-  job_logging:
-    # Logging configuration for jobs
-    version: 1
-    formatters:
-      simple:
-        format: "[%(levelname)s] %(message)s"
-    handlers:
-      console:
-        class: logging.StreamHandler
-        formatter: simple
-        stream: ext://sys.stdout
-    root:
-      level: INFO
-      handlers: [console]
+  # Performance settings
+  use_gpu: true
+  num_workers: 1 # GPU processing works best with 1 worker
+  skip_existing: false
+
+  # GPU configuration (unified)
+  gpu_batch_size: 8_000_000 # 8M points per batch
+  gpu_memory_target: 0.85 # Use 85% of available VRAM
+  gpu_streams: 6 # CUDA streams for parallel processing
+
+  # Ground truth processing
+  ground_truth_method: "auto" # Options: auto, gpu_chunked, gpu, cpu
+  ground_truth_chunk_size: 2_000_000
+
+  # Reclassification
+  reclassification_mode: "auto" # Options: auto, gpu, cpu
+  reclassification_chunk_size: 2_000_000
+
+  # Advanced optimizations
+  enable_memory_pooling: true
+  enable_async_transfers: true
+  enable_mixed_precision: false # Disabled for stability
+  adaptive_chunk_sizing: true
+
+# ============================================================================
+# BACKWARD COMPATIBILITY LAYER (TEMPORARY)
+# ============================================================================
+# NOTE: This section provides compatibility with existing processor code
+# that expects the legacy nested structure. Will be removed in v5.0
+processor:
+  lod_level: "ASPRS"
+  processing_mode: "enriched_only"
+  architecture: "direct"
+  use_gpu: true
+  num_workers: 1
+  skip_existing: false
+  patch_size: 150.0
+  num_points: 16384
+  output_format: "laz"
+  use_stitching: false
+  augment: false
+  num_augmentations: 3
+
+# ============================================================================
+# FEATURE COMPUTATION (SIMPLIFIED)
+# ============================================================================
+features:
+  # Feature computation mode
+  mode: "asprs_classes" # Options: minimal, asprs_classes, lod2, lod3, full
+
+  # Neighborhood parameters
+  k_neighbors: 20
+  search_radius: 1.0
+
+  # Basic geometric features
+  compute_normals: true
+  compute_planarity: true
+  compute_height_above_ground: true
+  compute_verticality: false # Disabled for ASPRS by default
+
+  # Spectral features
+  use_rgb: true
+  use_nir: false # Slow to fetch, disabled by default
+  compute_ndvi: false # Requires NIR
+
+  # Advanced features (disabled by default for performance)
+  compute_architectural_features: false
+  compute_multiscale_features: false
+  include_architectural_style: false # Legacy support
+
+  # Normalization settings
+  normalize_xyz: true
+  normalize_features: true
+
+# ============================================================================
+# DATA SOURCES (SIMPLIFIED EXTERNAL DATA CONFIGURATION)
+# ============================================================================
+data_sources:
+  # BD TOPO (primary source for ground truth)
+  bd_topo_buildings: true # ASPRS Class 6 (Buildings)
+  bd_topo_roads: true # ASPRS Class 11 (Roads)
+  bd_topo_water: true # ASPRS Class 9 (Water)
+  bd_topo_vegetation: false # ASPRS Class 3/4/5 (slow, disabled by default)
+  bd_topo_bridges: false # ASPRS Class 17 (optional)
+  bd_topo_power_lines: false # ASPRS Class 14 (optional)
+
+  # Orthophotos
+  orthophoto_rgb: true # RGB orthophotos
+  orthophoto_nir: false # NIR orthophotos (slow to fetch)
+
+  # Optional external sources
+  cadastre_enabled: false # Cadastral data (slow)
+  bd_foret_enabled: false # Forest database
+  rpg_enabled: false # Agricultural registry
+
+# ============================================================================
+# CLASSIFICATION CONFIGURATION
+# ============================================================================
+classification:
+  enabled: true
+
+  # Classification methods (by priority)
+  use_ground_truth: true # BD TOPO ground truth
+  use_geometric_rules: true # Geometric-based classification
+  use_ndvi_classification: false # NDVI-based classification (requires NIR)
+
+  # Classification thresholds
+  height_low_vegetation: 0.5 # Low vegetation threshold (m)
+  height_medium_vegetation: 2.0 # Medium vegetation threshold (m)
+  planarity_road: 0.8 # Road planarity threshold
+  planarity_building: 0.7 # Building planarity threshold
+  ndvi_vegetation: 0.35 # NDVI vegetation threshold
+
+  # Post-processing
+  post_processing_enabled: true
+  reclassify_unclassified: true
+  apply_morphological_filters: true
+
+# ============================================================================
+# OUTPUT CONFIGURATION (SIMPLIFIED)
+# ============================================================================
+output:
+  # Primary output format
+  format: "laz" # Options: laz, las, hdf5
+
+  # Output modes
+  save_enriched: true # Enriched LAZ with new classifications
+  save_patches: false # ML training patches
+  save_metadata: true # Processing metadata
+  save_stats: true # Classification statistics
+
+  # Compression
+  compression: null # Auto-detection
+
+  # Validation
+  validate_output: true
+
+# ============================================================================
+# PREPROCESSING (MINIMAL BY DEFAULT)
+# ============================================================================
+preprocess:
+  enabled: false # Disabled for performance
+
+  # Outlier removal (if enabled)
+  statistical_outlier_removal:
+    enabled: false
+    k_neighbors: 10
+    std_threshold: 2.0
+
+  radius_outlier_removal:
+    enabled: false
+    radius: 1.0
+    min_neighbors: 5
+
+# ============================================================================
+# STITCHING (MINIMAL BY DEFAULT)
+# ============================================================================
+stitching:
+  enabled: false # Disabled for performance
+  buffer_size: 0.0
+  auto_detect_neighbors: false
+
+# ============================================================================
+# MONITORING AND LOGGING
+# ============================================================================
+monitoring:
+  # Logging settings
+  log_level: "INFO" # DEBUG, INFO, WARNING, ERROR
+  verbose: true
+
+  # Performance monitoring
+  enable_gpu_monitoring: true
+  enable_performance_metrics: true
+  save_metrics: true
+
+  # Profiling (development)
+  enable_profiling: false
+
+# ============================================================================
+# GLOBAL OPTIMIZATIONS
+# ============================================================================
+optimization:
+  # Global optimization level
+  level: "balanced" # Options: conservative, balanced, aggressive
+
+  # Auto-tuning
+  enable_auto_tuning: false # Disabled for predictability
+
+  # Memory management
+  memory_management: "auto" # Options: auto, conservative, aggressive
+
+  # Parallelization
+  enable_parallel_processing: true
+
+  # Cache settings
+  enable_caching: true
+  cache_optimization_results: true
+
+# ============================================================================
+# VALIDATION AND COMPATIBILITY
+# ============================================================================
+validation:
+  # Strict parameter validation
+  strict_validation: true
+
+  # Backward compatibility
+  enable_legacy_support: true
+  migrate_old_configs: true
+
+  # Hardware checks
+  check_gpu_availability: true
+  check_memory_requirements: true
+# ============================================================================
+# PERFORMANCE NOTES AND COMPATIBILITY
+# ============================================================================
+#
+# Expected performance (RTX 4080):
+# - Feature processing: ~30-60s per tile
+# - Ground truth: ~10-30s per tile
+# - Total: ~1-2 minutes per tile
+#
+# Automatic CPU fallback if:
+# - GPU unavailable
+# - Insufficient GPU memory
+# - CUDA errors
+#
+# Automatic migration from:
+# - v2.x configurations (processor.*, features.*)
+# - v3.0 configurations (processing.*, data_sources.*)
+#
+# Supported CLI overrides:
+# - processing.gpu_batch_size=16000000
+# - data_sources.cadastre_enabled=true
+# - features.mode=full
+# - processing.lod_level=LOD2

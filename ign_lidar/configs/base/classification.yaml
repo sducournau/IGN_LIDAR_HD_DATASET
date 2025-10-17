@@ -1,0 +1,152 @@
+# ============================================================================
+# IGN LiDAR HD - Base Classification Configuration v4.0
+# ============================================================================
+# Base configuration for point cloud classification rules and algorithms
+# Handles geometric rules, thresholds, and post-processing
+#
+# Usage:
+#   defaults:
+#     - base/classification
+#
+# Override specific settings in your config:
+#   classification:
+#     enabled: true
+#     use_ground_truth: true
+# ============================================================================
+
+# @package classification
+classification:
+  # Enable classification pipeline
+  enabled: true
+
+  # Classification methods (applied in order of priority)
+  use_ground_truth: true # Use external ground truth data (BD TOPO, etc.)
+  use_geometric_rules: true # Use geometric classification rules
+  use_machine_learning: false # Use ML classification (if models available)
+  use_ndvi_classification: false # Use NDVI-based vegetation classification
+
+  # Geometric classification thresholds
+  geometric_rules:
+    # Vegetation height thresholds
+    height_low_vegetation: 0.5 # Low vegetation threshold (m)
+    height_medium_vegetation: 2.0 # Medium vegetation threshold (m)
+    height_high_vegetation: 5.0 # High vegetation threshold (m)
+
+    # Planarity thresholds
+    planarity_ground: 0.9 # Ground planarity threshold
+    planarity_road: 0.8 # Road planarity threshold
+    planarity_building: 0.7 # Building planarity threshold
+    planarity_roof: 0.8 # Roof planarity threshold
+
+    # Height thresholds
+    ground_height_threshold: 0.2 # Points below this are likely ground
+    building_min_height: 2.0 # Minimum building height
+    noise_height_threshold: 50.0 # Points above this are likely noise
+
+    # Density thresholds
+    vegetation_density_min: 0.1 # Minimum density for vegetation
+    building_density_min: 0.5 # Minimum density for buildings
+
+    # Normal vector thresholds
+    vertical_normal_threshold: 0.7 # Threshold for vertical surfaces
+    horizontal_normal_threshold: 0.9 # Threshold for horizontal surfaces
+
+  # NDVI classification (requires NIR)
+  ndvi_rules:
+    enabled: false # Requires NIR channel
+    vegetation_threshold: 0.35 # NDVI threshold for vegetation
+    healthy_vegetation_threshold: 0.6 # NDVI threshold for healthy vegetation
+    water_threshold: 0.0 # NDVI threshold for water (negative values)
+
+  # Machine learning classification
+  ml_classification:
+    enabled: false # Disabled by default
+    model_path: null # Path to trained model
+    confidence_threshold: 0.7 # Confidence threshold for ML predictions
+    use_ensemble: false # Use ensemble of models
+
+  # Post-processing
+  post_processing:
+    enabled: true # Enable post-processing
+
+    # Morphological operations
+    apply_morphological_filters: true
+    erosion_iterations: 1 # Erosion iterations for noise removal
+    dilation_iterations: 2 # Dilation iterations for gap filling
+
+    # Size filtering
+    min_building_size: 10 # Minimum building cluster size (points)
+    min_vegetation_cluster: 5 # Minimum vegetation cluster size (points)
+    max_noise_cluster: 3 # Maximum noise cluster size (points)
+
+    # Smoothing
+    apply_smoothing: true # Apply classification smoothing
+    smoothing_radius: 0.5 # Smoothing radius (m)
+    smoothing_iterations: 2 # Number of smoothing iterations
+
+  # Reclassification
+  reclassification:
+    enabled: true # Enable reclassification
+    method: "auto" # Options: auto, gpu, cpu
+    chunk_size: 2_000_000 # Chunk size for reclassification
+
+    # Unclassified point handling
+    reclassify_unclassified: true # Reclassify unclassified points
+    unclassified_strategy: "geometric_rules" # Strategy for unclassified points
+
+    # Confidence-based reclassification
+    confidence_based: false # Use confidence-based reclassification
+    min_confidence: 0.6 # Minimum confidence for keeping classification
+
+  # Class-specific rules
+  class_rules:
+    ground: # Class 2
+      planarity_threshold: 0.9
+      max_height_above_ground: 0.5
+
+    low_vegetation: # Class 3
+      height_range: [0.2, 2.0]
+      planarity_max: 0.3
+      ndvi_min: 0.3 # If NDVI available
+
+    medium_vegetation: # Class 4
+      height_range: [2.0, 5.0]
+      planarity_max: 0.4
+      ndvi_min: 0.4 # If NDVI available
+
+    high_vegetation: # Class 5
+      height_range: [5.0, 50.0]
+      planarity_max: 0.5
+      ndvi_min: 0.5 # If NDVI available
+
+    buildings: # Class 6
+      planarity_min: 0.6
+      height_min: 2.0
+      verticality_min: 0.3 # If verticality computed
+
+    water: # Class 9
+      planarity_min: 0.95
+      height_range: [-5.0, 1.0]
+      ndvi_max: 0.1 # If NDVI available
+
+    roads: # Class 11
+      planarity_min: 0.8
+      height_range: [-1.0, 2.0]
+
+  # Performance settings
+  performance:
+    use_gpu: true # Use GPU acceleration
+    parallel_workers: 1 # Number of parallel workers
+    memory_efficient: true # Use memory-efficient processing
+
+  # Quality control
+  quality_control:
+    validate_classifications: true # Validate classification results
+    check_class_distribution: true # Check class distribution
+    min_points_per_class: 10 # Minimum points per class for validation
+
+  # Output settings
+  output:
+    save_classification_confidence: false # Save classification confidence
+    save_rule_attribution: false # Save which rule classified each point
+    save_statistics: true # Save classification statistics

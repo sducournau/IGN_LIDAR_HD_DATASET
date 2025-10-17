@@ -1,0 +1,144 @@
+# ============================================================================
+# IGN LiDAR HD - GPU Optimized Preset v4.0
+# ============================================================================
+# High-performance GPU configuration for RTX 4080/RTX 3080 and similar
+# Optimized for maximum GPU utilization and processing speed
+#
+# Usage:
+#   ign-lidar-hd process --config-file ign_lidar/configs/presets/gpu_optimized.yaml
+#   ign-lidar-hd process --config-name gpu_optimized
+#
+# Target: >80% GPU utilization, <1 minute per tile
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/features
+  - ../base/performance
+  - ../base/output
+  - ../config
+  - _self_
+
+# GPU optimization overrides
+processing:
+  mode: "enriched_only" # Focus on speed
+
+  # Maximum GPU performance settings
+  gpu_batch_size: 16_000_000 # 16M points for high-memory GPU
+  gpu_memory_target: 0.90 # 90% VRAM utilization
+  gpu_streams: 8 # More parallel streams
+
+  # Force GPU for all operations
+  ground_truth_method: "gpu_chunked" # Force GPU ground truth
+  ground_truth_chunk_size: 5_000_000 # Larger chunks
+  reclassification_mode: "gpu" # Force GPU reclassification
+  reclassification_chunk_size: 5_000_000
+
+  # Advanced GPU optimizations
+  enable_mixed_precision: true # Mixed precision for performance
+  enable_memory_pooling: true
+  enable_async_transfers: true
+  adaptive_chunk_sizing: true
+
+features:
+  mode: "asprs_classes" # Balanced features
+
+  # Speed-optimized parameters
+  k_neighbors: 16 # Slightly reduced for speed
+  search_radius: 0.8 # Reduced for speed
+
+  # Essential features only
+  compute_normals: true
+  compute_planarity: true
+  compute_height_above_ground: true
+  compute_verticality: false # Disabled for max speed
+  compute_architectural_features: false
+
+  # Basic spectral features
+  use_rgb: true
+  use_nir: false # Disabled for speed
+  compute_ndvi: false
+
+data_sources:
+  # Essential sources only
+  bd_topo_buildings: true
+  bd_topo_roads: true
+  bd_topo_water: true
+  bd_topo_vegetation: false # Disabled for speed
+  bd_topo_bridges: false
+  bd_topo_power_lines: false
+
+  # Disable slow sources
+  cadastre_enabled: false # Always disabled in speed mode
+  bd_foret_enabled: false
+  rpg_enabled: false
+
+  # Basic orthophotos
+  orthophoto_rgb: true
+  orthophoto_nir: false
+
+classification:
+  enabled: true
+  use_ground_truth: true
+  use_geometric_rules: true
+  use_ndvi_classification: false
+
+  # Standard thresholds
+  height_low_vegetation: 0.5
+  height_medium_vegetation: 2.0
+  planarity_road: 0.85
+  planarity_building: 0.75
+
+preprocess:
+  enabled: false # Disabled for speed
+
+output:
+  format: "laz"
+  save_enriched: true
+  save_patches: false
+  save_metadata: false # Minimal for speed
+  save_stats: true
+
+optimization:
+  level: "aggressive" # Aggressive optimizations
+  memory_management: "aggressive"
+  enable_caching: true
+
+monitoring:
+  log_level: "WARNING" # Reduced logging for speed
+  enable_performance_metrics: true # Keep metrics
+  enable_gpu_monitoring: true
+# ============================================================================
+# GPU Optimization Performance Notes
+# ============================================================================
+#
+# Optimized for:
+# - High-end GPUs (RTX 4080, RTX 3080, RTX 4090)
+# - Maximum processing speed
+# - Batch processing workflows
+# - Production environments
+#
+# Performance expectations:
+# - GPU utilization: >80%
+# - Processing time: <1 minute per tile
+# - Memory usage: Up to 90% VRAM
+# - Throughput: 60+ tiles per hour
+#
+# Requirements:
+# - GPU with 10GB+ VRAM
+# - CUDA-compatible GPU
+# - Stable power supply for high GPU load
+#
+# Speed optimizations:
+# - Maximum batch sizes
+# - Aggressive memory management
+# - Forced GPU processing for all operations
+# - Mixed precision enabled
+# - Minimal logging overhead
+#
+# - Utilisation GPU attendue: >85%
+# - Utilisation VRAM: ~14-15GB (sur 16GB)
+# - Temps par tuile: 30-60 secondes
+# - Convient pour: RTX 4080, RTX 3080, A100
+#
+# Fallback automatique si VRAM insuffisante

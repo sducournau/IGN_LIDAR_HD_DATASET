@@ -1,0 +1,125 @@
+# ============================================================================
+# IGN LiDAR HD - Building Detection Preset v4.0
+# ============================================================================
+# Optimized configuration for high-accuracy building detection and classification
+# Focuses on building footprint extraction and roof structure analysis
+#
+# Usage:
+#   ign-lidar-hd process --config-name building_detection_v4
+#   ign-lidar-hd process --config-path ign_lidar/configs/presets --config-name building_detection_v4
+#
+# Specialized for: Buildings, roofs, architectural features
+# ============================================================================
+
+# Inherit from base configurations and default config
+defaults:
+  - ../base/features
+  - ../base/data_sources
+  - ../base/classification
+  - ../base/output
+  - ../config
+  - _self_
+
+# Building detection specific overrides
+processing:
+  lod_level: "LOD2" # LOD2 for building detail
+  mode: "enriched_only" # Focus on enriched LAZ output
+
+  # Optimized for building feature requirements
+  gpu_batch_size: 10_000_000 # Moderate batch size for complex features
+  gpu_memory_target: 0.85 # Conservative for complex computation
+
+features:
+  mode: "lod2" # LOD2-optimized features
+
+  # Enhanced features for building detection
+  k_neighbors: 24 # Larger neighborhood for building analysis
+  search_radius: 1.5 # Larger radius for roof structures
+  compute_normals: true
+  compute_planarity: true # Critical for roof detection
+  compute_height_above_ground: true
+  compute_verticality: true # Essential for building walls
+  compute_architectural_features: true # Enable building-specific features
+
+  # Spectral features for building materials
+  use_rgb: true
+  use_nir: false # Not critical for buildings
+  compute_ndvi: false
+
+data_sources:
+  # Essential for building ground truth
+  bd_topo_buildings: true # Primary building source
+  bd_topo_roads: false # Not needed for building focus
+  bd_topo_water: false # Not needed for building focus
+  bd_topo_vegetation: false # May interfere with building detection
+  bd_topo_bridges: true # Bridges are building-like structures
+
+  # Cadastral data valuable for buildings
+  cadastre_enabled: true # Building footprints
+
+  # Orthophotos for building material analysis
+  orthophoto_rgb: true
+  orthophoto_nir: false
+
+classification:
+  enabled: true
+  use_ground_truth: true # BD TOPO + Cadastre
+  use_geometric_rules: true # Critical for building detection
+  use_ndvi_classification: false
+
+  # Building-optimized thresholds
+  height_low_vegetation: 0.3 # Lower threshold to avoid building confusion
+  height_medium_vegetation: 1.5 # Conservative vegetation height
+  planarity_road: 0.9 # Very high for non-building surfaces
+  planarity_building: 0.6 # Lower threshold for complex roofs
+
+preprocess:
+  enabled: true # Important for building quality
+  statistical_outlier_removal:
+    enabled: true
+    k_neighbors: 15 # More neighbors for stability
+    std_threshold: 1.5 # Stricter outlier removal
+
+output:
+  format: "laz"
+  save_enriched: true
+  save_metadata: true
+  save_stats: true
+
+monitoring:
+  log_level: "INFO"
+  enable_performance_metrics: true
+
+optimization:
+  level: "balanced" # Balance between speed and accuracy
+  memory_management: "balanced"
+# ============================================================================
+# Building Detection Notes
+# ============================================================================
+#
+# Specialized for:
+# - Building footprint extraction
+# - Roof structure analysis
+# - Architectural feature detection
+# - Building height estimation
+# - Building material classification
+#
+# Key features enabled:
+# - Enhanced planarity computation for roof detection
+# - Verticality analysis for wall detection
+# - Architectural features for building-specific patterns
+# - Cadastral data integration for ground truth
+# - Large neighborhood analysis for building context
+#
+# Performance expectations:
+# - Processing time: ~2-4 minutes per tile (GPU)
+# - High precision building detection
+# - Detailed roof structure analysis
+# - Integration with cadastral boundaries
+#
+# Quality factors:
+# - Multi-source ground truth (BD TOPO + Cadastre)
+# - Enhanced geometric feature computation
+# - Building-specific thresholds
+# - Strict outlier removal for clean building edges
+#

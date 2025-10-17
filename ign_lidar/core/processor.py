@@ -234,10 +234,25 @@ class LiDARProcessor:
             logger.warning(f"⚠️  'data_sources' not found in config! This means ground truth data won't be loaded.")
         
         # Use OmegaConf.select() for compatibility with Hydra configs
-        bd_topo_enabled = OmegaConf.select(config, 'data_sources.bd_topo.enabled', default=False)
-        bd_foret_enabled = OmegaConf.select(config, 'data_sources.bd_foret.enabled', default=False)
-        rpg_enabled = OmegaConf.select(config, 'data_sources.rpg.enabled', default=False)
-        cadastre_enabled = OmegaConf.select(config, 'data_sources.cadastre.enabled', default=False)
+        # Check for individual BD TOPO feature flags (v4.0 flat structure)
+        bd_topo_buildings = OmegaConf.select(config, 'data_sources.bd_topo_buildings', default=False)
+        bd_topo_roads = OmegaConf.select(config, 'data_sources.bd_topo_roads', default=False)
+        bd_topo_water = OmegaConf.select(config, 'data_sources.bd_topo_water', default=False)
+        bd_topo_vegetation = OmegaConf.select(config, 'data_sources.bd_topo_vegetation', default=False)
+        bd_topo_bridges = OmegaConf.select(config, 'data_sources.bd_topo_bridges', default=False)
+        bd_topo_power_lines = OmegaConf.select(config, 'data_sources.bd_topo_power_lines', default=False)
+        
+        # BD TOPO is enabled if ANY feature is enabled
+        bd_topo_enabled = any([bd_topo_buildings, bd_topo_roads, bd_topo_water, 
+                              bd_topo_vegetation, bd_topo_bridges, bd_topo_power_lines])
+        
+        # Also check for legacy nested structure for backwards compatibility
+        if not bd_topo_enabled:
+            bd_topo_enabled = OmegaConf.select(config, 'data_sources.bd_topo.enabled', default=False)
+        
+        bd_foret_enabled = OmegaConf.select(config, 'data_sources.bd_foret_enabled', default=False)
+        rpg_enabled = OmegaConf.select(config, 'data_sources.rpg_enabled', default=False)
+        cadastre_enabled = OmegaConf.select(config, 'data_sources.cadastre_enabled', default=False)
         
         logger.debug(f"🔍 DEBUG: bd_topo_enabled = {bd_topo_enabled} (type: {type(bd_topo_enabled)})")
         logger.debug(f"🔍 DEBUG: bd_foret_enabled = {bd_foret_enabled} (type: {type(bd_foret_enabled)})")
@@ -256,31 +271,35 @@ class LiDARProcessor:
                 # Build data source configuration
                 cache_dir = Path(OmegaConf.select(config, 'cache_dir', default='data/cache'))
                 
-                # Extract BD TOPO features using OmegaConf.select for safe access
+                # Extract BD TOPO features using the flat configuration structure (v4.0)
                 # Create configuration with ALL BD TOPO features and parameters
                 fetch_config = DataFetchConfig(
-                    # BD TOPO® features
-                    include_buildings=OmegaConf.select(config, 'data_sources.bd_topo.features.buildings', default=False),
-                    include_roads=OmegaConf.select(config, 'data_sources.bd_topo.features.roads', default=False),
-                    include_railways=OmegaConf.select(config, 'data_sources.bd_topo.features.railways', default=False),
-                    include_water=OmegaConf.select(config, 'data_sources.bd_topo.features.water', default=False),
-                    include_vegetation=OmegaConf.select(config, 'data_sources.bd_topo.features.vegetation', default=False),
-                    include_bridges=OmegaConf.select(config, 'data_sources.bd_topo.features.bridges', default=False),
-                    include_parking=OmegaConf.select(config, 'data_sources.bd_topo.features.parking', default=False),
-                    include_cemeteries=OmegaConf.select(config, 'data_sources.bd_topo.features.cemeteries', default=False),
-                    include_power_lines=OmegaConf.select(config, 'data_sources.bd_topo.features.power_lines', default=False),
-                    include_sports=OmegaConf.select(config, 'data_sources.bd_topo.features.sports', default=False),
+                    # BD TOPO® features - use flat structure
+                    include_buildings=bd_topo_buildings,
+                    include_roads=bd_topo_roads,
+                    include_railways=OmegaConf.select(config, 'data_sources.bd_topo_railways', default=False),
+                    include_water=bd_topo_water,
+                    include_vegetation=bd_topo_vegetation,
+                    include_bridges=bd_topo_bridges,
+                    include_parking=OmegaConf.select(config, 'data_sources.bd_topo_parking', default=False),
+                    include_cemeteries=OmegaConf.select(config, 'data_sources.bd_topo_cemeteries', default=False),
+                    include_power_lines=bd_topo_power_lines,
+                    include_sports=OmegaConf.select(config, 'data_sources.bd_topo_sports', default=False),
                     # Other data sources
                     include_forest=bd_foret_enabled,
                     include_agriculture=rpg_enabled,
                     include_cadastre=cadastre_enabled,
-                    group_by_parcel=OmegaConf.select(config, 'data_sources.cadastre.group_by_parcel', default=False),
-                    # Buffer parameters
-                    road_width_fallback=OmegaConf.select(config, 'data_sources.bd_topo.parameters.road_width_fallback', default=4.0),
-                    railway_width_fallback=OmegaConf.select(config, 'data_sources.bd_topo.parameters.railway_width_fallback', default=3.5),
-                    power_line_buffer=OmegaConf.select(config, 'data_sources.bd_topo.parameters.power_line_buffer', default=2.0),
+                    group_by_parcel=OmegaConf.select(config, 'data_sources.cadastre_group_by_parcel', default=False),
+                    # Buffer parameters - check both flat and nested structures
+                    road_width_fallback=OmegaConf.select(config, 'data_sources.bd_topo_road_width_fallback', 
+                                                        default=OmegaConf.select(config, 'data_sources.bd_topo.parameters.road_width_fallback', default=4.0)),
+                    railway_width_fallback=OmegaConf.select(config, 'data_sources.bd_topo_railway_width_fallback',
+                                                           default=OmegaConf.select(config, 'data_sources.bd_topo.parameters.railway_width_fallback', default=3.5)),
+                    power_line_buffer=OmegaConf.select(config, 'data_sources.bd_topo_power_line_buffer',
+                                                      default=OmegaConf.select(config, 'data_sources.bd_topo.parameters.power_line_buffer', default=2.0)),
                     # RPG year
-                    rpg_year=OmegaConf.select(config, 'data_sources.rpg.year', default=2024)
+                    rpg_year=OmegaConf.select(config, 'data_sources.rpg_year', 
+                                            default=OmegaConf.select(config, 'data_sources.rpg.year', default=2024))
                 )
                 
                 # Initialize data fetcher
@@ -296,25 +315,25 @@ class LiDARProcessor:
                 enabled_sources = []
                 if bd_topo_enabled:
                     enabled_features = []
-                    if OmegaConf.select(config, 'data_sources.bd_topo.features.roads', default=False):
+                    if bd_topo_roads:
                         enabled_features.append('roads')
-                    if OmegaConf.select(config, 'data_sources.bd_topo.features.railways', default=False):
+                    if OmegaConf.select(config, 'data_sources.bd_topo_railways', default=False):
                         enabled_features.append('railways')
-                    if OmegaConf.select(config, 'data_sources.bd_topo.features.buildings', default=False):
+                    if bd_topo_buildings:
                         enabled_features.append('buildings')
-                    if OmegaConf.select(config, 'data_sources.bd_topo.features.cemeteries', default=False):
+                    if OmegaConf.select(config, 'data_sources.bd_topo_cemeteries', default=False):
                         enabled_features.append('cemeteries')
-                    if OmegaConf.select(config, 'data_sources.bd_topo.features.power_lines', default=False):
+                    if bd_topo_power_lines:
                         enabled_features.append('power_lines')
-                    if OmegaConf.select(config, 'data_sources.bd_topo.features.sports', default=False):
+                    if OmegaConf.select(config, 'data_sources.bd_topo_sports', default=False):
                         enabled_features.append('sports')
-                    if OmegaConf.select(config, 'data_sources.bd_topo.features.parking', default=False):
+                    if OmegaConf.select(config, 'data_sources.bd_topo_parking', default=False):
                         enabled_features.append('parking')
-                    if OmegaConf.select(config, 'data_sources.bd_topo.features.bridges', default=False):
+                    if bd_topo_bridges:
                         enabled_features.append('bridges')
-                    if OmegaConf.select(config, 'data_sources.bd_topo.features.water', default=False):
+                    if bd_topo_water:
                         enabled_features.append('water')
-                    if OmegaConf.select(config, 'data_sources.bd_topo.features.vegetation', default=False):
+                    if bd_topo_vegetation:
                         enabled_features.append('vegetation')
                     if enabled_features:
                         enabled_sources.append(f"BD TOPO ({', '.join(enabled_features)})")
@@ -445,7 +464,7 @@ class LiDARProcessor:
     @property
     def include_infrared(self):
         """Check if infrared is enabled (backward compatibility)."""
-        return self.config.features.use_infrared
+        return self.config.features.use_nir
     
     @property
     def compute_ndvi(self):
@@ -473,7 +492,7 @@ class LiDARProcessor:
     @property
     def include_architectural_style(self):
         """Check if architectural style is enabled (backward compatibility)."""
-        return self.config.features.include_architectural_style
+        return self.config.features.get('include_architectural_style', False)
     
     @property
     def style_encoding(self):
@@ -961,7 +980,7 @@ class LiDARProcessor:
                 expected_patches=None,
                 save_enriched=self.save_enriched_laz,
                 include_rgb=self.config.features.use_rgb,
-                include_infrared=self.config.features.use_infrared,
+                include_infrared=self.config.features.use_nir,
                 compute_ndvi=self.config.features.compute_ndvi,
                 include_extra_features=self.include_extra_features,
                 include_classification=OmegaConf.select(self.config, "data_sources.bd_topo.enabled", default=False),
@@ -1045,7 +1064,7 @@ class LiDARProcessor:
                     expected_patches=None,  # We don't know expected count beforehand
                     save_enriched=self.save_enriched_laz,
                     include_rgb=self.config.features.use_rgb,
-                    include_infrared=self.config.features.use_infrared,
+                    include_infrared=self.config.features.use_nir,
                     compute_ndvi=self.config.features.compute_ndvi,
                     include_extra_features=self.include_extra_features,
                     include_classification=OmegaConf.select(self.config, "data_sources.bd_topo.enabled", default=False) and 
@@ -1346,13 +1365,18 @@ class LiDARProcessor:
                     
                     # Reclassify points in-memory
                     logger.info(f"  🔄 Reclassifying {len(points_v):,} points...")
-                    labels_v = reclassifier.reclassify_points(
+                    labels_v, reclass_stats = reclassifier.reclassify(
                         points=points_v,
-                        classification=labels_v,
+                        current_labels=labels_v,
                         ground_truth_features=gt_data['ground_truth']
                     )
                     
                     # Log reclassification results
+                    if reclass_stats:
+                        for feature_type, count in reclass_stats.items():
+                            if count > 0:
+                                logger.info(f"      {feature_type}: {count:,} points reclassified")
+                    
                     n_reclass_changed = np.sum(labels_v != labels_before_reclass)
                     pct_reclass_changed = (n_reclass_changed / len(labels_v)) * 100
                     logger.info(f"  ✅ Reclassification completed: {n_reclass_changed:,} points changed ({pct_reclass_changed:.2f}%)")

@@ -152,7 +152,8 @@ class FeatureOrchestrator:
             self.rgb_fetcher = self._init_rgb_fetcher()
         
         # Initialize NIR fetcher if needed
-        self.use_infrared = features_cfg.get('use_infrared', False)
+        # Support both 'use_nir' (current) and 'use_infrared' (legacy) for backward compatibility
+        self.use_infrared = features_cfg.get('use_nir', features_cfg.get('use_infrared', False))
         self.infrared_fetcher = None
         if self.use_infrared:
             self.infrared_fetcher = self._init_infrared_fetcher()

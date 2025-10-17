@@ -1,0 +1,99 @@
+# ============================================================================
+# IGN LiDAR HD - Example: Minimal Processing with Base Configurations v4.0
+# ============================================================================
+# Demonstrates minimal processing setup using base configurations
+# Suitable for testing, development, or basic enrichment workflows
+#
+# Usage:
+#   ign-lidar-hd process --config-file configs/base/example_minimal.yaml
+#
+# This example shows:
+# - Minimal component selection
+# - Basic feature computation
+# - Simple output configuration
+# ============================================================================
+
+# Include only essential base configurations
+defaults:
+  - features # Basic feature computation
+  - output # Output handling
+  - _self_ # This file overrides
+
+# ============================================================================
+# METADATA
+# ============================================================================
+config_version: "4.0.1"
+config_name: "minimal_example"
+config_description: "Minimal processing example using base configurations"
+
+# ============================================================================
+# FEATURE COMPUTATION (MINIMAL)
+# ============================================================================
+features:
+  mode: "minimal" # Minimal feature set for basic processing
+
+  # Basic neighborhood analysis
+  k_neighbors: 20
+  search_radius: 1.0
+
+  # Essential geometric features only
+  compute_normals: true
+  compute_planarity: true
+  compute_height_above_ground: false # Disabled for speed
+  compute_verticality: false
+
+  # No spectral features (fastest)
+  use_rgb: false
+  use_nir: false
+
+  # Performance optimization
+  normalize_features: true
+
+# ============================================================================
+# OUTPUT (MINIMAL)
+# ============================================================================
+output:
+  format: "laz" # Compressed output
+
+  # Minimal output content
+  save_enriched: true # Only enriched point clouds
+  save_metadata: false # Skip metadata for speed
+  save_stats: false # Skip statistics for speed
+  save_logs: false # Skip detailed logs
+
+  # Basic LAZ settings
+  las_settings:
+    compression_level: 6 # Moderate compression
+    extra_bytes: false # No extra attributes
+
+  # Minimal validation
+  validation:
+    enabled: false # Disable for speed
+
+# ============================================================================
+# PROCESSING CONFIGURATION
+# ============================================================================
+processing:
+  mode: "enriched_only" # Only enriched output
+  lod_level: "ASPRS" # Basic ASPRS processing
+  use_gpu: true # Use GPU if available
+  num_workers: 1
+
+# ============================================================================
+# PERFORMANCE (MINIMAL)
+# ============================================================================
+# Override performance settings for minimal processing
+gpu_batch_size: 5_000_000 # Smaller batches for compatibility
+enable_performance_metrics: false # Disable monitoring
+
+# ============================================================================
+# GLOBAL SETTINGS
+# ============================================================================
+cache_dir: ".cache/ign_lidar"
+
+monitoring:
+  log_level: "WARNING" # Minimal logging
+  verbose: false
+
+validation:
+  strict_validation: false # Relaxed validation for speed

@@ -1,0 +1,271 @@
+# ============================================================================
+# IGN LiDAR HD - Example: Complete Pipeline with Base Configurations v4.0
+# ============================================================================
+# Demonstrates how to use base configurations to build a complete processing
+# pipeline with all components enabled and properly configured.
+#
+# Usage:
+#   ign-lidar-hd process --config-file configs/base/example_complete_pipeline.yaml
+#
+# This example shows:
+# - How to include multiple base configurations
+# - How to override specific settings
+# - Best practices for component integration
+# ============================================================================
+
+# Include all base configurations
+defaults:
+  - preprocessing # Point cloud cleaning and preparation
+  - features # Feature computation and extraction
+  - data_sources # External data source integration
+  - ground_truth # Ground truth processing
+  - classification # Classification rules and algorithms
+  - output # Output formats and validation
+  - performance # Hardware optimization
+  - _self_ # This file has highest priority
+
+# ============================================================================
+# METADATA
+# ============================================================================
+config_version: "4.0.1"
+config_name: "complete_pipeline_example"
+config_description: "Complete pipeline example using base configurations"
+
+# ============================================================================
+# PREPROCESSING OVERRIDES
+# ============================================================================
+preprocess:
+  enabled: true # Enable comprehensive preprocessing
+
+  # Enhanced outlier removal for better quality
+  statistical_outlier_removal:
+    enabled: true
+    k_neighbors: 15 # More neighbors for better stability
+    std_threshold: 1.8 # Slightly more aggressive
+
+  # Enable classification cleaning
+  classification_cleaning:
+    enabled: true
+    remap_unknown_to_unclassified: true
+
+# ============================================================================
+# FEATURE COMPUTATION OVERRIDES
+# ============================================================================
+features:
+  mode: "asprs_classes" # Optimized for ASPRS classification
+
+  # Enhanced neighborhood analysis
+  k_neighbors: 25 # More neighbors for stable features
+  search_radius: 1.5 # Larger search radius
+
+  # Enable key geometric features
+  compute_normals: true
+  compute_planarity: true
+  compute_height_above_ground: true
+  compute_verticality: true # Important for buildings
+
+  # Enable spectral features
+  use_rgb: true # RGB for vegetation/material distinction
+  use_nir: false # Disabled for performance (slow to fetch)
+
+# ============================================================================
+# DATA SOURCES OVERRIDES
+# ============================================================================
+data_sources:
+  # Enable key BD TOPO features for ASPRS classification
+  bd_topo_buildings: true # ASPRS Class 6
+  bd_topo_roads: true # ASPRS Class 11
+  bd_topo_water: true # ASPRS Class 9
+  bd_topo_vegetation: true # ASPRS Classes 3,4,5
+  bd_topo_bridges: true # ASPRS Class 17
+
+  # Enable RGB orthophotos for spectral features
+  orthophoto_rgb: true
+  orthophoto_nir: false # Disabled for performance
+
+  # Optimize fetching for better performance
+  fetching:
+    parallel_requests: 6 # More parallel requests
+    chunk_size: 2000 # Larger chunks
+    cache_enabled: true # Enable caching
+
+# ============================================================================
+# GROUND TRUTH OVERRIDES
+# ============================================================================
+ground_truth:
+  enabled: true
+  method: "auto" # Auto-select best method based on hardware
+
+  # Configure BD TOPO integration
+  bd_topo:
+    enabled: true # Will be auto-enabled based on data_sources
+
+    # Enhanced buffer parameters
+    parameters:
+      road_width_fallback: 5.0 # Wider roads for better coverage
+      building_buffer: 0.5 # Small buffer for building precision
+      water_buffer: 1.0 # Buffer for water body edges
+
+  # Priority-based integration
+  integration:
+    method: "priority_based"
+    priority:
+      bd_topo: 100 # Highest priority
+      geometric_rules: 20 # Fallback for uncovered areas
+
+# ============================================================================
+# CLASSIFICATION OVERRIDES
+# ============================================================================
+classification:
+  enabled: true
+
+  # Enable all classification methods
+  use_ground_truth: true # Primary method
+  use_geometric_rules: true # Fallback method
+  use_ndvi_classification: false # Disabled (no NIR)
+
+  # Enhanced geometric rules
+  geometric_rules:
+    # Vegetation height thresholds (ASPRS standard)
+    height_low_vegetation: 0.5
+    height_medium_vegetation: 2.0
+    height_high_vegetation: 5.0
+
+    # Building detection thresholds
+    planarity_building: 0.75 # Buildings have moderate planarity
+    building_min_height: 2.5 # Minimum building height
+
+    # Road detection thresholds
+    planarity_road: 0.85 # Roads are highly planar
+
+  # Enhanced post-processing
+  post_processing:
+    enabled: true
+    apply_morphological_filters: true
+    apply_smoothing: true
+    smoothing_radius: 0.75 # Smooth classification boundaries
+
+  # Aggressive reclassification of unclassified points
+  reclassification:
+    enabled: true
+    reclassify_unclassified: true
+    unclassified_strategy: "geometric_rules"
+
+# ============================================================================
+# OUTPUT OVERRIDES
+# ============================================================================
+output:
+  format: "laz" # Compressed LAZ for efficiency
+
+  # Save comprehensive outputs
+  save_enriched: true # Primary output
+  save_metadata: true # Processing metadata
+  save_stats: true # Classification statistics
+  save_logs: true # Detailed logs
+
+  # Enhanced LAZ settings
+  las_settings:
+    las_version: "1.4" # Latest LAS version
+    point_format: 6 # RGB + GPS time
+    compression_level: 8 # High compression
+    extra_bytes: true # Custom attributes
+
+  # Comprehensive validation
+  validation:
+    enabled: true
+    validate_file_format: true
+    validate_classifications: true
+    compute_quality_metrics: true
+    quality_report: true
+
+  # Detailed statistics
+  statistics:
+    enabled: true
+    classification_stats: true
+    height_stats: true
+    format: "json"
+
+# ============================================================================
+# PERFORMANCE OVERRIDES
+# ============================================================================
+performance:
+  # GPU optimization
+  gpu:
+    enabled: true
+    memory_target: 0.80 # Conservative memory usage for stability
+    batch_size: 10_000_000 # Large batches for efficiency
+    adaptive_batch_size: true # Auto-adjust based on available memory
+
+  # Memory management
+  memory:
+    max_system_memory: "75%" # Conservative system memory usage
+    enable_chunking: true
+    adaptive_chunking: true
+
+  # Enhanced monitoring
+  monitoring:
+    enabled: true
+    gpu_monitoring: true
+    save_performance_metrics: true
+
+  # Conservative optimization
+  optimization:
+    level: "balanced" # Balanced performance vs stability
+    enable_result_caching: true
+    cache_ground_truth: true
+
+# ============================================================================
+# PROCESSING CONFIGURATION (SIMPLIFIED v4.0 SCHEMA)
+# ============================================================================
+processing:
+  mode: "enriched_only" # Focus on enriched LAZ output
+  lod_level: "ASPRS" # ASPRS classification target
+  architecture: "direct" # Direct processing architecture
+  use_gpu: true # GPU acceleration
+  num_workers: 1 # Single worker for GPU processing
+
+# ============================================================================
+# GLOBAL SETTINGS
+# ============================================================================
+# Cache directory for all components
+cache_dir: ".cache/ign_lidar"
+
+# Global monitoring settings
+monitoring:
+  log_level: "INFO" # Informative logging
+  verbose: true # Detailed output
+  enable_performance_metrics: true
+
+# Validation settings
+validation:
+  strict_validation: true # Strict parameter validation
+  check_gpu_availability: true # Verify GPU availability
+  check_memory_requirements: true # Verify memory requirements
+
+# ============================================================================
+# USAGE NOTES
+# ============================================================================
+# This configuration demonstrates a complete pipeline with:
+#
+# 1. Preprocessing: Cleans and prepares point cloud data
+# 2. Features: Computes geometric and spectral features optimized for ASPRS
+# 3. Data Sources: Integrates BD TOPO buildings, roads, water, vegetation
+# 4. Ground Truth: Applies external reference data with priority system
+# 5. Classification: Uses both ground truth and geometric rules
+# 6. Output: Generates enriched LAZ with comprehensive validation
+# 7. Performance: Optimizes for GPU processing with conservative settings
+#
+# Expected workflow:
+# 1. Load and preprocess point cloud
+# 2. Fetch BD TOPO data for ground truth
+# 3. Compute ASPRS-optimized features
+# 4. Apply ground truth classification
+# 5. Fill gaps with geometric rules
+# 6. Post-process and smooth results
+# 7. Validate and save enriched LAZ
+#
+# Performance expectations (RTX 4080):
+# - ~1-2 minutes per standard tile
+# - ~30-60 seconds for feature computation
+# - ~10-30 seconds for ground truth integration
+# - ~5-10 seconds for classification and post-processing
