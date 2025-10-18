@@ -313,7 +313,20 @@ class FeatureOrchestrator:
         k_neighbors = features_cfg.get('k_neighbors', 20)
         radius = features_cfg.get('search_radius', 1.0)
         use_boundary_aware = processor_cfg.get('use_boundary_aware', False)
-        use_gpu_chunked = processor_cfg.get('use_gpu_chunked', False)
+        
+        # GPU chunked strategy selection:
+        # Default to TRUE when GPU available (most optimized strategy)
+        # Can be explicitly disabled by setting use_gpu_chunked=False in config
+        # Check both features and processor configs (features takes precedence)
+        use_gpu_chunked_config = features_cfg.get('use_gpu_chunked', processor_cfg.get('use_gpu_chunked', None))
+        if use_gpu_chunked_config is None:
+            # Not specified in config - use intelligent default
+            # Default to chunked when GPU available (most optimized)
+            use_gpu_chunked = self.gpu_available and (GPUChunkedStrategy is not None)
+        else:
+            # Respect explicit config setting
+            use_gpu_chunked = use_gpu_chunked_config
+        
         use_strategy_pattern = processor_cfg.get('use_strategy_pattern', True)  # NEW: opt-in
         
         # Initialize size tracking for logging
@@ -329,6 +342,12 @@ class FeatureOrchestrator:
                 chunk_size = processor_cfg.get('gpu_batch_size', 5_000_000)
                 batch_size = 250_000  # Week 1 optimized batch size
                 gpu_size = chunk_size
+                
+                # Log whether this is default or explicit choice
+                if use_gpu_chunked_config is None:
+                    logger.info("   📌 Using GPU chunked strategy (intelligent default - most optimized)")
+                else:
+                    logger.info("   📌 Using GPU chunked strategy (explicitly configured)")
                 
                 if GPUChunkedStrategy is None:
                     logger.warning("GPU chunked strategy not available, falling back to CPU")

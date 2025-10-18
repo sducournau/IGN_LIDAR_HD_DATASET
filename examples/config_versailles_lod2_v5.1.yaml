@@ -1,5 +1,5 @@
 # ========================================================================
-# Versailles Dataset - LOD2 Building Classification (V5.1 Preset-Based)
+# Versailles Dataset - LOD2 Building Classification (V5.1)
 # ========================================================================
 # Purpose: Process Versailles LiDAR data with LOD2 building classification
 #
@@ -10,11 +10,13 @@
 # - Context: ground, vegetation (low/high), water, vehicle, other
 #
 # Usage:
-#   ign-lidar-hd process --config examples/config_versailles_lod2_v5.1.yaml
+#   ign-lidar-hd process --config-file examples/config_versailles_lod2_v5.1.yaml
 # ========================================================================
 
-# Use LOD2 preset (inherits from base.yaml)
-preset: lod2
+# Inherit from LOD2 preset (Hydra defaults system)
+defaults:
+  - presets/lod2
+  - _self_
 
 # Custom paths for Versailles dataset
 input_dir: /mnt/c/Users/Simon/ign/versailles

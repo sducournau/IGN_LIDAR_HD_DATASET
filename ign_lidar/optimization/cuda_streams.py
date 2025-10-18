@@ -22,7 +22,7 @@ Version: 1.0.0
 
 import logging
 import gc
-from typing import Optional, List, Dict, Tuple, Any
+from typing import Optional, List, Dict, Tuple, Any, TYPE_CHECKING
 import numpy as np
 from dataclasses import dataclass
 import threading
@@ -37,6 +37,8 @@ try:
 except ImportError:
     HAS_CUPY = False
     cp = None
+    if TYPE_CHECKING:
+        import cupy as cp  # For type checking only
 
 
 @dataclass
@@ -190,16 +192,20 @@ class CUDAStreamManager:
             logger.error(f"Failed to initialize CUDA streams: {e}")
             self.enabled = False
     
-    def get_stream(self, index: int) -> cp.cuda.Stream:
+    def get_stream(self, index: int):
         """Get CUDA stream by index."""
         if not self.enabled or not self.streams:
-            return cp.cuda.Stream.null
+            if HAS_CUPY:
+                return cp.cuda.Stream.null
+            return None
         return self.streams[index % len(self.streams)]
     
-    def get_event(self, index: int) -> cp.cuda.Event:
+    def get_event(self, index: int):
         """Get CUDA event by index."""
         if not self.enabled or not self.events:
-            return cp.cuda.Event()
+            if HAS_CUPY:
+                return cp.cuda.Event()
+            return None
         return self.events[index % len(self.events)]
     
     def synchronize_stream(self, index: int) -> None:
@@ -243,7 +249,7 @@ class CUDAStreamManager:
         data: np.ndarray, 
         stream_idx: int = 0,
         use_pinned: bool = True
-    ) -> cp.ndarray:
+    ) -> 'cp.ndarray':
         """
         Asynchronously upload data to GPU.
         
@@ -278,7 +284,7 @@ class CUDAStreamManager:
     
     def async_download(
         self,
-        gpu_data: cp.ndarray,
+        gpu_data: 'cp.ndarray',
         stream_idx: int = 0,
         use_pinned: bool = True,
         synchronize: bool = False

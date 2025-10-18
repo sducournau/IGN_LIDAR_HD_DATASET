@@ -257,6 +257,17 @@ features:
   use_gpu: true # Use GPU for feature computation
   gpu_batch_size: 8_000_000 # 8M points per batch (smaller for neighbor queries)
 
+  # GPU chunked strategy: Memory-efficient GPU processing for large datasets
+  # DEFAULT: Auto-enabled when GPU is available (most optimized strategy)
+  # Set to false to force basic GPU strategy or CPU fallback
+  # Benefits:
+  #   - 10-50× faster than CPU
+  #   - Handles unlimited point counts
+  #   - Optimized memory usage
+  #   - Week 1 optimizations (250K batch size, 16× speedup)
+  # use_gpu_chunked: true  # Uncomment to explicitly enable/disable
+  # Note: When not specified, automatically uses GPU chunked if GPU available
+
   # ──────────────────────────────────────────────────────────────────────
   # CACHING AND AUTO-TUNING (Week 1 Optimization)
   # ──────────────────────────────────────────────────────────────────────

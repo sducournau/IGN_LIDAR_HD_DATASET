@@ -26,6 +26,19 @@ processor:
   gpu_memory_target: 0.90 # 90% VRAM utilization (~14.4GB)
   gpu_streams: 8 # Optimal for Ada Lovelace architecture
 
+  # ============================================================================
+  # CUDA Optimizations - RTX 4080 (ENABLED - Oct 17, 2025)
+  # ============================================================================
+  use_cuda_streams: true # Triple-buffering for +20-30% throughput
+  enable_memory_pooling: true # Important for Ada Lovelace
+  enable_pipeline_optimization: true # Overlapped computation/transfer
+  auto_optimize: true # Auto-tune for RTX 4080
+
+  # RTX 4080 optimized settings
+  chunk_size: 5_000_000 # 5M points per chunk (16GB VRAM)
+  vram_limit_gb: 14.0 # Leave 2GB for system
+  cleanup_frequency: 25 # Balanced cleanup frequency
+
   # Ground truth processing
   ground_truth_method: "gpu_chunked" # Force GPU chunked for RTX 4080
   ground_truth_chunk_size: 5_000_000 # 5M points per chunk
@@ -34,8 +47,7 @@ processor:
   reclassification_mode: "gpu" # Force GPU reclassification
   reclassification_chunk_size: 5_000_000
 
-  # RTX 4080 specific optimizations
-  enable_memory_pooling: true # Important for Ada Lovelace
+  # RTX 4080 specific optimizations (legacy - replaced by CUDA settings above)
   enable_async_transfers: true # High memory bandwidth
   enable_mixed_precision: true # 4th gen Tensor Cores
   adaptive_chunk_sizing: true # Dynamic adaptation

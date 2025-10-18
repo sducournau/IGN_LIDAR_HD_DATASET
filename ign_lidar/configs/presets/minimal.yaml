@@ -53,12 +53,20 @@ processor:
   gpu_memory_target: 0.70 # Conservative memory usage
   gpu_streams: 2 # Fewer streams for simplicity
 
+  # CUDA Optimization Settings (disabled for minimal preset)
+  use_cuda_streams: false # Disabled for simplicity
+  enable_memory_pooling: true # Still use memory pooling
+  enable_pipeline_optimization: false # Skip for minimal preset
+  auto_optimize: false # Manual configuration only
+  chunk_size: null # Use defaults
+  vram_limit_gb: null # Use defaults
+  cleanup_frequency: 10 # Cleanup every N iterations
+
   # Strategy pattern
   use_strategy_pattern: true # Use new Strategy Pattern
 
   # Optimization flags
   use_optimized_ground_truth: false # Skip for maximum speed
-  enable_memory_pooling: true # Still use memory pooling
   enable_async_transfers: false # Skip for simplicity
   adaptive_chunk_sizing: false # Fixed sizing for speed
 

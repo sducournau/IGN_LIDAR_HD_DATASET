@@ -150,7 +150,57 @@ class HydraRunner:
             # Load user config
             user_cfg = OmegaConf.load(config_file)
             
-            # Merge: base config < user config < overrides
+            # Handle Hydra 'defaults' section if present
+            if 'defaults' in user_cfg:
+                defaults = user_cfg.get('defaults', [])
+                logger.debug(f"Processing {len(defaults)} defaults from config file")
+                
+                # Load each default config and merge
+                for default in defaults:
+                    if default == '_self_':
+                        continue  # Skip _self_ marker
+                    
+                    # Handle different default formats
+                    if isinstance(default, str):
+                        default_path = self.config_dir / f"{default}.yaml"
+                    elif isinstance(default, dict):
+                        # Handle override syntax like {preset: lod3}
+                        for key, value in default.items():
+                            default_path = self.config_dir / key / f"{value}.yaml"
+                            break
+                    else:
+                        continue
+                    
+                    if default_path.exists():
+                        logger.debug(f"  Loading default: {default_path}")
+                        default_cfg = OmegaConf.load(default_path)
+                        
+                        # Recursively handle defaults in the included config
+                        if 'defaults' in default_cfg:
+                            nested_defaults = default_cfg.pop('defaults', [])
+                            for nested_default in nested_defaults:
+                                if nested_default == '_self_':
+                                    continue
+                                if isinstance(nested_default, str) and nested_default.startswith('../'):
+                                    # Handle relative paths like ../base
+                                    nested_path = self.config_dir / nested_default.replace('../', '') / "base.yaml"
+                                    if not nested_path.exists():
+                                        nested_path = self.config_dir / f"{nested_default.replace('../', '')}.yaml"
+                                    if nested_path.exists():
+                                        logger.debug(f"    Loading nested default: {nested_path}")
+                                        nested_cfg = OmegaConf.load(nested_path)
+                                        base_cfg = OmegaConf.merge(base_cfg, nested_cfg)
+                        
+                        base_cfg = OmegaConf.merge(base_cfg, default_cfg)
+                    else:
+                        logger.warning(f"  Default config not found: {default_path}")
+                
+                # Remove defaults from user config before merging
+                user_cfg = OmegaConf.to_container(user_cfg)
+                user_cfg.pop('defaults', None)
+                user_cfg = OmegaConf.create(user_cfg)
+            
+            # Merge: base config < defaults < user config < overrides
             cfg = OmegaConf.merge(base_cfg, user_cfg)
             
             # Apply overrides

@@ -1,5 +1,5 @@
 # ========================================================================
-# Versailles Dataset - LOD3 Extended Building Classification (V5.1 Preset-Based)
+# Versailles Dataset - LOD3 Extended Building Classification (V5.1)
 # ========================================================================
 # Purpose: Process Versailles LiDAR data with LOD3 extended classification
 #
@@ -11,11 +11,13 @@
 # - Context: foundation, ground, vegetation, water, vehicle, other
 #
 # Usage:
-#   ign-lidar-hd process --config examples/config_versailles_lod3_v5.1.yaml
+#   ign-lidar-hd process --config-file examples/config_versailles_lod3_v5.1.yaml
 # ========================================================================
 
-# Use LOD3 preset (inherits from base.yaml)
-preset: lod3
+# Inherit from LOD3 preset (Hydra defaults system)
+defaults:
+  - presets/lod3
+  - _self_
 
 # Custom paths for Versailles dataset
 input_dir: /mnt/c/Users/Simon/ign/versailles
@@ -23,7 +25,9 @@ output_dir: /mnt/c/Users/Simon/ign/versailles_processed_lod3
 
 # Ground truth caching
 ground_truth:
+  enabled: true # Enable ground truth classification
   cache_dir: /mnt/c/Users/Simon/ign/cache/ground_truth
+  update_classification: true # Update LAS file classifications
 
 # Hydra output directory
 hydra:

@@ -62,14 +62,27 @@ processor:
   gpu_memory_target: 0.85 # 85% VRAM usage
   gpu_streams: 4 # CUDA streams for parallel processing
 
+  # ============================================================================
+  # CUDA Optimizations (Default: Disabled - Enable in hardware config)
+  # ============================================================================
+  # For maximum performance, enable in hardware-specific configs (rtx4090.yaml, etc.)
+  use_cuda_streams: false # Enable in hardware configs for +20-30% throughput
+  enable_memory_pooling: true # GPU memory pooling
+  enable_pipeline_optimization: true # Overlapped computation/transfer
+  auto_optimize: true # Auto-detect optimal settings
+
+  # Auto-configured when auto_optimize=true
+  chunk_size: null # null = auto-optimize based on VRAM
+  vram_limit_gb: null # null = auto-detect
+  cleanup_frequency: 20 # GPU memory cleanup frequency
+
   # Strategy pattern
   use_strategy_pattern: true # Use new Strategy Pattern
 
   # Optimization flags
   use_optimized_ground_truth: true # Use optimized ground truth classifier
-  enable_memory_pooling: true # GPU memory pooling
-  enable_async_transfers: true # Async CPU-GPU transfers
-  adaptive_chunk_sizing: true # Dynamic chunk sizing
+  enable_async_transfers: true # Async CPU-GPU transfers (legacy)
+  adaptive_chunk_sizing: true # Dynamic chunk sizing (legacy)
 
   # Processing settings
   skip_existing: false # Re-process existing files

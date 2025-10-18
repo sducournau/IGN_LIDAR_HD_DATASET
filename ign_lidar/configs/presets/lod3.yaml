@@ -64,12 +64,20 @@ processor:
   gpu_memory_target: 0.85 # 85% VRAM usage
   gpu_streams: 4 # CUDA streams for parallel processing
 
+  # CUDA Optimization Settings (default disabled, enable via hardware config)
+  use_cuda_streams: false # Enable CUDA streams for async processing
+  enable_memory_pooling: true # GPU memory pooling
+  enable_pipeline_optimization: false # Triple-buffering pipeline
+  auto_optimize: false # Automatic parameter tuning
+  chunk_size: null # Override chunk size (hardware configs set this)
+  vram_limit_gb: null # Override VRAM limit (hardware configs set this)
+  cleanup_frequency: 10 # Cleanup every N iterations
+
   # Strategy pattern
   use_strategy_pattern: true # Use new Strategy Pattern
 
   # Optimization flags
   use_optimized_ground_truth: true # Use optimized ground truth classifier
-  enable_memory_pooling: true # GPU memory pooling
   enable_async_transfers: true # Async CPU-GPU transfers
   adaptive_chunk_sizing: true # Dynamic chunk sizing
 
@@ -140,6 +148,14 @@ data_sources:
   # Orthophotos optional (slow but useful for LOD3)
   orthophoto_rgb: false # Enable if texture mapping needed
   orthophoto_nir: false
+
+# Ground truth: Optional (enable for automatic classification)
+ground_truth:
+  enabled: false # Disabled by default - set cache_dir to enable
+  cache_dir: null # Set to enable ground truth caching
+  update_classification: false
+  use_ndvi: false
+  fetch_rgb_nir: false
 
 # Preprocessing: Required section
 preprocess:

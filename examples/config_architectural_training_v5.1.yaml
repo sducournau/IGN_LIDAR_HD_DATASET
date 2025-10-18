@@ -1,5 +1,5 @@
 # ========================================================================
-# Architectural Style Training (V5.1 Preset-Based)
+# Architectural Style Training (V5.1)
 # ========================================================================
 # Purpose: Generate ML training patches with architectural style annotations
 #
@@ -15,11 +15,13 @@
 #   10: brutalist, 11: glass_steel, 12: fortress
 #
 # Usage:
-#   ign-lidar-hd process --config examples/config_architectural_training_v5.1.yaml
+#   ign-lidar-hd process --config-file examples/config_architectural_training_v5.1.yaml
 # ========================================================================
 
-# Use FULL preset for maximum detail (inherits from base.yaml)
-preset: full
+# Inherit from FULL preset (Hydra defaults system)
+defaults:
+  - presets/full
+  - _self_
 
 # Override processor settings for training mode
 processor:

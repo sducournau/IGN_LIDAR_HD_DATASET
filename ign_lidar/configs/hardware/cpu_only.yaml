@@ -27,6 +27,15 @@ processor:
   gpu_memory_target: 0.0 # Not applicable for CPU
   gpu_streams: 0 # Not applicable for CPU
 
+  # CUDA Optimization Settings (all disabled for CPU-only)
+  use_cuda_streams: false # No CUDA on CPU
+  enable_memory_pooling: false # Not beneficial for CPU
+  enable_pipeline_optimization: false # Not applicable for CPU
+  auto_optimize: false # Not applicable for CPU
+  chunk_size: null # Not applicable for CPU
+  vram_limit_gb: null # Not applicable for CPU
+  cleanup_frequency: 0 # Not applicable for CPU
+
   # Ground truth processing - CPU method
   ground_truth_method: "cpu" # Force CPU processing
   ground_truth_chunk_size: 500_000 # Smaller chunks for CPU
@@ -36,7 +45,6 @@ processor:
   reclassification_chunk_size: 500_000
 
   # CPU optimizations
-  enable_memory_pooling: false # Not beneficial for CPU
   enable_async_transfers: false # Not applicable for CPU
   enable_mixed_precision: false # Not supported on CPU
   adaptive_chunk_sizing: false # Fixed chunking for CPU

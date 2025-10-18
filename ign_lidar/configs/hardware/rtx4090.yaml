@@ -26,6 +26,20 @@ processor:
   gpu_memory_target: 0.92 # 92% VRAM utilization (~22GB)
   gpu_streams: 12 # Maximum streams for Ada Lovelace
 
+  # ============================================================================
+  # CUDA Optimizations - RTX 4090 (ENABLED - Oct 17, 2025)
+  # ============================================================================
+  # Enable all CUDA optimizations for maximum performance
+  use_cuda_streams: true # Triple-buffering for +20-30% throughput
+  enable_memory_pooling: true # Essential for large batches
+  enable_pipeline_optimization: true # Overlapped computation/transfer
+  auto_optimize: true # Auto-tune for RTX 4090
+
+  # RTX 4090 optimized settings
+  chunk_size: 8_000_000 # 8M points per chunk (large VRAM)
+  vram_limit_gb: 22.0 # Leave 2GB for system
+  cleanup_frequency: 30 # Less frequent cleanup (large VRAM)
+
   # Ground truth processing - aggressive
   ground_truth_method: "gpu_chunked" # Force GPU chunked
   ground_truth_chunk_size: 8_000_000 # 8M points per chunk (large)
@@ -34,8 +48,7 @@ processor:
   reclassification_mode: "gpu" # Force GPU reclassification
   reclassification_chunk_size: 8_000_000
 
-  # RTX 4090 maximum optimizations
-  enable_memory_pooling: true # Essential for large batches
+  # RTX 4090 maximum optimizations (legacy - replaced by CUDA settings above)
   enable_async_transfers: true # Highest memory bandwidth
   enable_mixed_precision: true # 4th gen Tensor Cores
   adaptive_chunk_sizing: true # Fine-tuned adaptation

@@ -25,19 +25,19 @@ processor:
   use_gpu_chunked: true # ✅ CRITICAL: Enable GPU chunked mode for optimized processing
 
   # RTX 4080 optimized GPU settings
-  gpu_batch_size: 16_000_000 # 16M points (~12-14GB VRAM usage)
+  gpu_batch_size: 8_000_000 # 8M points (~12-14GB VRAM usage)
   gpu_memory_target: 0.90 # 90% VRAM utilization (~14.4GB)
   gpu_streams: 8 # Optimal for Ada Lovelace architecture
 
   # Ground truth processing
   ground_truth_method: "gpu_chunked" # Force GPU chunked for RTX 4080
-  ground_truth_chunk_size: 8_000_000 # 8M points per chunk
+  ground_truth_chunk_size: 4_000_000 # 4M points per chunk
 
   lod_level: "ASPRS" # Use ASPRS classification scheme
   processing_mode: "enriched_only" # Processing mode for output
   # Reclassification
   reclassification_mode: "gpu" # Force GPU reclassification
-  reclassification_chunk_size: 8_000_000
+  reclassification_chunk_size: 4_000_000
 
   # RTX 4080 specific optimizations
   enable_memory_pooling: true # Important for Ada Lovelace

@@ -1,0 +1,40 @@
+# Test config to verify GPU sync fix
+# Minimal config that bypasses preset system
+
+input_dir: /mnt/c/Users/Simon/ign/versailles
+output_dir: /mnt/c/Users/Simon/ign/versailles_processed_test
+
+processor:
+  lod_level: ASPRS # Use ASPRS for fast mode
+  processing_mode: enriched_only
+  output_format: laz
+  use_gpu: true
+  num_workers: 1
+  gpu_batch_size: 8_000_000
+  chunk_size: 8_000_000
+  patch_size: 100.0
+  patch_overlap: 0.1
+  num_points: 32768
+
+features:
+  mode: asprs # Fast mode with 15 features
+  use_gpu_chunked: true
+  k_neighbors: 20
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: true
+
+preprocess:
+  enabled: false
+
+stitching:
+  enabled: false
+
+ground_truth:
+  enabled: false
+
+output:
+  format: laz
+  save_enriched: true
+  save_patches: false

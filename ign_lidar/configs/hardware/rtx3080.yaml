@@ -26,6 +26,19 @@ processor:
   gpu_memory_target: 0.85 # 85% VRAM utilization (~8.5GB)
   gpu_streams: 6 # Reduced for smaller VRAM
 
+  # ============================================================================
+  # CUDA Optimizations - RTX 3080 (ENABLED - Oct 17, 2025)
+  # ============================================================================
+  use_cuda_streams: true # Triple-buffering for +20-30% throughput
+  enable_memory_pooling: true # Important for memory management
+  enable_pipeline_optimization: true # Overlapped computation/transfer
+  auto_optimize: true # Auto-tune for RTX 3080
+
+  # RTX 3080 optimized settings (conservative for 10GB VRAM)
+  chunk_size: 3_000_000 # 3M points per chunk (10GB VRAM)
+  vram_limit_gb: 8.5 # Leave 1.5GB for system
+  cleanup_frequency: 15 # More frequent cleanup (smaller VRAM)
+
   # Ground truth processing
   ground_truth_method: "gpu_chunked" # Force GPU chunked
   ground_truth_chunk_size: 3_000_000 # 3M points per chunk (smaller)
@@ -34,8 +47,7 @@ processor:
   reclassification_mode: "gpu" # Force GPU reclassification
   reclassification_chunk_size: 3_000_000
 
-  # RTX 3080 specific optimizations
-  enable_memory_pooling: true # Important for memory management
+  # RTX 3080 specific optimizations (legacy - replaced by CUDA settings above)
   enable_async_transfers: true # High memory bandwidth
   enable_mixed_precision: false # Disabled for stability on smaller VRAM
   adaptive_chunk_sizing: true # Dynamic adaptation crucial

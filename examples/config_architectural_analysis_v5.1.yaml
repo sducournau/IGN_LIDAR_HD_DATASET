@@ -1,5 +1,5 @@
 # ========================================================================
-# Architectural Heritage Analysis (V5.1 Preset-Based)
+# Architectural Heritage Analysis (V5.1)
 # ========================================================================
 # Purpose: Process heritage sites with architectural style classification
 #          for analysis and visualization (not training)
@@ -17,11 +17,13 @@
 # - 3D GIS integration with style metadata
 #
 # Usage:
-#   ign-lidar-hd process --config examples/config_architectural_analysis_v5.1.yaml
+#   ign-lidar-hd process --config-file examples/config_architectural_analysis_v5.1.yaml
 # ========================================================================
 
-# Use FULL preset for maximum detail (inherits from base.yaml)
-preset: full
+# Inherit from FULL preset (Hydra defaults system)
+defaults:
+  - presets/full
+  - _self_
 
 # Override processor settings for analysis mode
 processor:
