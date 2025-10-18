@@ -5,6 +5,194 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2025-10-18
+
+### 🤖 Phase 4 Complete: UnifiedFeatureComputer Integration
+
+#### Summary
+
+**Major release with intelligent automatic computation mode selection!** Introduced UnifiedFeatureComputer that automatically selects optimal computation mode (CPU/GPU/GPU_CHUNKED) based on workload size, hardware availability, and memory constraints.
+
+**Key Results:**
+
+- ✅ **75% reduction** in configuration complexity (4 flags → 1 flag)
+- ✅ Automatic mode selection based on workload analysis
+- ✅ Complete backward compatibility (zero breaking changes)
+- ✅ 93 new tests with 100% pass rate
+- ✅ Comprehensive documentation and migration guide
+- ✅ Expert recommendations logged for optimization
+
+#### Added
+
+**Core Components**
+
+- NEW: `ign_lidar/features/mode_selector.py` (434 lines)
+
+  - Automatic computation mode selection
+  - Hardware capability detection (GPU, CUDA, memory)
+  - Workload size estimation and analysis
+  - Expert recommendations system
+  - Comprehensive logging of decisions
+  - 31/31 tests passing ✅
+
+- NEW: `ign_lidar/features/unified_computer.py` (494 lines)
+
+  - Unified API across all computation modes
+  - Automatic mode delegation to optimal implementation
+  - Consistent interface for normals, curvature, geometric features
+  - Progress callback support
+  - 26/26 tests passing ✅
+
+- NEW: `ign_lidar/features/utils.py` (353 lines)
+  - Shared utilities for feature computation
+  - KNN search helpers (CPU and GPU)
+  - Geometric feature calculations (planarity, linearity, etc.)
+  - Covariance matrix computation
+  - Input validation and error handling
+  - 36/36 tests passing ✅
+
+**Configuration Examples**
+
+- NEW: `examples/config_unified_auto.yaml` - Automatic mode selection (recommended)
+- NEW: `examples/config_unified_gpu_chunked.yaml` - Forced GPU chunked mode
+- NEW: `examples/config_unified_cpu.yaml` - Forced CPU mode
+- NEW: `examples/config_legacy_strategy.yaml` - Legacy Strategy Pattern
+
+**Documentation**
+
+- NEW: `docs/guides/migration-unified-computer.md` (528 lines)
+
+  - Complete migration paths from Strategy Pattern
+  - Before/after configuration examples
+  - Testing procedures and validation
+  - Troubleshooting guide and FAQ
+  - Performance comparison guidelines
+
+- NEW: `docs/guides/unified-computer-quick-reference.md` (178 lines)
+  - Configuration lookup table
+  - Mode selection logic documentation
+  - Performance guidelines by workload size
+  - Quick troubleshooting tips
+
+**Tests**
+
+- NEW: `tests/test_orchestrator_unified_integration.py` (6 integration tests)
+
+  - Default backward compatibility validation
+  - Unified computer opt-in functionality
+  - Feature computation correctness
+  - Forced mode configuration
+  - Numerical consistency between paths
+
+- NEW: `tests/test_mode_selector.py` (31 unit tests)
+- NEW: `tests/test_unified_computer.py` (26 unit tests)
+- NEW: `tests/test_feature_utils.py` (36 unit tests)
+
+#### Changed
+
+**FeatureOrchestrator** (`ign_lidar/features/orchestrator.py`)
+
+- **Dual-Path Architecture**:
+  - New: `_init_computer()` - Simplified to dispatch to appropriate path
+  - New: `_init_unified_computer()` - Initialize UnifiedFeatureComputer with mode selection
+  - New: `_init_strategy_computer()` - Legacy Strategy Pattern initialization
+  - New: `_get_forced_mode_from_config()` - Map config flags to computation modes
+  - New: `_estimate_typical_tile_size()` - Estimate workload for mode selection
+  - Modified: `_compute_geometric_features()` - Conditional API usage based on path
+  - Modified: `_compute_geometric_features_optimized()` - Handle both APIs
+
+**Configuration Options**
+
+```yaml
+# NEW: Simplified automatic mode selection
+processor:
+  use_unified_computer: true  # Single flag enables automatic optimization
+
+# NEW: Optional forced mode override
+processor:
+  use_unified_computer: true
+  computation_mode: "gpu_chunked"  # Options: cpu, gpu, gpu_chunked, boundary
+
+# NEW: Optional workload hint
+processor:
+  use_unified_computer: true
+  typical_points_per_tile: 2000000  # Helps optimize mode selection
+
+# UNCHANGED: Legacy configuration still works
+processor:
+  use_gpu: true
+  use_gpu_chunked: true
+```
+
+**README**
+
+- Added "UnifiedFeatureComputer with Automatic Mode Selection" section
+- Before/after configuration comparison
+- Benefits and features highlighted
+- Links to migration guide
+
+#### Performance
+
+**Mode Selection Logic**
+
+- **Small workloads** (<500K points) → GPU mode (full tile on GPU)
+- **Large workloads** (≥500K points) → GPU_CHUNKED mode (process in chunks)
+- **No GPU available** → CPU mode (multi-threaded)
+- **Forced mode** → Respects user override with recommendations logged
+
+**Logging Enhancements**
+
+```
+ℹ️  Automatic mode selection: GPU_CHUNKED
+    Reason: Large workload (2.5M points), GPU available
+    Recommendation: Consider GPU_CHUNKED for optimal performance
+```
+
+#### Testing
+
+- **Total Tests**: 93 new tests (31 + 26 + 36 + 6 integration)
+- **Pass Rate**: 100% (all tests passing)
+- **Coverage**: Mode selection, feature computation, integration, backward compatibility
+- **Validation**: Numerical consistency, error handling, edge cases
+
+#### Breaking Changes
+
+**NONE** - Complete backward compatibility maintained:
+
+- Default behavior unchanged (`use_unified_computer` defaults to `false`)
+- All existing configurations work without modification
+- Legacy Strategy Pattern fully functional
+- Opt-in design for gradual migration
+
+#### Migration
+
+**Quick Migration** (Recommended):
+
+```yaml
+# Before (4 flags)
+processor:
+  use_gpu: true
+  use_gpu_chunked: true
+  gpu_batch_size: 5000000
+  use_strategy_pattern: true
+
+# After (1 flag)
+processor:
+  use_unified_computer: true
+```
+
+See `docs/guides/migration-unified-computer.md` for complete migration paths.
+
+#### Documentation
+
+- **Migration Guide**: Complete with 4 migration paths
+- **Quick Reference**: Configuration lookup and troubleshooting
+- **6 Completion Reports**: Detailed technical documentation
+- **Example Configs**: 4 ready-to-use configurations
+- **README Update**: Feature announcement and quick start
+
+---
+
 ## [Unreleased]
 
 ### 🚀 CUDA & GPU Chunked Processing Optimizations - October 17, 2025
