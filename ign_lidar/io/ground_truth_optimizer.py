@@ -401,7 +401,11 @@ class GroundTruthOptimizer:
             logger.info("  Creating point GeoDataFrame...")
         
         point_geoms = [Point(p[0], p[1]) for p in points]
-        points_gdf = gpd.GeoDataFrame({'geometry': point_geoms, 'index': np.arange(len(points))})
+        # FIXED: Set CRS to match ground truth features (EPSG:2154 for Lambert 93)
+        points_gdf = gpd.GeoDataFrame(
+            {'geometry': point_geoms, 'index': np.arange(len(points))},
+            crs="EPSG:2154"  # Lambert 93 - standard for IGN data
+        )
         
         # Process each feature type in reverse priority
         for feature_type in reversed(label_priority):

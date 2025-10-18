@@ -71,7 +71,9 @@ class GPUChunkedFeatureComputer:
         auto_optimize: bool = True,
         use_cuda_streams: bool = True,
         enable_memory_pooling: bool = True,
-        enable_pipeline_optimization: bool = True
+        enable_pipeline_optimization: bool = True,
+        neighbor_query_batch_size: Optional[int] = None,
+        feature_batch_size: Optional[int] = None
     ):
         """
         Initialize GPU chunked feature computer.
@@ -88,6 +90,8 @@ class GPUChunkedFeatureComputer:
             use_cuda_streams: Enable CUDA streams for overlapped processing
             enable_memory_pooling: Enable memory pooling for reduced allocations
             enable_pipeline_optimization: Enable computation/transfer overlap
+            neighbor_query_batch_size: Points per neighbor query batch (None = 5M default, controls number of chunks)
+            feature_batch_size: Points per feature computation batch (None = 2M default, controls normal/curvature batching)
         """
         self.use_gpu = use_gpu and GPU_AVAILABLE
         self.use_cuml = CUML_AVAILABLE
@@ -96,6 +100,14 @@ class GPUChunkedFeatureComputer:
         self.use_cuda_streams = use_cuda_streams and GPU_AVAILABLE
         self.enable_memory_pooling = enable_memory_pooling
         self.enable_pipeline_optimization = enable_pipeline_optimization
+        
+        # Store neighbor query batch size (controls chunking for neighbor queries)
+        # Default to 5M if not specified, or allow user override
+        self.neighbor_query_batch_size = neighbor_query_batch_size if neighbor_query_batch_size is not None else 5_000_000
+        
+        # Store feature computation batch size (controls normal/curvature batching)
+        # Default to 2M if not specified, or allow user override
+        self.feature_batch_size = feature_batch_size if feature_batch_size is not None else 2_000_000
         
         # Initialize CUDA streams manager
         self.stream_manager = None
@@ -117,8 +129,9 @@ class GPUChunkedFeatureComputer:
                 # Configure memory pool for better performance
                 mempool = cp.get_default_memory_pool()
                 # Pre-allocate pool to reduce allocation overhead
-                mempool.set_limit(size=int(1024**3 * 16))  # 16GB limit
-                logger.info("✓ GPU memory pooling enabled")
+                # INCREASED from 16GB to 20GB for RTX 4080 Super (leave ~12GB for other processes)
+                mempool.set_limit(size=int(1024**3 * 20))  # 20GB limit (was 16GB)
+                logger.info("✓ GPU memory pooling enabled (20GB limit for RTX 4080 Super)")
             except Exception as e:
                 logger.warning(f"⚠ Memory pooling initialization failed: {e}")
         
@@ -248,6 +261,51 @@ class GPUChunkedFeatureComputer:
             # Standard synchronous transfer
             return cp.asnumpy(array)
         return np.asarray(array)
+    
+    def _log_gpu_memory(self, context: str = "", level: str = "debug"):
+        """
+        Log current GPU memory usage for performance monitoring.
+        
+        Args:
+            context: Description of current operation
+            level: Logging level ('debug', 'info', 'warning')
+        """
+        if not self.use_gpu or cp is None:
+            return
+        
+        try:
+            if cp.cuda.is_available():
+                mempool = cp.get_default_memory_pool()
+                used_bytes = mempool.used_bytes()
+                total_bytes = mempool.total_bytes()
+                
+                # Get device memory info
+                device = cp.cuda.Device()
+                total_mem = device.mem_info[1]  # Total device memory
+                free_mem = device.mem_info[0]   # Free device memory
+                used_mem = total_mem - free_mem
+                
+                used_gb = used_mem / (1024**3)
+                total_gb = total_mem / (1024**3)
+                pool_used_gb = used_bytes / (1024**3)
+                pool_total_gb = total_bytes / (1024**3)
+                usage_pct = (used_mem / total_mem) * 100
+                
+                msg = (
+                    f"GPU Memory [{context}]: "
+                    f"{used_gb:.2f}GB / {total_gb:.2f}GB ({usage_pct:.1f}%) | "
+                    f"Pool: {pool_used_gb:.2f}GB / {pool_total_gb:.2f}GB"
+                )
+                
+                if level == "info":
+                    logger.info(f"     💾 {msg}")
+                elif level == "warning":
+                    logger.warning(f"     ⚠️  {msg}")
+                else:
+                    logger.debug(f"     {msg}")
+                    
+        except Exception as e:
+            logger.debug(f"Could not get GPU memory info: {e}")
     
     def optimize_for_reclassification(
         self,
@@ -562,16 +620,7 @@ class GPUChunkedFeatureComputer:
             computer = GPUFeatureComputer(use_gpu=False)
             return computer.compute_normals(points, k=k)
     
-    def _log_gpu_memory(self, stage: str = ""):
-        """Log current GPU memory usage."""
-        if self.use_gpu and cp is not None:
-            mempool = cp.get_default_memory_pool()
-            used = mempool.used_bytes() / (1024**3)  # GB
-            total = mempool.total_bytes() / (1024**3)  # GB
-            logger.debug(
-                f"  GPU Memory {stage}: {used:.2f}GB used, "
-                f"{total:.2f}GB allocated"
-            )
+    # Note: _log_gpu_memory() is defined earlier in the class (line ~252) with level parameter support
     
     def _compute_normals_per_chunk(
         self,
@@ -1986,7 +2035,7 @@ class GPUChunkedFeatureComputer:
             # ⚡ OPTIMIZATION FIX #3: Preallocate array instead of list appends (eliminates sync points)
             # For large chunks (>1M points), fancy indexing points_gpu[neighbors_indices_gpu]
             # can cause massive slowdowns. Batch it to keep GPU responsive.
-            NEIGHBOR_BATCH_SIZE = 500_000  # Process 500K points at a time for neighbor lookup
+            NEIGHBOR_BATCH_SIZE = 2_000_000  # Process 2M points at a time for neighbor lookup (optimized for RTX 4080)
             if N > NEIGHBOR_BATCH_SIZE:
                 num_neighbor_batches = (N + NEIGHBOR_BATCH_SIZE - 1) // NEIGHBOR_BATCH_SIZE
                 
@@ -2557,6 +2606,9 @@ class GPUChunkedFeatureComputer:
         # Transfer points to GPU ONCE
         points_gpu = self._to_gpu(points)
         
+        # Log initial GPU memory state
+        self._log_gpu_memory("after points upload", level="info")
+        
         # ========================================================================
         # PHASE 1: BUILD GLOBAL KDTREE ONCE (MASSIVE SPEEDUP!)
         # ========================================================================
@@ -2568,6 +2620,7 @@ class GPUChunkedFeatureComputer:
             knn = cuNearestNeighbors(n_neighbors=k, metric='euclidean')
             knn.fit(points_gpu)
             logger.info("     ✓ Global GPU KDTree built (cuML)")
+            self._log_gpu_memory("after KDTree build", level="info")
         else:
             # CPU KDTree fallback
             points_cpu = self._to_cpu(points_gpu)
@@ -2614,35 +2667,110 @@ class GPUChunkedFeatureComputer:
                 logger.info(f"     ⚡ FAST MODE: Skipping advanced features (not needed for mode '{mode}')")
         
         # ========================================================================
-        # MEGA OPTIMIZATION: Query ALL neighbors at once instead of per-chunk!
-        # This eliminates the chunking overhead entirely (5-10x speedup!)
+        # OPTIMIZED: Query neighbors in batches to prevent GPU timeout/hang
+        # For large datasets (>10M points), single query can cause GPU hang
+        # Use configurable batch size (default 5M, user can set via neighbor_query_batch_size)
         # ========================================================================
-        logger.info(f"     🚀 Querying {N:,} neighbors in one operation...")
         
-        if self.use_cuml and cuNearestNeighbors is not None:
-            # GPU query ALL points at once
-            distances_all, global_indices_all_gpu = knn.kneighbors(points_gpu)
-            del distances_all
-            logger.info(f"     ✓ GPU neighbor query complete ({N:,} × {k} neighbors)")
+        # Calculate number of chunks based on neighbor query batch size
+        num_query_batches = (N + self.neighbor_query_batch_size - 1) // self.neighbor_query_batch_size
+        
+        # ALWAYS batch for datasets > neighbor_query_batch_size to prevent GPU hangs
+        if num_query_batches > 1:
+            logger.info(f"     🚀 Querying {N:,} neighbors in {num_query_batches} batches (prevents GPU hang)...")
+            logger.info(f"        Batch size: {self.neighbor_query_batch_size:,} points per batch")
+            
+            # Preallocate output arrays
+            if self.use_cuml and cuNearestNeighbors is not None:
+                global_indices_all_gpu = cp.zeros((N, k), dtype=cp.int32)
+            else:
+                global_indices_all_cpu = np.zeros((N, k), dtype=np.int32)
+            
+            # Query in batches
+            for batch_idx in range(num_query_batches):
+                batch_start = batch_idx * self.neighbor_query_batch_size
+                batch_end = min((batch_idx + 1) * self.neighbor_query_batch_size, N)
+                
+                if self.use_cuml and cuNearestNeighbors is not None:
+                    # GPU batch query
+                    batch_points = points_gpu[batch_start:batch_end]
+                    distances_batch, indices_batch = knn.kneighbors(batch_points)
+                    global_indices_all_gpu[batch_start:batch_end] = indices_batch
+                    del distances_batch, indices_batch, batch_points
+                else:
+                    # CPU batch query
+                    points_cpu = self._to_cpu(points_gpu) if batch_idx == 0 else points_cpu
+                    batch_points = points_cpu[batch_start:batch_end]
+                    distances_batch, indices_batch = knn.kneighbors(batch_points)
+                    global_indices_all_cpu[batch_start:batch_end] = indices_batch
+                    del distances_batch, indices_batch, batch_points
+                
+                # Progress update
+                if (batch_idx + 1) % 5 == 0 or batch_idx == num_query_batches - 1:
+                    progress_pct = ((batch_idx + 1) / num_query_batches) * 100
+                    logger.info(f"        Progress: {batch_idx + 1}/{num_query_batches} batches ({progress_pct:.0f}%)")
+            
+            # Convert to GPU if needed
+            if not (self.use_cuml and cuNearestNeighbors is not None):
+                global_indices_all_gpu = cp.asarray(global_indices_all_cpu) if (self.use_gpu and cp is not None) else global_indices_all_cpu
+            
+            logger.info(f"     ✓ Neighbor query complete ({N:,} × {k} neighbors, batched)")
+            self._log_gpu_memory("after neighbor query", level="info")
         else:
-            # CPU query ALL points at once (still much faster than per-chunk)
-            points_cpu = self._to_cpu(points_gpu)
-            distances_all, global_indices_all_cpu = knn.kneighbors(points_cpu)
-            del distances_all
-            global_indices_all_gpu = cp.asarray(global_indices_all_cpu) if (self.use_gpu and cp is not None) else global_indices_all_cpu
-            logger.info(f"     ✓ CPU neighbor query complete ({N:,} × {k} neighbors)")
+            # Small dataset, single query is fine
+            logger.info(f"     🚀 Querying {N:,} neighbors in one operation...")
+            
+            if self.use_cuml and cuNearestNeighbors is not None:
+                # GPU query ALL points at once
+                distances_all, global_indices_all_gpu = knn.kneighbors(points_gpu)
+                del distances_all
+                logger.info(f"     ✓ GPU neighbor query complete ({N:,} × {k} neighbors)")
+            else:
+                # CPU query ALL points at once
+                points_cpu = self._to_cpu(points_gpu)
+                distances_all, global_indices_all_cpu = knn.kneighbors(points_cpu)
+                del distances_all
+                global_indices_all_gpu = cp.asarray(global_indices_all_cpu) if (self.use_gpu and cp is not None) else global_indices_all_cpu
+                logger.info(f"     ✓ CPU neighbor query complete ({N:,} × {k} neighbors)")
         
         # ========================================================================
-        # COMPUTE NORMALS VECTORIZED ON GPU (single operation, 10x faster!)
+        # COMPUTE NORMALS VECTORIZED ON GPU (batched to prevent massive memory allocation)
         # ========================================================================
         logger.info(f"     ⚡ Computing normals ({N:,} points)...")
         
         if self.use_gpu and cp is not None:
-            # Full GPU computation - process all normals at once
-            normals_gpu = self._compute_normals_from_neighbors_gpu(
-                points_gpu, global_indices_all_gpu
-            )
-            logger.info(f"     ✓ Normals computed on GPU")
+            # ⚡ OPTIMIZATION: Batch normal computation for large datasets
+            # For 18.6M points with k=20, neighbor_points array = 18.6M×20×3 = 4.5GB
+            # Use configurable batch size (default 2M, user can override)
+            
+            if N > self.feature_batch_size:
+                num_normal_batches = (N + self.feature_batch_size - 1) // self.feature_batch_size
+                logger.info(f"        Batching normals: {num_normal_batches} batches ({self.feature_batch_size:,} points/batch)")
+                
+                normals_gpu = cp.zeros((N, 3), dtype=cp.float32)
+                
+                for batch_idx in range(num_normal_batches):
+                    batch_start = batch_idx * self.feature_batch_size
+                    batch_end = min((batch_idx + 1) * self.feature_batch_size, N)
+                    
+                    # Compute normals for this batch only
+                    batch_indices = global_indices_all_gpu[batch_start:batch_end]
+                    batch_normals = self._compute_normals_from_neighbors_gpu(
+                        points_gpu, batch_indices
+                    )
+                    normals_gpu[batch_start:batch_end] = batch_normals
+                    
+                    # Cleanup batch temporaries
+                    del batch_indices, batch_normals
+                
+                logger.info(f"     ✓ Normals computed on GPU (batched)")
+                self._log_gpu_memory("after normals", level="info")
+            else:
+                # Small dataset, full computation is fine
+                normals_gpu = self._compute_normals_from_neighbors_gpu(
+                    points_gpu, global_indices_all_gpu
+                )
+                logger.info(f"     ✓ Normals computed on GPU")
         else:
             # CPU fallback
             points_cpu = self._to_cpu(points_gpu)
@@ -2651,29 +2779,53 @@ class GPUChunkedFeatureComputer:
             logger.info(f"     ✓ Normals computed on CPU")
         
         # ========================================================================
-        # COMPUTE CURVATURE VECTORIZED ON GPU (single operation, 10x faster!)
+        # COMPUTE CURVATURE VECTORIZED ON GPU (batched to prevent hang)
         # ========================================================================
         logger.info(f"     ⚡ Computing curvature ({N:,} points)...")
         
         if self.use_gpu and cp is not None:
-            # Vectorized curvature computation - all points at once!
-            # Shape: [N, k, 3] - normals of all neighbors for all points
-            neighbor_normals_gpu = normals_gpu[global_indices_all_gpu]
+            # ⚡ OPTIMIZATION: Batch curvature computation to avoid massive fancy indexing
+            # For 18.6M points, neighbor_normals_gpu[indices] creates 18.6M×20×3 = 4.5GB array
+            # Use configurable batch size (default 2M, user can override)
             
-            # Expand query normals: [N, 1, 3] for broadcasting
-            query_normals_expanded = normals_gpu[:, cp.newaxis, :]
-            
-            # Compute differences: [N, k, 3]
-            normal_diff_gpu = neighbor_normals_gpu - query_normals_expanded
-            
-            # Compute norms and mean: [N]
-            curv_norms_gpu = cp.linalg.norm(normal_diff_gpu, axis=2)
-            curvature_gpu = cp.mean(curv_norms_gpu, axis=1).astype(cp.float32)
-            
-            logger.info(f"     ✓ Curvature computed on GPU")
-            
-            # Cleanup large temporaries
-            del neighbor_normals_gpu, query_normals_expanded, normal_diff_gpu, curv_norms_gpu
+            if N > self.feature_batch_size:
+                num_curv_batches = (N + self.feature_batch_size - 1) // self.feature_batch_size
+                logger.info(f"        Batching curvature: {num_curv_batches} batches ({self.feature_batch_size:,} points/batch)")
+                
+                curvature_gpu = cp.zeros(N, dtype=cp.float32)
+                
+                for batch_idx in range(num_curv_batches):
+                    batch_start = batch_idx * self.feature_batch_size
+                    batch_end = min((batch_idx + 1) * self.feature_batch_size, N)
+                    
+                    # Fancy indexing for this batch only
+                    batch_indices = global_indices_all_gpu[batch_start:batch_end]
+                    neighbor_normals_batch = normals_gpu[batch_indices]
+                    
+                    # Compute curvature for this batch
+                    query_normals_batch = normals_gpu[batch_start:batch_end, cp.newaxis, :]
+                    normal_diff_batch = neighbor_normals_batch - query_normals_batch
+                    curv_norms_batch = cp.linalg.norm(normal_diff_batch, axis=2)
+                    curvature_gpu[batch_start:batch_end] = cp.mean(curv_norms_batch, axis=1)
+                    
+                    # Cleanup batch temporaries
+                    del batch_indices, neighbor_normals_batch, query_normals_batch, normal_diff_batch, curv_norms_batch
+                
+                curvature_gpu = curvature_gpu.astype(cp.float32)
+                logger.info(f"     ✓ Curvature computed on GPU (batched)")
+                self._log_gpu_memory("after curvature", level="info")
+            else:
+                # Small dataset, vectorized computation is fine
+                neighbor_normals_gpu = normals_gpu[global_indices_all_gpu]
+                query_normals_expanded = normals_gpu[:, cp.newaxis, :]
+                normal_diff_gpu = neighbor_normals_gpu - query_normals_expanded
+                curv_norms_gpu = cp.linalg.norm(normal_diff_gpu, axis=2)
+                curvature_gpu = cp.mean(curv_norms_gpu, axis=1).astype(cp.float32)
+                
+                logger.info(f"     ✓ Curvature computed on GPU")
+                
+                # Cleanup large temporaries
+                del neighbor_normals_gpu, query_normals_expanded, normal_diff_gpu, curv_norms_gpu
         else:
             # CPU fallback
             neighbor_normals = normals[global_indices_cpu]
@@ -2693,9 +2845,11 @@ class GPUChunkedFeatureComputer:
         from .features_gpu import GPUFeatureComputer
         gpu_computer = GPUFeatureComputer(use_gpu=self.use_gpu)
         
-        # Cache points_cpu for feature computation
-        points_cpu = self._to_cpu(points_gpu) if (self.use_gpu and cp is not None) else points
-        global_indices_all_cpu = self._to_cpu(global_indices_all_gpu) if (self.use_gpu and cp is not None and isinstance(global_indices_all_gpu, cp.ndarray)) else global_indices_all_gpu
+        # ⚡ OPTIMIZATION: Delay CPU transfer until needed per-chunk (avoid blocking mega-transfer)
+        # Cache whether we need to transfer (avoid repeated isinstance checks)
+        need_transfer = self.use_gpu and cp is not None and isinstance(global_indices_all_gpu, cp.ndarray)
+        points_cpu = None  # Will transfer per-chunk to avoid blocking
+        global_indices_all_cpu = None  # Will transfer per-chunk
         
         # Progress bar
         chunk_iterator = range(num_chunks)
@@ -2711,15 +2865,26 @@ class GPUChunkedFeatureComputer:
         if self.use_gpu and cp is not None:
             normals = self._to_cpu(normals_gpu)
             curvature = self._to_cpu(curvature_gpu)
-            logger.info(f"     ✓ Transferred normals + curvature to CPU")
+            logger.info(f"     ✓ Transferred normals + curvature to CPU ({normals.nbytes / 1024**2:.1f}MB + {curvature.nbytes / 1024**2:.1f}MB)")
+        
+        # ⚡ OPTIMIZATION: Transfer points to CPU once (needed for all chunks)
+        if self.use_gpu and cp is not None:
+            points_cpu = self._to_cpu(points_gpu)
+            logger.info(f"     ✓ Transferred points to CPU ({points_cpu.nbytes / 1024**2:.1f}MB)")
+        else:
+            points_cpu = points
         
         # Process geometric features in chunks (these need CPU for height computation)
         for chunk_idx in chunk_iterator:
             start_idx = chunk_idx * self.chunk_size
             end_idx = min((chunk_idx + 1) * self.chunk_size, N)
             
-            # Get neighbor indices for this chunk
-            global_indices = global_indices_all_cpu[start_idx:end_idx]
+            # ⚡ OPTIMIZATION: Transfer indices per-chunk (avoid mega-transfer at once)
+            if need_transfer:
+                # Transfer just this chunk's indices from GPU to CPU
+                global_indices = self._to_cpu(global_indices_all_gpu[start_idx:end_idx])
+            else:
+                global_indices = global_indices_all_gpu[start_idx:end_idx]
             
             # Compute height
             chunk_points_cpu = points_cpu[start_idx:end_idx]

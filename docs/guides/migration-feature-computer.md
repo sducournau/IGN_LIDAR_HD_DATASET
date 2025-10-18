@@ -1,4 +1,4 @@
-# Migration Guide: Strategy Pattern → UnifiedFeatureComputer
+# Migration Guide: Strategy Pattern → FeatureComputer
 
 **Date**: October 18, 2025  
 **Version**: Phase 4 Task 1.4  
@@ -6,7 +6,7 @@
 
 ## Overview
 
-This guide helps you migrate from the legacy Strategy Pattern to the new UnifiedFeatureComputer, which provides automatic computation mode selection and a simplified API.
+This guide helps you migrate from the legacy Strategy Pattern to the new FeatureComputer, which provides automatic computation mode selection and a simplified API.
 
 ## TL;DR - Quick Migration
 
@@ -20,11 +20,11 @@ processor:
   gpu_batch_size: 5000000
 ```
 
-### After (UnifiedFeatureComputer - Automatic)
+### After (FeatureComputer - Automatic)
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
 ```
 
 **That's it!** The system will automatically select the best computation mode.
@@ -33,7 +33,7 @@ processor:
 
 ## Why Migrate?
 
-### Benefits of UnifiedFeatureComputer
+### Benefits of FeatureComputer
 
 ✅ **Automatic Mode Selection** - No manual GPU/CPU configuration  
 ✅ **Simplified Configuration** - One flag instead of multiple  
@@ -71,7 +71,7 @@ features:
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
 
 features:
   k_neighbors: 20
@@ -80,7 +80,7 @@ features:
 **What Changed**:
 
 - Removed `use_gpu`, `use_gpu_chunked`, `gpu_batch_size`
-- Added single `use_unified_computer: true` flag
+- Added single `use_feature_computer: true` flag
 - System automatically selects CPU/GPU/GPU_CHUNKED based on workload
 
 **Configuration File**: `examples/config_unified_auto.yaml`
@@ -104,7 +104,7 @@ processor:
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
   computation_mode: "gpu_chunked"
 ```
 
@@ -134,7 +134,7 @@ processor:
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
   computation_mode: "cpu"
 ```
 
@@ -164,7 +164,7 @@ processor:
 
 ```yaml
 processor:
-  use_unified_computer: false # Explicit
+  use_feature_computer: false # Explicit
   use_gpu: true
   use_gpu_chunked: true
 ```
@@ -175,12 +175,12 @@ processor:
 
 ## Configuration Reference
 
-### UnifiedFeatureComputer Options
+### FeatureComputer Options
 
 ```yaml
 processor:
-  # Enable UnifiedFeatureComputer
-  use_unified_computer: true # Default: false
+  # Enable FeatureComputer
+  use_feature_computer: true # Default: false
 
   # Optional: Force specific mode (overrides automatic selection)
   computation_mode: "gpu_chunked" # Options: cpu, gpu, gpu_chunked, boundary
@@ -223,8 +223,8 @@ When `computation_mode` is not specified, the system automatically selects:
 
 ```yaml
 processor:
-  # Disable UnifiedFeatureComputer (use legacy)
-  use_unified_computer: false # Default
+  # Disable FeatureComputer (use legacy)
+  use_feature_computer: false # Default
 
   # Legacy flags
   use_gpu: true # Enable GPU
@@ -342,12 +342,12 @@ print(f"Speedup: {legacy_mean/unified_mean:.2f}x")
 
 ## Troubleshooting
 
-### Issue: "UnifiedFeatureComputer not available"
+### Issue: "FeatureComputer not available"
 
 **Error Message**:
 
 ```
-ERROR: UnifiedFeatureComputer not available: cannot import...
+ERROR: FeatureComputer not available: cannot import...
        Falling back to strategy pattern.
 ```
 
@@ -358,7 +358,7 @@ ERROR: UnifiedFeatureComputer not available: cannot import...
 pip install -e .
 
 # Verify import works
-python -c "from ign_lidar.features.unified_computer import UnifiedFeatureComputer"
+python -c "from ign_lidar.features.unified_computer import FeatureComputer"
 ```
 
 ---
@@ -379,7 +379,7 @@ print(f"CUDA device: {torch.cuda.get_device_name(0) if torch.cuda.is_available()
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
   computation_mode: "gpu" # Force GPU
 ```
 
@@ -399,7 +399,7 @@ processor:
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
   typical_points_per_tile: 2500000 # Your actual size
 ```
 
@@ -438,7 +438,7 @@ assert np.all(features['curvature'] >= 0), "Curvature should be ≥0"
 
 ### Q: Can I switch back if there are issues?
 
-**A**: Yes! Just set `use_unified_computer: false` or remove the flag.
+**A**: Yes! Just set `use_feature_computer: false` or remove the flag.
 
 ### Q: Will automatic mode always be optimal?
 
@@ -458,7 +458,7 @@ assert np.all(features['curvature'] >= 0), "Curvature should be ≥0"
 
 ### Q: What about boundary-aware processing?
 
-**A**: Currently only available via legacy Strategy Pattern. UnifiedFeatureComputer support planned for future release.
+**A**: Currently only available via legacy Strategy Pattern. FeatureComputer support planned for future release.
 
 ### Q: How do I debug mode selection?
 
@@ -513,7 +513,7 @@ If you encounter problems:
 
 **Recommended Migration Path**:
 
-1. Start with `use_unified_computer: true` (automatic mode)
+1. Start with `use_feature_computer: true` (automatic mode)
 2. Test on small dataset
 3. Compare performance and results
 4. Deploy to production gradually

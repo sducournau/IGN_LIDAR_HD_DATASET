@@ -1,5 +1,5 @@
 """
-Integration tests for FeatureOrchestrator with UnifiedFeatureComputer.
+Integration tests for FeatureOrchestrator with FeatureComputer.
 
 Tests Phase 4 Task 1.4 - Pipeline Integration
 """
@@ -10,7 +10,7 @@ from ign_lidar.features.orchestrator import FeatureOrchestrator
 
 
 class TestOrchestratorUnifiedIntegration:
-    """Test FeatureOrchestrator integration with UnifiedFeatureComputer."""
+    """Test FeatureOrchestrator integration with FeatureComputer."""
     
     def test_default_uses_strategy_pattern(self):
         """Test that default config uses Strategy Pattern (backward compatible)."""
@@ -31,11 +31,11 @@ class TestOrchestratorUnifiedIntegration:
         assert hasattr(orchestrator, 'strategy_name')
         assert orchestrator.strategy_name == 'cpu'
     
-    def test_unified_computer_opt_in(self):
-        """Test that use_unified_computer=True enables UnifiedFeatureComputer."""
+    def test_feature_computer_opt_in(self):
+        """Test that use_feature_computer=True enables FeatureComputer."""
         config = {
             'processor': {
-                'use_unified_computer': True,
+                'use_feature_computer': True,
                 'use_gpu': False,
             },
             'features': {
@@ -45,16 +45,16 @@ class TestOrchestratorUnifiedIntegration:
         
         orchestrator = FeatureOrchestrator(config)
         
-        # Should use UnifiedFeatureComputer
+        # Should use FeatureComputer
         assert hasattr(orchestrator, 'computer')
         # Check it's the unified computer (has compute_all_features method)
         assert hasattr(orchestrator.computer, 'compute_all_features')
     
-    def test_unified_computer_compute_features(self):
-        """Test that UnifiedFeatureComputer path computes features correctly."""
+    def test_feature_computer_compute_features(self):
+        """Test that FeatureComputer path computes features correctly."""
         config = {
             'processor': {
-                'use_unified_computer': True,
+                'use_feature_computer': True,
                 'use_gpu': False,
             },
             'features': {
@@ -94,11 +94,11 @@ class TestOrchestratorUnifiedIntegration:
         assert features['curvature'].shape == (n_points,)
         assert features['height'].shape == (n_points,)
     
-    def test_unified_computer_forced_mode(self):
+    def test_feature_computer_forced_mode(self):
         """Test that computation_mode forces specific mode."""
         config = {
             'processor': {
-                'use_unified_computer': True,
+                'use_feature_computer': True,
                 'computation_mode': 'cpu',  # Force CPU mode
             },
             'features': {
@@ -108,7 +108,7 @@ class TestOrchestratorUnifiedIntegration:
         
         orchestrator = FeatureOrchestrator(config)
         
-        # Should use UnifiedFeatureComputer with forced CPU mode
+        # Should use FeatureComputer with forced CPU mode
         assert hasattr(orchestrator.computer, 'compute_all_features')
         # TODO: Add way to check selected mode
     
@@ -116,7 +116,7 @@ class TestOrchestratorUnifiedIntegration:
         """Test that Strategy Pattern path still works identically."""
         config = {
             'processor': {
-                'use_unified_computer': False,  # Explicit
+                'use_feature_computer': False,  # Explicit
                 'use_gpu': False,
                 'use_strategy_pattern': True,
             },
@@ -165,7 +165,7 @@ class TestOrchestratorUnifiedIntegration:
         strategy_config = {
             **base_config,
             'processor': {
-                'use_unified_computer': False,
+                'use_feature_computer': False,
                 'use_gpu': False,
                 'use_strategy_pattern': True,
             }
@@ -175,7 +175,7 @@ class TestOrchestratorUnifiedIntegration:
         unified_config = {
             **base_config,
             'processor': {
-                'use_unified_computer': True,
+                'use_feature_computer': True,
                 'use_gpu': False,
                 'computation_mode': 'cpu',  # Force CPU for fair comparison
             }

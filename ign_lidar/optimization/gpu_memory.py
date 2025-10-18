@@ -38,7 +38,7 @@ class GPUArrayCache:
         >>> gpu_arr = cache.get_or_upload('normals', normals_cpu)
     """
     
-    def __init__(self, max_size_gb: float = 4.0):
+    def __init__(self, max_size_gb: float = 8.0):  # INCREASED from 4GB to 8GB for better caching
         self.max_size_gb = max_size_gb
         self.cache: Dict[str, cp.ndarray] = {}
         self.cache_sizes: Dict[str, int] = {}

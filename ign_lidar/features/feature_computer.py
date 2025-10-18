@@ -1,5 +1,5 @@
 """
-Unified Feature Computer - Single Entry Point for All Computation Modes
+Feature Computer - Single Entry Point for All Computation Modes
 
 This module provides a unified interface for feature computation that automatically
 selects the optimal computation mode (CPU, GPU, GPU Chunked, or Boundary) based on
@@ -19,16 +19,16 @@ from .mode_selector import ModeSelector, ComputationMode, get_mode_selector
 logger = logging.getLogger(__name__)
 
 
-class UnifiedFeatureComputer:
+class FeatureComputer:
     """
-    Unified interface for point cloud feature computation.
+    Feature computer with automatic mode selection.
     
     Automatically selects the optimal computation mode and provides a
     consistent API regardless of the underlying implementation.
     
     Examples:
         >>> # Basic usage with automatic mode selection
-        >>> computer = UnifiedFeatureComputer()
+        >>> computer = FeatureComputer()
         >>> features = computer.compute_geometric_features(
         ...     points=points,
         ...     required_features=['planarity', 'linearity'],
@@ -39,11 +39,11 @@ class UnifiedFeatureComputer:
         >>> def progress_callback(progress, message):
         ...     print(f"{progress:.1%}: {message}")
         >>> 
-        >>> computer = UnifiedFeatureComputer(progress_callback=progress_callback)
+        >>> computer = FeatureComputer(progress_callback=progress_callback)
         >>> features = computer.compute_normals(points, k=10)
         
         >>> # Force specific mode
-        >>> computer = UnifiedFeatureComputer(force_mode=ComputationMode.GPU)
+        >>> computer = FeatureComputer(force_mode=ComputationMode.GPU)
         >>> features = computer.compute_curvature(points, k=20)
     """
     
@@ -76,7 +76,7 @@ class UnifiedFeatureComputer:
         self._gpu_chunked_computer = None
         self._boundary_computer = None
         
-        logger.info(f"UnifiedFeatureComputer initialized")
+        logger.info(f"FeatureComputer initialized")
         logger.info(f"  Force mode: {force_mode.value if force_mode else 'None (automatic)'}")
         logger.info(f"  GPU available: {self.mode_selector.gpu_available}")
         logger.info(f"  Progress callback: {'Enabled' if progress_callback else 'Disabled'}")
@@ -464,14 +464,14 @@ class UnifiedFeatureComputer:
         return results
 
 
-def get_unified_computer(
+def get_feature_computer(
     force_mode: Optional[ComputationMode] = None,
     progress_callback: Optional[Callable[[float, str], None]] = None,
     prefer_gpu: bool = True,
     **kwargs
-) -> UnifiedFeatureComputer:
+) -> FeatureComputer:
     """
-    Factory function to get a configured UnifiedFeatureComputer.
+    Factory function to get a configured FeatureComputer.
     
     Args:
         force_mode: Force specific computation mode
@@ -480,13 +480,13 @@ def get_unified_computer(
         **kwargs: Additional arguments for mode-specific computers
     
     Returns:
-        Configured UnifiedFeatureComputer
+        Configured FeatureComputer
     
     Example:
-        >>> computer = get_unified_computer()
+        >>> computer = get_feature_computer()
         >>> normals = computer.compute_normals(points, k=10)
     """
-    return UnifiedFeatureComputer(
+    return FeatureComputer(
         force_mode=force_mode,
         progress_callback=progress_callback,
         prefer_gpu=prefer_gpu,

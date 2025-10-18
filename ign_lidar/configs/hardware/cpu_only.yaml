@@ -1,5 +1,5 @@
 # ============================================================================
-# IGN LiDAR HD - CPU-Only Hardware Configuration V5.0
+# IGN LiDAR HD - CPU-Only Hardware Configuration V5.1
 # ============================================================================
 # Optimized configuration for CPU-only processing (no GPU available)
 # Designed for compatibility and fallback scenarios
@@ -9,8 +9,14 @@
 #   ign-lidar-hd process --config-path ign_lidar/configs/hardware --config-name cpu_only
 #
 # Expected performance: ~5-15 min per tile (varies by CPU)
-# V5: Simplified configuration with integrated optimizations
+# Version: 5.1.0
+# Date: October 18, 2025
 # ============================================================================
+
+# Configuration metadata
+config_version: "5.1.0"
+config_type: "hardware_profile"
+hardware_target: "cpu_only"
 
 # Inherit from V5 base configurations
 defaults:

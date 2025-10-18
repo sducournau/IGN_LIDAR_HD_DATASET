@@ -61,14 +61,18 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         k_neighbors (int): Number of neighbors for geometric features
         chunk_size (int): Points per chunk (default: 5M)
         batch_size (int): Neighbor batch size (default: 250K, optimized in Week 1)
+        neighbor_query_batch_size (int): Points per neighbor query batch (controls chunking for neighbor queries)
+        feature_batch_size (int): Points per feature computation batch (controls normal/curvature batching)
     """
     
     def __init__(
         self,
         k_neighbors: int = 20,
         radius: float = 1.0,
-        chunk_size: int = 5_000_000,
-        batch_size: int = 250_000,  # Week 1 optimization
+        chunk_size: int = 8_000_000,  # INCREASED from 5M to 8M for RTX 4080 Super
+        batch_size: int = 500_000,  # INCREASED from 250K to 500K for better GPU utilization
+        neighbor_query_batch_size: Optional[int] = None,  # NEW: Controls neighbor query chunking
+        feature_batch_size: Optional[int] = None,  # NEW: Controls feature computation batching
         verbose: bool = False
     ):
         """
@@ -77,8 +81,10 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         Args:
             k_neighbors: Number of neighbors for local features
             radius: Search radius in meters (not used in chunked mode)
-            chunk_size: Points per chunk (default: 5M)
-            batch_size: Neighbor batch size (default: 250K, Week 1 optimized)
+            chunk_size: Points per chunk (default: 8M, optimized for RTX 4080 Super)
+            batch_size: Neighbor batch size (default: 500K, doubled for better utilization)
+            neighbor_query_batch_size: Points per neighbor query batch (None = 5M default, controls number of chunks)
+            feature_batch_size: Points per feature computation batch (None = 2M default, controls normal/curvature batching)
             verbose: Enable detailed logging
             
         Raises:
@@ -94,21 +100,33 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         
         self.chunk_size = chunk_size
         self.batch_size = batch_size
+        self.neighbor_query_batch_size = neighbor_query_batch_size
+        self.feature_batch_size = feature_batch_size
         
         # GPUChunkedFeatureComputer doesn't accept k_neighbors in __init__
         # It will be passed during compute() call instead
         self.gpu_computer = GPUChunkedFeatureComputer(
             chunk_size=chunk_size,
-            show_progress=verbose
+            show_progress=verbose,
+            neighbor_query_batch_size=neighbor_query_batch_size,
+            feature_batch_size=feature_batch_size
         )
         
         if verbose:
             logger.info(
-                f"Initialized GPU chunked strategy (GOLD STANDARD): "
+                f"Initialized GPU chunked strategy (GOLD STANDARD + ENHANCED): "
                 f"k={k_neighbors}, chunk_size={chunk_size:,}, batch_size={batch_size:,}"
             )
+            if neighbor_query_batch_size is not None:
+                logger.info(
+                    f"Neighbor query batch size: {neighbor_query_batch_size:,} points (controls chunking)"
+                )
+            if feature_batch_size is not None:
+                logger.info(
+                    f"Feature computation batch size: {feature_batch_size:,} points (controls normal/curvature batching)"
+                )
             logger.info(
-                f"Week 1 optimization active: 250K batch size, 16× speedup achieved"
+                f"Enhanced optimization: 8M chunks + 500K batches for RTX 4080 Super (60% capacity increase)"
             )
     
     def compute(
@@ -311,12 +329,28 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
             # Vegetation index
             vegetation_index = (g - r) / (g + r + 1e-8)
             
-            # Transfer back to CPU
-            results['rgb_mean'][start:end] = cp.asnumpy(rgb_mean)
-            results['rgb_std'][start:end] = cp.asnumpy(rgb_std)
-            results['rgb_range'][start:end] = cp.asnumpy(rgb_range)
-            results['excess_green'][start:end] = cp.asnumpy(exg)
-            results['vegetation_index'][start:end] = cp.asnumpy(vegetation_index)
+            # ⚡ OPTIMIZATION: Batch all RGB transfers into single operation
+            # Stack all features on GPU, then single transfer to CPU
+            rgb_features_gpu = cp.stack([
+                rgb_mean,
+                rgb_std, 
+                rgb_range,
+                exg,
+                vegetation_index
+            ], axis=1)  # Shape: [N, 5]
+            
+            # Single transfer: 5x fewer cp.asnumpy() calls
+            rgb_features_cpu = cp.asnumpy(rgb_features_gpu)
+            
+            # Unpack to results
+            results['rgb_mean'][start:end] = rgb_features_cpu[:, 0]
+            results['rgb_std'][start:end] = rgb_features_cpu[:, 1]
+            results['rgb_range'][start:end] = rgb_features_cpu[:, 2]
+            results['excess_green'][start:end] = rgb_features_cpu[:, 3]
+            results['vegetation_index'][start:end] = rgb_features_cpu[:, 4]
+            
+            # Cleanup
+            del rgb_features_gpu, rgb_features_cpu
         
         return results
     

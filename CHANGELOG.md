@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0] - 2025-10-18
 
-### 🤖 Phase 4 Complete: UnifiedFeatureComputer Integration
+### 🤖 Phase 4 Complete: FeatureComputer Integration
 
 #### Summary
 
-**Major release with intelligent automatic computation mode selection!** Introduced UnifiedFeatureComputer that automatically selects optimal computation mode (CPU/GPU/GPU_CHUNKED) based on workload size, hardware availability, and memory constraints.
+**Major release with intelligent automatic computation mode selection!** Introduced FeatureComputer that automatically selects optimal computation mode (CPU/GPU/GPU_CHUNKED) based on workload size, hardware availability, and memory constraints.
 
 **Key Results:**
 
@@ -94,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Dual-Path Architecture**:
   - New: `_init_computer()` - Simplified to dispatch to appropriate path
-  - New: `_init_unified_computer()` - Initialize UnifiedFeatureComputer with mode selection
+  - New: `_init_unified_computer()` - Initialize FeatureComputer with mode selection
   - New: `_init_strategy_computer()` - Legacy Strategy Pattern initialization
   - New: `_get_forced_mode_from_config()` - Map config flags to computation modes
   - New: `_estimate_typical_tile_size()` - Estimate workload for mode selection
@@ -106,16 +106,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ```yaml
 # NEW: Simplified automatic mode selection
 processor:
-  use_unified_computer: true  # Single flag enables automatic optimization
+  use_feature_computer: true  # Single flag enables automatic optimization
 
 # NEW: Optional forced mode override
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
   computation_mode: "gpu_chunked"  # Options: cpu, gpu, gpu_chunked, boundary
 
 # NEW: Optional workload hint
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
   typical_points_per_tile: 2000000  # Helps optimize mode selection
 
 # UNCHANGED: Legacy configuration still works
@@ -126,7 +126,7 @@ processor:
 
 **README**
 
-- Added "UnifiedFeatureComputer with Automatic Mode Selection" section
+- Added "FeatureComputer with Automatic Mode Selection" section
 - Before/after configuration comparison
 - Benefits and features highlighted
 - Links to migration guide
@@ -159,7 +159,7 @@ processor:
 
 **NONE** - Complete backward compatibility maintained:
 
-- Default behavior unchanged (`use_unified_computer` defaults to `false`)
+- Default behavior unchanged (`use_feature_computer` defaults to `false`)
 - All existing configurations work without modification
 - Legacy Strategy Pattern fully functional
 - Opt-in design for gradual migration
@@ -178,7 +178,7 @@ processor:
 
 # After (1 flag)
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
 ```
 
 See `docs/guides/migration-unified-computer.md` for complete migration paths.

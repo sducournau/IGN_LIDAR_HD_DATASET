@@ -84,14 +84,14 @@ class GPUFeatureComputer:
                     
                     # More aggressive batch sizes for RTX 4080 Super optimization
                     if total_vram_gb >= 15.0:  # RTX 4080 Super has ~16GB but reports 15.992
-                        # RTX 4080 Super and similar - use configured batch size up to 8M
-                        self.batch_size = min(batch_size, 8_000_000)  # High-end GPUs
+                        # RTX 4080 Super and similar - INCREASED from 8M to 12M for better GPU utilization
+                        self.batch_size = min(batch_size, 12_000_000)  # High-end GPUs (50% more)
                     elif total_vram_gb >= 12.0:
-                        self.batch_size = min(batch_size, 4_000_000)  # Mid-range GPUs  
+                        self.batch_size = min(batch_size, 6_000_000)  # Mid-range GPUs (50% increase)
                     elif total_vram_gb >= 8.0:
-                        self.batch_size = min(batch_size, 2_000_000)  # Standard GPUs
+                        self.batch_size = min(batch_size, 3_000_000)  # Standard GPUs (50% increase)
                     else:
-                        self.batch_size = min(batch_size, 1_000_000)    # Low VRAM
+                        self.batch_size = min(batch_size, 1_500_000)    # Low VRAM (50% increase)
                 else:
                     self.batch_size = batch_size
             except Exception:

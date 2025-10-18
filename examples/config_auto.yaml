@@ -1,17 +1,24 @@
-# Example Configuration: UnifiedFeatureComputer with Automatic Mode Selection
+# Example Configuration: FeatureComputer with Automatic Mode Selection
 #
-# This configuration enables the new UnifiedFeatureComputer which automatically
+# This configuration enables the new FeatureComputer which automatically
 # selects the optimal computation mode (CPU, GPU, GPU_CHUNKED) based on:
 # - Available hardware (GPU presence)
 # - Point cloud size
 # - Memory constraints
 #
 # Use this for maximum simplicity and automatic optimization.
+#
+# Version: 5.1.0 (Legacy - Consider using presets instead)
+# Date: October 18, 2025
+
+# Configuration metadata
+config_version: "5.1.0"
+config_type: "legacy_example"
 
 # Processing Configuration
 processor:
-  # NEW (Phase 4): Enable UnifiedFeatureComputer with automatic mode selection
-  use_unified_computer: true
+  # NEW (Phase 4): Enable FeatureComputer with automatic mode selection
+  use_feature_computer: true
 
   # Tile processing
   tile_size: 1000 # meters

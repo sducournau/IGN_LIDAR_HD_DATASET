@@ -11,8 +11,8 @@
 #   - Easy to override via presets or CLI
 #
 # Version: 5.1.0
-# Date: October 17, 2025
-# Week: 3 (Configuration Refactoring)
+# Date: October 18, 2025
+# Package Version: 3.0.0
 # Compatibility: FeatureOrchestrator V5
 # ============================================================================
 
@@ -21,7 +21,7 @@
 # ============================================================================
 config_version: "5.1.0"
 config_name: "base"
-config_description: "IGN LiDAR HD V5.1 - Base Configuration (Week 3)"
+config_description: "IGN LiDAR HD V5.1 - Base Configuration (Stable)"
 
 # ============================================================================
 # PATHS AND BASIC SETTINGS

@@ -93,6 +93,19 @@ except ImportError:
 from .orchestrator import (
     FeatureOrchestrator,
 )
+
+# FeatureComputer (Phase 4 - automatic mode selection)
+try:
+    from .feature_computer import (
+        FeatureComputer,
+        get_feature_computer,
+    )
+    FEATURE_COMPUTER_AVAILABLE = True
+except ImportError:
+    FeatureComputer = None
+    get_feature_computer = None
+    FEATURE_COMPUTER_AVAILABLE = False
+
 from .architectural_styles import (
     ARCHITECTURAL_STYLES,
     STYLE_NAME_TO_ID,
@@ -114,6 +127,10 @@ from .feature_modes import (
 )
 
 __all__ = [
+    # FeatureComputer (Phase 4 - automatic mode selection)
+    'FeatureComputer',
+    'get_feature_computer',
+    
     # Strategy Pattern (NEW - Week 2)
     'BaseFeatureStrategy',
     'FeatureComputeMode',

@@ -1,5 +1,5 @@
 # ============================================================================
-# IGN LiDAR HD - RTX 4080 Hardware Configuration V5.0
+# IGN LiDAR HD - RTX 4080 Hardware Configuration V5.1
 # ============================================================================
 # Optimized configuration for NVIDIA RTX 4080 / RTX 4080 Super
 # VRAM: 16GB GDDR6X | CUDA Cores: 9728/10240 | Memory Bandwidth: 716 GB/s
@@ -9,8 +9,14 @@
 #   ign-lidar-hd process --config-path ign_lidar/configs/hardware --config-name rtx4080
 #
 # Expected performance: >85% GPU utilization, 30-60s per tile
-# V5: Simplified configuration with integrated optimizations
+# Version: 5.1.0
+# Date: October 18, 2025
 # ============================================================================
+
+# Configuration metadata
+config_version: "5.1.0"
+config_type: "hardware_profile"
+hardware_target: "rtx4080"
 
 # Inherit from V5 base configurations
 defaults:

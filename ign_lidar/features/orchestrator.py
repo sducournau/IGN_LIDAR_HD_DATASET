@@ -292,34 +292,34 @@ class FeatureOrchestrator:
         """
         Select and create appropriate feature strategy based on configuration.
         
-        NEW (Phase 4 Task 1.4): Supports UnifiedFeatureComputer with automatic mode selection
+        NEW (Phase 4 Task 1.4): Supports FeatureComputer with automatic mode selection
         
         Selection logic:
-        1. If use_unified_computer=True: Use UnifiedFeatureComputer (automatic mode selection)
+        1. If use_feature_computer=True: Use FeatureComputer (automatic mode selection)
         2. Else: Use Strategy Pattern (manual GPU/CPU selection) - via _init_strategy_computer()
         
         The created strategy is cached in self.computer for reuse.
         
         Note: self.computer can be:
-        - UnifiedFeatureComputer (Phase 4, automatic mode selection)
+        - FeatureComputer (Phase 4, automatic mode selection)
         - BaseFeatureStrategy (Week 2, Strategy Pattern)
         - BaseFeatureComputer (legacy, deprecated)
         """
         processor_cfg = self.config.get('processor', {})
         
-        # NEW (Phase 4 Task 1.4): Check if unified computer is enabled
-        use_unified_computer = processor_cfg.get('use_unified_computer', False)
+        # NEW (Phase 4 Task 1.4): Check if feature computer is enabled
+        use_feature_computer = processor_cfg.get('use_feature_computer', False)
         
-        if use_unified_computer:
-            logger.info("🆕 Using UnifiedFeatureComputer (Phase 4 - automatic mode selection)")
-            self._init_unified_computer()
+        if use_feature_computer:
+            logger.info("🆕 Using FeatureComputer (Phase 4 - automatic mode selection)")
+            self._init_feature_computer()
         else:
             # Use legacy strategy pattern (original implementation)
             self._init_strategy_computer()
     
-    def _init_unified_computer(self):
+    def _init_feature_computer(self):
         """
-        Initialize UnifiedFeatureComputer with automatic mode selection.
+        Initialize FeatureComputer with automatic mode selection.
         
         NEW (Phase 4 Task 1.4): Provides automatic mode selection based on:
         - Point cloud size
@@ -327,15 +327,15 @@ class FeatureOrchestrator:
         - Memory constraints
         - User configuration overrides
         
-        The UnifiedFeatureComputer provides a single, consistent API across
+        The FeatureComputer provides a single, consistent API across
         all computation modes (CPU, GPU, GPU_CHUNKED, BOUNDARY).
         """
         try:
-            from .unified_computer import UnifiedFeatureComputer
+            from .feature_computer import FeatureComputer
             from .mode_selector import ModeSelector
         except ImportError as e:
             logger.error(
-                f"UnifiedFeatureComputer not available: {e}. "
+                f"FeatureComputer not available: {e}. "
                 "Falling back to strategy pattern."
             )
             # Fall back to strategy pattern
@@ -357,9 +357,9 @@ class FeatureOrchestrator:
             }
             force_mode = mode_map.get(force_mode_str.lower())
         
-        # Create unified computer
+        # Create feature computer
         prefer_gpu = self.gpu_available
-        self.computer = UnifiedFeatureComputer(
+        self.computer = FeatureComputer(
             mode_selector=None,  # Use default mode selector
             force_mode=force_mode,
             progress_callback=None,  # TODO: Add progress callback support
@@ -456,10 +456,10 @@ class FeatureOrchestrator:
         
         This is the original strategy selection logic, preserved for:
         1. Backward compatibility
-        2. Fallback if UnifiedFeatureComputer unavailable
+        2. Fallback if FeatureComputer unavailable
         3. Gradual migration path
         
-        Note: This will be called by _init_computer() when use_unified_computer=False
+        Note: This will be called by _init_computer() when use_feature_computer=False
         """
         processor_cfg = self.config.get('processor', {})
         features_cfg = self.config.get('features', {})
@@ -496,6 +496,8 @@ class FeatureOrchestrator:
                 self.strategy_name = "gpu_chunked"
                 chunk_size = processor_cfg.get('gpu_batch_size', 5_000_000)
                 batch_size = 250_000  # Week 1 optimized batch size
+                neighbor_query_batch_size = features_cfg.get('neighbor_query_batch_size', None)
+                feature_batch_size = features_cfg.get('feature_batch_size', None)
                 gpu_size = chunk_size
                 
                 # Log whether this is default or explicit choice
@@ -512,7 +514,9 @@ class FeatureOrchestrator:
                         k_neighbors=k_neighbors,
                         radius=radius,
                         chunk_size=chunk_size,
-                        batch_size=batch_size
+                        batch_size=batch_size,
+                        neighbor_query_batch_size=neighbor_query_batch_size,
+                        feature_batch_size=feature_batch_size
                     )
                     
             elif self.gpu_available:
@@ -941,14 +945,14 @@ class FeatureOrchestrator:
         Compute geometric features with optimized parameters.
         
         Note: This optimization only works with Strategy Pattern computers that have
-        k_neighbors attribute. UnifiedFeatureComputer uses k values passed to methods.
+        k_neighbors attribute. FeatureComputer uses k values passed to methods.
         """
         processor_cfg = self.config.get('processor', {})
-        use_unified_computer = processor_cfg.get('use_unified_computer', False)
+        use_feature_computer = processor_cfg.get('use_feature_computer', False)
         
         # Only apply k_neighbors optimization for Strategy Pattern
-        # UnifiedFeatureComputer takes k as method parameter, not attribute
-        if not use_unified_computer and optimized_params and hasattr(self.computer, 'k_neighbors'):
+        # FeatureComputer takes k as method parameter, not attribute
+        if not use_feature_computer and optimized_params and hasattr(self.computer, 'k_neighbors'):
             original_k = getattr(self.computer, 'k_neighbors', 20)
             setattr(self.computer, 'k_neighbors', optimized_params.get('k_neighbors', original_k))
             
@@ -1239,11 +1243,11 @@ class FeatureOrchestrator:
         
         # NEW (Phase 4 Task 1.4): Check which computer API to use
         processor_cfg = self.config.get('processor', {})
-        use_unified_computer = processor_cfg.get('use_unified_computer', False)
+        use_feature_computer = processor_cfg.get('use_feature_computer', False)
         
-        if use_unified_computer:
-            # Use UnifiedFeatureComputer API (Phase 4)
-            logger.debug("Using UnifiedFeatureComputer.compute_all_features()")
+        if use_feature_computer:
+            # Use FeatureComputer API (Phase 4)
+            logger.debug("Using FeatureComputer.compute_all_features()")
             
             # Map geometric features based on include_extra
             if include_extra:

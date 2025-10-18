@@ -1,30 +1,36 @@
-# Example Configuration: UnifiedFeatureComputer with Forced CPU Mode
+# Example Configuration: FeatureComputer with Forced GPU Chunked Mode
 #
-# This configuration forces CPU computation mode, which is optimal for:
-# - Small to medium point clouds
-# - Systems without GPU
-# - Development/debugging
-# - Reproducible results
+# This configuration forces the GPU_CHUNKED computation mode, which is optimal for:
+# - Large point clouds (millions of points)
+# - GPU with limited memory
+# - Maximum GPU utilization
 #
-# Use this when you want deterministic CPU computation.
+# Use this when you know GPU_CHUNKED is the best mode for your workload.
+#
+# Version: 5.1.0 (Legacy - Consider using preset with GPU optimizations instead)
+# Date: October 18, 2025
+
+# Configuration metadata
+config_version: "5.1.0"
+config_type: "legacy_example"
 
 # Processing Configuration
 processor:
-  # NEW (Phase 4): Enable UnifiedFeatureComputer
-  use_unified_computer: true
+  # NEW (Phase 4): Enable FeatureComputer
+  use_feature_computer: true
 
-  # Force CPU mode
-  computation_mode: "cpu"
+  # Force specific computation mode
+  computation_mode: "gpu_chunked" # Options: cpu, gpu, gpu_chunked, boundary
 
   # Tile processing
   tile_size: 1000 # meters
   buffer_size: 10.0 # meters
 
   # Memory management
-  max_memory_gb: 8
+  max_memory_gb: 16
 
   # Processing options
-  num_workers: 8 # More workers for CPU parallelization
+  num_workers: 4
   save_intermediate: false
 
 # Feature Configuration
@@ -42,7 +48,7 @@ features:
   compute_height: true
 
 # Feature Mode
-feature_mode: "lod2" # Standard mode
+feature_mode: "lod3" # High-detail mode
 
 # Input/Output
 input:

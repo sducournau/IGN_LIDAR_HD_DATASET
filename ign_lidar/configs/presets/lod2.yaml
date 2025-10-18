@@ -34,13 +34,17 @@
 #   - For standard classification → use 'asprs' preset
 #
 # Version: 5.1.0
-# Week: 3 (Configuration Refactoring)
+# Date: October 18, 2025
 # ============================================================================
 
 # Inherit from base configuration
 defaults:
   - ../base
   - _self_
+
+# Preset metadata
+config_version: "5.1.0"
+preset_name: "lod2"
 
 # ============================================================================
 # LOD2 PRESET OVERRIDES

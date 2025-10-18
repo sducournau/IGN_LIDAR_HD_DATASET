@@ -82,7 +82,7 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ## ✨ What's New in v5.1.0
 
-### 🤖 **UnifiedFeatureComputer with Automatic Mode Selection (Phase 4)**
+### 🤖 **FeatureComputer with Automatic Mode Selection (Phase 4)**
 
 **NEW (October 2025):** Intelligent automatic computation mode selection!
 
@@ -90,7 +90,7 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 - **Simplified config** - One flag instead of multiple GPU settings
 - **Expert recommendations** - System logs optimal configuration
 - **Backward compatible** - Existing configs work unchanged
-- **Opt-in design** - Enable with `use_unified_computer: true`
+- **Opt-in design** - Enable with `use_feature_computer: true`
 
 #### Before vs After
 
@@ -103,7 +103,7 @@ processor:
 
 # After: Automatic mode selection
 processor:
-  use_unified_computer: true  # That's it!
+  use_feature_computer: true  # That's it!
 ```
 
 **Benefits:**

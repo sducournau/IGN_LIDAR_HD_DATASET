@@ -1,16 +1,18 @@
-# IGN LiDAR HD - Workstation CPU Profile V5.0
+# IGN LiDAR HD - Workstation CPU Profile V5.1
 # ==========================================
 # Profil matériel pour CPU haute performance (Intel i9/AMD Ryzen 9)
 # Configuration optimisée pour traitement CPU intensif
-# V5: Simplified configuration with integrated optimizations
+# Version: 5.1.0
+# Date: October 18, 2025
 
 # Inherit from V5 base configurations
 defaults:
   - ../config
   - _self_
 
-config_version: "5.0.0"
-hardware_profile: "workstation_cpu"
+config_version: "5.1.0"
+config_type: "hardware_profile"
+hardware_target: "workstation_cpu"
 description: "Profil CPU haute performance - Multi-core workstation"
 
 # ============================================================================

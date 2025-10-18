@@ -1,6 +1,6 @@
-# UnifiedFeatureComputer Quick Reference
+# FeatureComputer Quick Reference
 
-**Quick lookup for UnifiedFeatureComputer configuration options**
+**Quick lookup for FeatureComputer configuration options**
 
 ## Basic Usage
 
@@ -8,14 +8,14 @@
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
 ```
 
 ### Force Specific Mode
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
   computation_mode: "gpu_chunked" # cpu | gpu | gpu_chunked | boundary
 ```
 
@@ -23,7 +23,7 @@ processor:
 
 | Option                    | Type   | Default   | Description                                 |
 | ------------------------- | ------ | --------- | ------------------------------------------- |
-| `use_unified_computer`    | bool   | `false`   | Enable UnifiedFeatureComputer               |
+| `use_feature_computer`    | bool   | `false`   | Enable FeatureComputer               |
 | `computation_mode`        | string | `null`    | Force mode: cpu, gpu, gpu_chunked, boundary |
 | `typical_points_per_tile` | int    | `2000000` | Hint for mode selection                     |
 | `tile_size`               | float  | `1000`    | Tile size in meters (for estimation)        |
@@ -47,7 +47,7 @@ Set `computation_mode` to force specific mode:
 
 ## Comparison: Legacy vs Unified
 
-| Feature             | Legacy Strategy              | UnifiedFeatureComputer |
+| Feature             | Legacy Strategy              | FeatureComputer |
 | ------------------- | ---------------------------- | ---------------------- |
 | **Configuration**   | Multiple flags               | Single flag            |
 | **Mode Selection**  | Manual                       | Automatic              |
@@ -62,7 +62,7 @@ Set `computation_mode` to force specific mode:
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
   computation_mode: "cpu" # or let it auto-select
 features:
   k_neighbors: 20
@@ -72,7 +72,7 @@ features:
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
   computation_mode: "gpu_chunked"
 features:
   k_neighbors: 20
@@ -82,7 +82,7 @@ features:
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
   typical_points_per_tile: 1500000
 features:
   k_neighbors: 20
@@ -137,7 +137,7 @@ features:
 | <100K       | CPU              | `computation_mode: "cpu"`         |
 | 100K-500K   | GPU              | `computation_mode: "gpu"`         |
 | >500K       | GPU_CHUNKED      | `computation_mode: "gpu_chunked"` |
-| Any (auto)  | Automatic        | `use_unified_computer: true`      |
+| Any (auto)  | Automatic        | `use_feature_computer: true`      |
 
 ## Migration Summary
 
@@ -154,14 +154,14 @@ processor:
 
 ```yaml
 processor:
-  use_unified_computer: true
+  use_feature_computer: true
 ```
 
 ### Keep Legacy
 
 ```yaml
 processor:
-  use_unified_computer: false # or omit
+  use_feature_computer: false # or omit
   use_gpu: true
   use_gpu_chunked: true
 ```

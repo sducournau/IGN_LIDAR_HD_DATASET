@@ -17,7 +17,10 @@
 # - 3D GIS integration with style metadata
 #
 # Usage:
-#   ign-lidar-hd process --config-file examples/config_architectural_analysis_v5.1.yaml
+#   ign-lidar-hd process --config-file examples/config_architectural_analysis_v5.0.yaml
+#
+# Version: 5.1.0
+# Date: October 18, 2025
 # ========================================================================
 
 # Inherit from FULL preset (Hydra defaults system)

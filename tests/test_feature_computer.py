@@ -1,5 +1,5 @@
 """
-Unit tests for UnifiedFeatureComputer
+Unit tests for FeatureComputer
 
 Tests the unified interface that automatically selects and uses
 the optimal computation mode.
@@ -12,15 +12,15 @@ import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock, call
 
-from ign_lidar.features.unified_computer import (
-    UnifiedFeatureComputer,
-    get_unified_computer
+from ign_lidar.features.feature_computer import (
+    FeatureComputer,
+    get_feature_computer
 )
 from ign_lidar.features.mode_selector import ComputationMode
 
 
-class TestUnifiedFeatureComputer:
-    """Test suite for UnifiedFeatureComputer."""
+class TestFeatureComputer:
+    """Test suite for FeatureComputer."""
     
     @pytest.fixture
     def sample_points(self):
@@ -49,7 +49,7 @@ class TestUnifiedFeatureComputer:
     
     def test_initialization_default(self):
         """Test default initialization."""
-        computer = UnifiedFeatureComputer()
+        computer = FeatureComputer()
         
         assert computer.mode_selector is not None
         assert computer.force_mode is None
@@ -59,20 +59,20 @@ class TestUnifiedFeatureComputer:
     
     def test_initialization_with_force_mode(self):
         """Test initialization with forced mode."""
-        computer = UnifiedFeatureComputer(force_mode=ComputationMode.CPU)
+        computer = FeatureComputer(force_mode=ComputationMode.CPU)
         
         assert computer.force_mode == ComputationMode.CPU
     
     def test_initialization_with_progress_callback(self):
         """Test initialization with progress callback."""
         callback = MagicMock()
-        computer = UnifiedFeatureComputer(progress_callback=callback)
+        computer = FeatureComputer(progress_callback=callback)
         
         assert computer.progress_callback == callback
     
     def test_get_cpu_computer_lazy_load(self):
         """Test lazy loading of CPU computer."""
-        computer = UnifiedFeatureComputer()
+        computer = FeatureComputer()
         
         assert computer._cpu_computer is None
         cpu_comp = computer._get_cpu_computer()
@@ -84,7 +84,7 @@ class TestUnifiedFeatureComputer:
     
     def test_get_gpu_computer_lazy_load(self):
         """Test lazy loading of GPU computer."""
-        computer = UnifiedFeatureComputer()
+        computer = FeatureComputer()
         
         assert computer._gpu_computer is None
         # Note: Will fail if GPU not available, but that's expected
@@ -97,7 +97,7 @@ class TestUnifiedFeatureComputer:
     
     def test_select_mode_automatic(self, mock_mode_selector):
         """Test automatic mode selection."""
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         mode = computer._select_mode(num_points=1_000_000)
         
@@ -106,7 +106,7 @@ class TestUnifiedFeatureComputer:
     
     def test_select_mode_forced(self, mock_mode_selector):
         """Test forced mode selection."""
-        computer = UnifiedFeatureComputer(
+        computer = FeatureComputer(
             mode_selector=mock_mode_selector,
             force_mode=ComputationMode.CPU
         )
@@ -119,7 +119,7 @@ class TestUnifiedFeatureComputer:
     
     def test_select_mode_override(self, mock_mode_selector):
         """Test mode selection with parameter override."""
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         mode = computer._select_mode(
             num_points=1_000_000,
@@ -131,7 +131,7 @@ class TestUnifiedFeatureComputer:
     def test_report_progress_with_callback(self):
         """Test progress reporting with callback."""
         callback = MagicMock()
-        computer = UnifiedFeatureComputer(progress_callback=callback)
+        computer = FeatureComputer(progress_callback=callback)
         
         computer._report_progress(0.5, "Test message")
         
@@ -139,12 +139,12 @@ class TestUnifiedFeatureComputer:
     
     def test_report_progress_without_callback(self):
         """Test progress reporting without callback (should not crash)."""
-        computer = UnifiedFeatureComputer()
+        computer = FeatureComputer()
         
         # Should not raise
         computer._report_progress(0.5, "Test message")
     
-    @patch('ign_lidar.features.unified_computer.UnifiedFeatureComputer._get_cpu_computer')
+    @patch('ign_lidar.features.feature_computer.FeatureComputer._get_cpu_computer')
     def test_compute_normals_cpu(self, mock_get_cpu, sample_points, mock_mode_selector):
         """Test compute_normals with CPU mode."""
         # Setup
@@ -155,7 +155,7 @@ class TestUnifiedFeatureComputer:
         
         mock_mode_selector.select_mode.return_value = ComputationMode.CPU
         
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         # Execute
         normals = computer.compute_normals(sample_points, k=10)
@@ -164,7 +164,7 @@ class TestUnifiedFeatureComputer:
         assert np.array_equal(normals, expected_normals)
         mock_cpu_comp.compute_normals.assert_called_once_with(sample_points, k=10)
     
-    @patch('ign_lidar.features.unified_computer.UnifiedFeatureComputer._get_gpu_computer')
+    @patch('ign_lidar.features.feature_computer.FeatureComputer._get_gpu_computer')
     def test_compute_normals_gpu(self, mock_get_gpu, sample_points, mock_mode_selector):
         """Test compute_normals with GPU mode."""
         # Setup
@@ -175,7 +175,7 @@ class TestUnifiedFeatureComputer:
         
         mock_mode_selector.select_mode.return_value = ComputationMode.GPU
         
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         # Execute
         normals = computer.compute_normals(sample_points, k=10)
@@ -184,7 +184,7 @@ class TestUnifiedFeatureComputer:
         assert np.array_equal(normals, expected_normals)
         mock_gpu_comp.compute_normals.assert_called_once_with(sample_points, k=10)
     
-    @patch('ign_lidar.features.unified_computer.UnifiedFeatureComputer._get_cpu_computer')
+    @patch('ign_lidar.features.feature_computer.FeatureComputer._get_cpu_computer')
     def test_compute_curvature_cpu(self, mock_get_cpu, sample_points, mock_mode_selector):
         """Test compute_curvature with CPU mode."""
         # Setup
@@ -195,7 +195,7 @@ class TestUnifiedFeatureComputer:
         
         mock_mode_selector.select_mode.return_value = ComputationMode.CPU
         
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         # Execute
         curvature = computer.compute_curvature(sample_points, k=20)
@@ -204,7 +204,7 @@ class TestUnifiedFeatureComputer:
         assert np.array_equal(curvature, expected_curvature)
         mock_cpu_comp.compute_curvature.assert_called_once()
     
-    @patch('ign_lidar.features.unified_computer.UnifiedFeatureComputer._get_gpu_computer')
+    @patch('ign_lidar.features.feature_computer.FeatureComputer._get_gpu_computer')
     def test_compute_geometric_features_gpu(
         self, mock_get_gpu, sample_points, mock_mode_selector
     ):
@@ -220,7 +220,7 @@ class TestUnifiedFeatureComputer:
         
         mock_mode_selector.select_mode.return_value = ComputationMode.GPU
         
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         # Execute
         features = computer.compute_geometric_features(
@@ -234,7 +234,7 @@ class TestUnifiedFeatureComputer:
         assert 'linearity' in features
         mock_gpu_comp.compute_geometric_features.assert_called_once()
     
-    @patch('ign_lidar.features.unified_computer.UnifiedFeatureComputer._get_boundary_computer')
+    @patch('ign_lidar.features.feature_computer.FeatureComputer._get_boundary_computer')
     def test_compute_normals_with_boundary(
         self, mock_get_boundary, sample_points, mock_mode_selector
     ):
@@ -248,7 +248,7 @@ class TestUnifiedFeatureComputer:
         mock_boundary_comp.compute_normals_with_boundary.return_value = expected_normals
         mock_get_boundary.return_value = mock_boundary_comp
         
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         # Execute
         normals = computer.compute_normals_with_boundary(
@@ -261,7 +261,7 @@ class TestUnifiedFeatureComputer:
     
     def test_get_mode_recommendations(self, mock_mode_selector):
         """Test getting mode recommendations."""
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         recommendations = computer.get_mode_recommendations(num_points=1_000_000)
         
@@ -269,9 +269,9 @@ class TestUnifiedFeatureComputer:
         assert recommendations['recommended_mode'] == 'gpu'
         mock_mode_selector.get_recommendations.assert_called_once_with(1_000_000)
     
-    @patch('ign_lidar.features.unified_computer.UnifiedFeatureComputer.compute_normals')
-    @patch('ign_lidar.features.unified_computer.UnifiedFeatureComputer.compute_curvature')
-    @patch('ign_lidar.features.unified_computer.UnifiedFeatureComputer.compute_geometric_features')
+    @patch('ign_lidar.features.feature_computer.FeatureComputer.compute_normals')
+    @patch('ign_lidar.features.feature_computer.FeatureComputer.compute_curvature')
+    @patch('ign_lidar.features.feature_computer.FeatureComputer.compute_geometric_features')
     def test_compute_all_features(
         self,
         mock_geometric,
@@ -289,7 +289,7 @@ class TestUnifiedFeatureComputer:
             'linearity': np.random.rand(len(sample_points))
         }
         
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         # Execute
         all_features = computer.compute_all_features(
@@ -310,7 +310,7 @@ class TestUnifiedFeatureComputer:
     def test_compute_all_features_with_progress(self, mock_mode_selector):
         """Test compute_all_features with progress callback."""
         callback = MagicMock()
-        computer = UnifiedFeatureComputer(
+        computer = FeatureComputer(
             mode_selector=mock_mode_selector,
             progress_callback=callback
         )
@@ -328,21 +328,21 @@ class TestUnifiedFeatureComputer:
     
     def test_factory_function(self):
         """Test factory function."""
-        computer = get_unified_computer(force_mode=ComputationMode.CPU)
+        computer = get_feature_computer(force_mode=ComputationMode.CPU)
         
-        assert isinstance(computer, UnifiedFeatureComputer)
+        assert isinstance(computer, FeatureComputer)
         assert computer.force_mode == ComputationMode.CPU
     
     def test_factory_function_with_callback(self):
         """Test factory function with callback."""
         callback = MagicMock()
-        computer = get_unified_computer(progress_callback=callback)
+        computer = get_feature_computer(progress_callback=callback)
         
         assert computer.progress_callback == callback
     
     def test_mode_override_parameter(self, sample_points, mock_mode_selector):
         """Test mode override via method parameter."""
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         # Override should take precedence over automatic selection
         with patch.object(computer, '_get_cpu_computer') as mock_cpu:
@@ -358,7 +358,7 @@ class TestUnifiedFeatureComputer:
     def test_boundary_mode_error_for_regular_normals(self, sample_points, mock_mode_selector):
         """Test that boundary mode raises error for regular normal computation."""
         mock_mode_selector.select_mode.return_value = ComputationMode.BOUNDARY
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         with pytest.raises(ValueError, match="Boundary mode requires"):
             computer.compute_normals(sample_points, k=10)
@@ -366,7 +366,7 @@ class TestUnifiedFeatureComputer:
     def test_boundary_mode_error_for_curvature(self, sample_points, mock_mode_selector):
         """Test that boundary mode raises error for curvature."""
         mock_mode_selector.select_mode.return_value = ComputationMode.BOUNDARY
-        computer = UnifiedFeatureComputer(mode_selector=mock_mode_selector)
+        computer = FeatureComputer(mode_selector=mock_mode_selector)
         
         with pytest.raises(ValueError, match="not supported"):
             computer.compute_curvature(sample_points, k=20)
@@ -383,7 +383,7 @@ class TestUnifiedComputerIntegration:
     
     def test_real_computation_cpu_mode(self, tiny_points):
         """Test real computation with CPU mode."""
-        computer = get_unified_computer(force_mode=ComputationMode.CPU)
+        computer = get_feature_computer(force_mode=ComputationMode.CPU)
         
         try:
             normals = computer.compute_normals(tiny_points, k=5)
@@ -394,7 +394,7 @@ class TestUnifiedComputerIntegration:
     
     def test_real_computation_auto_mode(self, tiny_points):
         """Test real computation with automatic mode selection."""
-        computer = get_unified_computer()
+        computer = get_feature_computer()
         
         try:
             normals = computer.compute_normals(tiny_points, k=5)
@@ -405,7 +405,7 @@ class TestUnifiedComputerIntegration:
     
     def test_mode_recommendations_realistic(self):
         """Test mode recommendations with realistic point counts."""
-        computer = get_unified_computer()
+        computer = get_feature_computer()
         
         # Small cloud
         rec_small = computer.get_mode_recommendations(100_000)
