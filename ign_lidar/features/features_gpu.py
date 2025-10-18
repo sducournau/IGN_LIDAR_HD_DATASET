@@ -564,6 +564,8 @@ class GPUFeatureComputer:
                 # Fall through to CPU path
         
         # CPU fallback path with parallel KDTree queries
+        # REFACTORED (Phase 3): Uses core.curvature.compute_curvature_from_normals()
+        # for the actual curvature computation
         curvature = np.zeros(N, dtype=np.float32)
         
         # Build KDTree once (single-threaded, but only done once)
@@ -583,19 +585,10 @@ class GPUFeatureComputer:
             # Query KNN (thread-safe after tree is built)
             _, indices = tree.query(batch_points, k=k)
             
-            # VECTORIZED curvature computation
-            # Get all neighbor normals: [batch_size, k, 3]
-            neighbor_normals = normals[indices]
-            
-            # Expand query normals: [batch_size, 1, 3]
-            query_normals_expanded = batch_normals[:, np.newaxis, :]
-            
-            # Compute differences: [batch_size, k, 3]
-            normal_diff = neighbor_normals - query_normals_expanded
-            
-            # Compute norms and mean: [batch_size]
-            curv_norms = np.linalg.norm(normal_diff, axis=2)  # [batch, k]
-            batch_curvature = np.mean(curv_norms, axis=1)  # [batch_size]
+            # Use core implementation for curvature computation
+            batch_curvature = compute_curvature_from_normals(
+                batch_points, batch_normals, indices
+            )
             
             return start_idx, end_idx, batch_curvature
         
@@ -634,7 +627,9 @@ class GPUFeatureComputer:
     ) -> np.ndarray:
         """
         Compute height above ground for each point.
-        Vectorized pure implementation.
+        
+        REFACTORED (Phase 3): Now uses core.height.compute_height_above_ground()
+        for consistent implementation across CPU/GPU paths.
         
         Args:
             points: [N, 3] point coordinates
@@ -643,16 +638,7 @@ class GPUFeatureComputer:
         Returns:
             height: [N] height above ground in meters
         """
-        # Find ground points (classification code 2)
-        ground_mask = (classification == 2)
-        
-        if not np.any(ground_mask):
-            ground_z = np.min(points[:, 2])
-        else:
-            ground_z = np.median(points[ground_mask, 2])
-        
-        height = points[:, 2] - ground_z
-        return np.maximum(height, 0)
+        return compute_height_above_ground(points, classification)
     
     def compute_verticality(self, normals: np.ndarray) -> np.ndarray:
         """
@@ -1238,9 +1224,29 @@ def compute_height_above_ground(
     points: np.ndarray,
     classification: np.ndarray
 ) -> np.ndarray:
-    """API-compatible wrapper."""
-    computer = get_gpu_computer()
-    return computer.compute_height_above_ground(points, classification)
+    """
+    Wrapper for height above ground computation.
+    
+    .. deprecated:: 1.8.0
+        Use ign_lidar.features.core.compute_height_above_ground() directly instead.
+        This wrapper will be removed in v2.0.0.
+    
+    Args:
+        points: [N, 3] point coordinates
+        classification: [N] ASPRS classification codes
+        
+    Returns:
+        height: [N] height above ground in meters
+    """
+    import warnings
+    from .core.height import compute_height_above_ground as core_compute_height_above_ground
+    warnings.warn(
+        "compute_height_above_ground from features_gpu is deprecated. "
+        "Use ign_lidar.features.core.compute_height_above_ground() directly.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return core_compute_height_above_ground(points, classification)
 
 
 def extract_geometric_features(
