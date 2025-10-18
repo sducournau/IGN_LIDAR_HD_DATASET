@@ -106,18 +106,19 @@ chunk_size = params['chunk_size']  # Optimized for your GPU
 **Key Methods:**
 
 ```python
-from ign_lidar.features.features_gpu_chunked import GPUChunkedFeatureComputer
+from ign_lidar.features import GPUChunkedStrategy
 
-computer = GPUChunkedFeatureComputer(
+# Use Strategy pattern for GPU chunked processing
+strategy = GPUChunkedStrategy(
     chunk_size=None,  # Auto-optimize based on VRAM
-    vram_limit_gb=None,  # Auto-detect
-    auto_optimize=True,
+    batch_size=None,  # Auto-detect
     use_cuda_streams=True,
     enable_memory_pooling=True
 )
 
-# Compute normals (optimized)
-normals = computer.compute_normals_chunked(points, k=20)
+# Compute features using strategy
+features = strategy.compute(points)
+normals = features['normals']
 
 # Compute all features
 normals, curvature, height, geo_features = computer.compute_all_features_chunked(

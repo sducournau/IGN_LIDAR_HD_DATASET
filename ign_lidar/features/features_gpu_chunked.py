@@ -448,6 +448,64 @@ class GPUChunkedFeatureComputer:
         optimal_batch = min(base_batch_size, num_points)
         
         return optimal_batch
+    
+    def _should_batch_neighbor_queries(
+        self, 
+        N: int, 
+        k: int, 
+        available_vram_gb: float
+    ) -> Tuple[bool, int, int]:
+        """
+        Intelligently decide if neighbor queries need batching based on actual memory requirements.
+        
+        This replaces the old hardcoded SAFE_BATCH_SIZE logic that ignored user configuration.
+        Instead, we calculate actual memory needs and make a smart decision.
+        
+        Args:
+            N: Number of points
+            k: Number of neighbors per point
+            available_vram_gb: Available GPU memory in GB
+            
+        Returns:
+            Tuple of (should_batch, batch_size, num_batches):
+                - should_batch: Whether batching is needed
+                - batch_size: Size of each batch (if batching)
+                - num_batches: Number of batches (1 if no batching)
+        """
+        # Calculate actual memory requirements for neighbor query
+        # Neighbor indices: N × k × 4 bytes (int32)
+        # Neighbor distances: N × k × 4 bytes (float32)
+        indices_memory_gb = (N * k * 4) / (1024**3)
+        distances_memory_gb = (N * k * 4) / (1024**3)
+        total_neighbor_memory_gb = indices_memory_gb + distances_memory_gb
+        
+        # Use 50% of available VRAM as threshold (conservative but safe)
+        # This leaves room for other operations and temporary allocations
+        memory_threshold_gb = available_vram_gb * 0.5
+        
+        if total_neighbor_memory_gb <= memory_threshold_gb:
+            # Memory is safe - NO BATCHING NEEDED!
+            logger.info(
+                f"     ✅ Neighbor queries fit in VRAM: "
+                f"{total_neighbor_memory_gb:.2f}GB < {memory_threshold_gb:.2f}GB threshold "
+                f"({available_vram_gb:.2f}GB available × 50%)"
+            )
+            logger.info(f"        Processing all {N:,} points in ONE batch (optimal!)")
+            return False, N, 1
+        else:
+            # Need batching - use USER'S configured batch size
+            batch_size = self.neighbor_query_batch_size
+            num_batches = (N + batch_size - 1) // batch_size
+            
+            logger.info(
+                f"     ⚠️  Batching neighbor queries: "
+                f"{total_neighbor_memory_gb:.2f}GB > {memory_threshold_gb:.2f}GB threshold"
+            )
+            logger.info(
+                f"        → {num_batches} batches of {batch_size:,} points "
+                f"(user configured batch size: {self.neighbor_query_batch_size:,})"
+            )
+            return True, batch_size, num_batches
 
     def _free_gpu_memory(self, force: bool = False):
         """
@@ -2667,19 +2725,28 @@ class GPUChunkedFeatureComputer:
                 logger.info(f"     ⚡ FAST MODE: Skipping advanced features (not needed for mode '{mode}')")
         
         # ========================================================================
-        # OPTIMIZED: Query neighbors in batches to prevent GPU timeout/hang
-        # For large datasets (>10M points), single query can cause GPU hang
-        # Use configurable batch size (default 5M, user can set via neighbor_query_batch_size)
+        # OPTIMIZED: Smart memory-based batching decision
+        # Calculate actual memory requirements and decide if batching is needed
+        # Respects user's neighbor_query_batch_size configuration
         # ========================================================================
         
-        # Calculate number of chunks based on neighbor query batch size
-        num_query_batches = (N + self.neighbor_query_batch_size - 1) // self.neighbor_query_batch_size
+        # Get available VRAM for smart batching decision
+        if self.use_gpu and cp is not None:
+            try:
+                free_vram, total_vram = cp.cuda.runtime.memGetInfo()
+                available_vram_gb = free_vram / (1024**3)
+            except Exception:
+                available_vram_gb = self.vram_limit_gb if self.vram_limit_gb else 8.0
+        else:
+            available_vram_gb = self.vram_limit_gb if self.vram_limit_gb else 8.0
         
-        # ALWAYS batch for datasets > neighbor_query_batch_size to prevent GPU hangs
-        if num_query_batches > 1:
-            logger.info(f"     🚀 Querying {N:,} neighbors in {num_query_batches} batches (prevents GPU hang)...")
-            logger.info(f"        Batch size: {self.neighbor_query_batch_size:,} points per batch")
-            
+        # Smart batching decision based on actual memory requirements
+        should_batch, batch_size, num_query_batches = self._should_batch_neighbor_queries(
+            N, k, available_vram_gb
+        )
+        
+        if should_batch:
+            # Memory-based batching required
             # Preallocate output arrays
             if self.use_cuml and cuNearestNeighbors is not None:
                 global_indices_all_gpu = cp.zeros((N, k), dtype=cp.int32)
@@ -2688,8 +2755,8 @@ class GPUChunkedFeatureComputer:
             
             # Query in batches
             for batch_idx in range(num_query_batches):
-                batch_start = batch_idx * self.neighbor_query_batch_size
-                batch_end = min((batch_idx + 1) * self.neighbor_query_batch_size, N)
+                batch_start = batch_idx * batch_size
+                batch_end = min((batch_idx + 1) * batch_size, N)
                 
                 if self.use_cuml and cuNearestNeighbors is not None:
                     # GPU batch query
@@ -2717,8 +2784,8 @@ class GPUChunkedFeatureComputer:
             logger.info(f"     ✓ Neighbor query complete ({N:,} × {k} neighbors, batched)")
             self._log_gpu_memory("after neighbor query", level="info")
         else:
-            # Small dataset, single query is fine
-            logger.info(f"     🚀 Querying {N:,} neighbors in one operation...")
+            # No batching needed - memory is sufficient for single-pass query!
+            # This is the OPTIMAL case for performance
             
             if self.use_cuml and cuNearestNeighbors is not None:
                 # GPU query ALL points at once

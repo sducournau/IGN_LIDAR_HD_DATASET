@@ -2,8 +2,7 @@
 Core feature computation module - canonical implementations.
 
 This module provides unified, well-tested implementations of all
-geometric features, replacing the duplicated code found across
-features.py, features_gpu.py, features_gpu_chunked.py, and features_boundary.py.
+geometric features with clean, consistent naming conventions.
 
 Usage:
     from ign_lidar.features.core import compute_normals, compute_curvature
@@ -12,7 +11,8 @@ Usage:
     curvature = compute_curvature(eigenvalues)
 
 Modules:
-    normals: Normal vector computation
+    features: Optimized feature computation (JIT-compiled, recommended)
+    normals: Standard normal computation (fallback)
     curvature: Curvature-based features
     eigenvalues: Eigenvalue-based geometric features
     density: Density-based features
@@ -20,9 +20,22 @@ Modules:
     utils: Shared utility functions
 """
 
-# Normal computation
+# Optimized feature computation (JIT-compiled, preferred)
+try:
+    from .features import (
+        compute_normals,
+        compute_all_features,
+    )
+    OPTIMIZED_AVAILABLE = True
+except ImportError:
+    # Fallback to standard implementation
+    from .normals import (
+        compute_normals,
+    )
+    OPTIMIZED_AVAILABLE = False
+
+# Additional normal computation utilities
 from .normals import (
-    compute_normals,
     compute_normals_fast,
     compute_normals_accurate,
 )
@@ -92,11 +105,81 @@ from .geometric import (
     extract_geometric_features,
 )
 
-# Unified API (replaces all compute_all_features variants)
+# Unified API dispatcher (replaces all compute_all_features variants)
 from .unified import (
-    compute_all_features,
+    compute_all_features as compute_all_features_dispatcher,
     ComputeMode,
 )
+
+__all__ = [
+    # Optimized feature computation (main API)
+    'compute_normals',
+    'compute_all_features',
+    
+    # Normal utilities
+    'compute_normals_fast',
+    'compute_normals_accurate',
+    
+    # Curvature features
+    'compute_curvature',
+    'compute_mean_curvature',
+    'compute_shape_index',
+    'compute_curvedness',
+    'compute_all_curvature_features',
+    
+    # Eigenvalue features
+    'compute_eigenvalue_features',
+    'compute_linearity',
+    'compute_planarity',
+    'compute_sphericity',
+    'compute_anisotropy',
+    'compute_omnivariance',
+    'compute_eigenentropy',
+    'compute_verticality',
+    
+    # Density features
+    'compute_density_features',
+    'compute_point_density',
+    'compute_local_spacing',
+    'compute_density_variance',
+    'compute_neighborhood_size',
+    'compute_relative_height_density',
+    
+    # Architectural features
+    'compute_architectural_features',
+    'compute_normal_verticality',
+    'compute_horizontality',
+    'compute_wall_likelihood',
+    'compute_roof_likelihood',
+    'compute_facade_score',
+    'compute_building_regularity',
+    'compute_corner_likelihood',
+    
+    # Geometric features
+    'extract_geometric_features',
+    
+    # Unified API
+    'compute_all_features_dispatcher',
+    'ComputeMode',
+    
+    # Utilities
+    'validate_points',
+    'validate_eigenvalues',
+    'validate_normals',
+    'normalize_vectors',
+    'safe_divide',
+    'compute_covariance_matrix',
+    'sort_eigenvalues',
+    'clip_features',
+    'compute_angle_between_vectors',
+    'standardize_features',
+    'normalize_features',
+    'handle_nan_inf',
+    'compute_local_frame',
+    
+    # Flags
+    'OPTIMIZED_AVAILABLE',
+]
 
 __all__ = [
     # Normal computation

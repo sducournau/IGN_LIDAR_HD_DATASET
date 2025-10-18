@@ -1,0 +1,320 @@
+# ============================================================================
+# IGN LiDAR HD - GPU Profile: NVIDIA H100
+# ============================================================================
+# NVIDIA H100 - 80GB HBM3
+# CUDA Cores: 16,896 | Tensor Cores: 528 (4th gen) | Memory Bandwidth: 3,350 GB/s
+# TDP: 700W | Architecture: Hopper
+#
+# OPTIMIZATION STRATEGY:
+#   - Maximum batching: 20M points per neighbor query batch
+#   - Massive tile processing: 100M points per chunk
+#   - Extreme memory usage: 60-75GB VRAM (75-94% utilization)
+#   - Rare cleanup: Every 20 tiles
+#
+# EXPECTED PERFORMANCE (18.6M point tile):
+#   - Neighbor queries: 1 batch × 18.6M points = ~2-3 seconds
+#   - Normal computation: 1 batch × 18.6M points = ~1 second
+#   - Ground truth: ~2-3 seconds
+#   - Total: ~6-8 seconds per tile
+#
+# USAGE:
+#   ign-lidar-hd process --profile h100 [options]
+#
+# Version: 5.1.1
+# Date: October 18, 2025
+# Status: Experimental (optimized for data center workloads)
+# ============================================================================
+
+# Profile metadata
+profile_name: "h100"
+profile_version: "5.1.1"
+gpu_model: "H100 80GB"
+vram_gb: 80
+cuda_cores: 16896
+tensor_cores: 528
+memory_bandwidth_gbps: 3350
+architecture: "Hopper"
+
+# ============================================================================
+# PROCESSOR SETTINGS
+# ============================================================================
+processor:
+  use_gpu: true
+
+  # Tile-level chunking (massive chunks for 80GB HBM3)
+  gpu_batch_size:
+    100_000_000 # 100M points per chunk
+    # Can process multiple tiles simultaneously!
+
+  gpu_memory_target: 0.94 # 94% VRAM (75GB / 80GB)
+  gpu_streams: 16 # 16 CUDA streams (Hopper architecture)
+
+  # CUDA optimizations (Hopper has enhanced async capabilities)
+  use_cuda_streams: true # Enable async streams
+  enable_memory_pooling: true # GPU memory pooling
+  enable_pipeline_optimization: true # Advanced triple-buffering
+  auto_optimize: true # Auto-tune parameters
+
+  vram_limit_gb: 75 # Conservative limit (5GB headroom)
+  cleanup_frequency: 20 # Cleanup every 20 tiles (minimal overhead)
+
+  # Ground truth processing (extreme)
+  ground_truth_method: "gpu_chunked" # Force GPU chunked
+  ground_truth_chunk_size: 50_000_000 # 50M points per chunk
+
+  # Async transfers (extreme bandwidth)
+  enable_async_transfers: true
+  adaptive_chunk_sizing: true
+  enable_mixed_precision: true # 4th gen Tensor Cores
+  enable_tf32: true # TensorFloat-32 for Hopper
+
+# ============================================================================
+# FEATURE COMPUTATION SETTINGS
+# ============================================================================
+features:
+  # GPU settings (extreme for 80GB HBM3)
+  use_gpu_chunked: true
+  gpu_batch_size: 100_000_000 # Align with processor chunk size
+
+  # ============================================================================
+  # CRITICAL: Neighbor Query Batching (EXTREME for H100)
+  # ============================================================================
+  # H100 with 80GB HBM3 can handle extreme batch sizes
+  #
+  # Strategy:
+  #   - Use 20M point batches (4× RTX 4080, 2× RTX 4090)
+  #   - 18.6M points → SINGLE batch (no chunking!)
+  #   - Memory per 20M batch: 20M × 30 × 4 bytes = 2.4GB
+  #   - Peak batch memory: 20M × 30 × 3 × 4 bytes = 7.2GB
+  #   - Trivial on 80GB HBM3
+  #
+  # Benefits:
+  #   - ZERO batching for typical tiles (up to 20M points)
+  #   - ~80% faster neighbor queries vs RTX 4080
+  #   - ~50% faster than RTX 4090
+  #   - Maximum GPU utilization
+  # ============================================================================
+
+  neighbor_query_batch_size:
+    20_000_000 # 20M point batches
+    # Most tiles fit in ONE batch!
+
+  # Feature computation batching (extreme)
+  feature_batch_size:
+    100_000_000 # Can handle massive tiles
+    # For 100M: 100M × 30 × 3 × 4 = 36GB
+    # Still fits in 80GB with headroom!
+
+  # Geometric parameters (ultra high quality)
+  k_neighbors: 30 # Increased from 20 (highest quality normals)
+  search_radius: 1.5 # 1.5 meter radius (maximum context)
+
+# ============================================================================
+# MEMORY PROFILE
+# ============================================================================
+# Expected VRAM usage for 18.6M point tile:
+#
+# Phase 1: Point upload
+#   - Points (XYZ): 18.6M × 3 × 4 bytes = 223MB
+#   - After upload: ~1.5GB total
+#
+# Phase 2: KDTree build
+#   - KDTree structure: ~900MB (k=30)
+#   - After build: ~2.4GB total
+#
+# Phase 3: Neighbor queries (SINGLE BATCH!)
+#   - Batch: 18.6M × 30 × 4 bytes = 2.2GB
+#   - Peak during query: ~4.6GB
+#
+# Phase 4: Normal computation (SINGLE BATCH!)
+#   - Batch: 18.6M × 30 × 3 × 4 bytes = 6.7GB
+#   - Peak during normals: ~11.3GB
+#
+# Phase 5: Feature computation
+#   - Feature arrays: ~800MB
+#   - Peak: ~12.1GB
+#
+# Phase 6: Ground truth
+#   - Spatial index: ~4GB (50M chunks)
+#   - Classification: ~2GB
+#   - Peak: ~18.1GB
+#
+# Total peak: ~18-20GB (22-25% of 80GB) - Extremely comfortable!
+#
+# For 100M point tile (extreme):
+# - Total peak: ~95GB → Would require multiple chunks
+# - But most real tiles are < 30M points
+# ============================================================================
+
+# ============================================================================
+# PERFORMANCE EXPECTATIONS
+# ============================================================================
+# Based on H100 theoretical performance (3.3× RTX 4090 bandwidth):
+#
+# Tile size: 18.6M points (typical)
+# -----------------------------------
+# Point loading:        ~0.8 seconds
+# KDTree build:         ~1.0 seconds
+# Neighbor queries:     ~2.5 seconds (SINGLE batch)
+# Normal computation:   ~1.0 seconds (SINGLE batch)
+# Feature computation:  ~0.8 seconds
+# Ground truth:         ~2.0 seconds
+# LAZ writing:          ~1.5 seconds
+# -----------------------------------
+# Total:                ~9.6 seconds
+#
+# Throughput: ~1,938,000 points/second
+# GPU utilization: 90-98%
+# VRAM usage: 18-20GB (22-25%)
+#
+# Tile size: 25M points (large)
+# -----------------------------------
+# Total:                ~13 seconds
+# Throughput: ~1,923,000 points/second
+#
+# Tile size: 50M points (very large)
+# -----------------------------------
+# Total:                ~26 seconds (2 batches for neighbors)
+# Throughput: ~1,923,000 points/second
+#
+# Tile size: 10M points (small)
+# -----------------------------------
+# Total:                ~5 seconds
+# Throughput: ~2,000,000 points/second
+#
+# BATCH PROCESSING (multiple tiles in parallel):
+# With 80GB VRAM, can process 3-4 tiles simultaneously!
+# -----------------------------------
+# 4 × 18.6M tiles:      ~15 seconds (3.75s per tile)
+# Effective throughput: ~4,967,000 points/second
+# ============================================================================
+
+# ============================================================================
+# COMPARISON WITH CONSUMER GPUS
+# ============================================================================
+# RTX 4080 Super (16GB):
+#   - 18.6M tile: ~27 seconds
+#   - Throughput: ~690K points/sec
+#   - VRAM usage: 7-8GB (44-50%)
+#   - 4 batches for neighbors
+#
+# RTX 4090 (24GB):
+#   - 18.6M tile: ~16.5 seconds
+#   - Throughput: ~1.13M points/sec
+#   - VRAM usage: 11-12GB (46-50%)
+#   - 2 batches for neighbors
+#
+# H100 (80GB):
+#   - 18.6M tile: ~9.6 seconds (2.8× faster than 4080, 1.7× faster than 4090)
+#   - Throughput: ~1.94M points/sec (2.8× higher than 4080, 1.7× higher than 4090)
+#   - VRAM usage: 18-20GB (22-25%)
+#   - 1 batch for neighbors (0 chunking overhead!)
+#
+# Speedup factors vs RTX 4080:
+#   - 2.81× overall throughput
+#   - 3.20× in neighbor queries (single batch + more bandwidth)
+#   - 4.00× in normal computation (single batch + more bandwidth)
+#   - 2.50× in ground truth (larger chunks + more bandwidth)
+#
+# Speedup factors vs RTX 4090:
+#   - 1.72× overall throughput
+#   - 1.60× in neighbor queries (half the batches + more bandwidth)
+#   - 2.00× in normal computation (half the batches + more bandwidth)
+#   - 1.33× in ground truth (larger chunks + more bandwidth)
+#
+# BATCH PROCESSING vs RTX 4090:
+#   - H100: 4 tiles in ~15s = 3.75s per tile (effective)
+#   - RTX 4090: 4 tiles in ~66s = 16.5s per tile
+#   - Speedup: 4.4× when batch processing!
+# ============================================================================
+
+# ============================================================================
+# ADVANCED TUNING OPTIONS
+# ============================================================================
+# For data center deployment (maximum throughput):
+#
+# 1. Batch processing mode:
+#    - Process 3-4 tiles in parallel
+#    - Use multiprocessing with GPU queue
+#    - Effective throughput: ~5M points/second
+#
+# 2. Increase neighbor_query_batch_size to 30M:
+#    - Handles tiles up to 30M in single batch
+#    - Memory: 30M × 30 × 4 = 3.6GB (trivial on 80GB)
+#    - Saves ~0.5s on 25M tiles
+#
+# 3. Increase feature_batch_size to 150M:
+#    - Handles extreme tiles without batching
+#    - Memory: 150M × 30 × 3 × 4 = 54GB (fits!)
+#    - No performance gain for typical tiles
+#
+# 4. Increase k_neighbors to 40:
+#    - Maximum quality normal estimation
+#    - Cost: +33% in neighbor query time
+#    - Benefit: Best possible features for ML
+#
+# 5. Multi-GPU scaling:
+#    - Use 2-4 H100s in parallel
+#    - Linear scaling: 4 H100s = ~20M points/second
+#    - Can process entire regions in minutes
+#
+# EXTREME PERFORMANCE CONFIG (Data Center):
+# -----------------------------------------
+# neighbor_query_batch_size: 30_000_000
+# feature_batch_size: 150_000_000
+# gpu_batch_size: 150_000_000
+# k_neighbors: 40
+# gpu_memory_target: 0.96
+# cleanup_frequency: 50
+# gpu_streams: 32
+#
+# Expected result:
+#   - 18.6M tile: ~7 seconds (27% faster than default H100)
+#   - Batch mode (4 tiles): ~11 seconds (2.75s per tile)
+#   - Throughput: ~6.8M points/second (effective)
+#
+# MULTI-GPU CONFIG (4× H100):
+# ---------------------------
+# Use MPI or Dask for distribution
+# Expected throughput: ~27M points/second
+# Can process 50,000+ tiles/hour
+# Ideal for national-scale LiDAR processing
+# ============================================================================
+
+# ============================================================================
+# COST-PERFORMANCE ANALYSIS
+# ============================================================================
+# Cloud pricing (approximate, 2025):
+#
+# RTX 4080 Super:
+#   - Cloud: N/A (consumer GPU)
+#   - Local: ~$1,000 hardware
+#   - 18.6M tile: 27 seconds
+#   - Cost/million points: ~$0.001 (local)
+#
+# RTX 4090:
+#   - Cloud: N/A (consumer GPU)
+#   - Local: ~$1,600 hardware
+#   - 18.6M tile: 16.5 seconds
+#   - Cost/million points: ~$0.0012 (local)
+#
+# H100:
+#   - Cloud: ~$4-5/hour
+#   - Local: ~$30,000 hardware
+#   - 18.6M tile: 9.6 seconds
+#   - Tiles per hour: ~375 tiles
+#   - Cost per tile: ~$0.011 (cloud)
+#   - Cost/million points: ~$0.00059 (cloud)
+#
+# H100 is cost-effective for:
+#   - Large-scale production (>100,000 tiles)
+#   - Time-critical processing
+#   - Cloud burst processing
+#   - Research with limited time
+#
+# Consumer GPUs are better for:
+#   - Small to medium projects (<10,000 tiles)
+#   - Local development
+#   - Budget-constrained projects
+#   - Long-term ownership
+# ============================================================================

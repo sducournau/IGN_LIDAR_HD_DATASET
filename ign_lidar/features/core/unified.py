@@ -1,9 +1,8 @@
 """
 Unified feature computation API.
 
-This module provides a single, consolidated API that replaces all the
-compute_all_features* variants found across features.py, features_gpu.py,
-and features_gpu_chunked.py.
+This module provides a single, consolidated API dispatcher that routes
+feature computation requests to the appropriate implementation (CPU, GPU, etc.).
 """
 
 import numpy as np
@@ -12,9 +11,18 @@ from typing import Dict, Optional, Tuple, Union
 from enum import Enum
 
 from .geometric import extract_geometric_features
-from .normals import compute_normals
 from .curvature import compute_curvature
 from .utils import validate_points
+
+# Import optimized implementations
+try:
+    from .features import compute_normals, compute_all_features as compute_all_features_optimized
+    OPTIMIZED_AVAILABLE = True
+except ImportError:
+    OPTIMIZED_AVAILABLE = False
+    # Fallback to standard implementation
+    from .normals import compute_normals
+    compute_all_features_optimized = None
 
 logger = logging.getLogger(__name__)
 
@@ -150,15 +158,43 @@ def _compute_all_features_cpu(
     radius: Optional[float],
     **kwargs
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
-    """CPU implementation using core modules."""
-    # Compute normals
-    normals, _ = compute_normals(points, k_neighbors=k_neighbors)
+    """CPU implementation using optimized core modules."""
     
-    # Compute curvature  
-    curvature = compute_curvature(normals, points, k_neighbors=k_neighbors)
+    # Use optimized single-pass computation if available
+    if OPTIMIZED_AVAILABLE and compute_all_features_optimized is not None:
+        try:
+            features_dict = compute_all_features_optimized(
+                points, k_neighbors=k_neighbors, compute_advanced=True
+            )
+            
+            # Extract components
+            normals = features_dict['normals']
+            curvature = features_dict['curvature']
+            
+            # Compute height above ground
+            ground_mask = classification == 2
+            if np.any(ground_mask):
+                ground_height = np.median(points[ground_mask, 2])
+                height = points[:, 2] - ground_height
+            else:
+                height = np.zeros(len(points), dtype=np.float32)
+            
+            # Remove normals and curvature from features_dict to avoid duplication
+            geo_features = {k: v for k, v in features_dict.items() 
+                           if k not in ['normals', 'curvature', 'normal_x', 'normal_y', 'normal_z']}
+            
+            return normals, curvature, height, geo_features
+        except Exception as e:
+            logger.warning(f"Optimized computation failed ({e}), falling back to standard")
     
-    # Compute height above ground (simplified)
-    ground_mask = classification == 2  # Ground points
+    # Fallback to standard implementation
+    normals, eigenvalues = compute_normals(points, k_neighbors=k_neighbors)
+    
+    # Compute curvature from eigenvalues
+    curvature = compute_curvature(eigenvalues)
+    
+    # Compute height above ground
+    ground_mask = classification == 2
     if np.any(ground_mask):
         ground_height = np.median(points[ground_mask, 2])
         height = points[:, 2] - ground_height

@@ -17,9 +17,9 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ign_lidar.features.core.normals import compute_normals as compute_normals_original
-from ign_lidar.features.core.normals_optimized import (
-    compute_normals_optimized,
-    NUMBA_AVAILABLE
+from ign_lidar.features.core.features import (
+    compute_normals,
+    benchmark_features,
 )
 
 
@@ -72,18 +72,12 @@ def benchmark_comparison(
     print(f"\n📋 Configuration:")
     print(f"   Points: {len(points):,}")
     print(f"   k_neighbors: {k_neighbors}")
-    print(f"   Runs: {n_runs}")
-    print(f"   Numba available: {NUMBA_AVAILABLE}\n")
-    
-    if not NUMBA_AVAILABLE:
-        print("❌ ERROR: Numba not available!")
-        print("   Install with: conda install -c conda-forge numba")
-        return
+    print(f"   Runs: {n_runs}\n")
     
     # Warm up JIT compiler
     print("⏳ Warming up JIT compiler (first run is slow)...")
     sample = points[:1000].copy()
-    _ = compute_normals_optimized(sample, k_neighbors=min(k_neighbors, 100))
+    _ = compute_normals(sample, k_neighbors=min(k_neighbors, 100))
     print("✅ JIT warmup complete\n")
     
     # Benchmark original implementation
@@ -117,7 +111,7 @@ def benchmark_comparison(
     
     for run in range(n_runs):
         start = time.perf_counter()
-        normals_opt, eigvals_opt = compute_normals_optimized(
+        normals_opt, eigvals_opt = compute_normals(
             points, k_neighbors=k_neighbors
         )
         elapsed = time.perf_counter() - start

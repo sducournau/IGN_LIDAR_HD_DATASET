@@ -57,24 +57,30 @@ from .core import (
     ComputeMode,
 )
 
-# Legacy imports (deprecated - use unified API instead)
-from .features import (
-    compute_all_features_optimized,
-    compute_all_features_with_gpu,
-    compute_features_by_mode,
-    # Additional feature functions
-    compute_eigenvalue_features,
+# Import optimized feature computation (preferred implementation)
+try:
+    from .core.features import compute_all_features as compute_all_features_optimized
+except ImportError:
+    # Fallback if Numba not available
+    compute_all_features_optimized = None
+    
+# Additional core features
+from .core.eigenvalues import compute_eigenvalue_features
+from .core.architectural import (
     compute_architectural_features,
-    compute_density_features,
-    compute_building_scores,
-    # Enhanced geometric features for building classification
     compute_horizontality,
-    compute_edge_strength,
     compute_facade_score,
-    compute_roof_plane_score,
-    compute_opening_likelihood,
-    compute_structural_element_score,
 )
+from .core.density import compute_density_features
+
+# Note: The following functions were removed during Phase 2 cleanup:
+# - compute_all_features_with_gpu -> Use GPUStrategy instead
+# - compute_features_by_mode -> Use Strategy pattern (BaseFeatureStrategy.auto_select)
+# - compute_building_scores -> Not found in core modules
+# - compute_edge_strength -> Not found in core modules  
+# - compute_roof_plane_score -> Defined but never used
+# - compute_opening_likelihood -> Defined but never used
+# - compute_structural_element_score -> Defined but never used
 
 # Factory Pattern has been removed - use Strategy Pattern instead
 # All functionality moved to Strategy pattern (strategies.py, strategy_*.py)
@@ -141,20 +147,13 @@ __all__ = [
     'core_compute_all_features',
     'ComputeMode',
     
-    # Legacy functions (deprecated)
+    # Additional core features (available)
     'compute_all_features_optimized',
-    'compute_all_features_with_gpu',
-    'compute_features_by_mode',
     'compute_eigenvalue_features',
     'compute_architectural_features',
     'compute_density_features',
-    'compute_building_scores',
     'compute_horizontality',
-    'compute_edge_strength',
     'compute_facade_score',
-    'compute_roof_plane_score',
-    'compute_opening_likelihood',
-    'compute_structural_element_score',
     # Orchestrator (Phase 4)
     'FeatureOrchestrator',
     # Architectural styles

@@ -30,7 +30,7 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from ign_lidar.features.features import (
+from ign_lidar.features import (
     compute_normals,
     compute_curvature,
     compute_eigenvalue_features,
@@ -63,14 +63,14 @@ def generate_test_data(n_points=100_000):
 
 def profile_feature_computation(points: np.ndarray, k: int = 20) -> Dict:
     """Profile core feature computation functions."""
-    print(f"\n🔍 Profiling feature computation (k={k})...")
+    print(f"\n🔍 Profiling feature computation (k_neighbors={k})...")
     
     results = {}
     
-    # 1. Normals computation
+    # 1. Normals computation (returns normals and eigenvalues)
     print("  - Profiling normals computation...")
     start = time.perf_counter()
-    normals = compute_normals(points, k=k)
+    normals, eigenvalues = compute_normals(points, k_neighbors=k)
     normals_time = time.perf_counter() - start
     results['normals'] = {
         'time': normals_time,
@@ -79,10 +79,10 @@ def profile_feature_computation(points: np.ndarray, k: int = 20) -> Dict:
     }
     print(f"    ✓ {normals_time:.3f}s ({results['normals']['throughput']:,.0f} pts/s)")
     
-    # 2. Curvature computation
+    # 2. Curvature computation (uses eigenvalues)
     print("  - Profiling curvature computation...")
     start = time.perf_counter()
-    curvature = compute_curvature(points, normals, k=k)
+    curvature = compute_curvature(eigenvalues)
     curvature_time = time.perf_counter() - start
     results['curvature'] = {
         'time': curvature_time,
@@ -91,12 +91,7 @@ def profile_feature_computation(points: np.ndarray, k: int = 20) -> Dict:
     }
     print(f"    ✓ {curvature_time:.3f}s ({results['curvature']['throughput']:,.0f} pts/s)")
     
-    # 3. Eigenvalue features (compute eigenvalues for this)
-    print("  - Computing eigenvalues...")
-    from ign_lidar.features.utils import build_kdtree, compute_local_eigenvalues
-    tree = build_kdtree(points)
-    eigenvalues = compute_local_eigenvalues(points, tree, k=k)
-    
+    # 3. Eigenvalue features
     print("  - Profiling eigenvalue features...")
     start = time.perf_counter()
     eig_features = compute_eigenvalue_features(eigenvalues)
@@ -252,11 +247,8 @@ def main():
     # Deep profile with cProfile
     def run_full_pipeline():
         """Run full feature computation pipeline."""
-        normals = compute_normals(points, k=20)
-        curvature = compute_curvature(points, normals, k=20)
-        from ign_lidar.features.utils import build_kdtree, compute_local_eigenvalues
-        tree = build_kdtree(points)
-        eigenvalues = compute_local_eigenvalues(points, tree, k=20)
+        normals, eigenvalues = compute_normals(points, k_neighbors=20)
+        curvature = compute_curvature(eigenvalues)
         eig_features = compute_eigenvalue_features(eigenvalues)
         return normals, curvature, eig_features
     

@@ -31,7 +31,6 @@ from .features import (
     compute_curvature,
     extract_geometric_features,
     compute_all_features_optimized,
-    compute_all_features_with_gpu,
 )
 
 # Preprocessing
@@ -135,21 +134,12 @@ from .io import MetadataManager, simplify_for_qgis
 # Preprocessing utilities (moved to preprocessing/)
 from .preprocessing import augment_raw_points, extract_patches, analyze_tile
 
-# Legacy imports for backward compatibility
-# These point to the new locations
-try:
-    from .features.features import (
-        compute_normals,
-        compute_curvature,
-        extract_geometric_features
-    )
-except ImportError:
-    # Fallback to old location if new structure not complete
-    from .features import (
-        compute_normals,
-        compute_curvature,
-        extract_geometric_features
-    )
+# Feature extraction - use modern core modules directly
+from .features import (
+    compute_normals,
+    compute_curvature,
+    extract_geometric_features
+)
 
 # Backward compatibility for moved modules - these imports should be available 
 # at the root level for legacy code
@@ -185,7 +175,6 @@ __all__ = [
     "compute_curvature",
     "extract_geometric_features",
     "compute_all_features_optimized",
-    "compute_all_features_with_gpu",
     
     # Preprocessing
     "statistical_outlier_removal",

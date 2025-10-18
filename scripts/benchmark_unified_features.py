@@ -16,11 +16,10 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ign_lidar.features.core.normals import compute_normals
-from ign_lidar.features.features import compute_curvature
-from ign_lidar.features.core.features_unified import (
-    compute_all_features_optimized,
-    NUMBA_AVAILABLE
+from ign_lidar.features import compute_normals, compute_curvature
+from ign_lidar.features.core.features import (
+    compute_all_features,
+    benchmark_features,
 )
 
 
@@ -73,17 +72,12 @@ def benchmark_comparison(
     print(f"\n📋 Configuration:")
     print(f"   Points: {len(points):,}")
     print(f"   k_neighbors: {k_neighbors}")
-    print(f"   Runs: {n_runs}")
-    print(f"   Numba available: {NUMBA_AVAILABLE}\n")
-    
-    if not NUMBA_AVAILABLE:
-        print("❌ ERROR: Numba not available!")
-        return
+    print(f"   Runs: {n_runs}\n")
     
     # Warm up JIT compiler
     print("⏳ Warming up JIT compiler...")
     sample = points[:1000].copy()
-    _ = compute_all_features_optimized(sample, k_neighbors=min(k_neighbors, 100))
+    _ = compute_all_features(sample, k_neighbors=min(k_neighbors, 100))
     print("✅ JIT warmup complete\n")
     
     # Benchmark INDIVIDUAL functions (old way - separate calls)
@@ -95,11 +89,11 @@ def benchmark_comparison(
     for run in range(n_runs):
         start = time.perf_counter()
         
-        # Compute normals
+        # Compute normals (returns normals and eigenvalues)
         normals, eigenvalues = compute_normals(points, k_neighbors=k_neighbors)
         
-        # Compute curvature (will recompute eigenvalues internally - wasteful!)
-        curvature = compute_curvature(points, normals, k=k_neighbors)
+        # Compute curvature from eigenvalues
+        curvature = compute_curvature(eigenvalues)
         
         elapsed = time.perf_counter() - start
         times_individual.append(elapsed)
@@ -123,7 +117,7 @@ def benchmark_comparison(
         start = time.perf_counter()
         
         # Compute ALL features at once
-        features = compute_all_features_optimized(
+        features = compute_all_features(
             points, 
             k_neighbors=k_neighbors,
             compute_advanced=True
@@ -180,8 +174,8 @@ def benchmark_comparison(
     print("=" * 70)
     
     # Recompute for validation
-    normals_old, _ = compute_normals(points, k_neighbors=k_neighbors)
-    curvature_old = compute_curvature(points, normals_old, k=k_neighbors)
+    normals_old, eigenvalues_old = compute_normals(points, k_neighbors=k_neighbors)
+    curvature_old = compute_curvature(eigenvalues_old)
     
     normals_new = features['normals']
     curvature_new = features['curvature']

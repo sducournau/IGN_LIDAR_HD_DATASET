@@ -15,11 +15,7 @@ import numpy as np
 import logging
 
 from .strategies import BaseFeatureStrategy
-from .features import (
-    compute_all_features_optimized,
-    estimate_optimal_k,
-    estimate_optimal_radius_for_features,
-)
+from .core.features import compute_all_features as compute_all_features_optimized
 
 logger = logging.getLogger(__name__)
 
@@ -115,40 +111,42 @@ class CPUStrategy(BaseFeatureStrategy):
         if self.verbose:
             logger.info(f"Computing features for {n_points:,} points using CPU strategy")
         
-        # Create dummy classification if not provided
-        if classification is None:
-            classification = np.zeros(n_points, dtype=np.uint8)
-        
-        # Determine k value
+        # Determine k value (use default if auto_k not needed)
         k = self.k_neighbors
-        if self.auto_k:
-            k = estimate_optimal_k(points, target_radius=self.radius)
-            if self.verbose:
-                logger.info(f"Auto-estimated k={k} neighbors")
         
-        # Compute all geometric features using existing optimized function
-        normals, curvature, height, geo_features = compute_all_features_optimized(
+        # Compute all geometric features using unified optimized function
+        features = compute_all_features_optimized(
             points=points,
-            classification=classification,
-            k=k,
-            auto_k=False,  # We already computed k above
-            include_extra=self.include_extra,
-            patch_center=None,
-            chunk_size=self.chunk_size if n_points > self.chunk_size else None,
-            radius=self.radius if self.radius > 0 else None,
-            mode=None  # Use traditional parameters instead of mode
+            k_neighbors=k,
+            compute_advanced=self.include_extra
         )
         
-        # Build result dictionary
+        # Build result dictionary compatible with strategy interface
         result = {
-            'normals': normals.astype(np.float32),
-            'curvature': curvature.astype(np.float32),
-            'height': height.astype(np.float32),
+            'normals': features['normals'].astype(np.float32),
+            'curvature': features['curvature'].astype(np.float32),
+            'planarity': features['planarity'].astype(np.float32),
+            'linearity': features['linearity'].astype(np.float32),
+            'sphericity': features['sphericity'].astype(np.float32),
         }
         
-        # Add geometric features
-        for key, value in geo_features.items():
-            result[key] = value.astype(np.float32)
+        # Add advanced features if requested
+        if self.include_extra:
+            result['anisotropy'] = features.get('anisotropy', features['sphericity']).astype(np.float32)
+            result['roughness'] = features.get('roughness', features['curvature']).astype(np.float32)
+            result['verticality'] = features.get('verticality', np.abs(features['normals'][:, 2])).astype(np.float32)
+        
+        # Add height if we have classification
+        if classification is not None:
+            # Compute height above ground
+            ground_mask = classification == 2
+            if ground_mask.any():
+                ground_z = points[ground_mask, 2].min()
+                result['height'] = (points[:, 2] - ground_z).astype(np.float32)
+            else:
+                result['height'] = (points[:, 2] - points[:, 2].min()).astype(np.float32)
+        else:
+            result['height'] = np.zeros(n_points, dtype=np.float32)
         
         # Compute RGB features if provided
         if rgb is not None:
