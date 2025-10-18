@@ -1,0 +1,73 @@
+# Example Configuration: Legacy Strategy Pattern (Backward Compatible)
+#
+# This configuration uses the legacy Strategy Pattern for feature computation.
+# This is the DEFAULT behavior - no changes needed to existing configs.
+#
+# Use this if you:
+# - Want to maintain existing behavior
+# - Need time to test UnifiedFeatureComputer
+# - Have custom Strategy implementations
+#
+# Note: This is the default when use_unified_computer is not specified.
+
+# Processing Configuration
+processor:
+  # Legacy strategy pattern (DEFAULT - can omit this flag)
+  use_unified_computer: false
+
+  # Legacy GPU configuration
+  use_gpu: true # Enable GPU if available
+  use_gpu_chunked: true # Use GPU chunked strategy (most optimized)
+  use_strategy_pattern: true # Use strategy pattern (vs factory pattern)
+
+  # Tile processing
+  tile_size: 1000 # meters
+  buffer_size: 10.0 # meters
+  use_boundary_aware: false # Wrap strategy with boundary-aware
+
+  # GPU batch sizes
+  gpu_batch_size: 5000000 # Points per GPU batch
+
+  # Memory management
+  max_memory_gb: 16
+
+  # Processing options
+  num_workers: 4
+  save_intermediate: false
+
+# Feature Configuration
+features:
+  # K-nearest neighbors for feature computation
+  k_neighbors: 20
+
+  # Search strategy
+  search_radius: null # Use k-neighbors instead of radius
+
+  # GPU settings (redundant with processor.gpu_batch_size, but kept for compatibility)
+  use_gpu_chunked: null # Inherits from processor if not set
+  gpu_batch_size: null # Inherits from processor if not set
+
+  # Features to compute
+  compute_normals: true
+  compute_curvature: true
+  compute_geometric: true
+  compute_height: true
+
+# Feature Mode
+feature_mode: "lod2" # Options: minimal, lod2, lod3, full
+
+# Input/Output
+input:
+  data_source: "ign_lidar_hd"
+  tile_codes:
+    - "0830_6283"
+
+output:
+  directory: "./output"
+  format: "laz"
+  compression: true
+  save_enriched: true
+
+# Logging
+logging:
+  level: "INFO"

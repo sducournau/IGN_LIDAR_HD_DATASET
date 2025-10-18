@@ -292,19 +292,174 @@ class FeatureOrchestrator:
         """
         Select and create appropriate feature strategy based on configuration.
         
-        NEW (Week 2): Uses Strategy Pattern instead of Factory Pattern
+        NEW (Phase 4 Task 1.4): Supports UnifiedFeatureComputer with automatic mode selection
         
-        Strategy selection logic:
-        1. Boundary-aware if use_boundary_aware=True (wraps base strategy)
-        2. GPU chunked if use_gpu=True and use_gpu_chunked=True
-        3. GPU basic if use_gpu=True
-        4. CPU otherwise (fallback)
+        Selection logic:
+        1. If use_unified_computer=True: Use UnifiedFeatureComputer (automatic mode selection)
+        2. Else: Use Strategy Pattern (manual GPU/CPU selection) - via _init_strategy_computer()
         
         The created strategy is cached in self.computer for reuse.
         
-        Note: self.computer can be either:
-        - New Strategy Pattern: BaseFeatureStrategy (Week 2)
-        - Old Factory Pattern: BaseFeatureComputer (legacy, deprecated)
+        Note: self.computer can be:
+        - UnifiedFeatureComputer (Phase 4, automatic mode selection)
+        - BaseFeatureStrategy (Week 2, Strategy Pattern)
+        - BaseFeatureComputer (legacy, deprecated)
+        """
+        processor_cfg = self.config.get('processor', {})
+        
+        # NEW (Phase 4 Task 1.4): Check if unified computer is enabled
+        use_unified_computer = processor_cfg.get('use_unified_computer', False)
+        
+        if use_unified_computer:
+            logger.info("🆕 Using UnifiedFeatureComputer (Phase 4 - automatic mode selection)")
+            self._init_unified_computer()
+        else:
+            # Use legacy strategy pattern (original implementation)
+            self._init_strategy_computer()
+    
+    def _init_unified_computer(self):
+        """
+        Initialize UnifiedFeatureComputer with automatic mode selection.
+        
+        NEW (Phase 4 Task 1.4): Provides automatic mode selection based on:
+        - Point cloud size
+        - GPU availability
+        - Memory constraints
+        - User configuration overrides
+        
+        The UnifiedFeatureComputer provides a single, consistent API across
+        all computation modes (CPU, GPU, GPU_CHUNKED, BOUNDARY).
+        """
+        try:
+            from .unified_computer import UnifiedFeatureComputer
+            from .mode_selector import ModeSelector
+        except ImportError as e:
+            logger.error(
+                f"UnifiedFeatureComputer not available: {e}. "
+                "Falling back to strategy pattern."
+            )
+            # Fall back to strategy pattern
+            self._init_strategy_computer()
+            return
+        
+        # Get forced mode from config (if any)
+        force_mode_str = self._get_forced_mode_from_config()
+        
+        # Convert mode string to ComputationMode enum if specified
+        force_mode = None
+        if force_mode_str:
+            from .mode_selector import ComputationMode
+            mode_map = {
+                'cpu': ComputationMode.CPU,
+                'gpu': ComputationMode.GPU,
+                'gpu_chunked': ComputationMode.GPU_CHUNKED,
+                'boundary': ComputationMode.BOUNDARY
+            }
+            force_mode = mode_map.get(force_mode_str.lower())
+        
+        # Create unified computer
+        prefer_gpu = self.gpu_available
+        self.computer = UnifiedFeatureComputer(
+            mode_selector=None,  # Use default mode selector
+            force_mode=force_mode,
+            progress_callback=None,  # TODO: Add progress callback support
+            prefer_gpu=prefer_gpu
+        )
+        
+        # Set strategy name for logging
+        if force_mode:
+            self.strategy_name = f"unified_{force_mode}"
+            logger.info(f"   📌 Mode: {force_mode} (forced by config)")
+        else:
+            self.strategy_name = "unified_auto"
+            logger.info("   📌 Mode: automatic (intelligent selection)")
+        
+        # Log mode recommendations for typical tile size
+        try:
+            selector = ModeSelector()
+            typical_size = self._estimate_typical_tile_size()
+            recommendations = selector.get_recommendations(num_points=typical_size)
+            logger.info(
+                f"   💡 Recommended for {typical_size:,} points: "
+                f"{recommendations['recommended_mode']}"
+            )
+        except Exception as e:
+            logger.debug(f"Could not get mode recommendations: {e}")
+    
+    def _get_forced_mode_from_config(self) -> Optional[str]:
+        """
+        Get forced computation mode from configuration.
+        
+        Maps legacy config flags to unified computer modes for backward compatibility.
+        
+        Returns:
+            str or None: Forced mode ('cpu', 'gpu', 'gpu_chunked', 'boundary') or None for auto
+        
+        Config priority:
+            1. processor.computation_mode (new, explicit)
+            2. Legacy flags (use_gpu, use_gpu_chunked, use_boundary_aware)
+            3. None (automatic mode selection)
+        """
+        processor_cfg = self.config.get('processor', {})
+        
+        # Check for explicit computation_mode setting (highest priority)
+        if 'computation_mode' in processor_cfg:
+            mode = processor_cfg['computation_mode']
+            if mode.lower() in ['auto', 'automatic']:
+                return None  # Automatic mode
+            return mode.lower()
+        
+        # Map legacy flags to modes (for backward compatibility)
+        if processor_cfg.get('use_boundary_aware', False):
+            return 'boundary'
+        
+        if processor_cfg.get('use_gpu', False):
+            # Check if chunked mode is explicitly disabled
+            use_chunked = processor_cfg.get('use_gpu_chunked', True)  # Default to chunked
+            if use_chunked:
+                return 'gpu_chunked'
+            else:
+                return 'gpu'
+        
+        # No forced mode - use automatic selection
+        return None
+    
+    def _estimate_typical_tile_size(self) -> int:
+        """
+        Estimate typical tile size for mode recommendations.
+        
+        Returns:
+            int: Estimated number of points per tile
+        
+        Note:
+            This is a rough estimate. Actual tile sizes vary significantly.
+            Typical IGN LIDAR HD tiles range from 500K to 10M points.
+        """
+        # Use config hints if available
+        processor_cfg = self.config.get('processor', {})
+        
+        # If patch processing, estimate from patch params
+        if 'patch_size' in processor_cfg:
+            patch_size = processor_cfg['patch_size']  # meters
+            # Rough estimate: ~100-200 points per square meter for IGN LIDAR HD
+            points_per_sqm = 150
+            estimated_points = int(patch_size * patch_size * points_per_sqm)
+            return estimated_points
+        
+        # Default estimate for full tiles
+        # Most IGN tiles are 1-5M points
+        return 2_000_000
+    
+    def _init_strategy_computer(self):
+        """
+        Initialize using legacy Strategy Pattern (for backward compatibility).
+        
+        This is the original strategy selection logic, preserved for:
+        1. Backward compatibility
+        2. Fallback if UnifiedFeatureComputer unavailable
+        3. Gradual migration path
+        
+        Note: This will be called by _init_computer() when use_unified_computer=False
         """
         processor_cfg = self.config.get('processor', {})
         features_cfg = self.config.get('features', {})
@@ -782,19 +937,30 @@ class FeatureOrchestrator:
         return self._rgb_nir_executor.submit(fetch_rgb_nir)
     
     def _compute_geometric_features_optimized(self, points, classification, optimized_params, **kwargs):
-        """Compute geometric features with optimized parameters."""
-        # Apply optimized parameters temporarily
-        if optimized_params and hasattr(self.computer, 'k_neighbors'):
+        """
+        Compute geometric features with optimized parameters.
+        
+        Note: This optimization only works with Strategy Pattern computers that have
+        k_neighbors attribute. UnifiedFeatureComputer uses k values passed to methods.
+        """
+        processor_cfg = self.config.get('processor', {})
+        use_unified_computer = processor_cfg.get('use_unified_computer', False)
+        
+        # Only apply k_neighbors optimization for Strategy Pattern
+        # UnifiedFeatureComputer takes k as method parameter, not attribute
+        if not use_unified_computer and optimized_params and hasattr(self.computer, 'k_neighbors'):
             original_k = getattr(self.computer, 'k_neighbors', 20)
             setattr(self.computer, 'k_neighbors', optimized_params.get('k_neighbors', original_k))
-        
-        try:
-            # Use the existing _compute_geometric_features method
-            return self._compute_geometric_features(points, classification, **kwargs)
-        finally:
-            # Restore original parameters
-            if optimized_params and hasattr(self.computer, 'k_neighbors'):
+            
+            try:
+                # Use the existing _compute_geometric_features method
+                return self._compute_geometric_features(points, classification, **kwargs)
+            finally:
+                # Restore original parameters
                 setattr(self.computer, 'k_neighbors', original_k)
+        else:
+            # No optimization to apply (unified computer or no optimized params)
+            return self._compute_geometric_features(points, classification, **kwargs)
     
     def validate_mode(self, mode: FeatureMode) -> bool:
         """
@@ -1071,16 +1237,57 @@ class FeatureOrchestrator:
         use_auto_k = k_neighbors is None
         k_value = k_neighbors if k_neighbors is not None else 20
         
-        # Compute features using selected computer
-        feature_dict = self.computer.compute_features(
-            points=points,
-            classification=classification,
-            auto_k=use_auto_k,
-            include_extra=include_extra,
-            patch_center=patch_center,
-            mode=self.feature_mode.value,
-            radius=search_radius  # Pass radius parameter
-        )
+        # NEW (Phase 4 Task 1.4): Check which computer API to use
+        processor_cfg = self.config.get('processor', {})
+        use_unified_computer = processor_cfg.get('use_unified_computer', False)
+        
+        if use_unified_computer:
+            # Use UnifiedFeatureComputer API (Phase 4)
+            logger.debug("Using UnifiedFeatureComputer.compute_all_features()")
+            
+            # Map geometric features based on include_extra
+            if include_extra:
+                geometric_features = [
+                    'planarity', 'linearity', 'sphericity', 'anisotropy',
+                    'eigenentropy', 'omnivariance', 'verticality'
+                ]
+            else:
+                geometric_features = []  # Minimal mode
+            
+            # Call unified API
+            feature_dict = self.computer.compute_all_features(
+                points=points,
+                k_normals=k_value,
+                k_curvature=k_value,
+                k_geometric=k_value,
+                geometric_features=geometric_features,
+                mode=None  # Use automatic mode selection
+            )
+            
+            # Add height (z-normalized) if not present
+            if 'height' not in feature_dict:
+                z_min = np.min(points[:, 2])
+                feature_dict['height'] = points[:, 2] - z_min
+            
+            # Add distance_to_center if needed and not present
+            if include_extra and 'distance_to_center' not in feature_dict and patch_center is not None:
+                distances = np.linalg.norm(points - patch_center, axis=1)
+                feature_dict['distance_to_center'] = distances
+            
+        else:
+            # Use Strategy Pattern API (legacy)
+            logger.debug("Using Strategy.compute_features()")
+            
+            # Compute features using selected computer
+            feature_dict = self.computer.compute_features(
+                points=points,
+                classification=classification,
+                auto_k=use_auto_k,
+                include_extra=include_extra,
+                patch_center=patch_center,
+                mode=self.feature_mode.value,
+                radius=search_radius  # Pass radius parameter
+            )
         
         # Extract main features
         normals = feature_dict.get('normals')

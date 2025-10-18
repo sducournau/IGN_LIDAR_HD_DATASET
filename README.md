@@ -82,6 +82,41 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ## ✨ What's New in v5.1.0
 
+### 🤖 **UnifiedFeatureComputer with Automatic Mode Selection (Phase 4)**
+
+**NEW (October 2025):** Intelligent automatic computation mode selection!
+
+- **Automatic GPU/CPU selection** - No manual configuration needed
+- **Simplified config** - One flag instead of multiple GPU settings
+- **Expert recommendations** - System logs optimal configuration
+- **Backward compatible** - Existing configs work unchanged
+- **Opt-in design** - Enable with `use_unified_computer: true`
+
+#### Before vs After
+
+```yaml
+# Before: Manual GPU configuration
+processor:
+  use_gpu: true
+  use_gpu_chunked: true
+  gpu_batch_size: 5000000
+
+# After: Automatic mode selection
+processor:
+  use_unified_computer: true  # That's it!
+```
+
+**Benefits:**
+
+- ⚡ **Automatic** - Selects CPU/GPU/GPU_CHUNKED based on workload
+- 🎯 **Smart** - Considers tile size, GPU availability, memory
+- 📊 **Transparent** - Logs mode selection decisions
+- 🔧 **Flexible** - Can force specific mode if needed
+
+See [Migration Guide](docs/guides/migration-unified-computer.md) for details.
+
+---
+
 ### 🎯 **Preset-Based Configuration System (Week 3)**
 
 **v5.1.0 introduces a revolutionary preset-based configuration system!**
