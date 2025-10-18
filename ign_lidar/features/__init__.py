@@ -76,19 +76,8 @@ from .features import (
     compute_structural_element_score,
 )
 
-# Week 2: Factory Pattern deprecated - use Strategy Pattern instead
-# Legacy imports maintained for backward compatibility (will be removed in Week 3)
-try:
-    from .factory import (
-        FeatureComputerFactory,
-        BaseFeatureComputer,
-    )
-    LEGACY_FACTORY_AVAILABLE = True
-except ImportError:
-    # Factory removed - use Strategy Pattern
-    LEGACY_FACTORY_AVAILABLE = False
-    FeatureComputerFactory = None
-    BaseFeatureComputer = None
+# Factory Pattern has been removed - use Strategy Pattern instead
+# All functionality moved to Strategy pattern (strategies.py, strategy_*.py)
 
 from .orchestrator import (
     FeatureOrchestrator,
@@ -166,9 +155,6 @@ __all__ = [
     'compute_roof_plane_score',
     'compute_opening_likelihood',
     'compute_structural_element_score',
-    # Factory
-    'FeatureComputerFactory',
-    'BaseFeatureComputer',
     # Orchestrator (Phase 4)
     'FeatureOrchestrator',
     # Architectural styles

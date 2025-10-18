@@ -42,14 +42,8 @@ except ImportError:
     GPUChunkedStrategy = None
 from .strategy_boundary import BoundaryAwareStrategy
 
-# LEGACY: Old factory pattern (deprecated, for backward compatibility)
-try:
-    from .factory import BaseFeatureComputer, CPUFeatureComputer, GPUFeatureComputer
-    from .factory import GPUChunkedFeatureComputer, BoundaryAwareFeatureComputer
-    LEGACY_FACTORY_AVAILABLE = True
-except ImportError:
-    LEGACY_FACTORY_AVAILABLE = False
-    
+# Strategy pattern is now the standard - factory pattern removed
+
 from .feature_modes import FeatureMode, get_feature_config
 
 logger = logging.getLogger(__name__)
@@ -547,46 +541,6 @@ class FeatureOrchestrator:
                 self.strategy_name = f"boundary_aware({self.strategy_name})"
             else:
                 self.computer = base_strategy
-        
-        # LEGACY: Old factory pattern (deprecated)
-        else:
-            logger.warning("⚠️  Using legacy Factory Pattern (deprecated, will be removed)")
-            
-            if not LEGACY_FACTORY_AVAILABLE:
-                raise ImportError(
-                    "Legacy factory pattern not available. "
-                    "Set processor.use_strategy_pattern=true in config to use new Strategy Pattern."
-                )
-            
-            # Select strategy (old way)
-            if use_boundary_aware:
-                self.strategy_name = "boundary_aware"
-                buffer_size = processor_cfg.get('buffer_size', 10.0)
-                self.computer = BoundaryAwareFeatureComputer(
-                    k_neighbors=k_neighbors,
-                    buffer_size=buffer_size
-                )
-            elif self.gpu_available and use_gpu_chunked:
-                self.strategy_name = "gpu_chunked"
-                chunk_size = processor_cfg.get('gpu_batch_size', 1_000_000)
-                gpu_size = chunk_size
-                self.computer = GPUChunkedFeatureComputer(
-                    k_neighbors=k_neighbors,
-                    gpu_batch_size=chunk_size
-                )
-            elif self.gpu_available:
-                self.strategy_name = "gpu"
-                batch_size = features_cfg.get('gpu_batch_size', processor_cfg.get('gpu_batch_size', 1_000_000))
-                gpu_size = batch_size
-                self.computer = GPUFeatureComputer(
-                    k_neighbors=k_neighbors,
-                    gpu_batch_size=batch_size
-                )
-            else:
-                self.strategy_name = "cpu"
-                self.computer = CPUFeatureComputer(
-                    k_neighbors=k_neighbors
-                )
         
         logger.debug(f"Selected strategy: {self.strategy_name}")
         if gpu_size is not None:
