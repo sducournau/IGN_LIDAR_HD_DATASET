@@ -487,24 +487,24 @@ class GPUChunkedFeatureComputer:
         # - Distance matrix computation: N × N_kdtree_nodes (can be large!)
         # - Sorting/heap operations for top-k selection
         # - Internal buffers and workspace
-        # CONSERVATIVE ESTIMATE: 4× the output memory (based on empirical observation)
-        temporary_memory_multiplier = 4.0
+        # CONSERVATIVE ESTIMATE: 6× the output memory (increased from 4× - cuML can use a lot!)
+        temporary_memory_multiplier = 6.0
         total_neighbor_memory_gb = output_memory_gb * (1.0 + temporary_memory_multiplier)
         
-        # Use 30% of available VRAM as threshold (MORE conservative than before)
+        # Use 20% of available VRAM as threshold (MORE conservative than 30%)
         # This leaves plenty of room for:
         # - KDTree structure (already allocated)
         # - Point cloud data (already allocated)
         # - Temporary allocations during kneighbors()
         # - Subsequent feature computations
-        memory_threshold_gb = available_vram_gb * 0.30
+        memory_threshold_gb = available_vram_gb * 0.20  # Use 20% as threshold
         
         if total_neighbor_memory_gb <= memory_threshold_gb:
             # Memory is safe - NO BATCHING NEEDED!
             logger.info(
                 f"     ✅ Neighbor queries fit in VRAM: "
                 f"{total_neighbor_memory_gb:.2f}GB (output: {output_memory_gb:.2f}GB + temp: {output_memory_gb * temporary_memory_multiplier:.2f}GB) "
-                f"< {memory_threshold_gb:.2f}GB threshold ({available_vram_gb:.2f}GB available × 30%)"
+                f"< {memory_threshold_gb:.2f}GB threshold ({available_vram_gb:.2f}GB available × 20%)"
             )
             logger.info(f"        Processing all {N:,} points in ONE batch (optimal!)")
             return False, N, 1
@@ -512,6 +512,23 @@ class GPUChunkedFeatureComputer:
             # Need batching - use USER'S configured batch size OR calculate safe size
             # Calculate safe batch size that fits in memory threshold
             safe_batch_size = int((memory_threshold_gb / (1.0 + temporary_memory_multiplier)) / ((k * 4 * 2) / (1024**3)))
+            
+            # ADAPTIVE: Scale batch size based on KDTree size to prevent hanging
+            # For large KDTrees (>15M points), cuML needs smaller query batches
+            # This is an empirically-derived heuristic based on RTX 4080 testing
+            if N > 15_000_000:
+                # Very large KDTree: cap at 1M to balance speed and stability
+                max_batch = 1_000_000
+                logger.debug(f"        Large KDTree detected ({N:,} points), capping batch at {max_batch:,}")
+            elif N > 10_000_000:
+                # Large KDTree: cap at 1.5M
+                max_batch = 1_500_000
+                logger.debug(f"        Medium-large KDTree ({N:,} points), capping batch at {max_batch:,}")
+            else:
+                # Moderate KDTree: cap at 2M
+                max_batch = 2_000_000
+            
+            safe_batch_size = min(safe_batch_size, max_batch)
             
             # Use smaller of user config and calculated safe size
             batch_size = min(self.neighbor_query_batch_size, safe_batch_size)
@@ -526,7 +543,7 @@ class GPUChunkedFeatureComputer:
             )
             logger.info(
                 f"        → {num_batches} batches of {batch_size:,} points "
-                f"(safe batch size: {safe_batch_size:,}, user config: {self.neighbor_query_batch_size:,})"
+                f"(safe: {safe_batch_size:,}, user: {self.neighbor_query_batch_size:,}, cap: {max_batch//1000}K)"
             )
             return True, batch_size, num_batches
 
@@ -2780,25 +2797,46 @@ class GPUChunkedFeatureComputer:
             for batch_idx in range(num_query_batches):
                 batch_start = batch_idx * batch_size
                 batch_end = min((batch_idx + 1) * batch_size, N)
+                batch_n_points = batch_end - batch_start
+                
+                # Log BEFORE each batch to see where it hangs
+                logger.info(f"        Batch {batch_idx + 1}/{num_query_batches}: querying {batch_n_points:,} points [{batch_start:,}:{batch_end:,}]...")
+                
+                import time
+                query_start = time.time()
                 
                 if self.use_cuml and cuNearestNeighbors is not None:
                     # GPU batch query
                     batch_points = points_gpu[batch_start:batch_end]
+                    logger.debug(f"          → Calling cuML kneighbors on GPU batch ({batch_points.shape})...")
+                    
+                    # Synchronize to ensure timing is accurate
+                    if cp is not None:
+                        cp.cuda.Stream.null.synchronize()
+                    
                     distances_batch, indices_batch = knn.kneighbors(batch_points)
+                    
+                    # Synchronize after query
+                    if cp is not None:
+                        cp.cuda.Stream.null.synchronize()
+                    
+                    query_time = time.time() - query_start
+                    logger.debug(f"          ✓ cuML query completed in {query_time:.2f}s")
+                    
                     global_indices_all_gpu[batch_start:batch_end] = indices_batch
                     del distances_batch, indices_batch, batch_points
                 else:
                     # CPU batch query
                     points_cpu = self._to_cpu(points_gpu) if batch_idx == 0 else points_cpu
                     batch_points = points_cpu[batch_start:batch_end]
+                    logger.debug(f"          → Calling sklearn kneighbors on CPU batch ({batch_points.shape})...")
                     distances_batch, indices_batch = knn.kneighbors(batch_points)
+                    query_time = time.time() - query_start
+                    logger.debug(f"          ✓ sklearn query completed in {query_time:.2f}s")
                     global_indices_all_cpu[batch_start:batch_end] = indices_batch
                     del distances_batch, indices_batch, batch_points
                 
-                # Progress update
-                if (batch_idx + 1) % 5 == 0 or batch_idx == num_query_batches - 1:
-                    progress_pct = ((batch_idx + 1) / num_query_batches) * 100
-                    logger.info(f"        Progress: {batch_idx + 1}/{num_query_batches} batches ({progress_pct:.0f}%)")
+                logger.info(f"        ✓ Batch {batch_idx + 1}/{num_query_batches} complete ({query_time:.2f}s)")
             
             # Convert to GPU if needed
             if not (self.use_cuml and cuNearestNeighbors is not None):

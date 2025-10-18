@@ -71,6 +71,15 @@ from .density import (
     compute_relative_height_density,
 )
 
+# Height features
+from .height import (
+    compute_height_above_ground,
+    compute_relative_height,
+    compute_normalized_height,
+    compute_height_percentile,
+    compute_height_bins,
+)
+
 # Architectural features
 from .architectural import (
     compute_architectural_features,
