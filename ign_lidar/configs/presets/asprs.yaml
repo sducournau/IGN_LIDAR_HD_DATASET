@@ -62,7 +62,7 @@ processor:
 
   # GPU settings
   use_gpu: true # Enable GPU acceleration (auto-detects, falls back to CPU)
-  gpu_batch_size: 8_000_000 # 8M points (override default 1M for ASPRS)
+  gpu_batch_size: 4_000_000 # 4M points (override default 1M for ASPRS)
   gpu_memory_target: 0.85 # 85% VRAM usage
   gpu_streams: 4 # CUDA streams for parallel processing
 
@@ -97,7 +97,7 @@ processor:
   augment: false # No augmentation for enriched-only mode
   num_augmentations: 3 # Augmentations if enabled  # Ground truth settings (override base defaults)
   ground_truth_method: "auto" # GPU chunked or STRtree
-  ground_truth_chunk_size: 5_000_000 # 5M points per chunk
+  ground_truth_chunk_size: 4_000_000 # 4M points per chunk
 
   # Reclassification (override base defaults)
   reclassification:

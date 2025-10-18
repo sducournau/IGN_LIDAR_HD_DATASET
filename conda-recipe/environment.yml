@@ -14,6 +14,7 @@ dependencies:
   - pillow>=9.0.0
   - hydra-core>=1.3.0
   - omegaconf>=2.3.0
+  - joblib>=1.0.0
   - h5py>=3.0.0
   # Optional: PyTorch (uncomment for deep learning support)
   # - pytorch>=2.0.0

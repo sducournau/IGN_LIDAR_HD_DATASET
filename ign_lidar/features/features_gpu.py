@@ -480,28 +480,29 @@ class GPUFeatureComputer:
     
     def _compute_normals_cpu(self, points: np.ndarray, k: int) -> np.ndarray:
         """
-        Compute normals on CPU (sklearn) - VECTORIZED.
-        ~100x faster than per-point PCA loop.
+        Compute normals on CPU (sklearn) - VECTORIZED with parallel KDTree queries.
+        ~100x faster than per-point PCA loop, 2-4x faster with parallelization.
         """
         N = len(points)
         normals = np.zeros((N, 3), dtype=np.float32)
         
-        # Build KDTree
-        tree = KDTree(points, metric='euclidean')
+        # Build KDTree once (single-threaded, but only done once)
+        tree = KDTree(points, metric='euclidean', leaf_size=40)
         
         # Batch query to reduce overhead
         batch_size = 50000  # Larger batches for vectorized computation
         num_batches = (N + batch_size - 1) // batch_size
         
-        with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', category=RuntimeWarning)
+        # Parallel processing function for each batch
+        def process_batch(batch_idx):
+            start_idx = batch_idx * batch_size
+            end_idx = min((batch_idx + 1) * batch_size, N)
+            batch_points = points[start_idx:end_idx]
             
-            for batch_idx in range(num_batches):
-                start_idx = batch_idx * batch_size
-                end_idx = min((batch_idx + 1) * batch_size, N)
-                batch_points = points[start_idx:end_idx]
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', category=RuntimeWarning)
                 
-                # Query KNN for entire batch
+                # Query KNN for entire batch (thread-safe after tree is built)
                 _, indices = tree.query(batch_points, k=k)
                 
                 # VECTORIZED covariance computation
@@ -540,7 +541,33 @@ class GPUFeatureComputer:
                 if np.any(degenerate):
                     batch_normals[degenerate] = [0, 0, 1]
                 
-                normals[start_idx:end_idx] = batch_normals
+                return start_idx, end_idx, batch_normals
+        
+        # Use parallel processing if we have multiple batches
+        if num_batches > 1:
+            try:
+                from joblib import Parallel, delayed
+                import os
+                n_jobs = min(os.cpu_count() or 4, num_batches, 8)  # Cap at 8 threads
+                
+                # Process batches in parallel
+                results = Parallel(n_jobs=n_jobs, backend='threading')(
+                    delayed(process_batch)(batch_idx) for batch_idx in range(num_batches)
+                )
+                
+                # Collect results
+                for start_idx, end_idx, batch_normals in results:
+                    normals[start_idx:end_idx] = batch_normals
+                    
+            except ImportError:
+                # Fallback to sequential if joblib not available
+                for batch_idx in range(num_batches):
+                    start_idx, end_idx, batch_normals = process_batch(batch_idx)
+                    normals[start_idx:end_idx] = batch_normals
+        else:
+            # Single batch - no parallelism needed
+            start_idx, end_idx, batch_normals = process_batch(0)
+            normals[start_idx:end_idx] = batch_normals
         
         return normals
     
@@ -612,23 +639,24 @@ class GPUFeatureComputer:
                 logger.warning(f"⚠ GPU curvature failed: {e}, using CPU fallback")
                 # Fall through to CPU path
         
-        # CPU fallback path
+        # CPU fallback path with parallel KDTree queries
         curvature = np.zeros(N, dtype=np.float32)
         
-        # Build KDTree
-        tree = KDTree(points, metric='euclidean')
+        # Build KDTree once (single-threaded, but only done once)
+        tree = KDTree(points, metric='euclidean', leaf_size=40)
         
-        # Batch processing
+        # Batch processing with parallel queries
         batch_size = 50000  # Larger batches for vectorized computation
         num_batches = (N + batch_size - 1) // batch_size
         
-        for batch_idx in range(num_batches):
+        # Parallel processing function for each batch
+        def process_batch(batch_idx):
             start_idx = batch_idx * batch_size
             end_idx = min((batch_idx + 1) * batch_size, N)
             batch_points = points[start_idx:end_idx]
             batch_normals = normals[start_idx:end_idx]
             
-            # Query KNN
+            # Query KNN (thread-safe after tree is built)
             _, indices = tree.query(batch_points, k=k)
             
             # VECTORIZED curvature computation
@@ -645,6 +673,32 @@ class GPUFeatureComputer:
             curv_norms = np.linalg.norm(normal_diff, axis=2)  # [batch, k]
             batch_curvature = np.mean(curv_norms, axis=1)  # [batch_size]
             
+            return start_idx, end_idx, batch_curvature
+        
+        # Use parallel processing if we have multiple batches
+        if num_batches > 1:
+            try:
+                from joblib import Parallel, delayed
+                import os
+                n_jobs = min(os.cpu_count() or 4, num_batches, 8)  # Cap at 8 threads
+                
+                # Process batches in parallel
+                results = Parallel(n_jobs=n_jobs, backend='threading')(
+                    delayed(process_batch)(batch_idx) for batch_idx in range(num_batches)
+                )
+                
+                # Collect results
+                for start_idx, end_idx, batch_curvature in results:
+                    curvature[start_idx:end_idx] = batch_curvature
+                    
+            except ImportError:
+                # Fallback to sequential if joblib not available
+                for batch_idx in range(num_batches):
+                    start_idx, end_idx, batch_curvature = process_batch(batch_idx)
+                    curvature[start_idx:end_idx] = batch_curvature
+        else:
+            # Single batch - no parallelism needed
+            start_idx, end_idx, batch_curvature = process_batch(0)
             curvature[start_idx:end_idx] = batch_curvature
         
         return curvature

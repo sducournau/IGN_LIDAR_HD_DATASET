@@ -19,6 +19,7 @@ dependencies:
   - conda-forge::pillow>=9.0.0
   - conda-forge::hydra-core>=1.3.0
   - conda-forge::omegaconf>=2.3.0
+  - conda-forge::joblib>=1.0.0
   - conda-forge::h5py>=3.0.0
 
   # Resolve conflicts by specifying channels explicitly
