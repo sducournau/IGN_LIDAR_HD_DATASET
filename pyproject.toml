@@ -34,6 +34,7 @@ dependencies = [
     "lazrs>=0.5.0",  # LAZ compression backend for laspy
     "scikit-learn>=1.0.0",
     "scipy>=1.7.0",  # Spatial operations (KDTree) for tile stitching and boundary features
+    "numba>=0.56.0",  # JIT compilation for performance-critical operations
     "tqdm>=4.60.0",
     "click>=8.0.0",
     "PyYAML>=6.0",
@@ -74,16 +75,23 @@ gpu = [
 # conda install -c rapidsai -c conda-forge -c nvidia cuspatial cupy
 gpu-spatial = [
     # cupy must be installed separately: pip install cupy-cuda11x or cupy-cuda12x
-    # cuspatial requires conda: conda install -c rapidsai cuspatial
+    # cuspatial and cudf require conda: conda install -c rapidsai cuspatial cudf
+    # Or via pip (may require more configuration):
+    # "cuspatial-cu12>=24.10.0",  # Uncomment for pip installation with CUDA 12.x
+    # "cudf-cu12>=24.10.0",  # Uncomment for pip installation with CUDA 12.x
 ]
 
 # Advanced GPU acceleration with RAPIDS cuML
 # Note: RAPIDS requires conda installation for best compatibility
-# conda install -c rapidsai -c conda-forge -c nvidia cuml
+# conda install -c rapidsai -c conda-forge -c nvidia cuml cuspatial cudf
 gpu-full = [
     # cupy must be installed separately: pip install cupy-cuda11x or cupy-cuda12x
-    "cuml>=23.10.0",  # RAPIDS cuML for GPU-accelerated ML
-    # cuspatial requires conda: conda install -c rapidsai cuspatial
+    # RAPIDS packages (cuml, cuspatial, cudf) require conda for best compatibility:
+    # conda install -c rapidsai -c conda-forge -c nvidia cuml cuspatial cudf
+    # Or via pip (may require more configuration):
+    # "cuml-cu12>=23.10.0",  # Uncomment for pip installation with CUDA 12.x
+    # "cuspatial-cu12>=24.10.0",  # Uncomment for pip installation with CUDA 12.x
+    # "cudf-cu12>=24.10.0",  # Uncomment for pip installation with CUDA 12.x
 ]
 
 # PyTorch support for dataset classes and deep learning

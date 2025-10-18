@@ -9,7 +9,7 @@ import numpy as np
 from unittest.mock import Mock, MagicMock, patch
 from omegaconf import OmegaConf
 
-from ign_lidar.core.modules.feature_computer import FeatureComputer
+from ign_lidar.features.feature_computer import FeatureComputer
 
 
 @pytest.fixture
@@ -30,7 +30,8 @@ def basic_config():
         'features': {
             'k_neighbors': 20,
             'mode': 'full'
-        }
+        },
+        'gpu_available': False
     })
 
 
@@ -51,7 +52,8 @@ def gpu_config():
         'features': {
             'k_neighbors': 25,
             'mode': 'full'
-        }
+        },
+        'gpu_available': True
     })
     return config
 
@@ -73,7 +75,8 @@ def rgb_config():
         'features': {
             'k_neighbors': 20,
             'mode': 'full'
-        }
+        },
+        'gpu_available': False
     })
 
 
@@ -95,7 +98,8 @@ def full_features_config():
         'features': {
             'k_neighbors': 20,
             'mode': 'full'
-        }
+        },
+        'gpu_available': False
     })
 
 

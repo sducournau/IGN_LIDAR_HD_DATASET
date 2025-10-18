@@ -27,11 +27,12 @@ def test_list_presets():
     for preset in presets:
         print(f"  - {preset}")
     
-    assert len(presets) == 5, f"Expected 5 presets, found {len(presets)}"
+    assert len(presets) == 6, f"Expected 6 presets, found {len(presets)}"
     assert 'minimal' in presets
     assert 'lod2' in presets
     assert 'lod3' in presets
     assert 'asprs' in presets
+    assert 'asprs_rtx4080' in presets
     assert 'full' in presets
     
     print("✓ PASSED")

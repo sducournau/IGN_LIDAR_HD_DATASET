@@ -634,7 +634,8 @@ class FeatureOrchestrator:
         """
         features_cfg = self.config.get('features', {})
         # Check both 'mode' (Hydra configs) and 'feature_mode' (legacy kwargs)
-        mode_str = features_cfg.get('mode') or features_cfg.get('feature_mode', 'lod2')
+        # Use 'lod2' as default if neither is specified
+        mode_str = features_cfg.get('mode') or features_cfg.get('feature_mode') or 'lod2'
         
         # Debug: Log the mode being loaded (with full config inspection)
         logger.info(f"🔍 DEBUG: features_cfg = {dict(features_cfg)}")

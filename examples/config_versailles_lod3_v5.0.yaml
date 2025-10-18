@@ -13,7 +13,7 @@
 # Usage:
 #   ign-lidar-hd process --config-file examples/config_versailles_lod3_v5.0.yaml
 #
-# Version: 5.1.0
+# Version: 3.0.0
 # Date: October 18, 2025
 # ========================================================================
 

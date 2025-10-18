@@ -7,11 +7,11 @@
 #
 # Use this when you know GPU_CHUNKED is the best mode for your workload.
 #
-# Version: 5.1.0 (Legacy - Consider using preset with GPU optimizations instead)
+# Version: 3.0.0 (Legacy - Consider using preset with GPU optimizations instead)
 # Date: October 18, 2025
 
 # Configuration metadata
-config_version: "5.1.0"
+config_version: "3.0.0"
 config_type: "legacy_example"
 
 # Processing Configuration

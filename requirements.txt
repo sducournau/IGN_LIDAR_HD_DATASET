@@ -4,6 +4,7 @@ laspy>=2.3.0
 lazrs>=0.5.0  # LAZ compression backend for laspy
 scikit-learn>=1.0.0
 scipy>=1.7.0  # Required for spatial operations (KDTree, etc.)
+numba>=0.56.0  # JIT compilation for performance-critical operations
 tqdm>=4.60.0
 requests>=2.25.0
 click>=8.0.0

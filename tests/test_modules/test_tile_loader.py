@@ -34,8 +34,8 @@ def basic_config():
 def bbox_config():
     """Configuration with bounding box."""
     return OmegaConf.create({
+        'bbox': [2.0, 48.0, 3.0, 49.0],
         'processor': {
-            'bbox': [2.0, 48.0, 3.0, 49.0],
             'preprocess': False,
             'chunk_size_mb': 500
         }
@@ -280,8 +280,8 @@ class TestBBoxFiltering:
     def test_apply_bbox_filter_with_bbox(self, mock_tile_data):
         """Test bounding box filtering."""
         config = OmegaConf.create({
+            'bbox': [2.5, 2.5, 4.5, 4.5],  # Only include points 3 and 4
             'processor': {
-                'bbox': [2.5, 2.5, 4.5, 4.5],  # Only include points 3 and 4
                 'preprocess': False,
                 'chunk_size_mb': 500
             }

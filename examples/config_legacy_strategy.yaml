@@ -10,11 +10,11 @@
 #
 # Note: This is the default when use_feature_computer is not specified.
 #
-# Version: 5.1.0 (Legacy - Consider migrating to modern presets)
+# Version: 3.0.0 (Legacy - Consider migrating to modern presets)
 # Date: October 18, 2025
 
 # Configuration metadata
-config_version: "5.1.0"
+config_version: "3.0.0"
 config_type: "legacy_example"
 
 # Processing Configuration

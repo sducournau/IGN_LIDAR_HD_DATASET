@@ -11,6 +11,7 @@ laspy>=2.3.0
 lazrs>=0.5.0
 scikit-learn>=1.0.0
 scipy>=1.7.0  # Required for spatial operations (KDTree)
+numba>=0.56.0  # JIT compilation for performance-critical operations
 tqdm>=4.60.0
 click>=8.0.0
 PyYAML>=6.0
@@ -38,6 +39,20 @@ cupy-cuda12x>=12.0.0  # For CUDA 12.x (recommended for CUDA 12.x or 13.x)
 #
 # Or via pip (may require more configuration):
 cuml-cu12>=23.10.0  # For CUDA 12.x (uncomment if using pip)
+
+# RAPIDS cuSpatial: GPU-accelerated spatial operations
+# Note: Best installed via conda for compatibility
+# conda install -c rapidsai -c conda-forge -c nvidia cuspatial=24.10
+#
+# Or via pip (may require more configuration):
+cuspatial-cu12>=24.10.0  # For CUDA 12.x (uncomment if using pip)
+
+# RAPIDS cuDF: GPU-accelerated dataframes
+# Note: Best installed via conda for compatibility  
+# conda install -c rapidsai -c conda-forge -c nvidia cudf=24.10
+#
+# Or via pip (may require more configuration):
+cudf-cu12>=24.10.0  # For CUDA 12.x (uncomment if using pip)
 
 # PyTorch with CUDA support (for dataset classes)
 # Note: Best installed via conda:
