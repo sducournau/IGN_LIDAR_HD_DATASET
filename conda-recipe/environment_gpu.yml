@@ -36,6 +36,10 @@ dependencies:
   - conda-forge::cupy
   - nvidia::cuda-version=12.5
 
+  # FAISS GPU for ultra-fast k-NN (50-100× speedup)
+  # Highly recommended for large-scale processing
+  - pytorch::faiss-gpu>=1.7.4
+
   # PyTorch with CUDA support (from pytorch channel)
   - pytorch::pytorch>=2.0.0
   - pytorch::pytorch-cuda=12.1

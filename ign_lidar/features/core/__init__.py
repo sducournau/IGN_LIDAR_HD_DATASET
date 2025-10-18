@@ -112,6 +112,8 @@ from .utils import (
     get_array_module,
     batched_inverse_3x3,
     inverse_power_iteration,
+    compute_eigenvalue_features_from_covariances,
+    compute_covariances_from_neighbors,
 )
 
 # Geometric features (consolidated)
@@ -262,6 +264,8 @@ __all__ = [
     'get_array_module',
     'batched_inverse_3x3',
     'inverse_power_iteration',
+    'compute_eigenvalue_features_from_covariances',
+    'compute_covariances_from_neighbors',
     
     # Geometric features (consolidated)
     'extract_geometric_features',

@@ -80,7 +80,7 @@ processor:
 
   # Processing settings
   num_workers: 1 # Single worker for GPU processing
-  skip_existing: false # Re-process existing files
+  skip_existing: true # Skip existing outputs
   output_format: "laz" # Output format
   use_stitching: false # Tile stitching disabled by default
 

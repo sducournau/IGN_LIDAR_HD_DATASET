@@ -48,8 +48,13 @@ except ImportError:
 # CPU fallback
 from sklearn.neighbors import KDTree
 
-# Import core utilities (Phase 2 refactoring)
-from .core.utils import batched_inverse_3x3, inverse_power_iteration
+# Import core utilities (Phase 2 & Phase 3+ refactoring)
+from .core.utils import (
+    batched_inverse_3x3, 
+    inverse_power_iteration,
+    compute_eigenvalue_features_from_covariances,
+    compute_covariances_from_neighbors,
+)
 from .core.height import compute_height_above_ground
 from .core.curvature import compute_curvature_from_normals
 
@@ -901,64 +906,21 @@ class GPUFeatureComputer:
         """
         Compute eigenvalue-based features on GPU with optimized transfers.
         
+        ✅ REFACTORED (Phase 3+): Uses core.utils.compute_eigenvalue_features_from_covariances()
+        This eliminates ~60 lines of duplicated eigenvalue computation logic.
+        
         ✅ OPTIMIZATION: Single batched transfer instead of per-feature transfers.
         This provides 4-10× speedup over the old approach.
         """
-        M, k = indices_gpu.shape
+        # Compute covariances using shared utility
+        cov_matrices = compute_covariances_from_neighbors(points_gpu, indices_gpu)
         
-        # Gather neighbors on GPU
-        neighbors = points_gpu[indices_gpu]
-        
-        # Center neighbors
-        centroids = cp.mean(neighbors, axis=1, keepdims=True)
-        centered = neighbors - centroids
-        
-        # Compute covariance matrices
-        cov_matrices = cp.einsum('mki,mkj->mij', centered, centered) / (k - 1)
-        
-        # Add regularization for stability
-        eye = cp.eye(3, dtype=cov_matrices.dtype)
-        cov_matrices = cov_matrices + 1e-6 * eye
-        
-        # Compute eigenvalues
-        try:
-            eigenvalues = cp.linalg.eigvalsh(cov_matrices)
-            eigenvalues = cp.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
-            eigenvalues = cp.maximum(eigenvalues, 1e-10)  # Clamp to positive
-        except Exception as e:
-            print(f"⚠️ GPU eigenvalue computation failed: {e}")
-            batch_features = {}
-            for feat in required_features:
-                if feat in ['planarity', 'linearity', 'sphericity', 'anisotropy']:
-                    batch_features[feat] = np.zeros(M, dtype=np.float32)
-            return batch_features
-        
-        # Extract eigenvalues
-        λ0 = eigenvalues[:, 0]
-        λ1 = eigenvalues[:, 1]
-        λ2 = eigenvalues[:, 2]
-        sum_λ = λ0 + λ1 + λ2
-        
-        # ✅ OPTIMIZED: Keep all features on GPU, single transfer at end
-        batch_features_gpu = {}
-        
-        if 'planarity' in required_features:
-            batch_features_gpu['planarity'] = (λ1 - λ2) / (sum_λ + 1e-8)
-        
-        if 'linearity' in required_features:
-            batch_features_gpu['linearity'] = (λ0 - λ1) / (sum_λ + 1e-8)
-        
-        if 'sphericity' in required_features:
-            batch_features_gpu['sphericity'] = λ2 / (sum_λ + 1e-8)
-        
-        if 'anisotropy' in required_features:
-            batch_features_gpu['anisotropy'] = (λ0 - λ2) / (sum_λ + 1e-8)
-        
-        # Single batched transfer to CPU
-        batch_features = {
-            feat: cp.asnumpy(val).astype(np.float32)
-            for feat, val in batch_features_gpu.items()
-        }
+        # Compute features using shared utility (handles GPU/CPU automatically)
+        batch_features = compute_eigenvalue_features_from_covariances(
+            cov_matrices, 
+            required_features=required_features,
+            max_batch_size=500000  # cuSOLVER limit
+        )
         
         return batch_features
     
@@ -1055,6 +1017,9 @@ class GPUFeatureComputer:
         """
         Compute eigenvalue-based features for a batch using vectorized operations.
         
+        ✅ REFACTORED (Phase 3+): Uses core.utils.compute_eigenvalue_features_from_covariances()
+        This eliminates ~60 lines of duplicated eigenvalue computation logic.
+        
         Args:
             points: [M, 3] batch of points
             indices: [M, k] neighbor indices
@@ -1063,74 +1028,15 @@ class GPUFeatureComputer:
         Returns:
             Dictionary of computed features for the batch
         """
-        M, k = indices.shape
-        use_gpu = self.use_gpu and cp is not None
-        xp = cp if use_gpu else np
+        # Compute covariances using shared utility
+        cov_matrices = compute_covariances_from_neighbors(points, indices)
         
-        # Transfer to GPU if available
-        if use_gpu:
-            points_gpu = cp.asarray(points)
-            indices_gpu = cp.asarray(indices)
-            neighbors = points_gpu[indices_gpu]
-        else:
-            neighbors = points[indices]
-        
-        # Center neighbors
-        centroids = xp.mean(neighbors, axis=1, keepdims=True)
-        centered = neighbors - centroids
-        
-        # Compute covariance matrices
-        cov_matrices = xp.einsum('mki,mkj->mij', centered, centered) / (k - 1)
-        
-        # Add regularization for stability
-        reg_term = 1e-6 if use_gpu else 1e-8
-        if use_gpu:
-            eye = cp.eye(3, dtype=cov_matrices.dtype)
-        else:
-            eye = np.eye(3, dtype=np.float32)
-        cov_matrices = cov_matrices + reg_term * eye
-        
-        # Compute eigenvalues
-        try:
-            eigenvalues = xp.linalg.eigvalsh(cov_matrices)
-            eigenvalues = xp.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
-            eigenvalues = xp.maximum(eigenvalues, 1e-10)  # Clamp to positive
-        except Exception as e:
-            print(f"⚠️ Eigenvalue computation failed: {e}, using defaults")
-            # Use default values
-            batch_features = {}
-            for feat in required_features:
-                if feat in ['planarity', 'linearity', 'sphericity', 'anisotropy']:
-                    batch_features[feat] = np.zeros(M, dtype=np.float32)
-            return batch_features
-        
-        # Extract eigenvalues
-        λ0 = eigenvalues[:, 0]
-        λ1 = eigenvalues[:, 1]
-        λ2 = eigenvalues[:, 2]
-        sum_λ = λ0 + λ1 + λ2
-        
-        # Compute only required features
-        # ✅ OPTIMIZED: Keep all features on GPU, single transfer at end
-        batch_features_gpu = {}
-        
-        if 'planarity' in required_features:
-            batch_features_gpu['planarity'] = (λ1 - λ2) / (sum_λ + 1e-8)
-        
-        if 'linearity' in required_features:
-            batch_features_gpu['linearity'] = (λ0 - λ1) / (sum_λ + 1e-8)
-        
-        if 'sphericity' in required_features:
-            batch_features_gpu['sphericity'] = λ2 / (sum_λ + 1e-8)
-        
-        if 'anisotropy' in required_features:
-            batch_features_gpu['anisotropy'] = (λ0 - λ2) / (sum_λ + 1e-8)
-        
-        # Single batched transfer to CPU
-        batch_features = {
-            feat: self._to_cpu(val).astype(np.float32)
-            for feat, val in batch_features_gpu.items()
-        }
+        # Compute features using shared utility (handles GPU/CPU automatically)
+        batch_features = compute_eigenvalue_features_from_covariances(
+            cov_matrices, 
+            required_features=required_features,
+            max_batch_size=500000  # cuSOLVER limit
+        )
         
         return batch_features
 

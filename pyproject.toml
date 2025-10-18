@@ -94,6 +94,17 @@ gpu-full = [
     # "cudf-cu12>=24.10.0",  # Uncomment for pip installation with CUDA 12.x
 ]
 
+# FAISS for ultra-fast k-NN (50-100× speedup over cuML)
+# Note: Highly recommended for large-scale processing
+# conda install -c pytorch -c nvidia faiss-gpu
+faiss = [
+    # GPU version (recommended): pip install faiss-gpu
+    # CPU version: pip install faiss-cpu
+    # Uncomment one based on your system:
+    # "faiss-gpu>=1.7.4",  # For CUDA-enabled systems
+    # "faiss-cpu>=1.7.4",  # For CPU-only systems
+]
+
 # PyTorch support for dataset classes and deep learning
 # Note: Best installed via conda for CUDA support:
 # conda install -c pytorch -c nvidia pytorch pytorch-cuda torchvision torchaudio

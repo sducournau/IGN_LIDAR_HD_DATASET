@@ -31,6 +31,13 @@ dependencies:
       - laspy>=2.3.0
       - lazrs>=0.5.0
 
+  # Optional: FAISS for ultra-fast k-NN (50-100× speedup):
+  # CPU version (works on all systems):
+  # - faiss-cpu>=1.7.4  # Uncomment for FAISS CPU support
+  #
+  # For GPU version, see environment_gpu.yml or install manually:
+  # conda install -c pytorch -c nvidia faiss-gpu
+
   # Optional GPU dependencies (uncomment for GPU acceleration):
   # For CuPy (basic GPU acceleration - 6-8x speedup):
   # Choose ONE based on your CUDA version:

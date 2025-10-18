@@ -54,6 +54,14 @@ cuspatial-cu12>=24.10.0  # For CUDA 12.x (uncomment if using pip)
 # Or via pip (may require more configuration):
 cudf-cu12>=24.10.0  # For CUDA 12.x (uncomment if using pip)
 
+# FAISS: Ultra-fast similarity search and k-NN (50-100× faster than cuML)
+# Note: HIGHLY RECOMMENDED - provides massive speedup for k-NN queries
+# conda install -c pytorch -c nvidia faiss-gpu=1.7.4
+#
+# Or via pip (GPU version):
+faiss-gpu>=1.7.4  # For CUDA-enabled systems (recommended)
+# faiss-cpu>=1.7.4  # CPU-only fallback if GPU unavailable
+
 # PyTorch with CUDA support (for dataset classes)
 # Note: Best installed via conda:
 # conda install -c pytorch -c nvidia pytorch pytorch-cuda=12.1 torchvision torchaudio

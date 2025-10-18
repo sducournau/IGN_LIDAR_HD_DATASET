@@ -561,3 +561,234 @@ def inverse_power_iteration(
         logger.warning(f"Found {xp.sum(invalid)} invalid eigenvectors, replaced with [0,0,1]")
     
     return v
+
+
+def compute_eigenvalue_features_from_covariances(
+    cov_matrices: np.ndarray,
+    required_features: Optional[list] = None,
+    max_batch_size: int = 500000
+) -> dict:
+    """
+    Compute eigenvalue-based features from covariance matrices.
+    
+    This is a shared utility that eliminates code duplication between:
+    - features_gpu.py::_compute_batch_eigenvalue_features_gpu()
+    - features_gpu.py::_compute_batch_eigenvalue_features()
+    - features_gpu_chunked.py::_compute_minimal_eigenvalue_features()
+    
+    Works with both NumPy and CuPy arrays (GPU-compatible).
+    Automatically handles large batches for GPU (cuSOLVER has limits).
+    
+    Parameters
+    ----------
+    cov_matrices : np.ndarray or cp.ndarray
+        Covariance matrices, shape (M, 3, 3)
+    required_features : list, optional
+        List of feature names to compute. If None, computes all.
+        Valid features: 'planarity', 'linearity', 'sphericity', 
+        'anisotropy', 'eigenentropy', 'omnivariance'
+    max_batch_size : int, optional
+        Maximum batch size for GPU eigenvalue computation (default: 500000)
+        This prevents cuSOLVER errors with very large batches
+        
+    Returns
+    -------
+    features : dict
+        Dictionary mapping feature names to arrays of shape (M,)
+        All features are numpy arrays (automatically transferred from GPU)
+        
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Create random covariance matrices
+    >>> M = 1000
+    >>> cov = np.random.rand(M, 3, 3)
+    >>> cov = (cov + cov.transpose(0, 2, 1)) / 2  # Make symmetric
+    >>> features = compute_eigenvalue_features_from_covariances(
+    ...     cov, required_features=['planarity', 'linearity']
+    ... )
+    >>> assert 'planarity' in features
+    >>> assert features['planarity'].shape == (M,)
+    
+    Notes
+    -----
+    Feature definitions (eigenvalues sorted: λ0 >= λ1 >= λ2):
+    - planarity: (λ1 - λ2) / (λ0 + λ1 + λ2)
+    - linearity: (λ0 - λ1) / (λ0 + λ1 + λ2)
+    - sphericity: λ2 / (λ0 + λ1 + λ2)
+    - anisotropy: (λ0 - λ2) / (λ0 + λ1 + λ2)
+    - eigenentropy: -Σ(λi * log(λi)) (normalized eigenvalues)
+    - omnivariance: (λ0 * λ1 * λ2)^(1/3)
+    
+    GPU Handling:
+    - For GPU arrays (CuPy), automatically handles batch size limits
+    - Sub-batches eigenvalue computation if M > max_batch_size
+    - Returns numpy arrays (transfers from GPU automatically)
+    """
+    from typing import Dict
+    
+    xp = get_array_module(cov_matrices)
+    M = cov_matrices.shape[0]
+    use_gpu = xp.__name__ == 'cupy'
+    
+    # Default to all features
+    if required_features is None:
+        required_features = ['planarity', 'linearity', 'sphericity', 
+                           'anisotropy', 'eigenentropy', 'omnivariance']
+    
+    # Early exit if no eigenvalue features needed
+    if not required_features:
+        return {}
+    
+    # Add regularization for numerical stability
+    reg_term = 1e-6 if use_gpu else 1e-8
+    eye = xp.eye(3, dtype=cov_matrices.dtype)
+    cov_matrices_reg = cov_matrices + reg_term * eye
+    
+    # Compute eigenvalues with batch size handling for GPU
+    try:
+        if use_gpu and M > max_batch_size:
+            # Sub-batch eigenvalue computation for large GPU batches
+            eigenvalues = xp.zeros((M, 3), dtype=xp.float32)
+            num_subbatches = (M + max_batch_size - 1) // max_batch_size
+            
+            for sb_idx in range(num_subbatches):
+                sb_start = sb_idx * max_batch_size
+                sb_end = min((sb_idx + 1) * max_batch_size, M)
+                
+                # Compute eigenvalues for sub-batch
+                sb_eigenvalues = xp.linalg.eigvalsh(cov_matrices_reg[sb_start:sb_end])
+                sb_eigenvalues = xp.sort(sb_eigenvalues, axis=1)[:, ::-1]  # Sort descending
+                eigenvalues[sb_start:sb_end] = sb_eigenvalues
+        else:
+            # Standard path for CPU or smaller GPU batches
+            eigenvalues = xp.linalg.eigvalsh(cov_matrices_reg)
+            eigenvalues = xp.sort(eigenvalues, axis=1)[:, ::-1]  # Sort descending
+        
+        # Clamp to positive values
+        eigenvalues = xp.maximum(eigenvalues, 1e-10)
+        
+    except Exception as e:
+        logger.error(f"Eigenvalue computation failed: {e}")
+        # Return zeros for all requested features
+        features = {}
+        for feat in required_features:
+            features[feat] = np.zeros(M, dtype=np.float32)
+        return features
+    
+    # Extract eigenvalues (λ0 >= λ1 >= λ2)
+    λ0 = eigenvalues[:, 0]
+    λ1 = eigenvalues[:, 1]
+    λ2 = eigenvalues[:, 2]
+    sum_λ = λ0 + λ1 + λ2
+    
+    # Compute requested features (keep on GPU until final transfer)
+    features_gpu = {}
+    
+    if 'planarity' in required_features:
+        features_gpu['planarity'] = (λ1 - λ2) / (sum_λ + 1e-8)
+    
+    if 'linearity' in required_features:
+        features_gpu['linearity'] = (λ0 - λ1) / (sum_λ + 1e-8)
+    
+    if 'sphericity' in required_features:
+        features_gpu['sphericity'] = λ2 / (sum_λ + 1e-8)
+    
+    if 'anisotropy' in required_features:
+        features_gpu['anisotropy'] = (λ0 - λ2) / (sum_λ + 1e-8)
+    
+    if 'eigenentropy' in required_features:
+        # Normalize eigenvalues
+        λ_norm = eigenvalues / (sum_λ[:, None] + 1e-8)
+        # Compute entropy: -Σ(λi * log(λi))
+        log_λ = xp.log(λ_norm + 1e-10)
+        entropy = -xp.sum(λ_norm * log_λ, axis=1)
+        features_gpu['eigenentropy'] = entropy
+    
+    if 'omnivariance' in required_features:
+        # Geometric mean: (λ0 * λ1 * λ2)^(1/3)
+        product = λ0 * λ1 * λ2
+        omnivariance = xp.power(xp.maximum(product, 1e-10), 1.0/3.0)
+        features_gpu['omnivariance'] = omnivariance
+    
+    # Transfer to CPU if on GPU (single batched transfer)
+    if use_gpu:
+        import cupy as cp
+        features = {
+            feat: cp.asnumpy(val).astype(np.float32)
+            for feat, val in features_gpu.items()
+        }
+    else:
+        features = {
+            feat: val.astype(np.float32)
+            for feat, val in features_gpu.items()
+        }
+    
+    return features
+
+
+def compute_covariances_from_neighbors(
+    points: np.ndarray,
+    neighbor_indices: np.ndarray
+) -> np.ndarray:
+    """
+    Compute covariance matrices from point neighborhoods.
+    
+    This is a shared utility that eliminates code duplication across
+    normals, curvature, and eigenvalue feature computations.
+    
+    Works with both NumPy and CuPy arrays (GPU-compatible).
+    
+    Parameters
+    ----------
+    points : np.ndarray or cp.ndarray
+        Point cloud array, shape (N, 3)
+    neighbor_indices : np.ndarray or cp.ndarray
+        Neighbor indices for each point, shape (M, k)
+        
+    Returns
+    -------
+    cov_matrices : np.ndarray or cp.ndarray
+        Covariance matrices, shape (M, 3, 3)
+        
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from sklearn.neighbors import NearestNeighbors
+    >>> points = np.random.rand(1000, 3)
+    >>> nn = NearestNeighbors(n_neighbors=10)
+    >>> nn.fit(points)
+    >>> _, indices = nn.kneighbors(points)
+    >>> cov = compute_covariances_from_neighbors(points, indices)
+    >>> assert cov.shape == (1000, 3, 3)
+    
+    Notes
+    -----
+    Algorithm:
+    1. Gather neighbor points
+    2. Compute centroids
+    3. Center neighbors
+    4. Compute covariance: C = (X^T @ X) / k
+    
+    This function is used by:
+    - Normal computation (eigenvector of smallest eigenvalue)
+    - Curvature computation (from covariances)
+    - Eigenvalue feature computation
+    """
+    xp = get_array_module(points)
+    M, k = neighbor_indices.shape
+    
+    # Gather neighbor points
+    neighbors = points[neighbor_indices]  # Shape: (M, k, 3)
+    
+    # Compute centroids
+    centroids = xp.mean(neighbors, axis=1, keepdims=True)  # Shape: (M, 1, 3)
+    
+    # Center neighbors
+    centered = neighbors - centroids  # Shape: (M, k, 3)
+    
+    # Compute covariance matrices: C = (X^T @ X) / k
+    # Using einsum for efficiency: (M, k, 3) @ (M, k, 3)^T -> (M, 3, 3)
+    cov_matrices = xp.einsum('mki,mkj->mij', centered, centered) / k
+    
+    return cov_matrices

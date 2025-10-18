@@ -1801,6 +1801,43 @@ class LiDARProcessor:
                     patch_size=int(self.patch_size)
                 )
         
+        # 🆕 Save enriched LAZ tile in "both" mode (after patches are saved)
+        if self.save_enriched_laz and not self.only_enriched_laz:
+            from .modules.serialization import save_enriched_tile_laz
+            
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / f"{laz_file.stem}_enriched.laz"
+            
+            try:
+                logger.info(f"  💾 Saving enriched LAZ tile...")
+                
+                # Determine RGB/NIR to save (prefer fetched/computed over input)
+                save_rgb = all_features_v.get('rgb') if all_features_v.get('rgb') is not None else original_data.get('input_rgb')
+                save_nir = all_features_v.get('nir') if all_features_v.get('nir') is not None else original_data.get('input_nir')
+                
+                # Remove RGB/NIR from features dict to avoid duplication
+                features_to_save = {k: v for k, v in all_features_v.items() 
+                                   if k not in ['rgb', 'nir', 'input_rgb', 'input_nir', 'points']}
+                
+                # Save the enriched tile with all computed features
+                save_enriched_tile_laz(
+                    save_path=output_path,
+                    points=original_data['points'],
+                    classification=labels_v,
+                    intensity=original_data['intensity'],
+                    return_number=original_data['return_number'],
+                    features=features_to_save,
+                    original_las=original_data.get('las'),
+                    header=original_data.get('header'),
+                    input_rgb=save_rgb,
+                    input_nir=save_nir
+                )
+                
+            except Exception as e:
+                logger.error(f"  ✗ Failed to save enriched LAZ tile: {e}")
+                import traceback
+                logger.debug(traceback.format_exc())
+        
         tile_time = time.time() - tile_start
         pts_processed = len(original_data['points'])
         
