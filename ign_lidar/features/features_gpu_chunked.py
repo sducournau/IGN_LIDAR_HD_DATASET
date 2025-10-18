@@ -461,6 +461,9 @@ class GPUChunkedFeatureComputer:
         This replaces the old hardcoded SAFE_BATCH_SIZE logic that ignored user configuration.
         Instead, we calculate actual memory needs and make a smart decision.
         
+        CRITICAL: We account for BOTH output memory AND cuML's internal temporary allocations
+        during the kneighbors() operation. cuML can allocate 3-5× the output memory size!
+        
         Args:
             N: Number of points
             k: Number of neighbors per point
@@ -473,28 +476,48 @@ class GPUChunkedFeatureComputer:
                 - num_batches: Number of batches (1 if no batching)
         """
         # Calculate actual memory requirements for neighbor query
+        # OUTPUT memory:
         # Neighbor indices: N × k × 4 bytes (int32)
         # Neighbor distances: N × k × 4 bytes (float32)
         indices_memory_gb = (N * k * 4) / (1024**3)
         distances_memory_gb = (N * k * 4) / (1024**3)
-        total_neighbor_memory_gb = indices_memory_gb + distances_memory_gb
+        output_memory_gb = indices_memory_gb + distances_memory_gb
         
-        # Use 50% of available VRAM as threshold (conservative but safe)
-        # This leaves room for other operations and temporary allocations
-        memory_threshold_gb = available_vram_gb * 0.5
+        # TEMPORARY memory during cuML kneighbors():
+        # - Distance matrix computation: N × N_kdtree_nodes (can be large!)
+        # - Sorting/heap operations for top-k selection
+        # - Internal buffers and workspace
+        # CONSERVATIVE ESTIMATE: 4× the output memory (based on empirical observation)
+        temporary_memory_multiplier = 4.0
+        total_neighbor_memory_gb = output_memory_gb * (1.0 + temporary_memory_multiplier)
+        
+        # Use 30% of available VRAM as threshold (MORE conservative than before)
+        # This leaves plenty of room for:
+        # - KDTree structure (already allocated)
+        # - Point cloud data (already allocated)
+        # - Temporary allocations during kneighbors()
+        # - Subsequent feature computations
+        memory_threshold_gb = available_vram_gb * 0.30
         
         if total_neighbor_memory_gb <= memory_threshold_gb:
             # Memory is safe - NO BATCHING NEEDED!
             logger.info(
                 f"     ✅ Neighbor queries fit in VRAM: "
-                f"{total_neighbor_memory_gb:.2f}GB < {memory_threshold_gb:.2f}GB threshold "
-                f"({available_vram_gb:.2f}GB available × 50%)"
+                f"{total_neighbor_memory_gb:.2f}GB (output: {output_memory_gb:.2f}GB + temp: {output_memory_gb * temporary_memory_multiplier:.2f}GB) "
+                f"< {memory_threshold_gb:.2f}GB threshold ({available_vram_gb:.2f}GB available × 30%)"
             )
             logger.info(f"        Processing all {N:,} points in ONE batch (optimal!)")
             return False, N, 1
         else:
-            # Need batching - use USER'S configured batch size
-            batch_size = self.neighbor_query_batch_size
+            # Need batching - use USER'S configured batch size OR calculate safe size
+            # Calculate safe batch size that fits in memory threshold
+            safe_batch_size = int((memory_threshold_gb / (1.0 + temporary_memory_multiplier)) / ((k * 4 * 2) / (1024**3)))
+            
+            # Use smaller of user config and calculated safe size
+            batch_size = min(self.neighbor_query_batch_size, safe_batch_size)
+            # Ensure batch size is at least 100K points (minimum for efficiency)
+            batch_size = max(batch_size, 100_000)
+            
             num_batches = (N + batch_size - 1) // batch_size
             
             logger.info(
@@ -503,7 +526,7 @@ class GPUChunkedFeatureComputer:
             )
             logger.info(
                 f"        → {num_batches} batches of {batch_size:,} points "
-                f"(user configured batch size: {self.neighbor_query_batch_size:,})"
+                f"(safe batch size: {safe_batch_size:,}, user config: {self.neighbor_query_batch_size:,})"
             )
             return True, batch_size, num_batches
 
