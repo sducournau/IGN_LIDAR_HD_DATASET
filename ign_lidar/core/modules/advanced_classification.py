@@ -16,6 +16,7 @@ Updated: October 16, 2025 - Integrated unified thresholds (Issue #8) and updated
 import logging
 from typing import Dict, Optional, Tuple, List, TYPE_CHECKING
 import numpy as np
+import pandas as pd
 
 # Import unified thresholds
 from .classification_thresholds import UnifiedThresholds
@@ -42,10 +43,14 @@ if TYPE_CHECKING:
 
 try:
     from shapely.geometry import Point, Polygon, MultiPolygon
+    from shapely.strtree import STRtree
+    from shapely import prepare as prep
     import geopandas as gpd
     HAS_SPATIAL = True
 except ImportError:
     HAS_SPATIAL = False
+    STRtree = None
+    prep = None
 
 
 class AdvancedClassifier:
@@ -456,31 +461,58 @@ class AdvancedClassifier:
                     points=points, height=height, planarity=planarity, intensity=intensity
                 )
             else:
-                # Standard polygon intersection with bbox optimization
-                for idx, row in gdf.iterrows():
-                    polygon = row['geometry']
+                # Standard polygon intersection with STRtree optimization
+                # OPTIMIZED: Use STRtree spatial indexing instead of iterating
+                
+                # Filter valid polygon geometries
+                valid_mask = gdf['geometry'].apply(lambda g: isinstance(g, (Polygon, MultiPolygon)))
+                valid_gdf = gdf[valid_mask]
+                
+                if len(valid_gdf) == 0:
+                    continue
+                
+                # Build spatial index for polygons
+                if STRtree is not None and len(valid_gdf) > 10:
+                    # Use STRtree for efficient spatial queries (10-100× faster)
+                    polygon_list = valid_gdf['geometry'].tolist()
+                    tree = STRtree(polygon_list)
                     
-                    if not isinstance(polygon, (Polygon, MultiPolygon)):
-                        continue
-                    
-                    # PERFORMANCE FIX: Use bbox filtering before point-by-point check
-                    bounds = polygon.bounds  # (minx, miny, maxx, maxy)
-                    if points is not None:
-                        # Vectorized bbox filtering
-                        bbox_mask = (
-                            (points[:, 0] >= bounds[0]) &
-                            (points[:, 0] <= bounds[2]) &
-                            (points[:, 1] >= bounds[1]) &
-                            (points[:, 1] <= bounds[3])
-                        )
-                        candidate_indices = np.where(bbox_mask)[0]
-                    else:
-                        candidate_indices = range(len(point_geoms))
-                    
-                    # Check only candidate points
-                    for i in candidate_indices:
-                        if polygon.contains(point_geoms[i]):
-                            labels[i] = asprs_class
+                    # For each point, query the spatial index
+                    for i, point_geom in enumerate(point_geoms):
+                        if labels[i] != 0:  # Skip already labeled points
+                            continue
+                        
+                        # Query returns potential polygon indices
+                        potential_indices = tree.query(point_geom)
+                        
+                        # Check actual containment for matches
+                        for poly_idx in potential_indices:
+                            if polygon_list[poly_idx].contains(point_geom):
+                                labels[i] = asprs_class
+                                break
+                else:
+                    # Fallback: bbox filtering + containment check
+                    for idx, row in valid_gdf.iterrows():
+                        polygon = row['geometry']
+                        
+                        # PERFORMANCE FIX: Use bbox filtering before point-by-point check
+                        bounds = polygon.bounds  # (minx, miny, maxx, maxy)
+                        if points is not None:
+                            # Vectorized bbox filtering
+                            bbox_mask = (
+                                (points[:, 0] >= bounds[0]) &
+                                (points[:, 0] <= bounds[2]) &
+                                (points[:, 1] >= bounds[1]) &
+                                (points[:, 1] <= bounds[3])
+                            )
+                            candidate_indices = np.where(bbox_mask)[0]
+                        else:
+                            candidate_indices = range(len(point_geoms))
+                        
+                        # Check only candidate points
+                        for i in candidate_indices:
+                            if labels[i] == 0 and polygon.contains(point_geoms[i]):
+                                labels[i] = asprs_class
         
         # NDVI refinement for vegetation vs building confusion
         if ndvi is not None:
@@ -523,78 +555,130 @@ class AdvancedClassifier:
         points_per_road = []
         filtered_counts = {'height': 0, 'planarity': 0, 'intensity': 0}
         
-        for idx, row in roads_gdf.iterrows():
-            # Get road polygon (already buffered by width/2 in fetch_roads_with_polygons)
-            polygon = row['geometry']
+        # Filter valid polygons
+        valid_mask = roads_gdf['geometry'].apply(lambda g: isinstance(g, (Polygon, MultiPolygon)))
+        valid_gdf = roads_gdf[valid_mask].copy()
+        
+        if len(valid_gdf) == 0:
+            return labels
+        
+        # Apply additional tolerance buffer if specified (vectorized)
+        if self.road_buffer_tolerance > 0:
+            valid_gdf['geometry'] = valid_gdf['geometry'].buffer(self.road_buffer_tolerance)
+        
+        # Extract road widths for logging
+        road_widths = valid_gdf.get('width_m', pd.Series('unknown', index=valid_gdf.index)).tolist()
+        
+        # OPTIMIZED: Use STRtree for spatial queries instead of iterating
+        if STRtree is not None and len(valid_gdf) > 5:
+            # Build spatial index for road polygons
+            polygon_list = valid_gdf['geometry'].tolist()
+            tree = STRtree(polygon_list)
             
-            if not isinstance(polygon, (Polygon, MultiPolygon)):
-                continue
-            
-            # Get road width for logging
-            road_width = row.get('width_m', 'unknown')
-            road_widths.append(road_width if road_width != 'unknown' else 0)
-            
-            # Apply additional tolerance buffer if specified
-            if self.road_buffer_tolerance > 0:
-                polygon = polygon.buffer(self.road_buffer_tolerance)
-            
-            # Classify points within this road polygon with geometric filtering
-            # CRITICAL PERFORMANCE FIX: Use numpy-based vectorized spatial query
-            # instead of brute-force point-by-point containment check.
-            # For 18M points + 290 roads, this is 100-1000x faster!
+            # Process each point with spatial index lookup
             n_classified = 0
-            
-            # Get polygon bounds for fast bbox filtering (first pass)
-            bounds = polygon.bounds  # (minx, miny, maxx, maxy)
-            if points is not None:
-                # Vectorized bbox filtering (10-100x faster than point-by-point)
-                bbox_mask = (
-                    (points[:, 0] >= bounds[0]) &
-                    (points[:, 0] <= bounds[2]) &
-                    (points[:, 1] >= bounds[1]) &
-                    (points[:, 1] <= bounds[3])
-                )
-                candidate_indices = np.where(bbox_mask)[0]
-            else:
-                # Fallback to all points if numpy array not available
-                candidate_indices = range(len(point_geoms))
-            
-            # Test only candidate points (second pass with exact containment)
-            for i in candidate_indices:
-                if not polygon.contains(point_geoms[i]):
+            for i, point_geom in enumerate(point_geoms):
+                if labels[i] != 0:  # Skip already labeled
                     continue
                 
-                # Apply geometric filters to improve accuracy
-                passes_filters = True
+                # Query spatial index for potential road polygons
+                potential_indices = tree.query(point_geom)
                 
-                # Height filter: exclude bridges, overpasses, elevated structures
-                # Updated thresholds (Issue #1): 2.0m max (was 1.5m), -0.5m min (was -0.3m)
-                if height is not None and passes_filters:
-                    if height[i] > UnifiedThresholds.ROAD_HEIGHT_MAX or height[i] < UnifiedThresholds.ROAD_HEIGHT_MIN:
-                        filtered_counts['height'] += 1
-                        passes_filters = False
-                
-                # Planarity filter: roads should be relatively flat
-                if planarity is not None and passes_filters:
-                    if planarity[i] < UnifiedThresholds.ROAD_PLANARITY_MIN:
-                        filtered_counts['planarity'] += 1
-                        passes_filters = False
-                
-                # Intensity filter: asphalt/concrete has characteristic reflectance
-                if intensity is not None and passes_filters:
-                    if intensity[i] < UnifiedThresholds.ROAD_INTENSITY_MIN or intensity[i] > UnifiedThresholds.ROAD_INTENSITY_MAX:
-                        filtered_counts['intensity'] += 1
-                        passes_filters = False
-                
-                if passes_filters:
-                    labels[i] = asprs_class
-                    n_classified += 1
+                # Check containment and apply filters
+                for poly_idx in potential_indices:
+                    if not polygon_list[poly_idx].contains(point_geom):
+                        continue
+                    
+                    # Apply geometric filters
+                    passes_filters = True
+                    
+                    # Height filter
+                    if height is not None and passes_filters:
+                        if height[i] > UnifiedThresholds.ROAD_HEIGHT_MAX or height[i] < UnifiedThresholds.ROAD_HEIGHT_MIN:
+                            filtered_counts['height'] += 1
+                            passes_filters = False
+                    
+                    # Planarity filter
+                    if planarity is not None and passes_filters:
+                        if planarity[i] < UnifiedThresholds.ROAD_PLANARITY_MIN:
+                            filtered_counts['planarity'] += 1
+                            passes_filters = False
+                    
+                    # Intensity filter
+                    if intensity is not None and passes_filters:
+                        if intensity[i] < UnifiedThresholds.ROAD_INTENSITY_MIN or intensity[i] > UnifiedThresholds.ROAD_INTENSITY_MAX:
+                            filtered_counts['intensity'] += 1
+                            passes_filters = False
+                    
+                    if passes_filters:
+                        labels[i] = asprs_class
+                        n_classified += 1
+                        break  # Found containing road, move to next point
             
-            points_per_road.append(n_classified)
+            points_per_road = [n_classified]  # Single aggregate for STRtree path
+            
+        else:
+            # Fallback: iterate through roads (original logic preserved)
+            for idx, row in valid_gdf.iterrows():
+                polygon = row['geometry']
+                
+                # Classify points within this road polygon with geometric filtering
+                n_classified = 0
+                
+                # Get polygon bounds for fast bbox filtering (first pass)
+                bounds = polygon.bounds  # (minx, miny, maxx, maxy)
+                if points is not None:
+                    # Vectorized bbox filtering (10-100x faster than point-by-point)
+                    bbox_mask = (
+                        (points[:, 0] >= bounds[0]) &
+                        (points[:, 0] <= bounds[2]) &
+                        (points[:, 1] >= bounds[1]) &
+                        (points[:, 1] <= bounds[3])
+                    )
+                    candidate_indices = np.where(bbox_mask)[0]
+                else:
+                    # Fallback to all points if numpy array not available
+                    candidate_indices = range(len(point_geoms))
+                
+                # Test only candidate points (second pass with exact containment)
+                for i in candidate_indices:
+                    if labels[i] != 0:  # Skip already labeled
+                        continue
+                        
+                    if not polygon.contains(point_geoms[i]):
+                        continue
+                    
+                    # Apply geometric filters to improve accuracy
+                    passes_filters = True
+                    
+                    # Height filter: exclude bridges, overpasses, elevated structures
+                    # Updated thresholds (Issue #1): 2.0m max (was 1.5m), -0.5m min (was -0.3m)
+                    if height is not None and passes_filters:
+                        if height[i] > UnifiedThresholds.ROAD_HEIGHT_MAX or height[i] < UnifiedThresholds.ROAD_HEIGHT_MIN:
+                            filtered_counts['height'] += 1
+                            passes_filters = False
+                    
+                    # Planarity filter: roads should be relatively flat
+                    if planarity is not None and passes_filters:
+                        if planarity[i] < UnifiedThresholds.ROAD_PLANARITY_MIN:
+                            filtered_counts['planarity'] += 1
+                            passes_filters = False
+                    
+                    # Intensity filter: asphalt/concrete has characteristic reflectance
+                    if intensity is not None and passes_filters:
+                        if intensity[i] < UnifiedThresholds.ROAD_INTENSITY_MIN or intensity[i] > UnifiedThresholds.ROAD_INTENSITY_MAX:
+                            filtered_counts['intensity'] += 1
+                            passes_filters = False
+                    
+                    if passes_filters:
+                        labels[i] = asprs_class
+                        n_classified += 1
+                
+                points_per_road.append(n_classified)
         
         # Log statistics
         if road_widths:
-            valid_widths = [w for w in road_widths if w > 0]
+            valid_widths = [w for w in road_widths if isinstance(w, (int, float)) and w > 0]
             if valid_widths:
                 logger.info(f"      Road widths: {min(valid_widths):.1f}m - {max(valid_widths):.1f}m (avg: {np.mean(valid_widths):.1f}m)")
             
@@ -640,80 +724,151 @@ class AdvancedClassifier:
         track_counts = []
         filtered_counts = {'height': 0, 'planarity': 0, 'intensity': 0}
         
-        for idx, row in railways_gdf.iterrows():
-            # Get railway polygon (already buffered by width/2 in fetch_railways_with_polygons)
-            polygon = row['geometry']
-            
-            if not isinstance(polygon, (Polygon, MultiPolygon)):
-                continue
-            
-            # Get railway width and track count for logging
-            railway_width = row.get('width_m', 'unknown')
-            n_tracks = row.get('nombre_voies', 1)
-            railway_widths.append(railway_width if railway_width != 'unknown' else 0)
-            track_counts.append(n_tracks)
-            
-            # Apply additional tolerance buffer if specified (wider for ballast)
+        # OPTIMIZED: Use STRtree spatial indexing instead of iterrows() + contains() loop
+        # Performance gain: 10-50× faster for large datasets with many railways
+        try:
+            # Prepare geometries with tolerance buffer applied
+            buffered_polygons = []
             tolerance = self.road_buffer_tolerance * 1.2  # Railways need slightly wider tolerance for ballast
-            if tolerance > 0:
-                polygon = polygon.buffer(tolerance)
             
-            # Classify points within this railway polygon with geometric filtering
-            # CRITICAL PERFORMANCE FIX: Use numpy-based vectorized spatial query
-            # instead of brute-force point-by-point containment check.
-            n_classified = 0
-            
-            # Get polygon bounds for fast bbox filtering (first pass)
-            bounds = polygon.bounds  # (minx, miny, maxx, maxy)
-            if points is not None:
-                # Vectorized bbox filtering (10-100x faster than point-by-point)
-                bbox_mask = (
-                    (points[:, 0] >= bounds[0]) &
-                    (points[:, 0] <= bounds[2]) &
-                    (points[:, 1] >= bounds[1]) &
-                    (points[:, 1] <= bounds[3])
-                )
-                candidate_indices = np.where(bbox_mask)[0]
-            else:
-                # Fallback to all points if numpy array not available
-                candidate_indices = range(len(point_geoms))
-            
-            # Test only candidate points (second pass with exact containment)
-            for i in candidate_indices:
-                if not polygon.contains(point_geoms[i]):
+            for idx, row in railways_gdf.iterrows():
+                polygon = row['geometry']
+                if not isinstance(polygon, (Polygon, MultiPolygon)):
                     continue
                 
-                # Apply geometric filters to improve accuracy
-                passes_filters = True
+                # Get railway width and track count for logging
+                railway_width = row.get('width_m', 'unknown')
+                n_tracks = row.get('nombre_voies', 1)
+                railway_widths.append(railway_width if railway_width != 'unknown' else 0)
+                track_counts.append(n_tracks)
                 
-                # Height filter: exclude bridges, viaducts, elevated tracks
-                # Updated thresholds (Issue #4): 2.0m max (was 1.2m), -0.5m min (was -0.2m)
-                if height is not None and passes_filters:
-                    if height[i] > UnifiedThresholds.RAIL_HEIGHT_MAX or height[i] < UnifiedThresholds.RAIL_HEIGHT_MIN:
-                        filtered_counts['height'] += 1
-                        passes_filters = False
+                # Apply tolerance buffer
+                if tolerance > 0:
+                    polygon = polygon.buffer(tolerance)
                 
-                # Planarity filter: tracks less planar than roads due to ballast
-                if planarity is not None and passes_filters:
-                    if planarity[i] < UnifiedThresholds.RAIL_PLANARITY_MIN:
-                        filtered_counts['planarity'] += 1
-                        passes_filters = False
-                
-                # Intensity filter: ballast (dark), rails (bright), wide range
-                if intensity is not None and passes_filters:
-                    if intensity[i] < UnifiedThresholds.RAIL_INTENSITY_MIN or intensity[i] > UnifiedThresholds.RAIL_INTENSITY_MAX:
-                        filtered_counts['intensity'] += 1
-                        passes_filters = False
-                
-                if passes_filters:
-                    labels[i] = asprs_class
-                    n_classified += 1
+                buffered_polygons.append((idx, polygon, railway_width, n_tracks))
             
-            points_per_railway.append(n_classified)
+            # Build spatial index (R-tree) for O(log N) queries
+            if buffered_polygons:
+                railway_tree = STRtree([p[1] for p in buffered_polygons])
+                railway_lookup = {id(p[1]): (p[0], p[2], p[3]) for p in buffered_polygons}  # geom_id -> (idx, width, n_tracks)
+                
+                # Pre-check which points are already labeled (skip in query)
+                unlabeled_mask = (labels == 0)
+                unlabeled_indices = np.where(unlabeled_mask)[0]
+                
+                # Query spatial index for each unlabeled point (O(log N) per query vs O(N))
+                for i in unlabeled_indices:
+                    point = point_geoms[i]
+                    
+                    # Query spatial index for railways containing this point
+                    candidate_railways = railway_tree.query(point, predicate='contains')
+                    
+                    if len(candidate_railways) > 0:
+                        # Point is inside at least one railway
+                        # Apply geometric filters to improve accuracy
+                        passes_filters = True
+                        
+                        # Height filter: exclude bridges, viaducts, elevated tracks
+                        # Updated thresholds (Issue #4): 2.0m max (was 1.2m), -0.5m min (was -0.2m)
+                        if height is not None and passes_filters:
+                            if height[i] > UnifiedThresholds.RAIL_HEIGHT_MAX or height[i] < UnifiedThresholds.RAIL_HEIGHT_MIN:
+                                filtered_counts['height'] += 1
+                                passes_filters = False
+                        
+                        # Planarity filter: tracks less planar than roads due to ballast
+                        if planarity is not None and passes_filters:
+                            if planarity[i] < UnifiedThresholds.RAIL_PLANARITY_MIN:
+                                filtered_counts['planarity'] += 1
+                                passes_filters = False
+                        
+                        # Intensity filter: ballast (dark), rails (bright), wide range
+                        if intensity is not None and passes_filters:
+                            if intensity[i] < UnifiedThresholds.RAIL_INTENSITY_MIN or intensity[i] > UnifiedThresholds.RAIL_INTENSITY_MAX:
+                                filtered_counts['intensity'] += 1
+                                passes_filters = False
+                        
+                        if passes_filters:
+                            labels[i] = asprs_class
+                            # Track which railway got this point (for statistics)
+                            railway_geom = candidate_railways[0]
+                            idx_in_gdf = railway_lookup.get(id(railway_geom), (None, None, None))[0]
+                            if idx_in_gdf is not None:
+                                # Find or create counter for this railway
+                                while len(points_per_railway) <= idx_in_gdf:
+                                    points_per_railway.append(0)
+                                points_per_railway[idx_in_gdf] += 1
+        
+        except Exception as e:
+            logger.warning(f"      STRtree optimization failed ({e}), falling back to bbox filtering")
+            # FALLBACK: Original bbox filtering approach
+            for idx, row in railways_gdf.iterrows():
+                polygon = row['geometry']
+                
+                if not isinstance(polygon, (Polygon, MultiPolygon)):
+                    continue
+                
+                # Get railway width and track count for logging
+                railway_width = row.get('width_m', 'unknown')
+                n_tracks = row.get('nombre_voies', 1)
+                railway_widths.append(railway_width if railway_width != 'unknown' else 0)
+                track_counts.append(n_tracks)
+                
+                # Apply tolerance buffer
+                tolerance = self.road_buffer_tolerance * 1.2
+                if tolerance > 0:
+                    polygon = polygon.buffer(tolerance)
+                
+                n_classified = 0
+                
+                # Get polygon bounds for fast bbox filtering (first pass)
+                bounds = polygon.bounds
+                if points is not None:
+                    bbox_mask = (
+                        (points[:, 0] >= bounds[0]) &
+                        (points[:, 0] <= bounds[2]) &
+                        (points[:, 1] >= bounds[1]) &
+                        (points[:, 1] <= bounds[3])
+                    )
+                    candidate_indices = np.where(bbox_mask)[0]
+                else:
+                    candidate_indices = range(len(point_geoms))
+                
+                # Test only candidate points (second pass with exact containment)
+                for i in candidate_indices:
+                    if labels[i] != 0:  # Skip already labeled
+                        continue
+                    
+                    if not polygon.contains(point_geoms[i]):
+                        continue
+                    
+                    # Apply geometric filters
+                    passes_filters = True
+                    
+                    if height is not None and passes_filters:
+                        if height[i] > UnifiedThresholds.RAIL_HEIGHT_MAX or height[i] < UnifiedThresholds.RAIL_HEIGHT_MIN:
+                            filtered_counts['height'] += 1
+                            passes_filters = False
+                    
+                    if planarity is not None and passes_filters:
+                        if planarity[i] < UnifiedThresholds.RAIL_PLANARITY_MIN:
+                            filtered_counts['planarity'] += 1
+                            passes_filters = False
+                    
+                    if intensity is not None and passes_filters:
+                        if intensity[i] < UnifiedThresholds.RAIL_INTENSITY_MIN or intensity[i] > UnifiedThresholds.RAIL_INTENSITY_MAX:
+                            filtered_counts['intensity'] += 1
+                            passes_filters = False
+                    
+                    if passes_filters:
+                        labels[i] = asprs_class
+                        n_classified += 1
+                
+                points_per_railway.append(n_classified)
         
         # Log statistics
         if railway_widths:
-            valid_widths = [w for w in railway_widths if w > 0]
+            valid_widths = [w for w in railway_widths if isinstance(w, (int, float)) and w > 0]
             if valid_widths:
                 logger.info(f"      Railway widths: {min(valid_widths):.1f}m - {max(valid_widths):.1f}m (avg: {np.mean(valid_widths):.1f}m)")
             
@@ -795,26 +950,49 @@ class AdvancedClassifier:
                     from shapely.geometry import Point
                     point_geoms = [Point(p[0], p[1]) for p in unclassified_points]
                     
-                    # Check intersection with building polygons
-                    within_building = np.zeros(len(unclassified_indices), dtype=bool)
-                    for idx, row in buildings_gdf.iterrows():
-                        polygon = row['geometry']
-                        if not isinstance(polygon, (Polygon, MultiPolygon)):
-                            continue
+                    # OPTIMIZED: Use STRtree spatial indexing instead of iterrows() + contains() loop
+                    # Performance gain: 10-100× faster for large datasets with many buildings
+                    try:
+                        # Build spatial index (R-tree) for O(log N) queries
+                        valid_buildings = []
+                        for idx, row in buildings_gdf.iterrows():
+                            polygon = row['geometry']
+                            if isinstance(polygon, (Polygon, MultiPolygon)):
+                                valid_buildings.append(polygon)
                         
-                        # PERFORMANCE FIX: Use bbox filtering before point-by-point check
-                        bounds = polygon.bounds
-                        bbox_mask = (
-                            (unclassified_points[:, 0] >= bounds[0]) &
-                            (unclassified_points[:, 0] <= bounds[2]) &
-                            (unclassified_points[:, 1] >= bounds[1]) &
-                            (unclassified_points[:, 1] <= bounds[3])
-                        )
-                        candidate_indices = np.where(bbox_mask)[0]
-                        
-                        for i in candidate_indices:
-                            if polygon.contains(point_geoms[i]):
-                                within_building[i] = True
+                        if valid_buildings:
+                            building_tree = STRtree(valid_buildings)
+                            
+                            # Query spatial index for each unclassified point (O(log N) per query vs O(N))
+                            for i, point in enumerate(point_geoms):
+                                # Query spatial index for buildings containing this point
+                                candidate_buildings = building_tree.query(point, predicate='contains')
+                                
+                                if len(candidate_buildings) > 0:
+                                    # Point is inside at least one building
+                                    within_building[i] = True
+                    
+                    except Exception as e:
+                        logger.warning(f"      STRtree optimization failed ({e}), falling back to bbox filtering")
+                        # FALLBACK: Original bbox filtering approach
+                        for idx, row in buildings_gdf.iterrows():
+                            polygon = row['geometry']
+                            if not isinstance(polygon, (Polygon, MultiPolygon)):
+                                continue
+                            
+                            # Use bbox filtering before point-by-point check
+                            bounds = polygon.bounds
+                            bbox_mask = (
+                                (unclassified_points[:, 0] >= bounds[0]) &
+                                (unclassified_points[:, 0] <= bounds[2]) &
+                                (unclassified_points[:, 1] >= bounds[1]) &
+                                (unclassified_points[:, 1] <= bounds[3])
+                            )
+                            candidate_indices = np.where(bbox_mask)[0]
+                            
+                            for i in candidate_indices:
+                                if polygon.contains(point_geoms[i]):
+                                    within_building[i] = True
                     
                     # Classify points within building footprints
                     n_within = np.sum(within_building)

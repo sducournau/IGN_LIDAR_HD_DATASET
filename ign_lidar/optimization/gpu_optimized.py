@@ -222,15 +222,16 @@ class GPUOptimizer:
             bounds_list = []
             coord_arrays = []
             
-            for idx, row in gdf.iterrows():
-                geom = row['geometry']
-                if hasattr(geom, 'bounds'):
-                    bounds_list.append(geom.bounds)
-                    
-                    # Extract coordinates for GPU processing
-                    if hasattr(geom, 'exterior'):
-                        coords = np.array(geom.exterior.coords)
-                        coord_arrays.append(coords)
+            # OPTIMIZED: Vectorized geometry processing
+            valid_geoms = gdf['geometry'][gdf['geometry'].apply(lambda g: hasattr(g, 'bounds'))]
+            
+            for geom in valid_geoms:
+                bounds_list.append(geom.bounds)
+                
+                # Extract coordinates for GPU processing
+                if hasattr(geom, 'exterior'):
+                    coords = np.array(geom.exterior.coords)
+                    coord_arrays.append(coords)
             
             if bounds_list:
                 processed[feature_type] = {

@@ -20,6 +20,7 @@ import requests
 from urllib.parse import urlencode
 from dataclasses import dataclass
 import numpy as np
+import pandas as pd
 import time
 
 if TYPE_CHECKING:
@@ -202,59 +203,58 @@ class IGNGroundTruthFetcher:
             if gdf is None or len(gdf) == 0:
                 return None
             
-            # Generate road polygons from centerlines using width
+            # Generate road polygons from centerlines using width (OPTIMIZED - vectorized)
             logger.info("Generating road polygons from centerlines...")
             
-            road_polygons = []
-            for idx, row in gdf.iterrows():
-                geometry = row['geometry']
-                
-                # Get road width (largeur in meters)
-                width = None
-                if 'largeur' in gdf.columns and row['largeur'] is not None:
-                    try:
-                        width = float(row['largeur'])
-                        # Check if valid finite number
-                        if not np.isfinite(width) or width <= 0:
-                            width = None
-                    except (ValueError, TypeError):
-                        width = None
-                
-                if width is None and 'largeur_de_chaussee' in gdf.columns and row['largeur_de_chaussee'] is not None:
-                    try:
-                        width = float(row['largeur_de_chaussee'])
-                        if not np.isfinite(width) or width <= 0:
-                            width = None
-                    except (ValueError, TypeError):
-                        width = None
-                
-                if width is None:
-                    width = default_width
-                
-                # Buffer centerline by half width on each side
-                buffer_distance = width / 2.0
-                
-                try:
-                    if isinstance(geometry, LineString):
-                        road_polygon = geometry.buffer(buffer_distance, cap_style=2)  # Flat cap
-                        
-                        road_polygons.append({
-                            'geometry': road_polygon,
-                            'width_m': width,
-                            'nature': row.get('nature', 'unknown'),
-                            'importance': row.get('importance', 'unknown'),
-                            'road_type': row.get('nature', 'road'),
-                            'original_geometry': geometry  # Keep centerline
-                        })
-                except Exception as e:
-                    logger.warning(f"Failed to buffer road geometry: {e}")
-                    continue
+            # Filter to only LineString geometries
+            is_linestring = gdf['geometry'].apply(lambda g: isinstance(g, LineString))
+            linestring_gdf = gdf[is_linestring].copy()
             
-            if road_polygons:
-                result_gdf = gpd.GeoDataFrame(road_polygons, crs=self.config.CRS)
-                logger.info(f"Generated {len(result_gdf)} road polygons")
-                self._cache[cache_key] = result_gdf
-                return result_gdf
+            if len(linestring_gdf) == 0:
+                logger.warning("No valid LineString geometries found for roads")
+                return None
+            
+            # Vectorized width extraction with fallback chain
+            widths = pd.Series(default_width, index=linestring_gdf.index)
+            
+            # Try 'largeur' column first
+            if 'largeur' in linestring_gdf.columns:
+                valid_largeur = pd.to_numeric(linestring_gdf['largeur'], errors='coerce')
+                valid_mask = valid_largeur.notna() & (valid_largeur > 0) & np.isfinite(valid_largeur)
+                widths[valid_mask] = valid_largeur[valid_mask]
+            
+            # Fallback to 'largeur_de_chaussee' for remaining None values
+            if 'largeur_de_chaussee' in linestring_gdf.columns:
+                still_default = (widths == default_width)
+                valid_chaussee = pd.to_numeric(linestring_gdf['largeur_de_chaussee'], errors='coerce')
+                valid_mask = still_default & valid_chaussee.notna() & (valid_chaussee > 0) & np.isfinite(valid_chaussee)
+                widths[valid_mask] = valid_chaussee[valid_mask]
+            
+            # Vectorized buffering with half-width and flat caps
+            buffer_distances = widths / 2.0
+            
+            try:
+                # Apply buffer to all geometries at once
+                buffered_geoms = linestring_gdf['geometry'].buffer(buffer_distances, cap_style=2)
+                
+                # Create result DataFrame with all attributes
+                road_polygons = gpd.GeoDataFrame({
+                    'geometry': buffered_geoms,
+                    'width_m': widths,
+                    'nature': linestring_gdf.get('nature', pd.Series('unknown', index=linestring_gdf.index)),
+                    'importance': linestring_gdf.get('importance', pd.Series('unknown', index=linestring_gdf.index)),
+                    'road_type': linestring_gdf.get('nature', pd.Series('road', index=linestring_gdf.index)),
+                    'original_geometry': linestring_gdf['geometry']
+                }, crs=self.config.CRS)
+                
+            except Exception as e:
+                logger.warning(f"Failed to buffer road geometries: {e}")
+                return None
+            
+            if len(road_polygons) > 0:
+                logger.info(f"Generated {len(road_polygons)} road polygons")
+                self._cache[cache_key] = road_polygons
+                return road_polygons
             else:
                 logger.warning("No valid road polygons generated")
                 return None
@@ -300,51 +300,52 @@ class IGNGroundTruthFetcher:
             if gdf is None or len(gdf) == 0:
                 return None
             
-            # Generate railway polygons from centerlines
+            # Generate railway polygons from centerlines (OPTIMIZED - vectorized)
             logger.info("Generating railway polygons from centerlines...")
             
-            railway_polygons = []
-            for idx, row in gdf.iterrows():
-                geometry = row['geometry']
-                
-                # Get railway width (or use default)
-                width = default_width
-                
-                # Check for number of tracks to estimate width
-                if 'nombre_voies' in gdf.columns and row['nombre_voies'] is not None:
-                    try:
-                        n_tracks = int(row['nombre_voies'])
-                        if n_tracks > 1:
-                            width = default_width * n_tracks  # Multiple tracks
-                    except (ValueError, TypeError):
-                        pass
-                
-                # Buffer centerline by half width on each side
-                buffer_distance = width / 2.0
-                
-                try:
-                    if isinstance(geometry, LineString):
-                        railway_polygon = geometry.buffer(buffer_distance, cap_style=2)  # Flat cap
-                        
-                        railway_polygons.append({
-                            'geometry': railway_polygon,
-                            'width_m': width,
-                            'nature': row.get('nature', 'voie_ferree'),
-                            'importance': row.get('importance', 'unknown'),
-                            'n_tracks': row.get('nombre_voies', 1),
-                            'electrified': row.get('electrifie', 'unknown'),
-                            'railway_type': row.get('nature', 'railway'),
-                            'original_geometry': geometry  # Keep centerline
-                        })
-                except Exception as e:
-                    logger.warning(f"Failed to buffer railway geometry: {e}")
-                    continue
+            # Filter to only LineString geometries
+            is_linestring = gdf['geometry'].apply(lambda g: isinstance(g, LineString))
+            linestring_gdf = gdf[is_linestring].copy()
             
-            if railway_polygons:
-                result_gdf = gpd.GeoDataFrame(railway_polygons, crs=self.config.CRS)
-                logger.info(f"Generated {len(result_gdf)} railway polygons")
-                self._cache[cache_key] = result_gdf
-                return result_gdf
+            if len(linestring_gdf) == 0:
+                logger.warning("No valid LineString geometries found for railways")
+                return None
+            
+            # Vectorized width calculation based on number of tracks
+            widths = pd.Series(default_width, index=linestring_gdf.index)
+            
+            if 'nombre_voies' in linestring_gdf.columns:
+                n_tracks = pd.to_numeric(linestring_gdf['nombre_voies'], errors='coerce')
+                valid_tracks = n_tracks.notna() & (n_tracks > 1)
+                widths[valid_tracks] = default_width * n_tracks[valid_tracks]
+            
+            # Vectorized buffering with half-width and flat caps
+            buffer_distances = widths / 2.0
+            
+            try:
+                # Apply buffer to all geometries at once
+                buffered_geoms = linestring_gdf['geometry'].buffer(buffer_distances, cap_style=2)
+                
+                # Create result DataFrame with all attributes
+                railway_polygons = gpd.GeoDataFrame({
+                    'geometry': buffered_geoms,
+                    'width_m': widths,
+                    'nature': linestring_gdf.get('nature', pd.Series('voie_ferree', index=linestring_gdf.index)),
+                    'importance': linestring_gdf.get('importance', pd.Series('unknown', index=linestring_gdf.index)),
+                    'n_tracks': linestring_gdf.get('nombre_voies', pd.Series(1, index=linestring_gdf.index)),
+                    'electrified': linestring_gdf.get('electrifie', pd.Series('unknown', index=linestring_gdf.index)),
+                    'railway_type': linestring_gdf.get('nature', pd.Series('railway', index=linestring_gdf.index)),
+                    'original_geometry': linestring_gdf['geometry']
+                }, crs=self.config.CRS)
+                
+            except Exception as e:
+                logger.warning(f"Failed to buffer railway geometries: {e}")
+                return None
+            
+            if len(railway_polygons) > 0:
+                logger.info(f"Generated {len(railway_polygons)} railway polygons")
+                self._cache[cache_key] = railway_polygons
+                return railway_polygons
             else:
                 logger.warning("No valid railway polygons generated")
                 return None
@@ -604,75 +605,90 @@ class IGNGroundTruthFetcher:
             
             logger.info(f"Retrieved {len(gdf)} power lines, applying intelligent buffering...")
             
-            # Generate power line corridor polygons with intelligent buffering
-            power_line_polygons = []
-            buffer_stats = {'high': 0, 'medium': 0, 'low': 0, 'unknown': 0}
+            # Filter to only LineString geometries
+            is_linestring = gdf['geometry'].apply(lambda g: isinstance(g, LineString))
+            linestring_gdf = gdf[is_linestring].copy()
             
-            for idx, row in gdf.iterrows():
-                geometry = row['geometry']
-                
-                # Determine intelligent buffer width based on voltage/nature
-                voltage_level = 'unknown'
-                intelligent_buffer = buffer_width
-                
-                # Check for voltage attribute (tension in kV)
-                if 'tension' in gdf.columns and row['tension'] is not None:
-                    try:
-                        voltage = float(row['tension'])
-                        if voltage >= 63:  # High voltage (HTB)
-                            voltage_level = 'high'
-                            intelligent_buffer = 12.0  # 12m corridor for HV lines
-                        elif voltage >= 1:  # Medium voltage (HTA)
-                            voltage_level = 'medium'
-                            intelligent_buffer = 5.0  # 5m corridor for MV lines
-                        else:  # Low voltage (BT)
-                            voltage_level = 'low'
-                            intelligent_buffer = 2.5  # 2.5m corridor for LV lines
-                    except (ValueError, TypeError):
-                        pass
-                
-                # Check nature attribute if voltage not available
-                if voltage_level == 'unknown' and 'nature' in gdf.columns:
-                    nature = str(row.get('nature', '')).lower()
-                    if 'haute tension' in nature or 'htb' in nature:
-                        voltage_level = 'high'
-                        intelligent_buffer = 12.0
-                    elif 'moyenne tension' in nature or 'hta' in nature:
-                        voltage_level = 'medium'
-                        intelligent_buffer = 5.0
-                    elif 'basse tension' in nature or 'bt' in nature:
-                        voltage_level = 'low'
-                        intelligent_buffer = 2.5
-                
-                buffer_stats[voltage_level] += 1
-                
-                # Buffer centerline to create corridor
-                try:
-                    if isinstance(geometry, LineString):
-                        corridor_polygon = geometry.buffer(intelligent_buffer, cap_style=2)  # Flat cap
-                        
-                        power_line_polygons.append({
-                            'geometry': corridor_polygon,
-                            'buffer_width': intelligent_buffer,
-                            'voltage_level': voltage_level,
-                            'nature': row.get('nature', 'unknown'),
-                            'tension': row.get('tension', None),
-                            'power_line_type': row.get('nature', 'power_line'),
-                            'original_geometry': geometry  # Keep centerline
-                        })
-                except Exception as e:
-                    logger.warning(f"Failed to buffer power line geometry: {e}")
-                    continue
+            if len(linestring_gdf) == 0:
+                logger.warning("No valid LineString geometries found for power lines")
+                return None
             
-            if power_line_polygons:
-                result_gdf = gpd.GeoDataFrame(power_line_polygons, crs=self.config.CRS)
-                logger.info(f"Generated {len(result_gdf)} power line corridors with intelligent buffering:")
+            # Vectorized intelligent buffer calculation based on voltage
+            voltage_levels = pd.Series('unknown', index=linestring_gdf.index)
+            intelligent_buffers = pd.Series(buffer_width, index=linestring_gdf.index)
+            
+            # Check for voltage attribute (tension in kV)
+            if 'tension' in linestring_gdf.columns:
+                voltages = pd.to_numeric(linestring_gdf['tension'], errors='coerce')
+                
+                # High voltage (HTB >= 63kV): 12m corridor
+                high_v_mask = voltages >= 63
+                voltage_levels[high_v_mask] = 'high'
+                intelligent_buffers[high_v_mask] = 12.0
+                
+                # Medium voltage (HTA 1-63kV): 5m corridor
+                med_v_mask = (voltages >= 1) & (voltages < 63)
+                voltage_levels[med_v_mask] = 'medium'
+                intelligent_buffers[med_v_mask] = 5.0
+                
+                # Low voltage (BT < 1kV): 2.5m corridor
+                low_v_mask = (voltages < 1) & (voltages > 0)
+                voltage_levels[low_v_mask] = 'low'
+                intelligent_buffers[low_v_mask] = 2.5
+            
+            # Check nature attribute for remaining unknown voltages
+            if 'nature' in linestring_gdf.columns:
+                unknown_mask = voltage_levels == 'unknown'
+                natures = linestring_gdf.loc[unknown_mask, 'nature'].astype(str).str.lower()
+                
+                # High tension
+                high_nature = natures.str.contains('haute tension|htb', na=False)
+                voltage_levels.loc[unknown_mask & high_nature] = 'high'
+                intelligent_buffers.loc[unknown_mask & high_nature] = 12.0
+                
+                # Medium tension
+                med_nature = natures.str.contains('moyenne tension|hta', na=False)
+                voltage_levels.loc[unknown_mask & med_nature] = 'medium'
+                intelligent_buffers.loc[unknown_mask & med_nature] = 5.0
+                
+                # Low tension
+                low_nature = natures.str.contains('basse tension|bt', na=False)
+                voltage_levels.loc[unknown_mask & low_nature] = 'low'
+                intelligent_buffers.loc[unknown_mask & low_nature] = 2.5
+            
+            # Calculate buffer statistics
+            buffer_stats = voltage_levels.value_counts().to_dict()
+            for level in ['high', 'medium', 'low', 'unknown']:
+                if level not in buffer_stats:
+                    buffer_stats[level] = 0
+            
+            # Vectorized buffering with flat caps
+            try:
+                buffered_geoms = linestring_gdf['geometry'].buffer(intelligent_buffers, cap_style=2)
+                
+                # Create result DataFrame
+                power_line_polygons = gpd.GeoDataFrame({
+                    'geometry': buffered_geoms,
+                    'buffer_width': intelligent_buffers,
+                    'voltage_level': voltage_levels,
+                    'nature': linestring_gdf.get('nature', pd.Series('unknown', index=linestring_gdf.index)),
+                    'tension': linestring_gdf.get('tension', pd.Series(None, index=linestring_gdf.index)),
+                    'power_line_type': linestring_gdf.get('nature', pd.Series('power_line', index=linestring_gdf.index)),
+                    'original_geometry': linestring_gdf['geometry']
+                }, crs=self.config.CRS)
+                
+            except Exception as e:
+                logger.warning(f"Failed to buffer power line geometries: {e}")
+                return None
+            
+            if len(power_line_polygons) > 0:
+                logger.info(f"Generated {len(power_line_polygons)} power line corridors with intelligent buffering:")
                 logger.info(f"  - High voltage (12m): {buffer_stats['high']} lines")
                 logger.info(f"  - Medium voltage (5m): {buffer_stats['medium']} lines")
                 logger.info(f"  - Low voltage (2.5m): {buffer_stats['low']} lines")
                 logger.info(f"  - Unknown voltage ({buffer_width}m): {buffer_stats['unknown']} lines")
-                self._cache[cache_key] = result_gdf
-                return result_gdf
+                self._cache[cache_key] = power_line_polygons
+                return power_line_polygons
             else:
                 logger.warning("No valid power line polygons generated")
                 return None
@@ -1026,27 +1042,61 @@ class IGNGroundTruthFetcher:
             # Initialize mask as False (not road)
             road_mask = np.zeros(len(points), dtype=bool)
             
-            # Create Point geometries for all points
-            logger.debug(f"Creating road mask for {len(points)} points...")
-            point_geoms = [Point(p[0], p[1]) for p in points]
+            # Create GeoDataFrame from points for vectorized operations
+            logger.debug(f"Creating road mask for {len(points)} points (OPTIMIZED - STRtree)...")
+            points_gdf = gpd.GeoDataFrame(
+                {'geometry': [Point(p[0], p[1]) for p in points]},
+                crs=self.config.CRS
+            )
             
             # Optionally apply buffer for tolerance
             if buffer_tolerance > 0:
                 roads_gdf = roads_gdf.copy()
                 roads_gdf['geometry'] = roads_gdf['geometry'].buffer(buffer_tolerance)
             
-            # Check each point against road polygons
-            for idx, row in roads_gdf.iterrows():
-                polygon = row['geometry']
+            # Use spatial join with STRtree indexing (much faster than nested loops)
+            # This finds all points that intersect with any road polygon
+            try:
+                from shapely.strtree import STRtree
                 
-                if not isinstance(polygon, (Polygon, MultiPolygon)):
-                    continue
+                # Build spatial index for road polygons
+                valid_roads = roads_gdf[roads_gdf['geometry'].apply(
+                    lambda g: isinstance(g, (Polygon, MultiPolygon))
+                )].copy()
                 
-                # Find points within this road polygon
-                for i, point_geom in enumerate(point_geoms):
-                    if not road_mask[i]:  # Only check if not already marked as road
-                        if polygon.contains(point_geom):
-                            road_mask[i] = True
+                if len(valid_roads) == 0:
+                    logger.warning("No valid road polygons found")
+                    return road_mask
+                
+                # Use STRtree for efficient spatial queries
+                tree = STRtree(valid_roads['geometry'].tolist())
+                
+                # For each point, query the spatial index
+                for i, point in enumerate(points_gdf['geometry']):
+                    if not road_mask[i]:  # Skip if already marked
+                        # Query returns potential matches (bounding box intersects)
+                        potential_matches = tree.query(point)
+                        
+                        # Check actual containment for matches
+                        for road_geom in potential_matches:
+                            if road_geom.contains(point):
+                                road_mask[i] = True
+                                break  # Found containing polygon, move to next point
+                
+            except Exception as e:
+                logger.warning(f"STRtree optimization failed: {e}, using fallback")
+                # Fallback to sjoin if available
+                try:
+                    joined = gpd.sjoin(
+                        points_gdf, roads_gdf[roads_gdf['geometry'].apply(
+                            lambda g: isinstance(g, (Polygon, MultiPolygon))
+                        )],
+                        how='inner', predicate='within'
+                    )
+                    road_mask[joined.index.unique()] = True
+                except Exception as e2:
+                    logger.error(f"Spatial join also failed: {e2}")
+                    return None
             
             n_road_points = road_mask.sum()
             pct = (n_road_points / len(points)) * 100 if len(points) > 0 else 0

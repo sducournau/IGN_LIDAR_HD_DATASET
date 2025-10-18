@@ -110,15 +110,15 @@ features:
 
   # Neighbor query chunking (NEW) - Controls how many chunks to split neighbor queries into
   # Lower values = more chunks = less memory per chunk but more overhead
-  # For 18.6M point tiles with 2 chunks, use ~10M (ensures 2 chunks even for slightly larger tiles)
-  # Default is 5M (creates ~4 chunks for 18.6M points)
-  neighbor_query_batch_size: 10_000_000 # 10M points per chunk (creates 2 chunks for 18.6M point tiles)
+  # For 18.6M point tiles, using 20M+ ensures NO CHUNKING (single batch = fastest)
+  # Set to 25M to handle tiles up to 25M points in a single query
+  neighbor_query_batch_size: 25_000_000 # 25M points per chunk (single batch for most tiles = maximum speed)
 
   # Feature computation batching (NEW) - Controls batching for normal/curvature computation
   # Lower values = more batches = less memory per batch (helps with large tiles)
-  # For 18.6M point tiles with 2 batches, use ~10M
-  # Default is 2M (creates ~10 batches for 18.6M points)
-  feature_batch_size: 10_000_000 # 10M points per batch (creates 2 batches for 18.6M point tiles)
+  # For 18.6M point tiles, using 20M+ ensures NO BATCHING (single batch = fastest)
+  # Set to 25M to handle tiles up to 25M points in a single operation
+  feature_batch_size: 25_000_000 # 25M points per batch (single batch for most tiles = maximum speed)
 
   # Essential features for ASPRS
   compute_normals: true

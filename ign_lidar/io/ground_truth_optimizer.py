@@ -345,7 +345,8 @@ class GroundTruthOptimizer:
                 # Find candidate polygon indices
                 candidate_indices = tree.query(point_geom)
                 
-                if not candidate_indices:
+                # Check if empty (handle numpy array properly)
+                if len(candidate_indices) == 0:
                     continue
                 
                 # Check actual containment

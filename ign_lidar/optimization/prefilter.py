@@ -123,14 +123,16 @@ def create_optimized_classify_by_ground_truth():
             
             # Process each polygon with progress bar
             n_classified = 0
-            for idx, row in tqdm(gdf.iterrows(), total=len(gdf), 
+            
+            # OPTIMIZED: Vectorized geometry extraction to reduce .iterrows() overhead
+            valid_mask = gdf['geometry'].apply(lambda g: isinstance(g, (Polygon, MultiPolygon)))
+            valid_gdf = gdf[valid_mask]
+            
+            for idx, row in tqdm(valid_gdf.iterrows(), total=len(valid_gdf), 
                                 desc=f"      {feature_type}", 
                                 leave=False,
-                                disable=(len(gdf) < 10)):  # Only show for large feature sets
+                                disable=(len(valid_gdf) < 10)):  # Only show for large feature sets
                 polygon = row['geometry']
-                
-                if not isinstance(polygon, (Polygon, MultiPolygon)):
-                    continue
                 
                 # Bbox filtering
                 bounds = polygon.bounds  # (minx, miny, maxx, maxy)

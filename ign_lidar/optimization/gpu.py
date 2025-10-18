@@ -396,12 +396,12 @@ class GPUGroundTruthClassifier:
                     candidate_points = chunk_points
                     candidate_indices = np.arange(len(chunk_points))
                 
+                # OPTIMIZED: Vectorized geometry extraction
+                valid_mask = gdf['geometry'].apply(lambda g: isinstance(g, (Polygon, MultiPolygon)))
+                valid_geoms = gdf.loc[valid_mask, 'geometry']
+                
                 # GPU bbox filtering
-                for idx, row in gdf.iterrows():
-                    polygon = row['geometry']
-                    if not isinstance(polygon, (Polygon, MultiPolygon)):
-                        continue
-                    
+                for polygon in valid_geoms:
                     # Bbox filter on GPU
                     bounds = polygon.bounds
                     bounds_gpu = cp.array([bounds[0], bounds[1], bounds[2], bounds[3]])

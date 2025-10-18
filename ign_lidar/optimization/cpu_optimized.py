@@ -338,13 +338,15 @@ class CPUOptimizer:
             
             label_value = label_map.get(feature_type, 0)
             
-            for idx, row in gdf.iterrows():
-                geom = row['geometry']
-                if isinstance(geom, (Polygon, MultiPolygon)):
-                    all_polygons.append(geom)
-                    prepared_polygons.append(prep(geom))  # Prepared geometry for faster contains()
-                    polygon_labels.append(label_value)
-                    polygon_bounds.append(geom.bounds)
+            # OPTIMIZED: Vectorized geometry processing instead of .iterrows() loop
+            valid_mask = gdf['geometry'].apply(lambda g: isinstance(g, (Polygon, MultiPolygon)))
+            valid_geoms = gdf.loc[valid_mask, 'geometry']
+            
+            for geom in valid_geoms:
+                all_polygons.append(geom)
+                prepared_polygons.append(prep(geom))
+                polygon_labels.append(label_value)
+                polygon_bounds.append(geom.bounds)
         
         # Build spatial index
         if self.enable_rtree:
