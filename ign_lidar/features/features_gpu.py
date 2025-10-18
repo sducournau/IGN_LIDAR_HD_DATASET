@@ -48,6 +48,11 @@ except ImportError:
 # CPU fallback
 from sklearn.neighbors import KDTree
 
+# Import core utilities (Phase 2 refactoring)
+from .core.utils import batched_inverse_3x3, inverse_power_iteration
+from .core.height import compute_height_above_ground
+from .core.curvature import compute_curvature_from_normals
+
 # Import core feature implementations
 from ..features.core import (
     compute_normals as core_compute_normals,
@@ -378,59 +383,11 @@ class GPUFeatureComputer:
         Compute the inverse of many 3x3 matrices using an analytic adjugate formula.
         mats: [M, 3, 3]
         Returns: inv_mats: [M, 3, 3]
+        
+        REFACTORED: Now uses core.utils.batched_inverse_3x3()
         """
-        # Expect cupy array
-        if not GPU_AVAILABLE or cp is None:
-            raise RuntimeError("GPU required for batched inverse")
-
-        a11 = mats[:, 0, 0]
-        a12 = mats[:, 0, 1]
-        a13 = mats[:, 0, 2]
-        a21 = mats[:, 1, 0]
-        a22 = mats[:, 1, 1]
-        a23 = mats[:, 1, 2]
-        a31 = mats[:, 2, 0]
-        a32 = mats[:, 2, 1]
-        a33 = mats[:, 2, 2]
-
-        # Cofactors / adjugate (transposed cofactor matrix)
-        c11 =  a22 * a33 - a23 * a32
-        c12 = -a12 * a33 + a13 * a32
-        c13 =  a12 * a23 - a13 * a22
-
-        c21 = -a21 * a33 + a23 * a31
-        c22 =  a11 * a33 - a13 * a31
-        c23 = -a11 * a23 + a13 * a21
-
-        c31 =  a21 * a32 - a22 * a31
-        c32 = -a11 * a32 + a12 * a31
-        c33 =  a11 * a22 - a12 * a21
-
-        det = a11 * c11 + a12 * c21 + a13 * c31
-
-        # Stabilize tiny determinants
-        eps = 1e-12
-        small = cp.abs(det) < eps
-        det_safe = det + small.astype(det.dtype) * eps
-
-        inv_det = 1.0 / det_safe
-
-        inv = cp.empty_like(mats)
-        inv[:, 0, 0] = c11 * inv_det
-        inv[:, 0, 1] = c12 * inv_det
-        inv[:, 0, 2] = c13 * inv_det
-        inv[:, 1, 0] = c21 * inv_det
-        inv[:, 1, 1] = c22 * inv_det
-        inv[:, 1, 2] = c23 * inv_det
-        inv[:, 2, 0] = c31 * inv_det
-        inv[:, 2, 1] = c32 * inv_det
-        inv[:, 2, 2] = c33 * inv_det
-
-        # For near-singular matrices, fallback to identity (will be handled later)
-        if cp.any(small):
-            inv[small] = cp.eye(3, dtype=inv.dtype)
-
-        return inv
+        # Use core implementation (works with both NumPy and CuPy)
+        return batched_inverse_3x3(mats, epsilon=1e-12)
 
     def _smallest_eigenvector_from_covariances(self, cov_matrices, num_iters: int = 8):
         """
@@ -439,44 +396,11 @@ class GPUFeatureComputer:
 
         cov_matrices: [M, 3, 3]
         Returns: vectors: [M, 3] normalized, oriented upward
+        
+        REFACTORED: Now uses core.utils.inverse_power_iteration()
         """
-        if not GPU_AVAILABLE or cp is None:
-            raise RuntimeError("GPU required for smallest eigenvector computation")
-
-        M = cov_matrices.shape[0]
-
-        # Regularize covariances to avoid singularities
-        reg = 1e-6
-        cov = cov_matrices + reg * cp.eye(3, dtype=cov_matrices.dtype)[None, ...]
-
-        # Compute batched inverse using analytic formula (fast)
-        inv_cov = self._batched_inverse_3x3(cov)
-
-        # Initialize vectors (use ones then orthonormalize)
-        v = cp.ones((M, 3), dtype=cov_matrices.dtype)
-        v = v / cp.linalg.norm(v, axis=1, keepdims=True)
-
-        # Power iteration on inv_cov to get dominant eigenvector -> smallest of cov
-        for _ in range(num_iters):
-            v = cp.einsum('mij,mj->mi', inv_cov, v)
-            norms = cp.linalg.norm(v, axis=1, keepdims=True)
-            norms = cp.maximum(norms, 1e-12)
-            v = v / norms
-
-        # Normalize and orient upward
-        norms = cp.linalg.norm(v, axis=1, keepdims=True)
-        norms = cp.maximum(norms, 1e-6)
-        v = v / norms
-
-        flip_mask = v[:, 2] < 0
-        v[flip_mask] *= -1
-
-        # Handle any NaNs or infs
-        invalid = ~cp.isfinite(v).all(axis=1)
-        if cp.any(invalid):
-            v[invalid] = cp.array([0.0, 0.0, 1.0], dtype=v.dtype)
-
-        return v
+        # Use core implementation (works with both NumPy and CuPy)
+        return inverse_power_iteration(cov_matrices, num_iterations=num_iters, epsilon=1e-12)
     
     def _compute_normals_cpu(self, points: np.ndarray, k: int) -> np.ndarray:
         """

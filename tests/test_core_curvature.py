@@ -11,6 +11,8 @@ from ign_lidar.features.core.curvature import (
     compute_shape_index,
     compute_curvedness,
     compute_all_curvature_features,
+    compute_curvature_from_normals,
+    compute_curvature_from_normals_batched,
 )
 
 
@@ -163,6 +165,170 @@ class TestCurvatureFeatures:
         
         # Should have moderate curvature
         assert 0.01 < curvature[0] < 0.2
+
+
+class TestNormalBasedCurvature:
+    """Test suite for normal-based curvature computation."""
+    
+    def test_compute_curvature_from_normals_planar(self):
+        """Test curvature from normals on a planar surface."""
+        np.random.seed(42)
+        
+        # Create planar surface (all normals point up)
+        N = 100
+        points = np.random.rand(N, 3).astype(np.float32)
+        normals = np.tile([0, 0, 1], (N, 1)).astype(np.float32)
+        
+        # Create fake neighbor indices
+        k = 10
+        indices = np.random.randint(0, N, (N, k))
+        
+        curvature = compute_curvature_from_normals(points, normals, indices)
+        
+        # Check shape and dtype
+        assert curvature.shape == (N,)
+        assert curvature.dtype == np.float32
+        
+        # Planar surface should have very low curvature
+        assert np.mean(curvature) < 0.1
+        assert np.all(curvature >= 0)
+    
+    def test_compute_curvature_from_normals_curved(self):
+        """Test curvature from normals on a curved surface."""
+        np.random.seed(42)
+        
+        # Create curved surface with varying normals
+        N = 100
+        points = np.random.rand(N, 3).astype(np.float32)
+        normals = np.random.rand(N, 3).astype(np.float32)
+        # Normalize
+        normals = normals / np.linalg.norm(normals, axis=1, keepdims=True)
+        
+        # Create fake neighbor indices
+        k = 10
+        indices = np.random.randint(0, N, (N, k))
+        
+        curvature = compute_curvature_from_normals(points, normals, indices)
+        
+        # Check shape
+        assert curvature.shape == (N,)
+        
+        # Random normals should have higher curvature than planar
+        assert np.mean(curvature) > 0.3
+        assert np.all(curvature >= 0)
+    
+    def test_compute_curvature_from_normals_batched_cpu(self):
+        """Test batched curvature computation on CPU."""
+        np.random.seed(42)
+        
+        # Create test data
+        N = 1000
+        points = np.random.rand(N, 3).astype(np.float32)
+        normals = np.random.rand(N, 3).astype(np.float32)
+        normals = normals / np.linalg.norm(normals, axis=1, keepdims=True)
+        
+        # Compute curvature with batching
+        curvature = compute_curvature_from_normals_batched(
+            points, normals, k=10, batch_size=500, use_gpu=False
+        )
+        
+        # Check shape and dtype
+        assert curvature.shape == (N,)
+        assert curvature.dtype == np.float32
+        assert np.all(np.isfinite(curvature))
+        assert np.all(curvature >= 0)
+    
+    @pytest.mark.skipif(
+        not hasattr(np, '__version__'),  # Placeholder condition
+        reason="GPU test requires cuML"
+    )
+    def test_compute_curvature_from_normals_gpu(self):
+        """Test curvature from normals on GPU (if available)."""
+        try:
+            import cupy as cp
+            
+            np.random.seed(42)
+            
+            # Create test data
+            N = 100
+            points_cpu = np.random.rand(N, 3).astype(np.float32)
+            normals_cpu = np.tile([0, 0, 1], (N, 1)).astype(np.float32)
+            
+            # Transfer to GPU
+            points_gpu = cp.asarray(points_cpu)
+            normals_gpu = cp.asarray(normals_cpu)
+            
+            # Create fake neighbor indices
+            k = 10
+            indices_gpu = cp.random.randint(0, N, (N, k))
+            
+            curvature_gpu = compute_curvature_from_normals(
+                points_gpu, normals_gpu, indices_gpu
+            )
+            
+            # Check result type
+            assert isinstance(curvature_gpu, cp.ndarray)
+            assert curvature_gpu.shape == (N,)
+            assert curvature_gpu.dtype == cp.float32
+            
+            # Check values
+            curvature_cpu = cp.asnumpy(curvature_gpu)
+            assert np.mean(curvature_cpu) < 0.1  # Planar surface
+            
+        except ImportError:
+            pytest.skip("CuPy not available")
+    
+    def test_compute_curvature_from_normals_consistency(self):
+        """Test that CPU and batched methods give consistent results."""
+        np.random.seed(42)
+        
+        # Create test data
+        N = 500
+        points = np.random.rand(N, 3).astype(np.float32)
+        normals = np.random.rand(N, 3).astype(np.float32)
+        normals = normals / np.linalg.norm(normals, axis=1, keepdims=True)
+        
+        # Method 1: Manual KNN + compute_curvature_from_normals
+        from sklearn.neighbors import NearestNeighbors
+        knn = NearestNeighbors(n_neighbors=10)
+        knn.fit(points)
+        _, indices = knn.kneighbors(points)
+        curvature1 = compute_curvature_from_normals(points, normals, indices)
+        
+        # Method 2: Batched convenience function
+        curvature2 = compute_curvature_from_normals_batched(
+            points, normals, k=10, use_gpu=False
+        )
+        
+        # Results should be very close
+        np.testing.assert_allclose(curvature1, curvature2, rtol=1e-5, atol=1e-6)
+    
+    def test_compute_curvature_from_normals_sphere(self):
+        """Test curvature on a spherical surface."""
+        # Create points on a sphere
+        N = 100
+        theta = np.linspace(0, np.pi, int(np.sqrt(N)))
+        phi = np.linspace(0, 2*np.pi, int(np.sqrt(N)))
+        theta, phi = np.meshgrid(theta, phi)
+        
+        points = np.stack([
+            np.sin(theta).flatten(),
+            np.cos(theta).flatten() * np.sin(phi).flatten(),
+            np.cos(theta).flatten() * np.cos(phi).flatten()
+        ], axis=1).astype(np.float32)
+        
+        # Normals point outward from sphere origin
+        normals = points / np.linalg.norm(points, axis=1, keepdims=True)
+        
+        # Compute curvature
+        curvature = compute_curvature_from_normals_batched(
+            points, normals, k=10, use_gpu=False
+        )
+        
+        # Sphere should have relatively uniform, moderate curvature
+        assert curvature.shape == (points.shape[0],)
+        assert np.all(curvature >= 0)
+        assert np.std(curvature) < 0.5  # Relatively uniform
 
 
 if __name__ == '__main__':

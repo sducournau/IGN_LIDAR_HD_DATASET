@@ -47,6 +47,8 @@ from .curvature import (
     compute_shape_index,
     compute_curvedness,
     compute_all_curvature_features,
+    compute_curvature_from_normals,
+    compute_curvature_from_normals_batched,
 )
 
 # Eigenvalue features
@@ -107,6 +109,9 @@ from .utils import (
     normalize_features,
     handle_nan_inf,
     compute_local_frame,
+    get_array_module,
+    batched_inverse_3x3,
+    inverse_power_iteration,
 )
 
 # Geometric features (consolidated)
@@ -135,6 +140,8 @@ __all__ = [
     'compute_shape_index',
     'compute_curvedness',
     'compute_all_curvature_features',
+    'compute_curvature_from_normals',
+    'compute_curvature_from_normals_batched',
     
     # Eigenvalue features
     'compute_eigenvalue_features',
@@ -221,6 +228,13 @@ __all__ = [
     'compute_neighborhood_size',
     'compute_relative_height_density',
     
+    # Height features
+    'compute_height_above_ground',
+    'compute_relative_height',
+    'compute_normalized_height',
+    'compute_height_percentile',
+    'compute_height_bins',
+    
     # Architectural features
     'compute_architectural_features',
     'compute_normal_verticality',
@@ -245,6 +259,9 @@ __all__ = [
     'normalize_features',
     'handle_nan_inf',
     'compute_local_frame',
+    'get_array_module',
+    'batched_inverse_3x3',
+    'inverse_power_iteration',
     
     # Geometric features (consolidated)
     'extract_geometric_features',
