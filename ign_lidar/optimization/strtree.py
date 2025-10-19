@@ -96,12 +96,24 @@ class OptimizedGroundTruthClassifier:
         ndvi: Optional[np.ndarray] = None,
         height: Optional[np.ndarray] = None,
         planarity: Optional[np.ndarray] = None,
-        intensity: Optional[np.ndarray] = None
+        intensity: Optional[np.ndarray] = None,
+        curvature: Optional[np.ndarray] = None,
+        normals: Optional[np.ndarray] = None,
+        verticality: Optional[np.ndarray] = None,
+        sphericity: Optional[np.ndarray] = None,
+        roughness: Optional[np.ndarray] = None,
+        enable_refinement: bool = True
     ) -> np.ndarray:
         """
         Classify points using ground truth with STRtree spatial indexing.
         
         This is 10-30× faster than the original brute-force approach.
+        
+        New in v5.2:
+        - Ground truth refinement for water, roads, vegetation, and buildings
+        - Better handling of polygon misalignment
+        - Feature-based vegetation classification (NO BD TOPO vegetation)
+        - Uses NDVI + curvature + sphericity for vegetation
         
         Args:
             labels: Current classification labels [N]
@@ -111,6 +123,12 @@ class OptimizedGroundTruthClassifier:
             height: Optional height above ground [N]
             planarity: Optional planarity values [N]
             intensity: Optional intensity values [N]
+            curvature: Optional curvature values [N]
+            normals: Optional normal vectors [N, 3]
+            verticality: Optional verticality values [N]
+            sphericity: Optional sphericity values [N] (NEW - for vegetation)
+            roughness: Optional roughness values [N] (NEW - for vegetation)
+            enable_refinement: Enable ground truth refinement (default: True)
             
         Returns:
             Updated classification labels [N]
@@ -153,6 +171,43 @@ class OptimizedGroundTruthClassifier:
         # NDVI refinement
         if ndvi is not None:
             labels = self._apply_ndvi_refinement(labels, ndvi)
+        
+        # NEW: Ground truth refinement with geometric validation
+        if enable_refinement:
+            try:
+                from ign_lidar.core.modules.ground_truth_refinement import GroundTruthRefiner
+                
+                logger.info("Applying ground truth refinement...")
+                refiner = GroundTruthRefiner()
+                
+                # Build features dictionary
+                features = {}
+                if height is not None:
+                    features['height'] = height
+                if planarity is not None:
+                    features['planarity'] = planarity
+                if curvature is not None:
+                    features['curvature'] = curvature
+                if normals is not None:
+                    features['normals'] = normals
+                if ndvi is not None:
+                    features['ndvi'] = ndvi
+                if verticality is not None:
+                    features['verticality'] = verticality
+                if sphericity is not None:
+                    features['sphericity'] = sphericity
+                if roughness is not None:
+                    features['roughness'] = roughness
+                
+                labels, refine_stats = refiner.refine_all(
+                    labels, points, ground_truth_features, features
+                )
+                
+                refinement_time = self._log_time()
+                logger.info(f"  Ground truth refinement completed in {refinement_time - classify_time:.2f}s")
+                
+            except ImportError as e:
+                logger.warning(f"Ground truth refinement unavailable: {e}")
         
         total_time = self._log_time() - start_time
         logger.info(f"Total ground truth classification: {total_time:.2f}s")

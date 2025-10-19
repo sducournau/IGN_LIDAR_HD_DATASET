@@ -11,10 +11,109 @@ classifications for French topographic data (IGN BD TOPO®).
 
 Reference: ASPRS LAS Specification Version 1.4 - R15
 https://www.asprs.org/wp-content/uploads/2019/07/LAS_1_4_r15.pdf
+
+Features Required for Ground Truth Refinement & Classification:
+==================================================================
+
+Ground Truth Refinement (ign_lidar.core.modules.ground_truth_refinement):
+--------------------------------------------------------------------------
+
+1. Water Classification:
+   - height: Z above ground (meters)
+   - planarity: Flatness measure [0-1]
+   - curvature: Surface curvature [0-∞]
+   - normals: Surface normal vectors [N, 3] (nx, ny, nz)
+
+2. Road Classification:
+   - height: Z above ground (meters)
+   - planarity: Flatness measure [0-1]
+   - curvature: Surface curvature [0-∞]
+   - normals: Surface normal vectors [N, 3]
+   - ndvi: Normalized Difference Vegetation Index [-1, 1]
+
+3. Vegetation Classification:
+   - ndvi: Normalized Difference Vegetation Index [-1, 1]
+   - height: Z above ground (meters)
+   - curvature: Surface curvature [0-∞]
+   - planarity: Flatness measure [0-1]
+   - sphericity: Shape sphericity [0-1]
+   - roughness: Surface roughness [0-∞]
+
+4. Building Classification:
+   - height: Z above ground (meters)
+   - planarity: Flatness measure [0-1]
+   - verticality: Wall-like measure [0-1]
+   - ndvi: Normalized Difference Vegetation Index [-1, 1]
+
+Feature Computation Pipeline:
+------------------------------
+Features are computed in ign_lidar.features module:
+- height: Computed from Z - DTM elevation
+- planarity: Eigenvalue-based local surface flatness
+- curvature: Mean curvature from local surface fitting
+- normals: PCA-based normal estimation
+- sphericity: Eigenvalue-based shape measure (λ3 / λ1)
+- roughness: Standard deviation of distances to fitted plane
+- verticality: |normal_z| < threshold for vertical surfaces
+- ndvi: (NIR - Red) / (NIR + Red) from RGB approximation
+
+Core Feature Sets by Classification Task:
+------------------------------------------
+- Water: [height, planarity, curvature, normals]
+- Roads: [height, planarity, curvature, normals, ndvi]
+- Vegetation: [ndvi, height, curvature, planarity, sphericity, roughness]
+- Buildings: [height, planarity, verticality, ndvi]
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from enum import IntEnum
+
+
+# ============================================================================
+# Feature Definitions for Classification & Ground Truth Refinement
+# ============================================================================
+
+# Required features for each classification type
+WATER_FEATURES = ['height', 'planarity', 'curvature', 'normals']
+ROAD_FEATURES = ['height', 'planarity', 'curvature', 'normals', 'ndvi']
+VEGETATION_FEATURES = ['ndvi', 'height', 'curvature', 'planarity', 'sphericity', 'roughness']
+BUILDING_FEATURES = ['height', 'planarity', 'verticality', 'ndvi']
+
+# All unique features needed for ASPRS classification
+ALL_CLASSIFICATION_FEATURES = [
+    'height',        # Z above ground (meters)
+    'planarity',     # Flatness measure [0-1]
+    'curvature',     # Surface curvature [0-∞]
+    'normals',       # Surface normal vectors [N, 3]
+    'ndvi',          # Normalized Difference Vegetation Index [-1, 1]
+    'sphericity',    # Shape sphericity [0-1]
+    'roughness',     # Surface roughness [0-∞]
+    'verticality',   # Wall-like measure [0-1]
+]
+
+# Feature descriptions
+FEATURE_DESCRIPTIONS = {
+    'height': 'Z coordinate above ground (meters). Computed as Z - DTM elevation.',
+    'planarity': 'Local surface flatness [0-1]. High values = flat surfaces. Eigenvalue-based: (λ2 - λ3) / λ1.',
+    'curvature': 'Surface curvature [0-∞]. Mean curvature from local surface fitting.',
+    'normals': 'Surface normal vectors [N, 3]. PCA-based normal estimation from neighbors.',
+    'ndvi': 'Normalized Difference Vegetation Index [-1, 1]. (NIR - Red) / (NIR + Red). High = vegetation.',
+    'sphericity': 'Shape sphericity [0-1]. Eigenvalue-based: λ3 / λ1. High = spherical/organic shapes.',
+    'roughness': 'Surface roughness [0-∞]. Std dev of distances to fitted plane. High = irregular surfaces.',
+    'verticality': 'Wall-like measure [0-1]. |normal_z| for vertical surfaces. High = walls/facades.',
+}
+
+# Feature value ranges
+FEATURE_RANGES = {
+    'height': (-10.0, 100.0),       # meters
+    'planarity': (0.0, 1.0),        # normalized
+    'curvature': (0.0, 1.0),        # typically 0-0.1 for natural surfaces
+    'normals': (-1.0, 1.0),         # normalized vectors
+    'ndvi': (-1.0, 1.0),            # normalized index
+    'sphericity': (0.0, 1.0),       # normalized
+    'roughness': (0.0, 1.0),        # typically 0-0.5 for natural surfaces
+    'verticality': (0.0, 1.0),      # normalized
+}
 
 
 # ============================================================================
@@ -765,3 +864,94 @@ def get_class_color(code: int) -> Tuple[int, int, int]:
         return (30, 144, 255)  # Dodger blue for all water
     
     return color_map.get(code, (128, 128, 128))
+
+
+# ============================================================================
+# Feature Utility Functions
+# ============================================================================
+
+def get_required_features_for_class(asprs_class: int) -> List[str]:
+    """
+    Get list of required features for refining a specific ASPRS class.
+    
+    Args:
+        asprs_class: ASPRS classification code
+        
+    Returns:
+        List of required feature names
+        
+    Example:
+        >>> get_required_features_for_class(9)  # Water
+        ['height', 'planarity', 'curvature', 'normals']
+        >>> get_required_features_for_class(3)  # Low vegetation
+        ['ndvi', 'height', 'curvature', 'planarity', 'sphericity', 'roughness']
+    """
+    feature_map = {
+        9: WATER_FEATURES,                    # Water
+        11: ROAD_FEATURES,                    # Road
+        3: VEGETATION_FEATURES,               # Low vegetation
+        4: VEGETATION_FEATURES,               # Medium vegetation
+        5: VEGETATION_FEATURES,               # High vegetation
+        6: BUILDING_FEATURES,                 # Building
+    }
+    
+    return feature_map.get(asprs_class, [])
+
+
+def get_all_required_features() -> List[str]:
+    """
+    Get complete list of all features needed for ASPRS classification.
+    
+    Returns:
+        List of all unique feature names required
+    """
+    return ALL_CLASSIFICATION_FEATURES.copy()
+
+
+def get_feature_description(feature_name: str) -> str:
+    """
+    Get description of a feature.
+    
+    Args:
+        feature_name: Name of the feature
+        
+    Returns:
+        Human-readable description of the feature
+    """
+    return FEATURE_DESCRIPTIONS.get(feature_name, f"Unknown feature: {feature_name}")
+
+
+def get_feature_range(feature_name: str) -> Tuple[float, float]:
+    """
+    Get expected value range for a feature.
+    
+    Args:
+        feature_name: Name of the feature
+        
+    Returns:
+        Tuple of (min_value, max_value)
+    """
+    return FEATURE_RANGES.get(feature_name, (float('-inf'), float('inf')))
+
+
+def validate_features(features: Dict[str, Any], required_features: List[str]) -> Tuple[bool, List[str]]:
+    """
+    Validate that all required features are present.
+    
+    Args:
+        features: Dictionary of available features
+        required_features: List of required feature names
+        
+    Returns:
+        Tuple of (is_valid, missing_features)
+        
+    Example:
+        >>> features = {'height': np.array([...]), 'planarity': np.array([...])}
+        >>> required = ['height', 'planarity', 'curvature']
+        >>> is_valid, missing = validate_features(features, required)
+        >>> print(f"Valid: {is_valid}, Missing: {missing}")
+        Valid: False, Missing: ['curvature']
+    """
+    missing = [f for f in required_features if f not in features or features[f] is None]
+    return len(missing) == 0, missing
+

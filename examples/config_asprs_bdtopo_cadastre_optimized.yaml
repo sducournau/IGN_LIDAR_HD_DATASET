@@ -188,7 +188,7 @@ data_sources:
       buildings: true # ASPRS Class 6
       roads: true # ASPRS Class 11
       water: true # ASPRS Class 9
-      vegetation: true # ASPRS Classes 3/4/5
+      vegetation: false # DISABLED - Use feature-based classification instead (NDVI + curvature + sphericity)
 
     # WFS Configuration
     wfs_url: "https://data.geopf.fr/wfs"

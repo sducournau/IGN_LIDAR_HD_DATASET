@@ -85,6 +85,45 @@ except ImportError:
     reclassify_tile_optimized = None
     GeometricRulesEngine = None
 
+# Ground truth refinement module (new in v5.2)
+try:
+    from .ground_truth_refinement import GroundTruthRefiner, GroundTruthRefinementConfig
+    _HAS_GT_REFINEMENT = True
+except ImportError:
+    _HAS_GT_REFINEMENT = False
+    GroundTruthRefiner = None
+    GroundTruthRefinementConfig = None
+
+# Ground truth artifact detection module (new in v5.0)
+try:
+    from .ground_truth_artifact_checker import (
+        GroundTruthArtifactChecker,
+        validate_features_before_classification,
+        get_artifact_free_features,
+        ArtifactReport
+    )
+    _HAS_ARTIFACT_CHECKER = True
+except ImportError:
+    _HAS_ARTIFACT_CHECKER = False
+    GroundTruthArtifactChecker = None
+    validate_features_before_classification = None
+    get_artifact_free_features = None
+    ArtifactReport = None
+
+# Adaptive classifier module (new in v5.0)
+try:
+    from .adaptive_classifier import (
+        AdaptiveClassifier,
+        ClassificationRule,
+        FeatureImportance
+    )
+    _HAS_ADAPTIVE_CLASSIFIER = True
+except ImportError:
+    _HAS_ADAPTIVE_CLASSIFIER = False
+    AdaptiveClassifier = None
+    ClassificationRule = None
+    FeatureImportance = None
+
 __all__ = [
     # Memory management
     'aggressive_memory_cleanup',
@@ -141,4 +180,16 @@ __all__ = [
     'OptimizedReclassifier',
     'reclassify_tile_optimized',
     'GeometricRulesEngine',
+    # Ground truth refinement (optional, v5.2)
+    'GroundTruthRefiner',
+    'GroundTruthRefinementConfig',
+    # Ground truth artifact detection (optional, v5.0)
+    'GroundTruthArtifactChecker',
+    'validate_features_before_classification',
+    'get_artifact_free_features',
+    'ArtifactReport',
+    # Adaptive classifier (optional, v5.0)
+    'AdaptiveClassifier',
+    'ClassificationRule',
+    'FeatureImportance',
 ]
