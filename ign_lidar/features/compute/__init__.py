@@ -1,10 +1,18 @@
 """
-Core feature computation module - canonical implementations.
+Feature computation module - canonical implementations of geometric features.
 
-This module provides unified, well-tested implementations of all
-geometric features with clean, consistent naming conventions.
+This module provides unified, well-tested implementations of all geometric features
+with clean, consistent naming conventions. Optimized with JIT compilation where available.
+
+📍 **Note**: Relocated from `features.core` to `features.compute` in v3.1.0 for better
+semantic clarity and to avoid confusion with `core` package. The old import path is
+deprecated but still works in v3.x.
 
 Usage:
+    # New (recommended)
+    from ign_lidar.features.compute import compute_normals, compute_curvature
+    
+    # Old (deprecated but works)
     from ign_lidar.features.core import compute_normals, compute_curvature
     
     normals, eigenvalues = compute_normals(points, k_neighbors=20)
@@ -15,9 +23,19 @@ Modules:
     normals: Standard normal computation (fallback)
     curvature: Curvature-based features
     eigenvalues: Eigenvalue-based geometric features
+    height: Height-based features (height above ground, etc.)
     density: Density-based features
     architectural: Architectural element features
+    geometric: General geometric computations
+    gpu_bridge: GPU-accelerated feature computation bridge
     utils: Shared utility functions
+
+Migration:
+    # Old (deprecated in v3.1.0)
+    from ign_lidar.features.core.eigenvalues import compute_eigenvalues
+    
+    # New (recommended)
+    from ign_lidar.features.compute.eigenvalues import compute_eigenvalues
 """
 
 # Optimized feature computation (JIT-compiled, preferred)

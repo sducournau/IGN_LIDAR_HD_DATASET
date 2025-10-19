@@ -90,6 +90,5 @@ if not is_valid:
 ## See Also
 
 - **Detailed Guide:** [ASPRS_FEATURE_REQUIREMENTS.md](ASPRS_FEATURE_REQUIREMENTS.md)
-- **Implementation:** [ASPRS_FEATURES_UPDATE_SUMMARY.md](ASPRS_FEATURES_UPDATE_SUMMARY.md)
-- **Module:** [ign_lidar/asprs_classes.py](ign_lidar/asprs_classes.py)
-- **Refinement:** [ign_lidar/core/modules/ground_truth_refinement.py](ign_lidar/core/modules/ground_truth_refinement.py)
+- **Module:** [ign_lidar/asprs_classes.py](../../ign_lidar/asprs_classes.py)
+- **Refinement:** [ign_lidar/core/modules/ground_truth_refinement.py](../../ign_lidar/core/modules/ground_truth_refinement.py)

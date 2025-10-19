@@ -37,6 +37,16 @@ from .auto_select import (
 # Week 2: Unified ground truth optimizer (replaces 7 implementations)
 from .ground_truth import GroundTruthOptimizer
 
+# Backward compatibility: gpu_dataframe_ops moved to io/ in v3.1.0
+# Maintain import for v3.x compatibility
+try:
+    from ..io.gpu_dataframe import GPUDataFrameOps
+    # Create alias for old import path
+    import sys
+    sys.modules['ign_lidar.optimization.gpu_dataframe_ops'] = sys.modules['ign_lidar.io.gpu_dataframe']
+except ImportError:
+    GPUDataFrameOps = None
+
 
 def apply_strtree_optimization():
     """Apply STRtree spatial indexing optimization (10-30× speedup)."""
@@ -65,6 +75,8 @@ def apply_prefilter_optimization():
 __all__ = [
     # Week 2: Primary interface
     'GroundTruthOptimizer',
+    # GPU dataframe operations (relocated to io/ in v3.1.0)
+    'GPUDataFrameOps',  # Backward compatibility alias
     # Legacy interfaces (backward compatibility)
     'auto_optimize',
     'apply_strtree_optimization',

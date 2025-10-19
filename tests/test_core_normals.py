@@ -1,16 +1,16 @@
 """
-Tests for features/core/normals.py module.
+Tests for features/compute/normals.py module.
 """
 
 import numpy as np
 import pytest
 
-from ign_lidar.features.core.normals import (
+from ign_lidar.features.compute.normals import (
     compute_normals,
     compute_normals_fast,
     compute_normals_accurate,
-    CUPY_AVAILABLE,
 )
+from ign_lidar.features.compute.gpu_bridge import CUPY_AVAILABLE
 
 
 class TestComputeNormals:
@@ -23,7 +23,7 @@ class TestComputeNormals:
         points = np.random.rand(n_points, 2)
         points = np.column_stack([points, np.zeros(n_points)])  # Z = 0
         
-        normals, eigenvalues = compute_normals(points, k_neighbors=10, use_gpu=False)
+        normals, eigenvalues = compute_normals(points, k_neighbors=10)
         
         # Check shapes
         assert normals.shape == (n_points, 3)
@@ -111,26 +111,22 @@ class TestComputeNormals:
         norms = np.linalg.norm(normals, axis=1)
         np.testing.assert_allclose(norms, 1.0, rtol=1e-5)
     
+    @pytest.mark.skip(reason="GPU functionality moved to gpu_bridge.py - test obsolete")
     @pytest.mark.gpu
     @pytest.mark.skipif(not CUPY_AVAILABLE, reason="CuPy not available")
     def test_gpu_computation(self):
-        """Test GPU normal computation."""
-        points = np.random.rand(100, 3)
-        
-        # Compute on CPU and GPU
-        normals_cpu, eigvals_cpu = compute_normals(points, k_neighbors=10, use_gpu=False)
-        normals_gpu, eigvals_gpu = compute_normals(points, k_neighbors=10, use_gpu=True)
-        
-        # Results should be similar (not exact due to numerical differences)
-        np.testing.assert_allclose(normals_cpu, normals_gpu, rtol=1e-2, atol=1e-3)
-        np.testing.assert_allclose(eigvals_cpu, eigvals_gpu, rtol=1e-2, atol=1e-3)
+        """Test GPU normal computation - OBSOLETE: GPU functionality moved to gpu_bridge."""
+        # NOTE: compute_normals() in normals.py is now CPU-only
+        # GPU functionality is in features.compute.gpu_bridge.compute_eigenvalues_gpu()
+        # See test_gpu_bridge.py for GPU normal computation tests
+        pass
     
+    @pytest.mark.skip(reason="GPU functionality moved to gpu_bridge.py - test obsolete")
     def test_gpu_unavailable_error(self):
-        """Test error when GPU requested but unavailable."""
-        if not CUPY_AVAILABLE:
-            points = np.random.rand(100, 3)
-            with pytest.raises(RuntimeError, match="GPU computation requested but CuPy"):
-                compute_normals(points, k_neighbors=10, use_gpu=True)
+        """Test error when GPU requested but unavailable - OBSOLETE."""
+        # NOTE: compute_normals() no longer has use_gpu parameter
+        # GPU functionality is in features.compute.gpu_bridge
+        pass
     
     def test_deterministic_output(self):
         """Test that same input produces same output."""

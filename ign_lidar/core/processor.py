@@ -29,18 +29,18 @@ from ..features.architectural_styles import (
 from .skip_checker import PatchSkipChecker
 from .processing_metadata import ProcessingMetadata
 
-# Import refactored modules
+# Import refactored modules from classification package
 # Note: FeatureManager has been replaced by FeatureOrchestrator in Phase 4.3
-from .modules.config_validator import ConfigValidator
-from .modules.serialization import save_patch_npz, save_patch_hdf5, save_patch_torch, save_patch_laz, save_patch_multi_format
-from .modules.patch_extractor import (
+from .classification.config_validator import ConfigValidator
+from .classification.serialization import save_patch_npz, save_patch_hdf5, save_patch_torch, save_patch_laz, save_patch_multi_format
+from .classification.patch_extractor import (
     PatchConfig,
     AugmentationConfig,
     extract_and_augment_patches,
     format_patch_for_architecture
 )
 # Phase 3.4: Tile processing modules
-from .modules.tile_loader import TileLoader
+from .classification.tile_loader import TileLoader
 # Note: FeatureComputer has been replaced by FeatureOrchestrator in Phase 4.3
 
 # Phase 4.3: New unified orchestrator V5 (consolidated)
@@ -53,10 +53,10 @@ from .optimization_factory import optimization_factory, auto_optimize_config
 from ..datasets.dataset_manager import DatasetManager, DatasetConfig
 
 # Classification refinement module
-from .modules.classification_refinement import refine_classification, RefinementConfig
+from .classification.classification_refinement import refine_classification, RefinementConfig
 
 # Reclassification module (optimized)
-from .modules.reclassifier import OptimizedReclassifier, reclassify_tile_optimized
+from .classification.reclassifier import OptimizedReclassifier, reclassify_tile_optimized
 
 # Import from modules (refactored in Phase 3.2)
 
@@ -1385,7 +1385,7 @@ class LiDARProcessor:
                     else:
                         # LEGACY: Use AdvancedClassifier (slower, kept for backward compatibility)
                         logger.warning("  ⚠️  Using legacy AdvancedClassifier (slower). Set processor.use_optimized_ground_truth=true for 10× speedup")
-                        from ..core.modules.advanced_classification import AdvancedClassifier
+                        from ..core.classification.advanced_classification import AdvancedClassifier
                         
                         # Get building and transport detection modes from config
                         building_mode = self.config.processor.get('building_detection_mode', 'asprs')
@@ -1632,7 +1632,7 @@ class LiDARProcessor:
             logger.info(f"  💾 Saving updated enriched tile (no patch extraction)")
             
             # Import the new function
-            from .modules.serialization import save_enriched_tile_laz
+            from .classification.serialization import save_enriched_tile_laz
             
             # Prepare output path - in enriched_only mode, save directly to output_dir
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -1807,7 +1807,7 @@ class LiDARProcessor:
         
         # 🆕 Save enriched LAZ tile in "both" mode (after patches are saved)
         if self.save_enriched_laz and not self.only_enriched_laz:
-            from .modules.serialization import save_enriched_tile_laz
+            from .classification.serialization import save_enriched_tile_laz
             
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = output_dir / f"{laz_file.stem}_enriched.laz"
@@ -1947,9 +1947,12 @@ class LiDARProcessor:
         except ImportError:
             logger.debug("psutil not available - skipping memory checks")
         
-        # Find LAZ files (recursively)
+        # Find LAZ files (recursively) - exclude enriched files to avoid reprocessing
         laz_files = (list(input_dir.rglob("*.laz")) +
                      list(input_dir.rglob("*.LAZ")))
+        
+        # Filter out enriched files (those ending with _enriched.laz)
+        laz_files = [f for f in laz_files if not f.stem.endswith('_enriched')]
         
         if not laz_files:
             logger.error(f"No LAZ files found in {input_dir}")
@@ -2245,8 +2248,10 @@ class LiDARProcessor:
         # Create output directory
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Find all LAZ files
+        # Find all LAZ files - exclude enriched files to avoid reprocessing
         laz_files = sorted(input_dir.glob("*.laz"))
+        laz_files = [f for f in laz_files if not f.stem.endswith('_enriched')]
+        
         if not laz_files:
             logger.warning(f"No LAZ files found in {input_dir}")
             return 0

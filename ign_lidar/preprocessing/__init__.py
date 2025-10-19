@@ -31,8 +31,8 @@ from .infrared_augmentation import (
     augment_tile_with_infrared,
 )
 
-# Import patch extraction from new location
-from ..core.modules.patch_extractor import (
+# Import patch extraction from classification module
+from ..core.classification.patch_extractor import (
     augment_raw_points,
     extract_patches,
     augment_patch,

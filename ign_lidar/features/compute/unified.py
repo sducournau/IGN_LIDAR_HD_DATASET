@@ -219,9 +219,9 @@ def _compute_all_features_gpu(
     """GPU implementation with fallback to CPU."""
     try:
         # Import GPU modules
-        from ..features_gpu import GPUFeatureComputer
+        from ..gpu_processor import GPUProcessor
         
-        computer = GPUFeatureComputer(use_gpu=True)
+        computer = GPUProcessor(use_gpu=True)
         return computer.compute_all_features(
             points, classification, k=k_neighbors, **kwargs
         )
@@ -243,9 +243,9 @@ def _compute_all_features_gpu_chunked(
     """GPU chunked implementation with fallback."""
     try:
         # Import GPU chunked modules
-        from ..features_gpu_chunked import GPUChunkedFeatureComputer
+        from ..gpu_processor import GPUProcessor
         
-        computer = GPUChunkedFeatureComputer()
+        computer = GPUProcessor(chunk_size=chunk_size)
         return computer.compute_all_features_chunked(
             points, classification, k=k_neighbors, radius=radius, **kwargs
         )

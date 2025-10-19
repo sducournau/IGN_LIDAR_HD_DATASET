@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, '.')
 
 # Test FAISS detection
-from ign_lidar.features import features_gpu_chunked
+from ign_lidar.features import gpu_processor
 
 print("=" * 70)
 print("FAISS Integration Test")
@@ -21,7 +21,7 @@ if features_gpu_chunked.FAISS_AVAILABLE:
     print(f"✓ FAISS GPU count: {faiss.get_num_gpus()}")
     
     # Check if the _build_faiss_index method exists
-    from ign_lidar.features.features_gpu_chunked import GPUChunkedFeatureComputer
+    from ign_lidar.features.gpu_processor import GPUProcessor as GPUChunkedFeatureComputer
     computer = GPUChunkedFeatureComputer(use_gpu=True)
     
     if hasattr(computer, '_build_faiss_index'):

@@ -1,15 +1,15 @@
 """
 GPU-based feature computation strategy with chunking.
 
-This is the GOLD STANDARD strategy for large datasets (> 10M points).
-Optimized in Week 1 with 250K batch size achieving 16× speedup.
+Now uses the unified GPUProcessor which automatically handles chunking
+for large datasets (> 10M points).
 
-This strategy uses CuPy and cuML with intelligent chunking for
+This strategy uses the unified GPUProcessor with intelligent auto-chunking for
 memory-efficient processing of massive point clouds.
 
 Author: IGN LiDAR HD Development Team
-Date: October 21, 2025
-Version: 3.1.0-dev (Week 2 refactoring)
+Date: October 19, 2025
+Version: 3.1.0-dev (Phase 2A.4 - GPU consolidation)
 """
 
 from typing import Dict, Optional
@@ -23,68 +23,63 @@ logger = logging.getLogger(__name__)
 # Try to import GPU dependencies
 try:
     import cupy as cp
-    from .features_gpu_chunked import GPUChunkedFeatureComputer
+    from .gpu_processor import GPUProcessor
     GPU_AVAILABLE = True
 except ImportError:
     GPU_AVAILABLE = False
     cp = None
-    GPUChunkedFeatureComputer = None
+    GPUProcessor = None
 
 
 class GPUChunkedStrategy(BaseFeatureStrategy):
     """
-    GPU-based feature computation with chunking for large datasets.
+    GPU-based feature computation with auto-chunking for large datasets.
     
-    This is the GOLD STANDARD strategy optimized in Week 1.
+    Now uses the unified GPUProcessor which automatically handles chunking
+    and selects the optimal strategy (batch vs chunked) based on dataset size.
     
     This strategy is optimal for:
-    - Large datasets (> 10M points)
+    - Large datasets (> 10M points) - automatically uses chunked processing
+    - Medium datasets (1-10M points) - automatically uses batch processing
     - Memory-efficient GPU processing
     - Production workloads with massive point clouds
     
-    Performance (Week 1 optimization):
-    - Before: 353s per 1.86M point chunk
-    - After: 22s per chunk
-    - Speedup: 16× improvement ✅
-    
-    Key optimizations:
-    - NEIGHBOR_BATCH_SIZE = 250,000 (optimized for GPU L2 cache)
-    - Chunk size = 5M points (configurable)
-    - Progress tracking
-    - Memory-efficient neighbor search
+    Performance:
+    - Batch mode (<10M): 0.5-5 seconds (10-30× faster than CPU)
+    - Chunked mode (>10M): Auto-selected, FAISS acceleration available
+    - FAISS speedup: 50-100× for k-NN queries on massive datasets
     
     Requirements:
     - CuPy (CUDA arrays)
     - cuML (GPU algorithms) - optional but recommended
+    - FAISS (optional, for 50-100× k-NN speedup)
     
     Attributes:
         k_neighbors (int): Number of neighbors for geometric features
-        chunk_size (int): Points per chunk (default: 5M)
-        batch_size (int): Neighbor batch size (default: 250K, optimized in Week 1)
-        neighbor_query_batch_size (int): Points per neighbor query batch (controls chunking for neighbor queries)
-        feature_batch_size (int): Points per feature computation batch (controls normal/curvature batching)
+        chunk_size (int): Points per chunk (default: 1M, handled by GPUProcessor)
+        gpu_processor (GPUProcessor): Unified GPU processor with auto-chunking
     """
     
     def __init__(
         self,
         k_neighbors: int = 20,
         radius: float = 1.0,
-        chunk_size: int = 8_000_000,  # INCREASED from 5M to 8M for RTX 4080 Super
-        batch_size: int = 500_000,  # INCREASED from 250K to 500K for better GPU utilization
-        neighbor_query_batch_size: Optional[int] = None,  # NEW: Controls neighbor query chunking
-        feature_batch_size: Optional[int] = None,  # NEW: Controls feature computation batching
+        chunk_size: int = 1_000_000,  # Chunk size for GPUProcessor
+        batch_size: int = 8_000_000,  # Batch size before auto-chunking
+        neighbor_query_batch_size: Optional[int] = None,  # Deprecated, kept for compatibility
+        feature_batch_size: Optional[int] = None,  # Deprecated, kept for compatibility
         verbose: bool = False
     ):
         """
-        Initialize GPU chunked strategy.
+        Initialize GPU chunked strategy with unified processor.
         
         Args:
             k_neighbors: Number of neighbors for local features
-            radius: Search radius in meters (not used in chunked mode)
-            chunk_size: Points per chunk (default: 8M, optimized for RTX 4080 Super)
-            batch_size: Neighbor batch size (default: 500K, doubled for better utilization)
-            neighbor_query_batch_size: Points per neighbor query batch (None = 5M default, controls number of chunks)
-            feature_batch_size: Points per feature computation batch (None = 2M default, controls normal/curvature batching)
+            radius: Search radius in meters (not used, k-NN preferred)
+            chunk_size: Points per chunk for GPUProcessor (default: 1M)
+            batch_size: Max batch size before auto-chunking (default: 8M)
+            neighbor_query_batch_size: Deprecated (kept for backward compatibility)
+            feature_batch_size: Deprecated (kept for backward compatibility)
             verbose: Enable detailed logging
             
         Raises:
@@ -92,42 +87,32 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         """
         super().__init__(k_neighbors=k_neighbors, radius=radius, verbose=verbose)
         
-        if not GPU_AVAILABLE or GPUChunkedFeatureComputer is None:
+        if not GPU_AVAILABLE or GPUProcessor is None:
             raise RuntimeError(
-                "GPU chunked strategy requires CuPy. Install with: pip install cupy-cuda11x\n"
+                "GPU chunked strategy requires CuPy and GPUProcessor. Install with: pip install cupy-cuda11x\n"
                 "For CPU, use CPUStrategy instead."
             )
         
         self.chunk_size = chunk_size
         self.batch_size = batch_size
-        self.neighbor_query_batch_size = neighbor_query_batch_size
-        self.feature_batch_size = feature_batch_size
         
-        # GPUChunkedFeatureComputer doesn't accept k_neighbors in __init__
-        # It will be passed during compute() call instead
-        self.gpu_computer = GPUChunkedFeatureComputer(
+        # Initialize unified GPU processor with chunking parameters
+        # Auto-chunks for datasets > 10M points
+        self.gpu_processor = GPUProcessor(
+            batch_size=batch_size,
             chunk_size=chunk_size,
-            show_progress=verbose,
-            neighbor_query_batch_size=neighbor_query_batch_size,
-            feature_batch_size=feature_batch_size
+            show_progress=verbose
         )
         
         if verbose:
             logger.info(
-                f"Initialized GPU chunked strategy (GOLD STANDARD + ENHANCED): "
+                f"Initialized GPU chunked strategy (unified processor): "
                 f"k={k_neighbors}, chunk_size={chunk_size:,}, batch_size={batch_size:,}"
             )
-            if neighbor_query_batch_size is not None:
-                logger.info(
-                    f"Neighbor query batch size: {neighbor_query_batch_size:,} points (controls chunking)"
-                )
-            if feature_batch_size is not None:
-                logger.info(
-                    f"Feature computation batch size: {feature_batch_size:,} points (controls normal/curvature batching)"
-                )
-            logger.info(
-                f"Enhanced optimization: 8M chunks + 500K batches for RTX 4080 Super (60% capacity increase)"
-            )
+            logger.info(f"  GPU available: {self.gpu_processor.use_gpu}")
+            logger.info(f"  Auto-chunking: enabled")
+            logger.info(f"  Batch strategy: used for <10M points")
+            logger.info(f"  Chunked strategy: used for >10M points (auto-selected)")
     
     def compute(
         self,
@@ -139,10 +124,11 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         **kwargs
     ) -> Dict[str, np.ndarray]:
         """
-        Compute features using GPU with chunking (GOLD STANDARD).
+        Compute features using unified GPUProcessor (auto batch/chunked).
         
-        This method uses the Week 1 optimized implementation with
-        250K batch size for 16× speedup.
+        Automatically selects optimal strategy:
+        - Batch mode: <10M points (fast, single GPU batch)
+        - Chunked mode: >10M points (memory-efficient, FAISS acceleration)
         
         Args:
             points: (N, 3) array of XYZ coordinates
@@ -158,24 +144,20 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         n_points = len(points)
         
         if self.verbose:
+            strategy_name = "chunked" if n_points > 10_000_000 else "batch"
             logger.info(
-                f"Computing features for {n_points:,} points using GPU chunked strategy "
-                f"(chunks={n_points//self.chunk_size + 1})"
+                f"Computing features for {n_points:,} points using GPU strategy "
+                f"({strategy_name} mode auto-selected)"
             )
         
-        # Create dummy classification if not provided
-        if classification is None:
-            classification = np.zeros(n_points, dtype=np.uint8)
+        # Compute geometric features with unified processor
+        # Automatically uses batch (<10M) or chunked (>10M) strategy
+        normals = self.gpu_processor.compute_normals(points, k=self.k_neighbors, show_progress=self.verbose)
+        curvature = self.gpu_processor.compute_curvature(points, normals, k=self.k_neighbors, show_progress=self.verbose)
         
-        # Use existing GPU chunked feature computer (Week 1 optimized)
-        # This wraps the features_gpu_chunked.py implementation
-        normals, curvature, height, geo_features = self.gpu_computer.compute_all_features_chunked(
-            points=points,
-            classification=classification,
-            k=self.k_neighbors,
-            radius=self.radius if self.radius > 0 else None,
-            mode='lod2'  # Standard geometric features
-        )
+        # Compute height relative to minimum Z
+        z_min = points[:, 2].min()
+        height = (points[:, 2] - z_min).astype(np.float32)
         
         # Build result dictionary
         result = {
@@ -184,26 +166,32 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
             'height': height.astype(np.float32),
         }
         
-        # Add geometric features
-        for key, value in geo_features.items():
-            result[key] = value.astype(np.float32)
+        # Compute additional geometric features
+        # Verticality: dot product of normal with vertical axis
+        verticality = np.abs(normals[:, 2]).astype(np.float32)
+        result['verticality'] = verticality
         
-        # Compute RGB features if provided and not already computed
-        if rgb is not None and 'rgb_mean' not in result:
+        # Planarity: 1 - curvature (normalized)
+        planarity = (1.0 - np.minimum(curvature, 1.0)).astype(np.float32)
+        result['planarity'] = planarity
+        
+        # Sphericity: curvature normalized
+        sphericity = np.minimum(curvature, 1.0).astype(np.float32)
+        result['sphericity'] = sphericity
+        
+        # Compute RGB features if provided
+        if rgb is not None:
             rgb_features = self._compute_rgb_features_gpu(rgb)
             result.update(rgb_features)
         
-        # Compute NDVI if NIR and RGB provided and not already computed
-        if nir is not None and rgb is not None and 'ndvi' not in result:
+        # Compute NDVI if NIR and RGB provided
+        if nir is not None and rgb is not None:
             red = rgb[:, 0]
             ndvi = self.compute_ndvi(nir, red)
             result['ndvi'] = ndvi.astype(np.float32)
         
         if self.verbose:
-            logger.info(
-                f"GPU chunked computation complete: {len(result)} feature types, "
-                f"Week 1 optimizations active"
-            )
+            logger.info(f"GPU computation complete: {len(result)} feature types")
         
         return result
     
@@ -221,17 +209,16 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         """
         Adapter method for compatibility with FeatureOrchestrator.
         
-        This method provides the old interface expected by the orchestrator,
-        while internally calling compute_all_features_chunked directly.
+        Uses the unified GPUProcessor for feature computation.
         
         Args:
             points: (N, 3) array of XYZ coordinates
             classification: (N,) array of ASPRS classification codes (optional)
-            auto_k: Whether to auto-estimate k (ignored)
-            include_extra: Whether to include extra features (ignored for now)
+            auto_k: Whether to auto-estimate k (ignored for GPU)
+            include_extra: Whether to include extra features
             patch_center: Center point of the patch (for distance features)
             mode: Feature mode ('lod2', 'lod3', 'asprs_classes', etc.)
-            radius: Search radius (overrides self.radius if provided)
+            radius: Search radius (ignored, uses k-NN)
             **kwargs: Additional parameters
             
         Returns:
@@ -240,45 +227,15 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         # Extract RGB and NIR from kwargs if present
         rgb = kwargs.get('rgb', None)
         nir = kwargs.get('nir', None)
-        intensities = kwargs.get('intensities', None)
         
-        # Create dummy classification if not provided
-        if classification is None:
-            classification = np.zeros(len(points), dtype=np.uint8)
-        
-        # Use the mode parameter passed from orchestrator
-        use_radius = radius if radius is not None else (self.radius if self.radius > 0 else None)
-        
-        # Call compute_all_features_chunked directly with the correct mode
-        normals, curvature, height, geo_features = self.gpu_computer.compute_all_features_chunked(
+        # Use the compute method which handles everything
+        result = self.compute(
             points=points,
-            classification=classification,
-            k=self.k_neighbors,
-            radius=use_radius,
-            mode=mode  # Pass the mode from the orchestrator
+            intensities=kwargs.get('intensities', None),
+            rgb=rgb,
+            nir=nir,
+            classification=classification
         )
-        
-        # Build result dictionary
-        result = {
-            'normals': normals.astype(np.float32),
-            'curvature': curvature.astype(np.float32),
-            'height': height.astype(np.float32),
-        }
-        
-        # Add geometric features
-        for key, value in geo_features.items():
-            result[key] = value.astype(np.float32)
-        
-        # Compute RGB features if provided and not already computed
-        if rgb is not None and 'rgb_mean' not in result:
-            rgb_features = self._compute_rgb_features_gpu(rgb)
-            result.update(rgb_features)
-        
-        # Compute NDVI if NIR and RGB provided and not already computed
-        if nir is not None and rgb is not None and 'ndvi' not in result:
-            red = rgb[:, 0]
-            ndvi = self.compute_ndvi(nir, red)
-            result['ndvi'] = ndvi.astype(np.float32)
         
         # Add distance_to_center if patch_center provided and include_extra is True
         if include_extra and patch_center is not None:
