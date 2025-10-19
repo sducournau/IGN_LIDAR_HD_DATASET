@@ -59,7 +59,7 @@ class TestPhase3Integration:
     
     def test_gpu_bridge_initialization(self, simple_points):
         """Test that GPU bridge is properly initialized in GPUFeatureComputer"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         # Create computer instance
         computer = GPUFeatureComputer(use_gpu=False)
@@ -75,7 +75,7 @@ class TestPhase3Integration:
     
     def test_refactored_eigenvalue_features_cpu(self, simple_points):
         """Test eigenvalue feature computation using refactored CPU path"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         computer = GPUFeatureComputer(use_gpu=False)
         
@@ -104,7 +104,7 @@ class TestPhase3Integration:
     
     def test_planar_features_phase3(self, simple_points):
         """Test that planar surfaces have reasonable planarity (Phase 3 refactored)"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         computer = GPUFeatureComputer(use_gpu=False)
         
@@ -125,7 +125,7 @@ class TestPhase3Integration:
     
     def test_linear_features_phase3(self, linear_points):
         """Test that linear structures have high linearity (Phase 3 refactored)"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         computer = GPUFeatureComputer(use_gpu=False)
         
@@ -146,7 +146,7 @@ class TestPhase3Integration:
     
     def test_spherical_features_phase3(self, spherical_points):
         """Test that spherical structures compute valid features (Phase 3 refactored)"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         computer = GPUFeatureComputer(use_gpu=False)
         
@@ -168,7 +168,7 @@ class TestPhase3Integration:
     
     def test_batch_eigenvalue_features_gpu_method(self, simple_points):
         """Test _compute_batch_eigenvalue_features_gpu using GPU bridge"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         from sklearn.neighbors import NearestNeighbors
         
         computer = GPUFeatureComputer(use_gpu=False)
@@ -199,7 +199,7 @@ class TestPhase3Integration:
     
     def test_density_feature_computation(self, simple_points):
         """Test density feature computation (non-eigenvalue feature)"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         computer = GPUFeatureComputer(use_gpu=False)
         
@@ -218,7 +218,7 @@ class TestPhase3Integration:
     
     def test_mixed_features_computation(self, simple_points):
         """Test computation of both eigenvalue and non-eigenvalue features"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         computer = GPUFeatureComputer(use_gpu=False)
         
@@ -241,7 +241,7 @@ class TestPhase3Integration:
     
     def test_backward_compatibility_with_old_code(self, simple_points):
         """Test that refactored code maintains backward compatibility"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         # Create two instances
         computer1 = GPUFeatureComputer(use_gpu=False, batch_size=1_000_000)
@@ -270,7 +270,7 @@ class TestPhase3Integration:
     
     def test_large_dataset_batching(self):
         """Test that large datasets are properly batched"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         # Create large point cloud
         np.random.seed(42)
@@ -295,7 +295,7 @@ class TestPhase3Integration:
     
     def test_edge_case_small_dataset(self):
         """Test edge case: very small dataset (< 10 points)"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         # Create tiny point cloud
         tiny_points = np.array([
@@ -323,7 +323,7 @@ class TestPhase3Integration:
     
     def test_nan_handling(self):
         """Test that NaN values are handled properly"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         # Create point cloud with some identical points (can cause issues)
         problematic_points = np.array([
@@ -364,7 +364,7 @@ class TestPhase3Comparison:
     
     def test_consistency_across_implementations(self, test_points):
         """Test that features_gpu.py uses GPU bridge correctly and produces valid results"""
-        from ign_lidar.features.features_gpu import GPUFeatureComputer
+        from ign_lidar.features.gpu_processor import GPUProcessor as GPUFeatureComputer
         
         # Compute using refactored GPU feature computer
         computer = GPUFeatureComputer(use_gpu=False)

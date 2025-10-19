@@ -1,5 +1,5 @@
 """
-Integration tests for Phase 2: GPU-Core Bridge integration with features_gpu_chunked.
+Integration tests for Phase 2: GPU-Core Bridge integration with GPUProcessor.
 
 Tests that the refactored eigenvalue computation maintains backward compatibility
 and produces correct results.
@@ -12,7 +12,7 @@ import pytest
 import numpy as np
 from typing import Dict
 
-from ign_lidar.features.features_gpu_chunked import GPUChunkedFeatureComputer
+from ign_lidar.features.gpu_processor import GPUProcessor
 
 
 @pytest.fixture
@@ -33,8 +33,8 @@ class TestPhase2Integration:
     """Test Phase 2 refactoring integration."""
     
     def test_gpu_chunked_init_with_bridge(self):
-        """Test that GPUChunkedFeatureComputer initializes with GPU bridge."""
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        """Test that GPUProcessor initializes with GPU bridge."""
+        computer = GPUProcessor(use_gpu=False)
         
         # Check that gpu_bridge was initialized
         assert hasattr(computer, 'gpu_bridge')
@@ -46,7 +46,7 @@ class TestPhase2Integration:
     
     def test_eigenvalue_features_refactored(self, sample_point_cloud, sample_neighbors):
         """Test that refactored eigenvalue computation works."""
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        computer = GPUProcessor(use_gpu=False)
         
         # Create dummy normals (not used in refactored version but API requires it)
         normals = np.random.rand(1000, 3).astype(np.float32)
@@ -71,7 +71,7 @@ class TestPhase2Integration:
     
     def test_eigenvalue_ordering(self, sample_point_cloud, sample_neighbors):
         """Test that eigenvalues are properly ordered (descending)."""
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        computer = GPUProcessor(use_gpu=False)
         normals = np.random.rand(1000, 3).astype(np.float32)
         
         features = computer.compute_eigenvalue_features(
@@ -86,7 +86,7 @@ class TestPhase2Integration:
     
     def test_eigenvalue_non_negative(self, sample_point_cloud, sample_neighbors):
         """Test that all eigenvalues are non-negative."""
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        computer = GPUProcessor(use_gpu=False)
         normals = np.random.rand(1000, 3).astype(np.float32)
         
         features = computer.compute_eigenvalue_features(
@@ -102,7 +102,7 @@ class TestPhase2Integration:
     
     def test_feature_ranges(self, sample_point_cloud, sample_neighbors):
         """Test that features are within expected ranges."""
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        computer = GPUProcessor(use_gpu=False)
         normals = np.random.rand(1000, 3).astype(np.float32)
         
         features = computer.compute_eigenvalue_features(
@@ -125,7 +125,7 @@ class TestPhase2Integration:
     
     def test_no_nan_or_inf(self, sample_point_cloud, sample_neighbors):
         """Test that features contain no NaN or Inf values."""
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        computer = GPUProcessor(use_gpu=False)
         normals = np.random.rand(1000, 3).astype(np.float32)
         
         features = computer.compute_eigenvalue_features(
@@ -152,7 +152,7 @@ class TestPhase2Integration:
         neighbors = np.random.randint(0, 1000, size=(1000, 20), dtype=np.int32)
         normals = np.random.rand(1000, 3).astype(np.float32)
         
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        computer = GPUProcessor(use_gpu=False)
         features = computer.compute_eigenvalue_features(points, normals, neighbors)
         
         # For planar surfaces, λ0 and λ1 should be much larger than λ2
@@ -163,7 +163,7 @@ class TestPhase2Integration:
     
     def test_chunking_compatibility(self, sample_point_cloud, sample_neighbors):
         """Test that chunked processing works with refactored method."""
-        computer = GPUChunkedFeatureComputer(use_gpu=False, chunk_size=500)
+        computer = GPUProcessor(use_gpu=False, chunk_size=500)
         normals = np.random.rand(1000, 3).astype(np.float32)
         
         # In real chunked processing, the full point cloud is passed
@@ -191,7 +191,7 @@ class TestBackwardCompatibility:
         """Test that method signature is unchanged."""
         import inspect
         
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        computer = GPUProcessor(use_gpu=False)
         sig = inspect.signature(computer.compute_eigenvalue_features)
         
         # Check parameters exist
@@ -204,7 +204,7 @@ class TestBackwardCompatibility:
     
     def test_return_type_unchanged(self, sample_point_cloud, sample_neighbors):
         """Test that return type is still Dict[str, np.ndarray]."""
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        computer = GPUProcessor(use_gpu=False)
         normals = np.random.rand(1000, 3).astype(np.float32)
         
         features = computer.compute_eigenvalue_features(
@@ -220,7 +220,7 @@ class TestBackwardCompatibility:
     
     def test_feature_keys_unchanged(self, sample_point_cloud, sample_neighbors):
         """Test that feature keys match original implementation."""
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        computer = GPUProcessor(use_gpu=False)
         normals = np.random.rand(1000, 3).astype(np.float32)
         
         features = computer.compute_eigenvalue_features(
@@ -246,7 +246,7 @@ class TestPerformance:
         """Test that refactored method performance is comparable."""
         import time
         
-        computer = GPUChunkedFeatureComputer(use_gpu=False)
+        computer = GPUProcessor(use_gpu=False)
         normals = np.random.rand(1000, 3).astype(np.float32)
         
         # Time refactored method
