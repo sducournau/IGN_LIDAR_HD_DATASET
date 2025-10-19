@@ -76,6 +76,22 @@ class GPUFeatureComputer:
     """
     Class for GPU-optimized geometric feature computation.
     Automatic CPU fallback if GPU unavailable.
+    
+    .. deprecated:: 3.1.0
+        Use :class:`~ign_lidar.features.gpu_processor.GPUProcessor` instead.
+        This class will be removed in version 4.0.0.
+        
+        Migration example::
+        
+            # Old code:
+            from ign_lidar.features.features_gpu import GPUFeatureComputer
+            computer = GPUFeatureComputer(use_gpu=True, batch_size=8_000_000)
+            normals = computer.compute_normals(points, k=10)
+            
+            # New code:
+            from ign_lidar.features.gpu_processor import GPUProcessor
+            processor = GPUProcessor(use_gpu=True)  # Auto-chunks at 10M threshold
+            normals = processor.compute_normals(points, k=10)
     """
     
     def __init__(self, use_gpu: bool = True, batch_size: int = 8_000_000):
@@ -84,6 +100,15 @@ class GPUFeatureComputer:
             use_gpu: Enable GPU if available
             batch_size: Points per GPU batch (default: 1M, optimized for reclassification)
         """
+        warnings.warn(
+            "GPUFeatureComputer is deprecated and will be removed in version 4.0.0. "
+            "Use ign_lidar.features.gpu_processor.GPUProcessor instead. "
+            "The new processor provides auto-chunking, FAISS acceleration (50-100× faster), "
+            "and better memory management. See migration guide in PHASE2A_FINAL_STATUS.md",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         self.use_gpu = use_gpu and GPU_AVAILABLE
         self.use_cuml = use_gpu and CUML_AVAILABLE
         

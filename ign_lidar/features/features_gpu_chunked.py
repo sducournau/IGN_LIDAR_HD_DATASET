@@ -8,6 +8,7 @@ from typing import Dict, Tuple, Optional
 import numpy as np
 import logging
 import gc
+import warnings
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,22 @@ class GPUChunkedFeatureComputer:
     """
     GPU feature computation with chunked processing for large point clouds.
     
+    .. deprecated:: 3.1.0
+        Use :class:`~ign_lidar.features.gpu_processor.GPUProcessor` instead.
+        This class will be removed in version 4.0.0.
+        
+        Migration example::
+        
+            # Old code:
+            from ign_lidar.features.features_gpu_chunked import GPUChunkedFeatureComputer
+            computer = GPUChunkedFeatureComputer(chunk_size=5_000_000, vram_limit_gb=8.0)
+            normals = computer.compute_normals_chunked(points, k=10)
+            
+            # New code:
+            from ign_lidar.features.gpu_processor import GPUProcessor
+            processor = GPUProcessor(use_gpu=True)  # Auto-chunks, auto-manages VRAM
+            normals = processor.compute_normals(points, k=10)  # Same API, simpler!
+    
     Key features:
     - Processes large datasets in chunks to avoid VRAM exhaustion
     - Builds global KDTree once, queries per chunk
@@ -116,6 +133,16 @@ class GPUChunkedFeatureComputer:
             neighbor_query_batch_size: Points per neighbor query batch (None = 5M default, controls number of chunks)
             feature_batch_size: Points per feature computation batch (None = 2M default, controls normal/curvature batching)
         """
+        warnings.warn(
+            "GPUChunkedFeatureComputer is deprecated and will be removed in version 4.0.0. "
+            "Use ign_lidar.features.gpu_processor.GPUProcessor instead. "
+            "The new processor provides automatic chunking, FAISS acceleration (50-100× faster), "
+            "simplified API (no manual chunk_size), and better memory management. "
+            "See migration guide in PHASE2A_FINAL_STATUS.md",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         self.use_gpu = use_gpu and GPU_AVAILABLE
         self.use_cuml = CUML_AVAILABLE
         self.show_progress = show_progress
