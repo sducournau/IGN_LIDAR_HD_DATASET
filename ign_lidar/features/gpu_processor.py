@@ -1240,6 +1240,122 @@ class GPUProcessor:
                 logger.debug("GPU memory cleaned up")
             except Exception as e:
                 logger.warning(f"Error during GPU cleanup: {e}")
+    
+    # ==========================================================================
+    # EIGENVALUE FEATURES (GPU Bridge Integration - Phase 2A.6)
+    # ==========================================================================
+    
+    def compute_eigenvalues(
+        self,
+        points: np.ndarray,
+        neighbors: np.ndarray,
+        return_eigenvectors: bool = False
+    ) -> np.ndarray:
+        """
+        Compute eigenvalues using GPU-Core Bridge.
+        
+        Uses the GPUCoreBridge for GPU-accelerated eigenvalue computation
+        with automatic fallback to CPU if GPU unavailable.
+        
+        Args:
+            points: Point cloud (N, 3)
+            neighbors: Neighbor indices (N, k)
+            return_eigenvectors: Return eigenvectors as well
+        
+        Returns:
+            eigenvalues: (N, 3) sorted descending
+            eigenvectors: (N, 3, 3) if return_eigenvectors=True
+        """
+        return self.gpu_bridge.compute_eigenvalues_gpu(
+            points, 
+            neighbors, 
+            return_eigenvectors=return_eigenvectors
+        )
+    
+    def compute_eigenvalue_features(
+        self,
+        points: np.ndarray,
+        neighbors: np.ndarray,
+        epsilon: Optional[float] = None,
+        include_all: bool = True
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute eigenvalue-based features using GPU-Core Bridge.
+        
+        This method demonstrates the bridge architecture:
+        1. Compute eigenvalues on GPU (fast)
+        2. Transfer to CPU (minimal overhead)
+        3. Compute features using canonical core implementation
+        
+        Features computed:
+        - linearity, planarity, sphericity
+        - omnivariance, anisotropy, eigentropy
+        - surface_variation, vertical_range
+        
+        Args:
+            points: Point cloud (N, 3)
+            neighbors: Neighbor indices (N, k)
+            epsilon: Numerical stability constant (default: 1e-10)
+            include_all: Compute all eigenvalue features
+        
+        Returns:
+            features: Dictionary of eigenvalue-based features
+        """
+        return self.gpu_bridge.compute_eigenvalue_features_gpu(
+            points,
+            neighbors,
+            epsilon=epsilon,
+            include_all=include_all
+        )
+    
+    def compute_density_features(
+        self,
+        points: np.ndarray,
+        k_neighbors: int = 20,
+        search_radius: Optional[float] = None
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute density features using GPU-Core Bridge.
+        
+        Args:
+            points: Point cloud (N, 3)
+            k_neighbors: Number of nearest neighbors (default: 20)
+            search_radius: Fixed radius for density (optional)
+        
+        Returns:
+            features: Dictionary of density features
+        """
+        return self.gpu_bridge.compute_density_features_gpu(
+            points,
+            k_neighbors=k_neighbors,
+            search_radius=search_radius
+        )
+    
+    def compute_architectural_features(
+        self,
+        points: np.ndarray,
+        normals: np.ndarray,
+        eigenvalues: np.ndarray,
+        epsilon: float = 1e-10
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute architectural features using GPU-Core Bridge.
+        
+        Args:
+            points: Point cloud (N, 3)
+            normals: Normal vectors (N, 3)
+            eigenvalues: Eigenvalues (N, 3)
+            epsilon: Numerical stability constant
+        
+        Returns:
+            features: Dictionary of architectural features
+        """
+        return self.gpu_bridge.compute_architectural_features_gpu(
+            points,
+            normals,
+            eigenvalues,
+            epsilon=epsilon
+        )
 
 
 # =============================================================================
@@ -1286,3 +1402,48 @@ def compute_curvature(
     """
     processor = GPUProcessor(use_gpu=use_gpu, show_progress=False)
     return processor.compute_curvature(points, normals, k=k)
+
+
+def compute_eigenvalues(
+    points: np.ndarray,
+    neighbors: np.ndarray,
+    use_gpu: bool = True,
+    return_eigenvectors: bool = False
+) -> np.ndarray:
+    """
+    Convenience function for computing eigenvalues.
+    
+    Args:
+        points: Point cloud (N, 3)
+        neighbors: Neighbor indices (N, k)
+        use_gpu: Enable GPU acceleration
+        return_eigenvectors: Return eigenvectors as well
+    
+    Returns:
+        eigenvalues: (N, 3) sorted descending
+        eigenvectors: (N, 3, 3) if return_eigenvectors=True
+    """
+    processor = GPUProcessor(use_gpu=use_gpu, show_progress=False)
+    return processor.compute_eigenvalues(points, neighbors, return_eigenvectors)
+
+
+def compute_eigenvalue_features(
+    points: np.ndarray,
+    neighbors: np.ndarray,
+    use_gpu: bool = True,
+    epsilon: Optional[float] = None
+) -> Dict[str, np.ndarray]:
+    """
+    Convenience function for computing eigenvalue-based features.
+    
+    Args:
+        points: Point cloud (N, 3)
+        neighbors: Neighbor indices (N, k)
+        use_gpu: Enable GPU acceleration
+        epsilon: Numerical stability constant
+    
+    Returns:
+        features: Dictionary of eigenvalue-based features
+    """
+    processor = GPUProcessor(use_gpu=use_gpu, show_progress=False)
+    return processor.compute_eigenvalue_features(points, neighbors, epsilon=epsilon)

@@ -436,8 +436,8 @@ class GPUCoreBridge:
     def compute_density_features_gpu(
         self,
         points: np.ndarray,
-        neighbors: np.ndarray,
-        eigenvalues: Optional[np.ndarray] = None
+        k_neighbors: int = 20,
+        search_radius: Optional[float] = None
     ) -> Dict[str, np.ndarray]:
         """
         Compute density features using GPU-Core bridge.
@@ -446,10 +446,10 @@ class GPUCoreBridge:
         ----------
         points : np.ndarray
             Point cloud of shape (N, 3)
-        neighbors : np.ndarray
-            Neighbor indices of shape (N, k)
-        eigenvalues : np.ndarray, optional
-            Pre-computed eigenvalues (if None, will compute on GPU)
+        k_neighbors : int, optional
+            Number of nearest neighbors (default: 20)
+        search_radius : float, optional
+            Fixed radius for density computation (default: None)
             
         Returns
         -------
@@ -459,17 +459,17 @@ class GPUCoreBridge:
         # Use canonical core implementation
         features = compute_density_features(
             points=points,
-            neighbors=neighbors,
-            eigenvalues=eigenvalues
+            k_neighbors=k_neighbors,
+            search_radius=search_radius
         )
         return features
     
     def compute_architectural_features_gpu(
         self,
         points: np.ndarray,
-        neighbors: np.ndarray,
-        normals: Optional[np.ndarray] = None,
-        eigenvalues: Optional[np.ndarray] = None
+        normals: np.ndarray,
+        eigenvalues: np.ndarray,
+        epsilon: float = 1e-10
     ) -> Dict[str, np.ndarray]:
         """
         Compute architectural features using GPU-Core bridge.
@@ -478,28 +478,24 @@ class GPUCoreBridge:
         ----------
         points : np.ndarray
             Point cloud of shape (N, 3)
-        neighbors : np.ndarray
-            Neighbor indices of shape (N, k)
-        normals : np.ndarray, optional
-            Pre-computed normals of shape (N, 3)
-        eigenvalues : np.ndarray, optional
-            Pre-computed eigenvalues of shape (N, 3)
+        normals : np.ndarray
+            Normal vectors of shape (N, 3)
+        eigenvalues : np.ndarray
+            Eigenvalues of shape (N, 3)
+        epsilon : float, optional
+            Numerical stability constant (default: 1e-10)
             
         Returns
         -------
         features : dict
             Dictionary of architectural features from core module
         """
-        # Compute eigenvalues on GPU if not provided
-        if eigenvalues is None:
-            eigenvalues = self.compute_eigenvalues_gpu(points, neighbors)
-        
         # Use canonical core implementation
         features = compute_architectural_features(
-            eigenvalues=eigenvalues,
-            normals=normals,
             points=points,
-            neighbors=neighbors
+            normals=normals,
+            eigenvalues=eigenvalues,
+            epsilon=epsilon
         )
         return features
 
