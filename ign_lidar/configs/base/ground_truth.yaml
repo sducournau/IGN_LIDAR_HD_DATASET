@@ -1,0 +1,230 @@
+# ============================================================================
+# V5 Base Configuration: Ground Truth Integration
+# ============================================================================
+# Controls how external ground truth data (BD TOPO, cadastre, etc.) is
+# fetched, cached, and integrated into the classification pipeline.
+#
+# This configuration is used for:
+# - Fetching reference data from IGN services (BD TOPO, cadastre, etc.)
+# - Caching downloaded data for reuse
+# - Configuring classification priority and integration strategy
+# - Managing tile-level ground truth processing
+#
+# Version: 5.1.0
+# Date: October 19, 2025
+# ============================================================================
+
+ground_truth:
+  # ──────────────────────────────────────────────────────────────────────
+  # ENABLE GROUND TRUTH CLASSIFICATION
+  # ──────────────────────────────────────────────────────────────────────
+  enabled: true # Enable ground truth classification (requires data_sources)
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PROCESSING METHOD
+  # ──────────────────────────────────────────────────────────────────────
+  # Auto-select optimal method based on available hardware
+  # Options: auto, gpu_chunked, gpu, strtree, vectorized
+  # - auto: Intelligent selection (gpu_chunked for GPU, strtree for CPU)
+  # - gpu_chunked: GPU with memory-efficient chunking (recommended)
+  # - gpu: Direct GPU (fastest but memory intensive)
+  # - strtree: CPU with spatial index (efficient for large datasets)
+  # - vectorized: CPU vectorized (baseline)
+  method: "auto"
+
+  # Chunk size for GPU/chunked processing (points per chunk)
+  chunk_size: 5_000_000 # 5M points per chunk
+
+  # ──────────────────────────────────────────────────────────────────────
+  # CACHING CONFIGURATION
+  # ──────────────────────────────────────────────────────────────────────
+  # Cache directory for downloaded ground truth data
+  # - null: Auto-set to {input_dir}/cache/ground_truth (recommended)
+  # - path: Custom cache directory (shared across multiple runs)
+  cache_dir: null # null = auto-set to {input_dir}/cache/ground_truth
+
+  # Cache time-to-live (days)
+  # How long cached data remains valid before re-fetching
+  cache_ttl_days: 30 # 30 days
+
+  # Enable compression for cached files (reduces disk usage)
+  cache_compression: true
+
+  # Use global cache instead of input_dir cache
+  # If true, uses config.cache_dir instead of input_dir/cache
+  use_global_cache: false
+
+  # ──────────────────────────────────────────────────────────────────────
+  # CLASSIFICATION INTEGRATION
+  # ──────────────────────────────────────────────────────────────────────
+  # Pre-classify points using ground truth before geometric analysis
+  # Recommended: true (faster, more accurate)
+  preclassify: true
+
+  # Update classification field in input tiles
+  # Warning: Modifies original files!
+  update_classification: false # Keep original tiles unchanged
+
+  # Save updated tiles to output directory
+  save_updated_tiles: false
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PRIORITY-BASED INTEGRATION
+  # ──────────────────────────────────────────────────────────────────────
+  # When multiple sources provide conflicting classifications,
+  # use priority order to resolve conflicts
+  integration:
+    method: "priority_based" # Options: priority_based, confidence_based
+
+    # Priority order (1 = highest priority)
+    priority:
+      bd_topo: 1 # BD TOPO has highest priority
+      cadastre: 2 # Cadastre (building footprints)
+      bd_foret: 3 # BD Forêt (forest types)
+      rpg: 4 # RPG (agricultural parcels)
+      orthophoto: 5 # Spectral features (NDVI)
+      geometric_rules: 6 # Geometric rules (fallback)
+
+    # Confidence threshold for classification (0.0-1.0)
+    # Only classify if confidence >= threshold
+    confidence_threshold: 0.7
+
+  # ──────────────────────────────────────────────────────────────────────
+  # POST-PROCESSING
+  # ──────────────────────────────────────────────────────────────────────
+  post_processing:
+    # Enable post-processing refinement
+    enabled: true
+
+    # Apply morphological filters (erosion/dilation)
+    apply_morphological_filters: false
+
+    # Apply spatial smoothing
+    apply_smoothing: true
+    smoothing_radius: 1.0 # meters
+    smoothing_iterations: 2
+
+    # Fill small unclassified gaps
+    fill_gaps: true
+    max_gap_size: 2.0 # meters
+
+  # ──────────────────────────────────────────────────────────────────────
+  # BD TOPO-SPECIFIC SETTINGS
+  # ──────────────────────────────────────────────────────────────────────
+  bd_topo:
+    # Enable BD TOPO ground truth (auto-enabled if data_sources.bd_topo.enabled)
+    enabled: true
+
+    # Classification mapping (BD TOPO → ASPRS classes)
+    classification_mapping:
+      buildings: 6 # ASPRS Building
+      roads: 11 # ASPRS Road surface
+      railways: 10 # ASPRS Rail
+      water: 9 # ASPRS Water
+      low_vegetation: 3 # ASPRS Low vegetation (<0.5m)
+      medium_vegetation: 4 # ASPRS Medium vegetation (0.5-2m)
+      high_vegetation: 5 # ASPRS High vegetation (>2m)
+      bridges: 17 # ASPRS Bridge deck
+      parking: 11 # ASPRS Road surface (parking)
+      cemeteries: 2 # ASPRS Ground
+      sports: 11 # ASPRS Road surface (sports facilities)
+      power_lines: 14 # ASPRS Wire - Conductor (Phase)
+
+    # Buffer distances for linear features (meters)
+    road_buffer: 2.5 # Buffer around road centerlines
+    railway_buffer: 2.0 # Buffer around railway centerlines
+    power_line_buffer: 5.0 # Buffer around power lines
+
+    # Buffer distances for polygon features (meters)
+    building_buffer: 0.3 # Small buffer for building precision
+    water_buffer: 1.0 # Buffer for water body edges
+
+    # Fallback widths when attribute not available (meters)
+    road_width_fallback: 4.0 # Default road width
+    railway_width_fallback: 3.0 # Default railway width
+
+    # Minimum widths (meters)
+    road_min_width: 2.0
+    road_max_width: 50.0
+
+  # ──────────────────────────────────────────────────────────────────────
+  # CADASTRE-SPECIFIC SETTINGS
+  # ──────────────────────────────────────────────────────────────────────
+  cadastre:
+    # Enable cadastre integration (auto-enabled if data_sources.cadastre_enabled)
+    enabled: false
+
+    # Minimum parcel size to consider (m²)
+    min_parcel_area: 10.0
+
+    # Minimum points per parcel
+    min_parcel_points: 20
+
+    # Group points by parcel ID
+    group_by_parcel: true
+
+    # Export parcel statistics
+    export_parcel_stats: false
+
+  # ──────────────────────────────────────────────────────────────────────
+  # QUALITY CONTROL
+  # ──────────────────────────────────────────────────────────────────────
+  quality_control:
+    # Enable quality validation
+    enabled: true
+
+    # Validate geometries before classification
+    validate_geometries: true
+
+    # Check classification coverage
+    check_coverage: true
+
+    # Minimum expected coverage ratio (0.0-1.0)
+    # Warning if ground truth covers < X% of points
+    min_coverage_ratio: 0.2 # 20% minimum coverage
+
+    # Log warnings for low coverage
+    warn_low_coverage: true
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PERFORMANCE SETTINGS
+  # ──────────────────────────────────────────────────────────────────────
+  # Use GPU for point-in-polygon tests (if available)
+  use_gpu: true
+
+  # Parallel fetching of multiple layers
+  parallel_fetch: true
+  max_parallel_requests: 4
+
+  # Simplify complex geometries (trade accuracy for speed)
+  simplify_geometries: false
+  simplify_tolerance: 0.5 # meters
+
+  # Show progress bars during ground truth processing
+  show_progress: true
+# ============================================================================
+# USAGE NOTES
+# ============================================================================
+# This configuration is automatically merged with:
+# - base/data_sources.yaml (defines what data to fetch)
+# - base/processor.yaml (defines processing pipeline)
+#
+# To enable ground truth classification:
+# 1. Set data_sources.bd_topo.enabled: true
+# 2. Set ground_truth.enabled: true
+# 3. Configure cache_dir (or use auto-detection)
+# 4. Configure integration priorities if needed
+#
+# Example:
+#   data_sources:
+#     bd_topo:
+#       enabled: true
+#       features:
+#         buildings: true
+#         roads: true
+#
+#   ground_truth:
+#     enabled: true
+#     cache_dir: null  # Auto-detect
+#     method: "auto"   # GPU if available
+# ============================================================================

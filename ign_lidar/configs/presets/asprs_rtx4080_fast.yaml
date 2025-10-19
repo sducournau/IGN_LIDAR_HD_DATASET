@@ -44,7 +44,6 @@ processor:
   # Classification scheme
   lod_level: "ASPRS"
   processing_mode: "both"
-
   # GPU settings
   use_gpu: true
   gpu_batch_size: 30_000_000
@@ -114,9 +113,28 @@ features:
 
   # Spectral features
   use_rgb: true
-  use_nir: false
-  use_infrared: false
+  use_nir: true
+  use_infrared: true
   compute_ndvi: true
+
+# Ground Truth: RTX 4080 FAST optimized
+ground_truth:
+  enabled: true
+  method: "gpu_chunked" # GPU with chunking for speed
+  chunk_size: 30_000_000 # 30M points (larger chunks for speed)
+  cache_dir: null # Auto-set
+  cache_ttl_days: 30
+  preclassify: true
+  use_gpu: true
+
+  bd_topo:
+    enabled: true
+    road_buffer: 2.5
+    building_buffer: 0.3
+    road_width_fallback: 4.0
+
+  parallel_fetch: true
+  max_parallel_requests: 8
 
 # Data sources
 data_sources:

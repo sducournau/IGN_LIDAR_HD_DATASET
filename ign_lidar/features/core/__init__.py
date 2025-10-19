@@ -127,6 +127,14 @@ from .unified import (
     ComputeMode,
 )
 
+# GPU-Core Bridge (Phase 1: GPU refactoring)
+from .gpu_bridge import (
+    GPUCoreBridge,
+    compute_eigenvalues_gpu,
+    compute_eigenvalue_features_gpu,
+    CUPY_AVAILABLE,
+)
+
 __all__ = [
     # Optimized feature computation (main API)
     'compute_normals',
@@ -273,6 +281,12 @@ __all__ = [
     # Unified API (replaces all compute_all_features variants)
     'compute_all_features',
     'ComputeMode',
+    
+    # GPU-Core Bridge (Phase 1 refactoring)
+    'GPUCoreBridge',
+    'compute_eigenvalues_gpu',
+    'compute_eigenvalue_features_gpu',
+    'CUPY_AVAILABLE',
 ]
 
 __version__ = '1.0.0'

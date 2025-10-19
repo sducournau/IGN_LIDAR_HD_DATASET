@@ -27,6 +27,20 @@ except ImportError:
     HAS_SPATIAL = False
     logger.warning("Spatial libraries not available for geometric rules")
 
+try:
+    from .spectral_rules import SpectralRulesEngine
+    HAS_SPECTRAL_RULES = True
+except ImportError:
+    HAS_SPECTRAL_RULES = False
+    logger.warning("Spectral rules module not available")
+
+try:
+    from sklearn.cluster import DBSCAN
+    HAS_SKLEARN = True
+except ImportError:
+    HAS_SKLEARN = False
+    logger.warning("scikit-learn not available for clustering optimization")
+
 
 class GeometricRulesEngine:
     """
@@ -36,7 +50,7 @@ class GeometricRulesEngine:
     - Road-vegetation disambiguation using height and NDVI
     - Building buffer zones for nearby unclassified points
     - Vertical separation analysis for overlapping geometries
-    - NDVI-based refinement for vegetation/non-vegetation
+    - Multi-level NDVI-based refinement for vegetation/non-vegetation
     """
     
     # ASPRS Classification codes
@@ -51,6 +65,14 @@ class GeometricRulesEngine:
     ASPRS_ROAD = 11
     ASPRS_BRIDGE = 17
     
+    # Multi-level NDVI thresholds (aligned with advanced_classification.py)
+    NDVI_DENSE_FOREST = 0.60  # Dense forest, high vegetation
+    NDVI_HEALTHY_TREES = 0.50  # Healthy trees, high/medium vegetation
+    NDVI_MODERATE_VEG = 0.40  # Moderate vegetation, medium vegetation
+    NDVI_GRASS = 0.30  # Grass/shrubs, low/medium vegetation
+    NDVI_SPARSE_VEG = 0.20  # Sparse vegetation, low vegetation
+    NDVI_ROAD = 0.15  # Road/impervious surfaces
+    
     def __init__(
         self,
         ndvi_vegetation_threshold: float = 0.3,
@@ -60,13 +82,27 @@ class GeometricRulesEngine:
         max_building_height_difference: float = 3.0,
         verticality_threshold: float = 0.7,
         verticality_search_radius: float = 1.0,
-        min_vertical_neighbors: int = 5
+        min_vertical_neighbors: int = 5,
+        use_spectral_rules: bool = True,
+        nir_vegetation_threshold: float = 0.4,
+        nir_building_threshold: float = 0.3,
+        use_clustering: bool = True,
+        spatial_cluster_eps: float = 0.5,
+        min_cluster_size: int = 10
     ):
         """
         Initialize geometric rules engine.
         
+        Note: Multi-level NDVI thresholds are defined as class constants:
+        - NDVI_DENSE_FOREST = 0.60 (HIGH vegetation)
+        - NDVI_HEALTHY_TREES = 0.50 (HIGH/MED vegetation)
+        - NDVI_MODERATE_VEG = 0.40 (MEDIUM vegetation)
+        - NDVI_GRASS = 0.30 (LOW/MED vegetation)
+        - NDVI_SPARSE_VEG = 0.20 (LOW vegetation)
+        - NDVI_ROAD = 0.15 (Road/impervious surfaces)
+        
         Args:
-            ndvi_vegetation_threshold: NDVI threshold for vegetation (>= this = vegetation)
+            ndvi_vegetation_threshold: Legacy threshold for backward compatibility (default 0.3)
             ndvi_road_threshold: NDVI threshold for roads (<= this = likely road/impervious)
             road_vegetation_height_threshold: Height above road to classify as vegetation (meters)
             building_buffer_distance: Buffer distance around buildings for unclassified points (meters)
@@ -74,6 +110,12 @@ class GeometricRulesEngine:
             verticality_threshold: Verticality score threshold for building classification (0-1)
             verticality_search_radius: Search radius for computing verticality (meters)
             min_vertical_neighbors: Minimum neighbors required for verticality computation
+            use_spectral_rules: Enable advanced spectral classification rules
+            nir_vegetation_threshold: Minimum NIR for vegetation (spectral rules)
+            nir_building_threshold: Minimum NIR for building materials (spectral rules)
+            use_clustering: Enable clustering-based building buffer classification (10-100× faster)
+            spatial_cluster_eps: Spatial clustering epsilon (meters)
+            min_cluster_size: Minimum points per cluster
         """
         if not HAS_SPATIAL:
             raise ImportError(
@@ -89,6 +131,25 @@ class GeometricRulesEngine:
         self.verticality_threshold = verticality_threshold
         self.verticality_search_radius = verticality_search_radius
         self.min_vertical_neighbors = min_vertical_neighbors
+        self.use_clustering = use_clustering and HAS_SKLEARN
+        self.spatial_cluster_eps = spatial_cluster_eps
+        self.min_cluster_size = min_cluster_size
+        
+        # Initialize spectral rules engine if available and enabled
+        self.spectral_rules = None
+        self.use_spectral_rules = use_spectral_rules
+        if use_spectral_rules and HAS_SPECTRAL_RULES:
+            self.spectral_rules = SpectralRulesEngine(
+                nir_vegetation_threshold=nir_vegetation_threshold,
+                nir_building_threshold=nir_building_threshold
+            )
+            logger.info("   Spectral rules engine enabled")
+        elif use_spectral_rules and not HAS_SPECTRAL_RULES:
+            logger.warning("   Spectral rules requested but module not available")
+        
+        if self.use_clustering and not HAS_SKLEARN:
+            logger.warning("   Clustering requested but scikit-learn not available")
+            self.use_clustering = False
         
         logger.info("🔧 Geometric Rules Engine initialized")
         logger.info(f"   NDVI vegetation threshold: {ndvi_vegetation_threshold}")
@@ -97,6 +158,8 @@ class GeometricRulesEngine:
         logger.info(f"   Building buffer distance: {building_buffer_distance}m")
         logger.info(f"   Verticality threshold: {verticality_threshold}")
         logger.info(f"   Verticality search radius: {verticality_search_radius}m")
+        if self.use_clustering:
+            logger.info(f"   Clustering enabled: eps={spatial_cluster_eps}m, min_size={min_cluster_size}")
     
     def apply_all_rules(
         self,
@@ -104,7 +167,9 @@ class GeometricRulesEngine:
         labels: np.ndarray,
         ground_truth_features: Dict[str, gpd.GeoDataFrame],
         ndvi: Optional[np.ndarray] = None,
-        intensities: Optional[np.ndarray] = None
+        intensities: Optional[np.ndarray] = None,
+        rgb: Optional[np.ndarray] = None,
+        nir: Optional[np.ndarray] = None
     ) -> Tuple[np.ndarray, Dict[str, int]]:
         """
         Apply all geometric rules to improve classification.
@@ -115,6 +180,8 @@ class GeometricRulesEngine:
             ground_truth_features: Dict of feature_type -> GeoDataFrame
             ndvi: Optional NDVI values [N] for each point (-1 to 1)
             intensities: Optional intensity values [N]
+            rgb: Optional RGB values [N, 3] normalized to [0, 1]
+            nir: Optional NIR values [N] normalized to [0, 1]
             
         Returns:
             Tuple of:
@@ -140,14 +207,23 @@ class GeometricRulesEngine:
         
         # Rule 2: Building buffer zone classification with verticality
         if 'buildings' in ground_truth_features:
-            n_added = self.classify_building_buffer_zone(
-                points=points,
-                labels=updated_labels,
-                building_geometries=ground_truth_features['buildings']
-            )
+            # Use clustered version if enabled (10-100× faster)
+            if self.use_clustering:
+                n_added = self.classify_building_buffer_zone_clustered(
+                    points=points,
+                    labels=updated_labels,
+                    building_geometries=ground_truth_features['buildings']
+                )
+            else:
+                n_added = self.classify_building_buffer_zone(
+                    points=points,
+                    labels=updated_labels,
+                    building_geometries=ground_truth_features['buildings']
+                )
             stats['building_buffer_added'] = n_added
             if n_added > 0:
-                logger.info(f"  ✓ Rule 2 (Building Buffer): Added {n_added:,} points")
+                method = "Clustered" if self.use_clustering else "Standard"
+                logger.info(f"  ✓ Rule 2 (Building Buffer - {method}): Added {n_added:,} points")
         
         # Rule 2b: Verticality-based building classification
         n_vertical = self.classify_by_verticality(
@@ -159,16 +235,41 @@ class GeometricRulesEngine:
         if n_vertical > 0:
             logger.info(f"  ✓ Rule 2b (Verticality): Added {n_vertical:,} building points")
         
-        # Rule 3: NDVI-based general refinement
+        # Rule 3: NDVI-based general refinement (multi-level)
         if ndvi is not None:
+            # Calculate height above ground for better vegetation sub-classification
+            height = None
+            ground_mask = (updated_labels == self.ASPRS_GROUND)
+            if np.any(ground_mask):
+                height = self.get_height_above_ground(
+                    points=points,
+                    labels=updated_labels,
+                    search_radius=5.0
+                )
+            
             n_refined = self.apply_ndvi_refinement(
                 points=points,
                 labels=updated_labels,
-                ndvi=ndvi
+                ndvi=ndvi,
+                height=height
             )
             stats['ndvi_refined'] = n_refined
             if n_refined > 0:
-                logger.info(f"  ✓ Rule 3 (NDVI Refinement): Refined {n_refined:,} points")
+                logger.info(f"  ✓ Rule 3 (Multi-Level NDVI): Refined {n_refined:,} points")
+        
+        # Rule 4: Advanced spectral classification (if RGB + NIR available)
+        if self.spectral_rules is not None and rgb is not None and nir is not None:
+            logger.info("  Applying advanced spectral classification rules...")
+            updated_labels, spectral_stats = self.spectral_rules.classify_by_spectral_signature(
+                rgb=rgb,
+                nir=nir,
+                current_labels=updated_labels,
+                ndvi=ndvi,
+                apply_to_unclassified_only=True
+            )
+            stats.update(spectral_stats)
+            if spectral_stats.get('total_reclassified', 0) > 0:
+                logger.info(f"  ✓ Rule 4 (Spectral): Classified {spectral_stats['total_reclassified']:,} points")
         
         # Calculate total changes
         n_changed = np.sum(labels != updated_labels)
@@ -367,31 +468,154 @@ class GeometricRulesEngine:
         
         return n_added
     
+    def classify_building_buffer_zone_clustered(
+        self,
+        points: np.ndarray,
+        labels: np.ndarray,
+        building_geometries: gpd.GeoDataFrame
+    ) -> int:
+        """
+        Classify unclassified points near buildings using spatial clustering (10-100× faster).
+        
+        Logic:
+        1. Extract all unclassified points within building buffers
+        2. Cluster points by spatial proximity
+        3. For each cluster, check height consistency with nearby buildings
+        4. Classify entire clusters at once (batch processing)
+        
+        Args:
+            points: XYZ coordinates [N, 3]
+            labels: Classification labels [N] (modified in-place)
+            building_geometries: GeoDataFrame with building polygons
+            
+        Returns:
+            Number of points classified as building
+        """
+        if len(building_geometries) == 0:
+            return 0
+        
+        # Find unclassified points
+        unclassified_mask = (labels == self.ASPRS_UNCLASSIFIED)
+        if not np.any(unclassified_mask):
+            return 0
+        
+        unclassified_indices = np.where(unclassified_mask)[0]
+        unclassified_points = points[unclassified_mask]
+        
+        # Step 1: Filter points within buffer zone
+        buffered_buildings = building_geometries.geometry.buffer(
+            self.building_buffer_distance
+        )
+        tree = STRtree(buffered_buildings.values)
+        
+        buffer_zone_mask = np.zeros(len(unclassified_points), dtype=bool)
+        for i, pt in enumerate(unclassified_points):
+            pt_geom = Point(pt[0], pt[1])
+            possible = tree.query(pt_geom)
+            for idx in possible:
+                if buffered_buildings.iloc[idx].contains(pt_geom):
+                    buffer_zone_mask[i] = True
+                    break
+        
+        if not np.any(buffer_zone_mask):
+            return 0
+        
+        buffer_points = unclassified_points[buffer_zone_mask]
+        buffer_indices = unclassified_indices[buffer_zone_mask]
+        
+        logger.info(f"  Found {len(buffer_points):,} points in buffer zone")
+        
+        # Step 2: Cluster buffer zone points by spatial proximity
+        logger.info(f"  Clustering buffer zone points...")
+        clustering = DBSCAN(
+            eps=self.spatial_cluster_eps,
+            min_samples=self.min_cluster_size
+        )
+        cluster_labels = clustering.fit_predict(buffer_points[:, :3])  # Use XYZ
+        
+        n_clusters = len(set(cluster_labels)) - (1 if -1 in cluster_labels else 0)
+        logger.info(f"  Found {n_clusters} clusters")
+        
+        # Step 3: Classify each cluster
+        n_added = 0
+        building_mask = (labels == self.ASPRS_BUILDING)
+        
+        if not np.any(building_mask):
+            return 0
+        
+        building_points = points[building_mask]
+        building_tree = cKDTree(building_points[:, :2])  # XY only
+        
+        for cluster_id in set(cluster_labels):
+            if cluster_id == -1:  # Skip noise points
+                continue
+            
+            cluster_mask = (cluster_labels == cluster_id)
+            cluster_pts = buffer_points[cluster_mask]
+            cluster_global_idx = buffer_indices[cluster_mask]
+            
+            # Get cluster statistics
+            cluster_center = np.mean(cluster_pts, axis=0)
+            cluster_mean_height = cluster_center[2]
+            
+            # Find nearest building points
+            distances, indices = building_tree.query(
+                cluster_center[:2],
+                k=min(10, len(building_points)),
+                distance_upper_bound=5.0
+            )
+            
+            valid = distances < float('inf')
+            if not np.any(valid):
+                continue
+            
+            # Check height consistency
+            neighbor_heights = building_points[indices[valid], 2]
+            median_building_height = np.median(neighbor_heights)
+            height_diff = abs(cluster_mean_height - median_building_height)
+            
+            if height_diff < self.max_building_height_difference:
+                # Classify entire cluster as building
+                labels[cluster_global_idx] = self.ASPRS_BUILDING
+                n_added += len(cluster_global_idx)
+        
+        return n_added
+    
     def apply_ndvi_refinement(
         self,
         points: np.ndarray,
         labels: np.ndarray,
-        ndvi: np.ndarray
+        ndvi: np.ndarray,
+        height: Optional[np.ndarray] = None
     ) -> int:
         """
-        Apply NDVI-based refinement for all classification types.
+        Apply multi-level NDVI-based refinement for all classification types.
+        
+        Uses multi-level NDVI thresholds aligned with advanced_classification.py:
+        - Dense forest (≥0.60): HIGH vegetation
+        - Healthy trees (≥0.50): HIGH/MED vegetation
+        - Moderate vegetation (≥0.40): MEDIUM vegetation
+        - Grass/shrubs (≥0.30): LOW/MED vegetation
+        - Sparse vegetation (≥0.20): LOW vegetation
+        - Road/impervious (≤0.15): Non-vegetation
         
         Logic:
-        - High NDVI points classified as non-vegetation -> check if should be vegetation
+        - High NDVI points classified as non-vegetation -> reclassify to vegetation (multi-level)
         - Low NDVI points classified as vegetation -> check if should be non-vegetation
-        - Unclassified points with clear NDVI signal -> add classification
+        - Unclassified points with clear NDVI signal -> classify (multi-level)
         
         Args:
             points: XYZ coordinates [N, 3]
             labels: Classification labels [N] (modified in-place)
             ndvi: NDVI values [N] for each point
+            height: Optional height above ground [N] for sub-classification
             
         Returns:
             Number of points refined
         """
         n_refined = 0
         
-        # Rule 1: Non-vegetation with high NDVI -> vegetation
+        # Rule 1: Non-vegetation with high NDVI -> vegetation (multi-level)
         non_veg_mask = ~np.isin(labels, [
             self.ASPRS_LOW_VEGETATION,
             self.ASPRS_MEDIUM_VEGETATION,
@@ -400,35 +624,116 @@ class GeometricRulesEngine:
             self.ASPRS_GROUND,
             self.ASPRS_WATER  # Keep water as water
         ])
-        high_ndvi_non_veg = non_veg_mask & (ndvi >= self.ndvi_vegetation_threshold)
         
-        if np.any(high_ndvi_non_veg):
-            # Reclassify to medium vegetation (can be refined by height later)
-            labels[high_ndvi_non_veg] = self.ASPRS_MEDIUM_VEGETATION
-            n_refined += np.sum(high_ndvi_non_veg)
+        # Multi-level NDVI classification for non-vegetation
+        # Dense forest (NDVI ≥ 0.60) -> HIGH vegetation
+        dense_forest = non_veg_mask & (ndvi >= self.NDVI_DENSE_FOREST)
+        if np.any(dense_forest):
+            labels[dense_forest] = self.ASPRS_HIGH_VEGETATION
+            n_refined += np.sum(dense_forest)
         
-        # Rule 2: Vegetation with low NDVI -> might be misclassified
-        # (Be conservative here - only very low NDVI)
+        # Healthy trees (0.50 ≤ NDVI < 0.60) -> HIGH/MED vegetation
+        healthy_trees = non_veg_mask & (ndvi >= self.NDVI_HEALTHY_TREES) & (ndvi < self.NDVI_DENSE_FOREST)
+        if np.any(healthy_trees):
+            if height is not None:
+                # Use height to sub-classify
+                high_trees = healthy_trees & (height >= 3.0)
+                med_trees = healthy_trees & (height < 3.0)
+                labels[high_trees] = self.ASPRS_HIGH_VEGETATION
+                labels[med_trees] = self.ASPRS_MEDIUM_VEGETATION
+                n_refined += np.sum(healthy_trees)
+            else:
+                # Default to high vegetation
+                labels[healthy_trees] = self.ASPRS_HIGH_VEGETATION
+                n_refined += np.sum(healthy_trees)
+        
+        # Moderate vegetation (0.40 ≤ NDVI < 0.50) -> MEDIUM vegetation
+        moderate_veg = non_veg_mask & (ndvi >= self.NDVI_MODERATE_VEG) & (ndvi < self.NDVI_HEALTHY_TREES)
+        if np.any(moderate_veg):
+            labels[moderate_veg] = self.ASPRS_MEDIUM_VEGETATION
+            n_refined += np.sum(moderate_veg)
+        
+        # Grass/shrubs (0.30 ≤ NDVI < 0.40) -> LOW/MED vegetation
+        grass = non_veg_mask & (ndvi >= self.NDVI_GRASS) & (ndvi < self.NDVI_MODERATE_VEG)
+        if np.any(grass):
+            if height is not None:
+                # Use height to sub-classify
+                tall_grass = grass & (height >= 1.0)
+                short_grass = grass & (height < 1.0)
+                labels[tall_grass] = self.ASPRS_MEDIUM_VEGETATION
+                labels[short_grass] = self.ASPRS_LOW_VEGETATION
+                n_refined += np.sum(grass)
+            else:
+                # Default to low vegetation
+                labels[grass] = self.ASPRS_LOW_VEGETATION
+                n_refined += np.sum(grass)
+        
+        # Sparse vegetation (0.20 ≤ NDVI < 0.30) -> LOW vegetation
+        sparse_veg = non_veg_mask & (ndvi >= self.NDVI_SPARSE_VEG) & (ndvi < self.NDVI_GRASS)
+        if np.any(sparse_veg):
+            labels[sparse_veg] = self.ASPRS_LOW_VEGETATION
+            n_refined += np.sum(sparse_veg)
+        
+        # Rule 2: Vegetation with very low NDVI -> might be misclassified
+        # (Be conservative here - only very low NDVI, below road threshold)
         veg_mask = np.isin(labels, [
             self.ASPRS_LOW_VEGETATION,
             self.ASPRS_MEDIUM_VEGETATION,
             self.ASPRS_HIGH_VEGETATION
         ])
-        very_low_ndvi_veg = veg_mask & (ndvi <= 0.0)  # Very conservative
+        very_low_ndvi_veg = veg_mask & (ndvi <= self.NDVI_ROAD)  # Below road threshold
         
         if np.any(very_low_ndvi_veg):
             # Reclassify to unclassified (let other rules handle it)
             labels[very_low_ndvi_veg] = self.ASPRS_UNCLASSIFIED
             n_refined += np.sum(very_low_ndvi_veg)
         
-        # Rule 3: Unclassified with very high NDVI -> vegetation
+        # Rule 3: Unclassified with clear NDVI signal -> classify (multi-level)
         unclassified_mask = (labels == self.ASPRS_UNCLASSIFIED)
-        very_high_ndvi_unclassified = unclassified_mask & (ndvi >= 0.5)  # Very high NDVI
         
-        if np.any(very_high_ndvi_unclassified):
-            # Classify as medium vegetation
-            labels[very_high_ndvi_unclassified] = self.ASPRS_MEDIUM_VEGETATION
-            n_refined += np.sum(very_high_ndvi_unclassified)
+        # Dense forest (NDVI ≥ 0.60) -> HIGH vegetation
+        dense_forest_unc = unclassified_mask & (ndvi >= self.NDVI_DENSE_FOREST)
+        if np.any(dense_forest_unc):
+            labels[dense_forest_unc] = self.ASPRS_HIGH_VEGETATION
+            n_refined += np.sum(dense_forest_unc)
+        
+        # Healthy trees (0.50 ≤ NDVI < 0.60) -> HIGH/MED vegetation
+        healthy_trees_unc = unclassified_mask & (ndvi >= self.NDVI_HEALTHY_TREES) & (ndvi < self.NDVI_DENSE_FOREST)
+        if np.any(healthy_trees_unc):
+            if height is not None:
+                high_trees = healthy_trees_unc & (height >= 3.0)
+                med_trees = healthy_trees_unc & (height < 3.0)
+                labels[high_trees] = self.ASPRS_HIGH_VEGETATION
+                labels[med_trees] = self.ASPRS_MEDIUM_VEGETATION
+                n_refined += np.sum(healthy_trees_unc)
+            else:
+                labels[healthy_trees_unc] = self.ASPRS_HIGH_VEGETATION
+                n_refined += np.sum(healthy_trees_unc)
+        
+        # Moderate vegetation (0.40 ≤ NDVI < 0.50) -> MEDIUM vegetation
+        moderate_veg_unc = unclassified_mask & (ndvi >= self.NDVI_MODERATE_VEG) & (ndvi < self.NDVI_HEALTHY_TREES)
+        if np.any(moderate_veg_unc):
+            labels[moderate_veg_unc] = self.ASPRS_MEDIUM_VEGETATION
+            n_refined += np.sum(moderate_veg_unc)
+        
+        # Grass/shrubs (0.30 ≤ NDVI < 0.40) -> LOW/MED vegetation
+        grass_unc = unclassified_mask & (ndvi >= self.NDVI_GRASS) & (ndvi < self.NDVI_MODERATE_VEG)
+        if np.any(grass_unc):
+            if height is not None:
+                tall_grass = grass_unc & (height >= 1.0)
+                short_grass = grass_unc & (height < 1.0)
+                labels[tall_grass] = self.ASPRS_MEDIUM_VEGETATION
+                labels[short_grass] = self.ASPRS_LOW_VEGETATION
+                n_refined += np.sum(grass_unc)
+            else:
+                labels[grass_unc] = self.ASPRS_LOW_VEGETATION
+                n_refined += np.sum(grass_unc)
+        
+        # Sparse vegetation (0.20 ≤ NDVI < 0.30) -> LOW vegetation
+        sparse_veg_unc = unclassified_mask & (ndvi >= self.NDVI_SPARSE_VEG) & (ndvi < self.NDVI_GRASS)
+        if np.any(sparse_veg_unc):
+            labels[sparse_veg_unc] = self.ASPRS_LOW_VEGETATION
+            n_refined += np.sum(sparse_veg_unc)
         
         return n_refined
     

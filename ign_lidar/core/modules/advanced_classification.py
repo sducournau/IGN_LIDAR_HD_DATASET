@@ -2,6 +2,7 @@
 Advanced Classification Module with Geometric Features, NDVI, and Ground Truth
 
 This module provides enhanced classification using:
+- Parcel-based clustering (optional Stage 0)
 - Geometric features (height, normals, planarity, curvature)
 - NDVI for vegetation detection
 - IGN BD TOPO® ground truth with intelligent road buffers
@@ -11,6 +12,7 @@ This module provides enhanced classification using:
 Author: Classification Enhancement
 Date: October 15, 2025
 Updated: October 16, 2025 - Integrated unified thresholds (Issue #8) and updated height filters (Issue #1, #4)
+Updated: October 19, 2025 - Added parcel-based classification (Stage 0)
 """
 
 import logging
@@ -34,6 +36,21 @@ from .transport_detection import (
     TransportDetectionConfig,
     detect_transport_multi_mode
 )
+
+# Import feature validation module
+from .feature_validator import FeatureValidator
+
+# Import parcel classifier (optional)
+try:
+    from .parcel_classifier import (
+        ParcelClassifier,
+        ParcelClassificationConfig
+    )
+    HAS_PARCEL_CLASSIFIER = True
+except ImportError:
+    HAS_PARCEL_CLASSIFIER = False
+    ParcelClassifier = None
+    ParcelClassificationConfig = None
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +107,9 @@ class AdvancedClassifier:
         use_ground_truth: bool = True,
         use_ndvi: bool = True,
         use_geometric: bool = True,
+        use_feature_validation: bool = True,
+        use_parcel_classification: bool = False,
+        parcel_classification_config: Optional[Dict] = None,
         road_buffer_tolerance: float = 0.5,
         ndvi_veg_threshold: float = 0.35,
         ndvi_building_threshold: float = 0.15,
@@ -98,7 +118,8 @@ class AdvancedClassifier:
         planarity_road_threshold: float = 0.8,
         planarity_building_threshold: float = 0.7,
         building_detection_mode: str = 'asprs',
-        transport_detection_mode: str = 'asprs_standard'
+        transport_detection_mode: str = 'asprs_standard',
+        feature_validation_config: Optional[Dict] = None
     ):
         """
         Initialize advanced classifier.
@@ -107,6 +128,9 @@ class AdvancedClassifier:
             use_ground_truth: Use IGN BD TOPO® ground truth
             use_ndvi: Use NDVI for vegetation refinement
             use_geometric: Use geometric features
+            use_feature_validation: Use feature-based ground truth validation
+            use_parcel_classification: Use parcel-based classification (Stage 0)
+            parcel_classification_config: Configuration for parcel classifier
             road_buffer_tolerance: Additional buffer around roads/rails (meters)
             ndvi_veg_threshold: NDVI threshold for vegetation (>= value)
             ndvi_building_threshold: NDVI threshold for non-vegetation (<= value)
@@ -116,10 +140,13 @@ class AdvancedClassifier:
             planarity_building_threshold: Planarity for building surfaces
             building_detection_mode: Mode for building detection ('asprs', 'lod2', or 'lod3')
             transport_detection_mode: Mode for transport detection ('asprs_standard', 'asprs_extended', or 'lod2')
+            feature_validation_config: Configuration for feature validator
         """
         self.use_ground_truth = use_ground_truth
         self.use_ndvi = use_ndvi
         self.use_geometric = use_geometric
+        self.use_feature_validation = use_feature_validation
+        self.use_parcel_classification = use_parcel_classification
         self.building_detection_mode = building_detection_mode.lower()
         self.transport_detection_mode = transport_detection_mode.lower()
         
@@ -131,6 +158,27 @@ class AdvancedClassifier:
         self.height_medium_veg = height_medium_veg_threshold
         self.planarity_road = planarity_road_threshold
         self.planarity_building = planarity_building_threshold
+        
+        # Initialize parcel classifier if enabled
+        self.parcel_classifier = None
+        if self.use_parcel_classification:
+            if not HAS_PARCEL_CLASSIFIER:
+                logger.warning("  Parcel classification requested but module not available")
+                self.use_parcel_classification = False
+            else:
+                # Create config from dict if provided
+                if parcel_classification_config:
+                    config = ParcelClassificationConfig(**parcel_classification_config)
+                else:
+                    config = ParcelClassificationConfig()
+                self.parcel_classifier = ParcelClassifier(config=config)
+                logger.info("  Parcel classification: ENABLED")
+        
+        # Initialize feature validator if enabled
+        self.feature_validator = None
+        if self.use_feature_validation:
+            self.feature_validator = FeatureValidator(feature_validation_config)
+            logger.info("  Feature validation: ENABLED")
         
         logger.info("🎯 Advanced Classifier initialized")
         logger.info(f"  Ground truth: {use_ground_truth}")
@@ -148,11 +196,19 @@ class AdvancedClassifier:
         normals: Optional[np.ndarray] = None,
         planarity: Optional[np.ndarray] = None,
         curvature: Optional[np.ndarray] = None,
+        verticality: Optional[np.ndarray] = None,
         intensity: Optional[np.ndarray] = None,
         return_number: Optional[np.ndarray] = None
     ) -> np.ndarray:
         """
         Classify points using all available data sources.
+        
+        Classification Stages:
+        0. (Optional) Parcel-based clustering for spatial coherence
+        1. Geometric feature classification
+        2. NDVI-based vegetation refinement
+        3. Ground truth classification (highest priority)
+        4. Post-processing for unclassified points
         
         Args:
             points: Point coordinates [N, 3] (X, Y, Z)
@@ -162,6 +218,7 @@ class AdvancedClassifier:
             normals: Surface normals [N, 3]
             planarity: Planarity values [N] in range [0, 1]
             curvature: Surface curvature [N]
+            verticality: Verticality values [N] in range [0, 1]
             intensity: LiDAR intensity [N]
             return_number: Return number [N]
             
@@ -177,6 +234,54 @@ class AdvancedClassifier:
         # Track confidence scores for each classification
         confidence = np.zeros(n_points, dtype=np.float32)
         
+        # Stage 0: Parcel-based classification (optional, experimental)
+        if self.use_parcel_classification and self.parcel_classifier is not None:
+            cadastre = ground_truth_features.get('cadastre') if ground_truth_features else None
+            if cadastre is not None and len(cadastre) > 0:
+                logger.info("  Stage 0: Parcel-based classification (spatial coherence)")
+                try:
+                    # Prepare features dictionary for parcel classifier
+                    parcel_features = {}
+                    if ndvi is not None:
+                        parcel_features['ndvi'] = ndvi
+                    if height is not None:
+                        parcel_features['height'] = height
+                    if planarity is not None:
+                        parcel_features['planarity'] = planarity
+                    if verticality is not None:
+                        parcel_features['verticality'] = verticality
+                    if curvature is not None:
+                        parcel_features['curvature'] = curvature
+                    if normals is not None:
+                        parcel_features['normals'] = normals
+                    
+                    # Get BD Forêt and RPG if available
+                    bd_foret = ground_truth_features.get('forest')
+                    rpg = ground_truth_features.get('rpg')
+                    
+                    # Run parcel classification
+                    parcel_labels = self.parcel_classifier.classify_by_parcels(
+                        points=points,
+                        features=parcel_features,
+                        cadastre=cadastre,
+                        bd_foret=bd_foret,
+                        rpg=rpg
+                    )
+                    
+                    # Update labels and confidence for parcel-classified points
+                    parcel_mask = parcel_labels != self.ASPRS_UNCLASSIFIED
+                    labels[parcel_mask] = parcel_labels[parcel_mask]
+                    confidence[parcel_mask] = 0.7  # Medium confidence from parcels
+                    
+                    n_parcel_classified = np.sum(parcel_mask)
+                    pct = 100 * n_parcel_classified / n_points
+                    logger.info(f"    Parcel-classified: {n_parcel_classified:,} points ({pct:.1f}%)")
+                    
+                except Exception as e:
+                    logger.warning(f"    Parcel classification failed: {e}")
+            else:
+                logger.info("  Stage 0: Parcel classification skipped (no cadastre data)")
+        
         # Stage 1: Geometric-based classification (if available)
         if self.use_geometric and height is not None:
             logger.info("  Stage 1: Geometric feature classification")
@@ -187,9 +292,9 @@ class AdvancedClassifier:
         
         # Stage 2: NDVI-based vegetation detection
         if self.use_ndvi and ndvi is not None:
-            logger.info("  Stage 2: NDVI-based vegetation refinement")
+            logger.info("  Stage 2: NDVI-based vegetation refinement (multi-level)")
             labels, confidence = self._classify_by_ndvi(
-                labels, confidence, ndvi, height
+                labels, confidence, ndvi, height, curvature, planarity
             )
         
         # Stage 3: Ground truth (highest priority - overwrites previous)
@@ -197,7 +302,8 @@ class AdvancedClassifier:
             logger.info("  Stage 3: Ground truth classification (highest priority)")
             labels = self._classify_by_ground_truth(
                 labels, points, ground_truth_features, ndvi,
-                height=height, planarity=planarity, intensity=intensity
+                height=height, planarity=planarity, intensity=intensity,
+                curvature=curvature, normals=normals
             )
         
         # Stage 4: Post-processing for unclassified points
@@ -351,32 +457,103 @@ class AdvancedClassifier:
         labels: np.ndarray,
         confidence: np.ndarray,
         ndvi: np.ndarray,
-        height: Optional[np.ndarray]
+        height: Optional[np.ndarray],
+        curvature: Optional[np.ndarray] = None,
+        planarity: Optional[np.ndarray] = None
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Classify and refine using NDVI."""
+        """
+        Classify and refine using NDVI with multi-level thresholds.
         
-        # High NDVI = vegetation (overwrite low-confidence classifications)
-        high_ndvi_mask = (ndvi >= self.ndvi_veg_threshold) & (confidence < 0.8)
+        Multi-level NDVI Classification:
+        - NDVI ≥ 0.60: Dense forest (high vegetation)
+        - NDVI ≥ 0.50: Healthy trees (high vegetation)
+        - NDVI ≥ 0.40: Moderate vegetation (medium)
+        - NDVI ≥ 0.30: Grass/shrubs (low/medium by height)
+        - NDVI ≥ 0.20: Sparse vegetation (low)
+        - NDVI < 0.20: Non-vegetation
+        """
+        
+        # Multi-level NDVI thresholds
+        NDVI_DENSE_FOREST = 0.60
+        NDVI_HEALTHY_TREES = 0.50
+        NDVI_MODERATE_VEG = 0.40
+        NDVI_GRASS = 0.30
+        NDVI_SPARSE_VEG = 0.20
+        
+        # Only override low-confidence classifications
+        low_confidence_mask = confidence < 0.8
         
         if height is not None:
+            # Dense forest (NDVI ≥ 0.60)
+            dense_forest = (ndvi >= NDVI_DENSE_FOREST) & low_confidence_mask
+            if curvature is not None and planarity is not None:
+                # Validate with features: forests have high curvature, low planarity
+                dense_forest = dense_forest & (curvature > 0.25) & (planarity < 0.65)
+            labels[dense_forest] = self.ASPRS_HIGH_VEGETATION
+            confidence[dense_forest] = 0.95
+            
+            # Healthy trees (NDVI ≥ 0.50)
+            healthy_trees = (ndvi >= NDVI_HEALTHY_TREES) & (ndvi < NDVI_DENSE_FOREST) & low_confidence_mask
+            if curvature is not None and planarity is not None:
+                healthy_trees = healthy_trees & (curvature > 0.20) & (planarity < 0.70)
             # Classify by height
-            low_veg = high_ndvi_mask & (height < self.height_low_veg)
-            medium_veg = high_ndvi_mask & (height >= self.height_low_veg) & (height < self.height_medium_veg)
-            high_veg = high_ndvi_mask & (height >= self.height_medium_veg)
+            high_trees = healthy_trees & (height >= self.height_medium_veg)
+            medium_trees = healthy_trees & (height < self.height_medium_veg) & (height >= self.height_low_veg)
+            labels[high_trees] = self.ASPRS_HIGH_VEGETATION
+            labels[medium_trees] = self.ASPRS_MEDIUM_VEGETATION
+            confidence[healthy_trees] = 0.90
             
-            labels[low_veg] = self.ASPRS_LOW_VEGETATION
-            labels[medium_veg] = self.ASPRS_MEDIUM_VEGETATION
-            labels[high_veg] = self.ASPRS_HIGH_VEGETATION
+            # Moderate vegetation (NDVI ≥ 0.40)
+            moderate_veg = (ndvi >= NDVI_MODERATE_VEG) & (ndvi < NDVI_HEALTHY_TREES) & low_confidence_mask
+            if curvature is not None and planarity is not None:
+                moderate_veg = moderate_veg & (curvature > 0.15) & (planarity < 0.75)
+            high_moderate = moderate_veg & (height >= self.height_medium_veg)
+            medium_moderate = moderate_veg & (height < self.height_medium_veg) & (height >= self.height_low_veg)
+            low_moderate = moderate_veg & (height < self.height_low_veg)
+            labels[high_moderate] = self.ASPRS_HIGH_VEGETATION
+            labels[medium_moderate] = self.ASPRS_MEDIUM_VEGETATION
+            labels[low_moderate] = self.ASPRS_LOW_VEGETATION
+            confidence[moderate_veg] = 0.85
             
-            confidence[high_ndvi_mask] = 0.85
+            # Grass/shrubs (NDVI ≥ 0.30)
+            grass = (ndvi >= NDVI_GRASS) & (ndvi < NDVI_MODERATE_VEG) & low_confidence_mask
+            if curvature is not None and planarity is not None:
+                grass = grass & (curvature > 0.10) & (planarity < 0.80)
+            medium_grass = grass & (height >= self.height_low_veg)
+            low_grass = grass & (height < self.height_low_veg)
+            labels[medium_grass] = self.ASPRS_MEDIUM_VEGETATION
+            labels[low_grass] = self.ASPRS_LOW_VEGETATION
+            confidence[grass] = 0.80
             
-            n_veg = np.sum(high_ndvi_mask)
-            logger.info(f"    Vegetation (NDVI): {n_veg:,} points")
+            # Sparse vegetation (NDVI ≥ 0.20)
+            sparse_veg = (ndvi >= NDVI_SPARSE_VEG) & (ndvi < NDVI_GRASS) & low_confidence_mask
+            labels[sparse_veg] = self.ASPRS_LOW_VEGETATION
+            confidence[sparse_veg] = 0.70
+            
+            # Count vegetation points
+            all_veg = (ndvi >= NDVI_SPARSE_VEG) & low_confidence_mask
+            n_veg = np.sum(all_veg)
+            logger.info(f"    Vegetation (multi-level NDVI): {n_veg:,} points")
+            logger.info(f"      Dense forest (NDVI≥0.6): {np.sum(dense_forest):,}")
+            logger.info(f"      Healthy trees (NDVI≥0.5): {np.sum(healthy_trees):,}")
+            logger.info(f"      Moderate veg (NDVI≥0.4): {np.sum(moderate_veg):,}")
+            logger.info(f"      Grass (NDVI≥0.3): {np.sum(grass):,}")
+            logger.info(f"      Sparse veg (NDVI≥0.2): {np.sum(sparse_veg):,}")
         else:
-            # Default to medium vegetation if no height
-            labels[high_ndvi_mask] = self.ASPRS_MEDIUM_VEGETATION
-            confidence[high_ndvi_mask] = 0.8
-            logger.info(f"    Vegetation (NDVI, no height): {np.sum(high_ndvi_mask):,} points")
+            # No height - use simple NDVI classification
+            high_ndvi = (ndvi >= NDVI_HEALTHY_TREES) & low_confidence_mask
+            medium_ndvi = (ndvi >= NDVI_MODERATE_VEG) & (ndvi < NDVI_HEALTHY_TREES) & low_confidence_mask
+            low_ndvi = (ndvi >= NDVI_SPARSE_VEG) & (ndvi < NDVI_MODERATE_VEG) & low_confidence_mask
+            
+            labels[high_ndvi] = self.ASPRS_HIGH_VEGETATION
+            labels[medium_ndvi] = self.ASPRS_MEDIUM_VEGETATION
+            labels[low_ndvi] = self.ASPRS_LOW_VEGETATION
+            
+            confidence[high_ndvi] = 0.85
+            confidence[medium_ndvi] = 0.80
+            confidence[low_ndvi] = 0.70
+            
+            logger.info(f"    Vegetation (NDVI, no height): {np.sum(ndvi >= NDVI_SPARSE_VEG):,} points")
         
         # Low NDVI = non-vegetation (buildings/roads/ground)
         # Refine building/road classifications
@@ -410,12 +587,15 @@ class AdvancedClassifier:
         ndvi: Optional[np.ndarray],
         height: Optional[np.ndarray] = None,
         planarity: Optional[np.ndarray] = None,
-        intensity: Optional[np.ndarray] = None
+        intensity: Optional[np.ndarray] = None,
+        curvature: Optional[np.ndarray] = None,
+        normals: Optional[np.ndarray] = None
     ) -> np.ndarray:
         """
         Classify using IGN BD TOPO® ground truth with intelligent road buffers.
         
         This is the highest priority classification and overwrites previous labels.
+        With feature validation enabled, ground truth is validated against observed features.
         """
         if not HAS_SPATIAL:
             logger.warning("Spatial libraries not available, skipping ground truth")
@@ -426,8 +606,9 @@ class AdvancedClassifier:
         
         # Classification priority (reverse order - last wins)
         # Lower in list = higher priority (overwrites previous)
+        # NOTE: Vegetation removed - will be classified using features instead
         priority_order = [
-            ('vegetation', self.ASPRS_MEDIUM_VEGETATION),
+            # ('vegetation', self.ASPRS_MEDIUM_VEGETATION),  # REMOVED: Use feature-based classification
             ('water', self.ASPRS_WATER),
             ('cemeteries', self.ASPRS_CEMETERY),
             ('parking', self.ASPRS_PARKING),
@@ -524,6 +705,45 @@ class AdvancedClassifier:
                 # Keep as building but log for review
                 n_veg_on_building = np.sum(high_ndvi_buildings)
                 logger.info(f"    Note: {n_veg_on_building} building points with high NDVI (roof vegetation?)")
+        
+        # Feature-based validation of ground truth (NEW!)
+        if self.use_feature_validation and self.feature_validator is not None:
+            logger.info("  Stage 3b: Feature-based ground truth validation")
+            
+            # Build features dictionary for validation
+            features = {}
+            if height is not None:
+                features['height'] = height
+            if planarity is not None:
+                features['planarity'] = planarity
+            if curvature is not None:
+                features['curvature'] = curvature
+            if normals is not None:
+                features['normals'] = normals
+            if ndvi is not None:
+                features['ndvi'] = ndvi
+            
+            # Create ground truth types array
+            ground_truth_types = np.full(len(labels), 'none', dtype=object)
+            for feature_type, asprs_class in priority_order:
+                mask = labels == asprs_class
+                ground_truth_types[mask] = feature_type
+            
+            # Validate ground truth with features
+            try:
+                validated_labels, confidences, valid_mask = self.feature_validator.validate_ground_truth(
+                    labels, ground_truth_types, features
+                )
+                
+                # Update labels with validated results
+                n_changed = np.sum(labels != validated_labels)
+                if n_changed > 0:
+                    logger.info(f"    Feature validation corrected {n_changed:,} labels")
+                    logger.info(f"    Mean confidence: {np.mean(confidences[valid_mask]):.2f}")
+                labels = validated_labels
+            except Exception as e:
+                logger.warning(f"    Feature validation failed: {e}")
+                # Continue with unvalidated labels
         
         return labels
     

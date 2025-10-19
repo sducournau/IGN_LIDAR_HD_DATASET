@@ -171,12 +171,15 @@ class LiDARProcessor:
         self.num_points = OmegaConf.select(config, 'processor.num_points', default=16384)
         self.architecture = OmegaConf.select(config, 'processor.architecture', default='pointnet++')
         self.output_format = config.processor.output_format
+        self.save_patches = OmegaConf.select(config, 'output.save_patches', default=False)
         
         # Derive save/only flags from processing mode for internal use
         self.save_enriched_laz = self.processing_mode in ["both", "enriched_only"]
         self.only_enriched_laz = self.processing_mode == "enriched_only"
         
         logger.info(f"✨ Processing mode: {self.processing_mode}")
+        if not self.save_patches:
+            logger.info(f"   📦 Patch generation: DISABLED (save_patches=false)")
         logger.info(f"Initialized LiDARProcessor with {self.lod_level}")
         
         # Validate output format using ConfigValidator
@@ -1622,8 +1625,9 @@ class LiDARProcessor:
                 enriched_key = f"enriched_{feat_name}" if feat_name in all_features_v else feat_name
                 all_features_v[enriched_key] = feat_data
         
-        # 5. Check if we should skip patch extraction (enriched_only mode with no patch_size)
-        if self.only_enriched_laz and self.patch_size is None:
+        # 5. Check if we should skip patch extraction
+        # Skip if: enriched_only mode OR save_patches is explicitly False
+        if self.only_enriched_laz or not self.save_patches:
             # Skip patch extraction - we're only saving the updated enriched LAZ tile
             logger.info(f"  💾 Saving updated enriched tile (no patch extraction)")
             

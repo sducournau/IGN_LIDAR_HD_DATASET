@@ -68,6 +68,9 @@ from ..features.core import (
     extract_geometric_features as core_extract_geometric_features,
 )
 
+# Import GPU-Core Bridge (Phase 3 refactoring - features_gpu.py integration)
+from .core.gpu_bridge import GPUCoreBridge
+
 
 class GPUFeatureComputer:
     """
@@ -112,6 +115,14 @@ class GPUFeatureComputer:
         # Initialize CUDA context safely for multiprocessing
         if self.use_gpu:
             self._initialize_cuda_context()
+        
+        # Initialize GPU-Core Bridge (Phase 3 refactoring)
+        # The bridge handles GPU eigenvalue computation and integrates with core module
+        self.gpu_bridge = GPUCoreBridge(
+            use_gpu=self.use_gpu and GPU_AVAILABLE,
+            batch_size=500_000,  # cuSOLVER limit for eigenvalue batches
+            epsilon=1e-10
+        )
         
         if self.use_gpu:
             print(f"🚀 GPU mode enabled (batch_size={self.batch_size:,})")
@@ -904,23 +915,60 @@ class GPUFeatureComputer:
         required_features: list
     ) -> Dict[str, np.ndarray]:
         """
-        Compute eigenvalue-based features on GPU with optimized transfers.
+        Compute eigenvalue-based features on GPU using GPU-Core Bridge (Phase 3 refactoring).
         
-        ✅ REFACTORED (Phase 3+): Uses core.utils.compute_eigenvalue_features_from_covariances()
-        This eliminates ~60 lines of duplicated eigenvalue computation logic.
+        🔧 REFACTORED (Phase 3): Now uses GPUCoreBridge for eigenvalue computation
+        and canonical core module for feature computation. This eliminates duplicate
+        code and ensures consistency with features_gpu_chunked.py.
         
-        ✅ OPTIMIZATION: Single batched transfer instead of per-feature transfers.
-        This provides 4-10× speedup over the old approach.
+        Benefits:
+        - ✅ Zero code duplication across GPU feature modules
+        - ✅ Single source of truth for eigenvalue computation (gpu_bridge.py)
+        - ✅ Single source of truth for feature formulas (core module)
+        - ✅ Automatic batch handling for large datasets (>500K points)
+        - ✅ Clean GPU memory management
+        - ✅ Consistent performance optimizations
+        
+        Args:
+            points_gpu: [M, 3] batch of points (on GPU or CPU)
+            indices_gpu: [M, k] neighbor indices (on GPU or CPU)
+            required_features: List of required feature names
+            
+        Returns:
+            Dictionary of computed features for the batch
         """
-        # Compute covariances using shared utility
-        cov_matrices = compute_covariances_from_neighbors(points_gpu, indices_gpu)
+        # Convert GPU arrays to CPU if needed for bridge processing
+        # The bridge will handle GPU acceleration internally
+        if self.use_gpu and cp is not None:
+            if isinstance(points_gpu, cp.ndarray):
+                points = cp.asnumpy(points_gpu)
+            else:
+                points = points_gpu
+            
+            if isinstance(indices_gpu, cp.ndarray):
+                indices = cp.asnumpy(indices_gpu)
+            else:
+                indices = indices_gpu
+        else:
+            points = np.asarray(points_gpu)
+            indices = np.asarray(indices_gpu)
         
-        # Compute features using shared utility (handles GPU/CPU automatically)
-        batch_features = compute_eigenvalue_features_from_covariances(
-            cov_matrices, 
-            required_features=required_features,
-            max_batch_size=500000  # cuSOLVER limit
+        # Use GPU bridge to compute eigenvalues on GPU
+        eigenvalues = self.gpu_bridge.compute_eigenvalues_gpu(points, indices)
+        
+        # Compute features using canonical core module
+        # This ensures consistency across all GPU implementations
+        features_dict = core_compute_eigenvalue_features(
+            eigenvalues,
+            epsilon=1e-10,
+            include_all=True
         )
+        
+        # Filter to only required features and convert to float32
+        batch_features = {}
+        for feat in required_features:
+            if feat in features_dict:
+                batch_features[feat] = features_dict[feat].astype(np.float32)
         
         return batch_features
     

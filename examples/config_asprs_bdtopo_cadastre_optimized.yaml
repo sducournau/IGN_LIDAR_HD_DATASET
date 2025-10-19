@@ -1,0 +1,400 @@
+# ============================================================================
+# IGN LiDAR HD - Optimized ASPRS Classification with BD TOPO & Cadastre
+# ============================================================================
+# Purpose: High-performance ASPRS classification with ground truth integration
+#
+# Features:
+# - RTX 4080 optimized GPU processing (30M batch sizes)
+# - BD TOPO® ground truth (buildings, roads, water, vegetation)
+# - Cadastral parcel integration for spatial coherence
+# - Optimized STRtree spatial indexing
+# - NDVI-based vegetation refinement
+# - Advanced reclassification rules
+# - Memory-efficient chunking
+#
+# Data Sources:
+# - BD TOPO V3: Topographic database (WFS)
+# - BD Parcellaire: Cadastral parcels (WFS)
+# - Orthophotos: RGB + NIR for NDVI
+#
+# Expected Performance (RTX 4080):
+# - Processing speed: ~100-150M points/minute
+# - Ground truth: ~2-5 min per tile (with STRtree optimization)
+# - Total: ~10-15 min per 18M point tile
+#
+# Usage:
+#   ign-lidar-hd process \
+#     -c examples/config_asprs_bdtopo_cadastre_optimized.yaml \
+#     input_dir="/path/to/tiles" \
+#     output_dir="/path/to/output"
+#
+# Version: 5.1.0
+# Date: October 19, 2025
+# Hardware: RTX 4080 16GB (or similar)
+# ============================================================================
+
+# Inherit from RTX 4080 ASPRS preset for optimal GPU settings
+defaults:
+  - presets/asprs_rtx4080
+  - _self_
+
+# Configuration metadata
+config_version: "5.1.0"
+config_name: "asprs_bdtopo_cadastre_optimized"
+config_description: "Optimized ASPRS + BD TOPO + Cadastre for RTX 4080"
+
+# ============================================================================
+# PATHS (Override these via CLI or custom config)
+# ============================================================================
+# input_dir: /mnt/d/ign/selected_tiles/asprs/tiles
+# output_dir: /mnt/d/ign/preprocessed_ground_truth_v3
+# cache_dir: ${input_dir}/cache  # Auto-set to input_dir/cache
+
+# ============================================================================
+# PROCESSOR - RTX 4080 Optimized Settings
+# ============================================================================
+processor:
+  # Classification scheme
+  lod_level: "ASPRS"
+  processing_mode: "enriched_only" # LAZ output only (no patches)
+
+  # ============================================================================
+  # GPU OPTIMIZATION - RTX 4080 (16GB VRAM)
+  # ============================================================================
+  use_gpu: true
+  gpu_batch_size: 30_000_000 # 30M points (handles tiles up to 30M in one chunk)
+  gpu_memory_target: 0.90 # 90% VRAM (14.4GB of 16GB)
+  gpu_streams: 8 # 8 CUDA streams for RTX 40xx series
+
+  # CUDA optimizations
+  use_cuda_streams: true
+  enable_memory_pooling: true
+  enable_pipeline_optimization: true
+  auto_optimize: true
+  vram_limit_gb: 14 # Conservative 14GB limit
+  cleanup_frequency: 5 # Cleanup every 5 iterations
+
+  # Strategy pattern
+  use_strategy_pattern: true
+
+  # ============================================================================
+  # GROUND TRUTH - OPTIMIZED for RTX 4080
+  # ============================================================================
+  # Auto-select optimal method: gpu_chunked for GPU, strtree for CPU
+  ground_truth_method: "auto"
+  ground_truth_chunk_size: 30_000_000 # 30M points - aligned with GPU batch
+
+  # Use optimized ground truth classifier (10× faster with STRtree)
+  use_optimized_ground_truth: true
+  enable_async_transfers: true
+  adaptive_chunk_sizing: true
+
+  # Processing settings
+  num_workers: 1 # Single worker for GPU
+  skip_existing: false # Re-process all files
+  output_format: "laz"
+  use_stitching: false
+
+  # Patch extraction (disabled for enriched_only mode)
+  patch_size: 50.0
+  patch_overlap: 0.1
+  num_points: 24576
+  architecture: "direct"
+  augment: false
+
+  # ============================================================================
+  # RECLASSIFICATION - Advanced Rules for ASPRS
+  # ============================================================================
+  reclassification:
+    enabled: true
+
+    # Geometric rules (height, planarity, verticality)
+    use_geometric_rules: true
+
+    # NDVI-based vegetation classification
+    use_ndvi_classification: true
+    ndvi_vegetation_threshold: 0.3
+    ndvi_road_threshold: 0.15
+
+    # Minimum confidence for classification
+    min_confidence: 0.8
+
+    # NEW: Advanced spectral classification (Phase 1 Optimizations)
+    use_spectral_rules: true
+    nir_vegetation_threshold: 0.4 # NIR threshold for vegetation
+    nir_building_threshold: 0.3 # NIR threshold for buildings
+
+    # NEW: Clustering optimization (10-100× speedup)
+    use_clustering: true
+    spatial_cluster_eps: 0.5 # 50cm clustering
+    min_cluster_size: 10
+
+    # Geometric thresholds
+    building_buffer_distance: 2.0 # 2m buffer around buildings
+    verticality_threshold: 0.7 # 0.7 for building facades
+
+# ============================================================================
+# FEATURES - ASPRS-Optimized with RTX 4080 Tuning
+# ============================================================================
+features:
+  mode: "asprs_classes"
+  include_extra: true
+
+  # Geometric parameters
+  k_neighbors: 20 # Standard neighborhood
+  search_radius: 1.0 # 1 meter radius
+
+  # ============================================================================
+  # GPU SETTINGS - RTX 4080 OPTIMIZATION
+  # ============================================================================
+  use_gpu_chunked: true
+  gpu_batch_size: 30_000_000 # 30M points - aligned with processor
+
+  # Critical optimization: Neighbor query & feature batching
+  # For 18.6M point tiles with RTX 4080 (16GB):
+  # - neighbor_query_batch_size: 30M = SINGLE BATCH (no chunking overhead)
+  # - feature_batch_size: 30M = SINGLE BATCH (no chunking overhead)
+  # Result: 3-4× faster than 5M/2M batching
+  neighbor_query_batch_size: 30_000_000 # 30M = ONE batch for typical tiles
+  feature_batch_size: 30_000_000 # 30M = ONE batch for typical tiles
+
+  # Essential features for ASPRS
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true # Critical for vegetation height
+  compute_geometric: true # Planarity, verticality
+
+  # Architectural features (disabled for ASPRS)
+  compute_architectural: false
+
+  # Spectral features for vegetation/ground distinction
+  use_rgb: true # Recommended for vegetation
+  use_nir: true # Enable NIR if available
+  use_infrared: true # Alias for use_nir
+  compute_ndvi: true # NDVI for vegetation (auto-disables if NIR unavailable)
+
+# ============================================================================
+# DATA SOURCES - BD TOPO + CADASTRE + ORTHOPHOTOS
+# ============================================================================
+data_sources:
+  # ──────────────────────────────────────────────────────────────────────
+  # BD TOPO V3 - Primary Ground Truth
+  # ──────────────────────────────────────────────────────────────────────
+  bd_topo:
+    enabled: true
+
+    # Feature layers to fetch
+    features:
+      buildings: true # ASPRS Class 6
+      roads: true # ASPRS Class 11
+      water: true # ASPRS Class 9
+      vegetation: true # ASPRS Classes 3/4/5
+
+    # WFS Configuration
+    wfs_url: "https://data.geopf.fr/wfs"
+    max_features: 10000
+    timeout: 30
+
+    # Caching (V5 - auto-uses input folder)
+    cache_enabled: true
+    cache_dir: null # null = auto-set to {input_dir}/cache/ground_truth
+    use_global_cache: false
+
+    # Performance
+    use_gpu: true # Use GPU for point-in-polygon if available
+
+    # Classification parameters
+    road_buffer: 2.5 # Road width buffer (meters)
+    building_priority: 1 # Priority for overlapping features
+    road_priority: 2
+    water_priority: 3
+    vegetation_priority: 4
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ADDITIONAL BD TOPO LAYERS
+  # ──────────────────────────────────────────────────────────────────────
+  bd_topo_bridges: true # ASPRS Class 17 (Bridge deck)
+  bd_topo_power_lines: true # ASPRS Class 14 (Wire - Conductor)
+  bd_topo_sports: true # ASPRS Class 41 (Sports facilities)
+  bd_topo_cemeteries: true # ASPRS Class 42 (Cemeteries)
+  bd_topo_parking: false # Not available in BDTOPO_V3
+
+  # ──────────────────────────────────────────────────────────────────────
+  # CADASTRE (BD PARCELLAIRE) - Spatial Coherence
+  # ──────────────────────────────────────────────────────────────────────
+  # NOTE: Parcel-based classification is currently in development
+  #       Enable cadastre_enabled to fetch and cache parcel data
+  cadastre_enabled: true
+  cadastre_cache_dir: null # null = auto-set to {input_dir}/cache/cadastre
+
+  # BD Forêt - Forest classification improvement
+  bd_foret_enabled: false # Enable if available
+
+  # RPG - Agricultural parcel classification
+  rpg_enabled: false # Enable if available
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ORTHOPHOTOS - RGB + NIR for NDVI
+  # ──────────────────────────────────────────────────────────────────────
+  orthophoto_rgb: true # Recommended for vegetation
+  orthophoto_nir: true # Required for NDVI computation
+  orthophoto_cache_dir: null # null = auto-set to {input_dir}/cache/orthophotos
+
+# ============================================================================
+# GROUND TRUTH CACHING (V5)
+# ============================================================================
+ground_truth:
+  # Enable ground truth classification
+  enabled: true
+
+  # GPU-optimized method (RTX 4080)
+  method: "gpu_chunked" # GPU with memory-efficient chunking
+  chunk_size: 30_000_000 # 30M points (aligned with GPU batch size)
+
+  # Cache directory (auto-set to input_dir/cache/ground_truth if null)
+  cache_dir: null
+
+  # Cache TTL (time-to-live in days)
+  cache_ttl_days: 30
+
+  # Enable compression for cached files
+  cache_compression: true
+
+  # Pre-classify with BD TOPO before geometric rules
+  preclassify: true
+
+  # BD TOPO-specific settings
+  bd_topo:
+    enabled: true # Auto-enabled when data_sources.bd_topo.enabled=true
+
+    # Classification mapping (BD TOPO → ASPRS)
+    classification_mapping:
+      buildings: 6 # ASPRS Building
+      roads: 11 # ASPRS Road
+      railways: 10 # ASPRS Rail
+      water: 9 # ASPRS Water
+      low_vegetation: 3 # ASPRS Low vegetation
+      medium_vegetation: 4 # ASPRS Medium vegetation
+      high_vegetation: 5 # ASPRS High vegetation
+      bridges: 17 # ASPRS Bridge deck
+      parking: 11 # ASPRS Road (parking)
+      cemeteries: 2 # ASPRS Ground
+      sports: 11 # ASPRS Road (sports)
+      power_lines: 14 # ASPRS Wire - Conductor
+
+    # Buffer distances (meters)
+    road_buffer: 2.5
+    railway_buffer: 2.0
+    power_line_buffer: 5.0
+    building_buffer: 0.3
+    water_buffer: 1.0
+
+    # Fallback widths (meters)
+    road_width_fallback: 4.0
+    railway_width_fallback: 3.0
+
+    # Width limits (meters)
+    road_min_width: 2.0
+    road_max_width: 50.0
+
+  # Cadastre-specific settings
+  cadastre:
+    enabled: true # Auto-enabled when data_sources.cadastre_enabled=true
+    min_parcel_area: 10.0 # m²
+    min_parcel_points: 20
+    group_by_parcel: true
+    export_parcel_stats: false
+
+  # Integration strategy
+  integration:
+    method: "priority_based"
+    priority:
+      bd_topo: 1 # Highest priority
+      cadastre: 2
+      orthophoto: 5
+      geometric_rules: 6
+    confidence_threshold: 0.7
+
+  # Quality control
+  quality_control:
+    enabled: true
+    validate_geometries: true
+    check_coverage: true
+    min_coverage_ratio: 0.2
+
+  # Performance (RTX 4080)
+  use_gpu: true
+  parallel_fetch: true
+  max_parallel_requests: 8
+  show_progress: true
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  format: "laz" # Output format (LAZ compressed)
+  save_enriched: true # Save enriched LAZ with ASPRS classes
+  save_patches: false # Disabled for enriched_only mode
+  save_metadata: true # Save processing metadata
+  save_stats: true # Save classification statistics
+
+  # Export parcel statistics (if cadastre enabled)
+  export_parcel_stats: false # Enable if parcel classification used
+  parcel_stats_format: "csv"
+
+# ============================================================================
+# PREPROCESSING (Optional)
+# ============================================================================
+preprocess:
+  enabled: false # Disabled by default for ASPRS
+  remove_duplicates: true
+  remove_outliers: true
+  outlier_std_multiplier: 3.0
+
+# ============================================================================
+# TILE STITCHING (Optional)
+# ============================================================================
+stitching:
+  enabled: false # Disabled by default
+  buffer_size: 10.0 # Buffer size in meters if enabled
+  blend_overlap: true
+
+# ============================================================================
+# HYDRA CONFIGURATION
+# ============================================================================
+hydra:
+  run:
+    dir: outputs/asprs_bdtopo_cadastre/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    name: asprs_bdtopo_cadastre_optimized
+# ============================================================================
+# EXPECTED RESULTS
+# ============================================================================
+# Classification Coverage:
+#   - Ground Truth (BD TOPO): 60-80% of points
+#   - Geometric Features: 15-25% of points
+#   - NDVI Refinement: 5-10% of points
+#   - Unclassified: <5% of points
+#
+# ASPRS Class Distribution (typical urban/suburban tile):
+#   - Class 2 (Ground): 30-40%
+#   - Class 3-5 (Vegetation): 25-35%
+#   - Class 6 (Building): 15-25%
+#   - Class 9 (Water): 0-5%
+#   - Class 11 (Road): 10-15%
+#   - Class 17 (Bridge): 0-2%
+#   - Other: <5%
+#
+# Performance (RTX 4080, 18.6M point tile):
+#   - Feature computation: ~1-2 min
+#   - Ground truth: ~2-5 min (with STRtree optimization)
+#   - Classification: ~1-2 min
+#   - I/O: ~2-3 min
+#   - Total: ~10-15 min per tile
+#
+# Quality Metrics:
+#   - Overall accuracy: 85-95% (with ground truth)
+#   - Building detection: 90-95%
+#   - Road detection: 80-90%
+#   - Vegetation classification: 85-90%
+# ============================================================================

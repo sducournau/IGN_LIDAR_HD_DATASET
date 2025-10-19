@@ -282,6 +282,20 @@ features:
   handle_nan_values: true # Handle NaN/Inf values gracefully
 
 # ============================================================================
+# GROUND TRUTH CONFIGURATION
+# ============================================================================
+# Controls how external ground truth data is fetched, cached, and integrated
+ground_truth:
+  enabled: true # Enable ground truth classification
+  method: "auto" # Auto-select optimal method (GPU/CPU)
+  chunk_size: 5_000_000 # 5M points per chunk
+  cache_dir: null # null = auto-set to {input_dir}/cache/ground_truth
+  cache_ttl_days: 30 # Cache validity period
+  cache_compression: true # Compress cached files
+  preclassify: true # Pre-classify before geometric analysis
+  show_progress: true # Show progress bars
+
+# ============================================================================
 # DATA SOURCES CONFIGURATION
 # ============================================================================
 # External data sources for ground truth classification and enrichment

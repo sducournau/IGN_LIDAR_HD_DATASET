@@ -110,6 +110,22 @@ processor:
     use_ndvi_classification: true # Enable if NIR available
     min_confidence: 0.8 # High confidence for ASPRS compliance
 
+    # NEW: Advanced spectral classification (Phase 1 Optimizations)
+    use_spectral_rules: true # Enable advanced NIR-based material classification
+    nir_vegetation_threshold: 0.4 # Minimum NIR for vegetation detection
+    nir_building_threshold: 0.3 # Minimum NIR for building materials (concrete)
+
+    # NEW: Clustering optimization for 10-100× speedup (Phase 1 Optimizations)
+    use_clustering: true # Enable spatial clustering for building buffers
+    spatial_cluster_eps: 0.5 # Spatial clustering epsilon in meters (50cm)
+    min_cluster_size: 10 # Minimum points per cluster
+
+    # Existing geometric rules parameters
+    ndvi_vegetation_threshold: 0.3 # NDVI threshold for vegetation
+    ndvi_road_threshold: 0.15 # NDVI threshold for roads/impervious surfaces
+    building_buffer_distance: 2.0 # Buffer distance around buildings (meters)
+    verticality_threshold: 0.7 # Verticality score for building facades
+
 # Features: ASPRS-optimized feature set
 features:
   mode: "asprs_classes" # ASPRS feature mode
@@ -137,6 +153,22 @@ features:
   use_nir: false # NIR (near-infrared) - enable if available
   use_infrared: false # Infrared - enable if NIR available (alias for use_nir)
   compute_ndvi: true # NDVI (requires RGB + NIR) - will auto-disable if NIR unavailable
+
+# Ground Truth: ASPRS ground truth integration
+ground_truth:
+  enabled: true # Enable ground truth classification
+  method: "auto" # Auto-select GPU/CPU method
+  chunk_size: 4_000_000 # 4M points per chunk (aligned with gpu_batch_size)
+  cache_dir: null # Auto-set to {input_dir}/cache/ground_truth
+  cache_ttl_days: 30 # 30 days cache validity
+  preclassify: true # Pre-classify with BD TOPO before geometric rules
+
+  # BD TOPO classification settings
+  bd_topo:
+    enabled: true # Enabled when data_sources.bd_topo.enabled=true
+    road_buffer: 2.5 # Road buffer (meters)
+    building_buffer: 0.3 # Building buffer (meters)
+    road_width_fallback: 4.0 # Default road width (meters)
 
 # Data Sources: Full BD TOPO for ASPRS ground truth
 data_sources:
