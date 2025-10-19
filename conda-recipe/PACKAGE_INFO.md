@@ -52,7 +52,7 @@ conda install -c file://$(pwd)/dist/conda ign-lidar-hd
 
 After installation, these commands are available:
 
-- **`ign-lidar`** - Main processing CLI (use `python -m ign_lidar.cli.hydra_main` from project directory)
+- **`ign-lidar-hd`** - Main processing CLI with Hydra configuration support
 - **`ign-lidar-qgis`** - QGIS converter for LAZ files
 
 ## Dependencies
@@ -135,9 +135,8 @@ IGN LiDAR HD Package Installation Test
 ### Basic Processing
 
 ```bash
-cd /path/to/project
-conda activate ign-lidar-hd
-python -m ign_lidar.cli.hydra_main \
+# Modern CLI (recommended)
+ign-lidar-hd process \
     input_dir=data/sample_laz \
     output_dir=data/output \
     processor.patch_size=50.0 \
@@ -154,7 +153,7 @@ ign-lidar-qgis input.laz output.laz
 ### Advanced Configuration
 
 ```bash
-python -m ign_lidar.cli.hydra_main \
+ign-lidar-hd process \
     experiment=buildings_lod2 \
     input_dir=data/input \
     output_dir=data/output \

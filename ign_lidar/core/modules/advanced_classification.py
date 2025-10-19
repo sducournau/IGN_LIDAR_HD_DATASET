@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 
 # Import unified thresholds
-from .classification_thresholds import UnifiedThresholds
+from .classification_thresholds import ClassificationThresholds
 
 # Import building detection module
 from .building_detection import (
@@ -814,19 +814,19 @@ class AdvancedClassifier:
                     
                     # Height filter
                     if height is not None and passes_filters:
-                        if height[i] > UnifiedThresholds.ROAD_HEIGHT_MAX or height[i] < UnifiedThresholds.ROAD_HEIGHT_MIN:
+                        if height[i] > ClassificationThresholds.ROAD_HEIGHT_MAX or height[i] < ClassificationThresholds.ROAD_HEIGHT_MIN:
                             filtered_counts['height'] += 1
                             passes_filters = False
                     
                     # Planarity filter
                     if planarity is not None and passes_filters:
-                        if planarity[i] < UnifiedThresholds.ROAD_PLANARITY_MIN:
+                        if planarity[i] < ClassificationThresholds.ROAD_PLANARITY_MIN:
                             filtered_counts['planarity'] += 1
                             passes_filters = False
                     
                     # Intensity filter
                     if intensity is not None and passes_filters:
-                        if intensity[i] < UnifiedThresholds.ROAD_INTENSITY_MIN or intensity[i] > UnifiedThresholds.ROAD_INTENSITY_MAX:
+                        if intensity[i] < ClassificationThresholds.ROAD_INTENSITY_MIN or intensity[i] > ClassificationThresholds.ROAD_INTENSITY_MAX:
                             filtered_counts['intensity'] += 1
                             passes_filters = False
                     
@@ -874,19 +874,19 @@ class AdvancedClassifier:
                     # Height filter: exclude bridges, overpasses, elevated structures
                     # Updated thresholds (Issue #1): 2.0m max (was 1.5m), -0.5m min (was -0.3m)
                     if height is not None and passes_filters:
-                        if height[i] > UnifiedThresholds.ROAD_HEIGHT_MAX or height[i] < UnifiedThresholds.ROAD_HEIGHT_MIN:
+                        if height[i] > ClassificationThresholds.ROAD_HEIGHT_MAX or height[i] < ClassificationThresholds.ROAD_HEIGHT_MIN:
                             filtered_counts['height'] += 1
                             passes_filters = False
                     
                     # Planarity filter: roads should be relatively flat
                     if planarity is not None and passes_filters:
-                        if planarity[i] < UnifiedThresholds.ROAD_PLANARITY_MIN:
+                        if planarity[i] < ClassificationThresholds.ROAD_PLANARITY_MIN:
                             filtered_counts['planarity'] += 1
                             passes_filters = False
                     
                     # Intensity filter: asphalt/concrete has characteristic reflectance
                     if intensity is not None and passes_filters:
-                        if intensity[i] < UnifiedThresholds.ROAD_INTENSITY_MIN or intensity[i] > UnifiedThresholds.ROAD_INTENSITY_MAX:
+                        if intensity[i] < ClassificationThresholds.ROAD_INTENSITY_MIN or intensity[i] > ClassificationThresholds.ROAD_INTENSITY_MAX:
                             filtered_counts['intensity'] += 1
                             passes_filters = False
                     
@@ -992,19 +992,19 @@ class AdvancedClassifier:
                         # Height filter: exclude bridges, viaducts, elevated tracks
                         # Updated thresholds (Issue #4): 2.0m max (was 1.2m), -0.5m min (was -0.2m)
                         if height is not None and passes_filters:
-                            if height[i] > UnifiedThresholds.RAIL_HEIGHT_MAX or height[i] < UnifiedThresholds.RAIL_HEIGHT_MIN:
+                            if height[i] > ClassificationThresholds.RAIL_HEIGHT_MAX or height[i] < ClassificationThresholds.RAIL_HEIGHT_MIN:
                                 filtered_counts['height'] += 1
                                 passes_filters = False
                         
                         # Planarity filter: tracks less planar than roads due to ballast
                         if planarity is not None and passes_filters:
-                            if planarity[i] < UnifiedThresholds.RAIL_PLANARITY_MIN:
+                            if planarity[i] < ClassificationThresholds.RAIL_PLANARITY_MIN:
                                 filtered_counts['planarity'] += 1
                                 passes_filters = False
                         
                         # Intensity filter: ballast (dark), rails (bright), wide range
                         if intensity is not None and passes_filters:
-                            if intensity[i] < UnifiedThresholds.RAIL_INTENSITY_MIN or intensity[i] > UnifiedThresholds.RAIL_INTENSITY_MAX:
+                            if intensity[i] < ClassificationThresholds.RAIL_INTENSITY_MIN or intensity[i] > ClassificationThresholds.RAIL_INTENSITY_MAX:
                                 filtered_counts['intensity'] += 1
                                 passes_filters = False
                         
@@ -1066,17 +1066,17 @@ class AdvancedClassifier:
                     passes_filters = True
                     
                     if height is not None and passes_filters:
-                        if height[i] > UnifiedThresholds.RAIL_HEIGHT_MAX or height[i] < UnifiedThresholds.RAIL_HEIGHT_MIN:
+                        if height[i] > ClassificationThresholds.RAIL_HEIGHT_MAX or height[i] < ClassificationThresholds.RAIL_HEIGHT_MIN:
                             filtered_counts['height'] += 1
                             passes_filters = False
                     
                     if planarity is not None and passes_filters:
-                        if planarity[i] < UnifiedThresholds.RAIL_PLANARITY_MIN:
+                        if planarity[i] < ClassificationThresholds.RAIL_PLANARITY_MIN:
                             filtered_counts['planarity'] += 1
                             passes_filters = False
                     
                     if intensity is not None and passes_filters:
-                        if intensity[i] < UnifiedThresholds.RAIL_INTENSITY_MIN or intensity[i] > UnifiedThresholds.RAIL_INTENSITY_MAX:
+                        if intensity[i] < ClassificationThresholds.RAIL_INTENSITY_MIN or intensity[i] > ClassificationThresholds.RAIL_INTENSITY_MAX:
                             filtered_counts['intensity'] += 1
                             passes_filters = False
                     

@@ -1,5 +1,5 @@
 """
-Unified Classification Thresholds
+Classification Thresholds for ASPRS and BD TOPO Integration
 
 This module provides a central location for all classification thresholds used across
 the IGN LiDAR HD classification system. This ensures consistency and makes it easier
@@ -15,9 +15,9 @@ Date: October 16, 2025
 from typing import Dict, Any
 
 
-class UnifiedThresholds:
+class ClassificationThresholds:
     """
-    Unified thresholds for all classification modules.
+    Classification thresholds for ASPRS and BD TOPO integration.
     
     This class provides a single source of truth for all geometric, height,
     and intensity thresholds used throughout the classification pipeline.
@@ -290,16 +290,16 @@ class UnifiedThresholds:
 
 
 # Create a convenience instance for import
-thresholds = UnifiedThresholds()
+thresholds = ClassificationThresholds()
 
 
 def print_threshold_summary():
     """Print a summary of all thresholds for debugging."""
     print("=" * 70)
-    print("UNIFIED CLASSIFICATION THRESHOLDS")
+    print("ASPRS & BD TOPO CLASSIFICATION THRESHOLDS")
     print("=" * 70)
     
-    all_thresholds = UnifiedThresholds.get_all_thresholds()
+    all_thresholds = ClassificationThresholds.get_all_thresholds()
     
     for category, values in all_thresholds.items():
         print(f"\n{category.upper()}")
@@ -311,7 +311,7 @@ def print_threshold_summary():
     print("VALIDATION")
     print("=" * 70)
     
-    warnings = UnifiedThresholds.validate_thresholds()
+    warnings = ClassificationThresholds.validate_thresholds()
     if warnings:
         for key, msg in warnings.items():
             print(f"  ⚠️  {msg}")

@@ -19,7 +19,7 @@ from typing import Optional, Dict, Any, Tuple
 from enum import Enum
 import numpy as np
 
-from .classification_thresholds import UnifiedThresholds
+from .classification_thresholds import ClassificationThresholds
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class TransportDetectionConfig:
     """
     Configuration for transport detection with mode-specific thresholds.
     
-    Note: Thresholds now use UnifiedThresholds for consistency across modules.
+    Note: Thresholds now use ClassificationThresholds for consistency across modules.
     See: docs/AUDIT_ACTION_PLAN.md - Issue #8
     """
     
@@ -59,24 +59,24 @@ class TransportDetectionConfig:
         self.mode = mode
         self.strict_mode = strict_mode
         
-        # === Common Thresholds (from UnifiedThresholds) ===
+        # === Common Thresholds (from ClassificationThresholds) ===
         # Height thresholds - now using updated values (Issue #1, #4)
-        self.road_height_max = UnifiedThresholds.ROAD_HEIGHT_MAX_STRICT if strict_mode else UnifiedThresholds.ROAD_HEIGHT_MAX
-        self.road_height_min = UnifiedThresholds.ROAD_HEIGHT_MIN
-        self.rail_height_max = UnifiedThresholds.RAIL_HEIGHT_MAX_STRICT if strict_mode else UnifiedThresholds.RAIL_HEIGHT_MAX
-        self.rail_height_min = UnifiedThresholds.RAIL_HEIGHT_MIN
+        self.road_height_max = ClassificationThresholds.ROAD_HEIGHT_MAX_STRICT if strict_mode else ClassificationThresholds.ROAD_HEIGHT_MAX
+        self.road_height_min = ClassificationThresholds.ROAD_HEIGHT_MIN
+        self.rail_height_max = ClassificationThresholds.RAIL_HEIGHT_MAX_STRICT if strict_mode else ClassificationThresholds.RAIL_HEIGHT_MAX
+        self.rail_height_min = ClassificationThresholds.RAIL_HEIGHT_MIN
         
         # Geometric thresholds
-        self.road_planarity_min = UnifiedThresholds.ROAD_PLANARITY_MIN_STRICT if strict_mode else UnifiedThresholds.ROAD_PLANARITY_MIN
-        self.rail_planarity_min = UnifiedThresholds.RAIL_PLANARITY_MIN_STRICT if strict_mode else UnifiedThresholds.RAIL_PLANARITY_MIN
-        self.road_roughness_max = UnifiedThresholds.ROAD_ROUGHNESS_MAX
-        self.rail_roughness_max = UnifiedThresholds.RAIL_ROUGHNESS_MAX
+        self.road_planarity_min = ClassificationThresholds.ROAD_PLANARITY_MIN_STRICT if strict_mode else ClassificationThresholds.ROAD_PLANARITY_MIN
+        self.rail_planarity_min = ClassificationThresholds.RAIL_PLANARITY_MIN_STRICT if strict_mode else ClassificationThresholds.RAIL_PLANARITY_MIN
+        self.road_roughness_max = ClassificationThresholds.ROAD_ROUGHNESS_MAX
+        self.rail_roughness_max = ClassificationThresholds.RAIL_ROUGHNESS_MAX
         
         # Intensity thresholds
-        self.road_intensity_min = UnifiedThresholds.ROAD_INTENSITY_MIN
-        self.road_intensity_max = UnifiedThresholds.ROAD_INTENSITY_MAX
-        self.rail_intensity_min = UnifiedThresholds.RAIL_INTENSITY_MIN
-        self.rail_intensity_max = UnifiedThresholds.RAIL_INTENSITY_MAX
+        self.road_intensity_min = ClassificationThresholds.ROAD_INTENSITY_MIN
+        self.road_intensity_max = ClassificationThresholds.ROAD_INTENSITY_MAX
+        self.rail_intensity_min = ClassificationThresholds.RAIL_INTENSITY_MIN
+        self.rail_intensity_max = ClassificationThresholds.RAIL_INTENSITY_MAX
         
         # === Mode-specific Configuration ===
         if mode == TransportDetectionMode.ASPRS_STANDARD:

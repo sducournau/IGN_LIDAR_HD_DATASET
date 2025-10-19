@@ -13,7 +13,7 @@ build:
   number: 0
   script: {{ PYTHON }} -m pip install . -vv
   entry_points:
-    - ign-lidar = ign_lidar.cli.hydra_main:main
+    - ign-lidar-hd = ign_lidar.cli.main:main
     - ign-lidar-qgis = ign_lidar.io.qgis_converter:main
 
 requirements:
@@ -51,10 +51,10 @@ test:
     - ign_lidar.core
     - ign_lidar.core.processor
     - ign_lidar.preprocessing
-    - ign_lidar.cli.hydra_main
+    - ign_lidar.cli.main
     - ign_lidar.io.qgis_converter
   commands:
-    - ign-lidar --help
+    - ign-lidar-hd --help
     - ign-lidar-qgis --help
 
 about:

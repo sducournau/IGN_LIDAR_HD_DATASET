@@ -17,7 +17,7 @@ from typing import Optional, Dict, Any, Tuple
 import numpy as np
 
 # Import unified thresholds
-from .classification_thresholds import UnifiedThresholds
+from .classification_thresholds import ClassificationThresholds
 
 # Import new building detection module
 from .building_detection import (
@@ -46,22 +46,22 @@ class RefinementConfig:
     """
     Configuration for classification refinement.
     
-    Note: Using UnifiedThresholds for consistency (Issue #8).
+    Note: Using ClassificationThresholds for consistency (Issue #8).
     Legacy values retained as class attributes for backward compatibility.
     """
     
     # NDVI thresholds for vegetation classification
-    NDVI_VEGETATION_MIN = UnifiedThresholds.NDVI_VEG_THRESHOLD
-    NDVI_HIGH_VEG_MIN = UnifiedThresholds.NDVI_HIGH_VEG_THRESHOLD
+    NDVI_VEGETATION_MIN = ClassificationThresholds.NDVI_VEG_THRESHOLD
+    NDVI_HIGH_VEG_MIN = ClassificationThresholds.NDVI_HIGH_VEG_THRESHOLD
     NDVI_LOW_VEG_MAX = 0.6         # Maximum NDVI for low vegetation (kept as refinement-specific)
     
-    # Height thresholds (meters) - from UnifiedThresholds
-    LOW_VEG_HEIGHT_MAX = UnifiedThresholds.LOW_VEG_HEIGHT_MAX
-    HIGH_VEG_HEIGHT_MIN = UnifiedThresholds.HIGH_VEG_HEIGHT_MIN
-    BUILDING_HEIGHT_MIN = UnifiedThresholds.BUILDING_HEIGHT_MIN
-    VEHICLE_HEIGHT_MAX = UnifiedThresholds.VEHICLE_HEIGHT_MAX
-    VEHICLE_HEIGHT_MIN = UnifiedThresholds.VEHICLE_HEIGHT_MIN
-    ROAD_HEIGHT_MAX = UnifiedThresholds.GROUND_HEIGHT_MAX  # For ground-level detection
+    # Height thresholds (meters) - from ClassificationThresholds
+    LOW_VEG_HEIGHT_MAX = ClassificationThresholds.LOW_VEG_HEIGHT_MAX
+    HIGH_VEG_HEIGHT_MIN = ClassificationThresholds.HIGH_VEG_HEIGHT_MIN
+    BUILDING_HEIGHT_MIN = ClassificationThresholds.BUILDING_HEIGHT_MIN
+    VEHICLE_HEIGHT_MAX = ClassificationThresholds.VEHICLE_HEIGHT_MAX
+    VEHICLE_HEIGHT_MIN = ClassificationThresholds.VEHICLE_HEIGHT_MIN
+    ROAD_HEIGHT_MAX = ClassificationThresholds.GROUND_HEIGHT_MAX  # For ground-level detection
     
     # Geometric feature thresholds - General
     PLANARITY_FLAT_MIN = 0.7       # Minimum planarity for flat surfaces (ground, roofs)
@@ -99,23 +99,23 @@ class RefinementConfig:
     REFINE_ROADS = True            # Refine roads using ground truth + geometry
     REFINE_VEHICLES = True         # Detect vehicles using height + size
     
-    # Road-specific parameters - from UnifiedThresholds (Issue #1, #8)
-    ROAD_BUFFER_TOLERANCE = UnifiedThresholds.ROAD_BUFFER_TOLERANCE
-    ROAD_HEIGHT_MAX = UnifiedThresholds.ROAD_HEIGHT_MAX  # Updated: 2.0m (was 1.5m)
-    ROAD_HEIGHT_MIN = UnifiedThresholds.ROAD_HEIGHT_MIN  # Updated: -0.5m (was -0.3m)
-    ROAD_PLANARITY_MIN = UnifiedThresholds.ROAD_PLANARITY_MIN
+    # Road-specific parameters - from ClassificationThresholds (Issue #1, #8)
+    ROAD_BUFFER_TOLERANCE = ClassificationThresholds.ROAD_BUFFER_TOLERANCE
+    ROAD_HEIGHT_MAX = ClassificationThresholds.ROAD_HEIGHT_MAX  # Updated: 2.0m (was 1.5m)
+    ROAD_HEIGHT_MIN = ClassificationThresholds.ROAD_HEIGHT_MIN  # Updated: -0.5m (was -0.3m)
+    ROAD_PLANARITY_MIN = ClassificationThresholds.ROAD_PLANARITY_MIN
     ROAD_INTENSITY_FILTER = True   # Use intensity to refine road detection
-    ROAD_MIN_INTENSITY = UnifiedThresholds.ROAD_INTENSITY_MIN
-    ROAD_MAX_INTENSITY = UnifiedThresholds.ROAD_INTENSITY_MAX
+    ROAD_MIN_INTENSITY = ClassificationThresholds.ROAD_INTENSITY_MIN
+    ROAD_MAX_INTENSITY = ClassificationThresholds.ROAD_INTENSITY_MAX
     
-    # Railway-specific parameters - from UnifiedThresholds (Issue #4, #8)
-    RAIL_BUFFER_TOLERANCE = UnifiedThresholds.RAIL_BUFFER_MULTIPLIER * UnifiedThresholds.ROAD_BUFFER_TOLERANCE
-    RAIL_HEIGHT_MAX = UnifiedThresholds.RAIL_HEIGHT_MAX  # Updated: 2.0m (was 1.2m)
-    RAIL_HEIGHT_MIN = UnifiedThresholds.RAIL_HEIGHT_MIN  # Updated: -0.5m (was -0.2m)
-    RAIL_PLANARITY_MIN = UnifiedThresholds.RAIL_PLANARITY_MIN
+    # Railway-specific parameters - from ClassificationThresholds (Issue #4, #8)
+    RAIL_BUFFER_TOLERANCE = ClassificationThresholds.RAIL_BUFFER_MULTIPLIER * ClassificationThresholds.ROAD_BUFFER_TOLERANCE
+    RAIL_HEIGHT_MAX = ClassificationThresholds.RAIL_HEIGHT_MAX  # Updated: 2.0m (was 1.2m)
+    RAIL_HEIGHT_MIN = ClassificationThresholds.RAIL_HEIGHT_MIN  # Updated: -0.5m (was -0.2m)
+    RAIL_PLANARITY_MIN = ClassificationThresholds.RAIL_PLANARITY_MIN
     RAIL_INTENSITY_FILTER = True   # Use intensity to refine rail detection
-    RAIL_MIN_INTENSITY = UnifiedThresholds.RAIL_INTENSITY_MIN
-    RAIL_MAX_INTENSITY = UnifiedThresholds.RAIL_INTENSITY_MAX
+    RAIL_MIN_INTENSITY = ClassificationThresholds.RAIL_INTENSITY_MIN
+    RAIL_MAX_INTENSITY = ClassificationThresholds.RAIL_INTENSITY_MAX
 
 
 # ============================================================================
