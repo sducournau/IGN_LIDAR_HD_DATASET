@@ -1,25 +1,11 @@
 """
 GPU-Accelerated Dataframe Operations using RAPIDS cuDF
 
-⚠️  DEPRECATED: This module has been relocated to ign_lidar.io.gpu_dataframe in v3.1.0.
-
-DataFrame operations are I/O operations, not performance optimizations, so they
-have been moved to the io/ package for better semantic organization.
-
-Migration:
-    # Old (deprecated but still works in v3.x)
-    from ign_lidar.optimization.gpu_dataframe_ops import GPUDataFrameOps
-    
-    # New (recommended)
-    from ign_lidar.io.gpu_dataframe import GPUDataFrameOps
-    # OR
-    from ign_lidar.io import GPUDataFrameOps
-
-This file will be removed in v4.0.0. Please update your imports.
-
-Original documentation:
 This module provides GPU-accelerated dataframe operations for LiDAR processing
 using RAPIDS cuDF. Operations seamlessly integrate with pandas/geopandas workflows.
+
+Note: Relocated from optimization/ to io/ in v3.1.0 for better semantic organization.
+DataFrame operations are I/O operations, not performance optimizations.
 
 Key Features:
 - 10-30x speedup over pandas for large datasets
@@ -35,25 +21,9 @@ Performance Targets:
 - Column operations: 5-15x faster
 
 Author: IGN LiDAR HD Development Team
-Date: October 18, 2025
-Version: 1.0.0 (deprecated in v3.1.0, relocated to io/)
+Date: October 19, 2025
+Version: 1.1.0 (relocated to io/)
 """
-
-import logging
-import warnings
-
-# Issue deprecation warning
-warnings.warn(
-    "ign_lidar.optimization.gpu_dataframe_ops is deprecated and will be removed in v4.0.0. "
-    "This module has been relocated to ign_lidar.io.gpu_dataframe for better semantic organization. "
-    "DataFrame operations are I/O operations, not optimizations. "
-    "Please update your imports:\n"
-    "  OLD: from ign_lidar.optimization.gpu_dataframe_ops import GPUDataFrameOps\n"
-    "  NEW: from ign_lidar.io.gpu_dataframe import GPUDataFrameOps\n"
-    "See RESTRUCTURING_COMPLETE.md for migration guide.",
-    DeprecationWarning,
-    stacklevel=2
-)
 
 import logging
 import numpy as np

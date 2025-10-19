@@ -48,18 +48,18 @@ except ImportError:
 # CPU fallback
 from sklearn.neighbors import KDTree
 
-# Import core utilities (Phase 2 & Phase 3+ refactoring)
-from .core.utils import (
+# Import compute utilities (Phase 2 & Phase 3+ refactoring)
+from .compute.utils import (
     batched_inverse_3x3, 
     inverse_power_iteration,
     compute_eigenvalue_features_from_covariances,
     compute_covariances_from_neighbors,
 )
-from .core.height import compute_height_above_ground
-from .core.curvature import compute_curvature_from_normals
+from .compute.height import compute_height_above_ground
+from .compute.curvature import compute_curvature_from_normals
 
-# Import core feature implementations
-from ..features.core import (
+# Import compute feature implementations
+from ..features.compute import (
     compute_normals as core_compute_normals,
     compute_curvature as core_compute_curvature,
     compute_eigenvalue_features as core_compute_eigenvalue_features,
@@ -68,8 +68,8 @@ from ..features.core import (
     extract_geometric_features as core_extract_geometric_features,
 )
 
-# Import GPU-Core Bridge (Phase 3 refactoring - features_gpu.py integration)
-from .core.gpu_bridge import GPUCoreBridge
+# Import GPU-Compute Bridge (Phase 3 refactoring - features_gpu.py integration)
+from .compute.gpu_bridge import GPUCoreBridge
 
 
 class GPUFeatureComputer:

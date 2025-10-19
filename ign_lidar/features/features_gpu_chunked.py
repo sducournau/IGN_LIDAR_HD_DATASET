@@ -48,24 +48,24 @@ except ImportError:
 # CPU fallback imports
 from sklearn.neighbors import NearestNeighbors
 
-# Import core feature implementations
-from ..features.core import (
+# Import compute feature implementations
+from ..features.compute import (
     compute_eigenvalue_features as core_compute_eigenvalue_features,
     compute_density_features as core_compute_density_features,
 )
 
-# Import GPU-Core Bridge (Phase 2 refactoring - eigenvalue integration)
-from .core.gpu_bridge import GPUCoreBridge
+# Import GPU-Compute Bridge (Phase 2 refactoring - eigenvalue integration)
+from .compute.gpu_bridge import GPUCoreBridge
 
-# Import core utilities (Phase 2 & Phase 3+ refactoring)
-from .core.utils import (
+# Import compute utilities (Phase 2 & Phase 3+ refactoring)
+from .compute.utils import (
     batched_inverse_3x3, 
     inverse_power_iteration,
     compute_eigenvalue_features_from_covariances,
     compute_covariances_from_neighbors,
 )
-from .core.height import compute_height_above_ground
-from .core.curvature import compute_curvature_from_normals
+from .compute.height import compute_height_above_ground
+from .compute.curvature import compute_curvature_from_normals
 
 
 class GPUChunkedFeatureComputer:

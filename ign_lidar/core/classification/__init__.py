@@ -1,21 +1,46 @@
 """
-Core processing modules for LiDAR data processing.
+Classification modules for LiDAR point cloud classification.
 
-This package contains modular components extracted from the monolithic processor
-to improve maintainability, testability, and code organization.
+This package contains classification components for ASPRS/BD TOPO point cloud labeling,
+ground truth refinement, and advanced classification strategies.
 
-Modules:
-    memory: Memory management and cleanup utilities
-    serialization: Save/export functionality for patches and enriched data
-    loader: Data loading and validation
-    enrichment: Feature computation and enrichment
-    patch_extractor: Patch extraction and augmentation
-    stitching: Tile stitching and boundary processing
-    config_validator: Configuration validation and normalization
-    tile_loader: Tile loading and I/O operations (Phase 3.4)
-    reclassifier: Optimized reclassification with GPU acceleration
-    geometric_rules: Geometric rules engine for intelligent classification
+📍 **Note**: Relocated from `core.modules` to `core.classification` in v3.1.0 for better
+semantic clarity. The old import path is deprecated but still works in v3.x.
+
+Key Modules:
+    Classification & Rules:
+        - advanced_classification: Advanced classifier with ASPRS/BD TOPO integration
+        - classification_thresholds: Classification threshold management
+        - classification_refinement: Post-classification refinement
+        - adaptive_classifier: Adaptive classification with ground truth
+        - hierarchical_classifier: Hierarchical classification strategies
+        - reclassifier: Optimized reclassification with GPU acceleration
+        
+    Ground Truth:
+        - ground_truth_refinement: BD TOPO/cadastre ground truth integration
+        - ground_truth_artifact_checker: Artifact detection and validation
+        - parcel_classifier: Cadastral parcel-based classification
+        
+    Rule Engines:
+        - geometric_rules: Geometric rules engine for classification
+        - spectral_rules: Spectral rules engine (NIR, NDVI, etc.)
+        - grammar_3d: 3D grammar rules for urban structures
+        
+    Support:
+        - feature_validator: Feature validation and quality checks
+        - memory: Memory management and cleanup utilities
+        - serialization: Save/export functionality for patches and enriched data
+        - loader: Data loading and validation
+        - config_validator: Configuration validation and normalization
+        - tile_loader: Tile loading and I/O operations
+
+Migration:
+    # Old (deprecated in v3.1.0)
+    from ign_lidar.core.modules.classification_thresholds import ClassificationThresholds
     
+    # New (recommended)
+    from ign_lidar.core.classification.classification_thresholds import ClassificationThresholds
+
 Note: FeatureManager and FeatureComputer have been consolidated into 
       FeatureOrchestrator in ign_lidar.features.orchestrator (Phase 4.3)
 """

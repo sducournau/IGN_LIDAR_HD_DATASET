@@ -15,7 +15,7 @@ import numpy as np
 import logging
 
 from .strategies import BaseFeatureStrategy
-from .core.features import compute_all_features as compute_all_features_optimized
+from .compute.features import compute_all_features as compute_all_features_optimized
 
 logger = logging.getLogger(__name__)
 

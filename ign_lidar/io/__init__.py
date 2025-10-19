@@ -13,6 +13,14 @@ This package contains data loading and saving:
 from .metadata import MetadataManager
 from .qgis_converter import simplify_for_qgis
 
+# Import GPU dataframe operations conditionally (requires cudf/cupy)
+try:
+    from .gpu_dataframe import GPUDataFrameOps
+    GPU_DATAFRAME_AVAILABLE = True
+except ImportError:
+    GPU_DATAFRAME_AVAILABLE = False
+    GPUDataFrameOps = None
+
 # Import WFS ground truth conditionally (requires shapely/geopandas)
 try:
     from .wfs_ground_truth import (
@@ -21,17 +29,24 @@ try:
         fetch_ground_truth_for_tile,
         generate_patches_with_ground_truth,
     )
-    __all__ = [
-        'MetadataManager',
-        'simplify_for_qgis',
+    WFS_AVAILABLE = True
+except ImportError:
+    # shapely/geopandas not available
+    WFS_AVAILABLE = False
+
+# Build __all__ based on available imports
+__all__ = [
+    'MetadataManager',
+    'simplify_for_qgis',
+]
+
+if GPU_DATAFRAME_AVAILABLE:
+    __all__.append('GPUDataFrameOps')
+
+if WFS_AVAILABLE:
+    __all__.extend([
         'IGNWFSConfig',
         'IGNGroundTruthFetcher',
         'fetch_ground_truth_for_tile',
         'generate_patches_with_ground_truth',
-    ]
-except ImportError:
-    # shapely/geopandas not available
-    __all__ = [
-        'MetadataManager',
-        'simplify_for_qgis',
-    ]
+    ])

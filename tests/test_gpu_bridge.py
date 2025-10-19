@@ -1,8 +1,8 @@
 """
-Unit tests for GPU-Core Bridge Module.
+Unit tests for GPU-Compute Bridge Module.
 
 Tests the bridge pattern between GPU-accelerated eigenvalue computation
-and canonical core feature implementations.
+and canonical compute feature implementations.
 
 Author: IGN LiDAR HD Dataset Team
 Date: October 2025
@@ -13,15 +13,15 @@ import numpy as np
 from typing import Dict
 
 # Import module under test
-from ign_lidar.features.core.gpu_bridge import (
+from ign_lidar.features.compute.gpu_bridge import (
     GPUCoreBridge,
     compute_eigenvalues_gpu,
     compute_eigenvalue_features_gpu,
     CUPY_AVAILABLE,
 )
 
-# Import core module for comparison
-from ign_lidar.features.core import compute_eigenvalue_features
+# Import compute module for comparison
+from ign_lidar.features.compute import compute_eigenvalue_features
 
 
 # Test fixtures

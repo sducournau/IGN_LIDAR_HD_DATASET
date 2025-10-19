@@ -1315,7 +1315,7 @@ def generate_patches_with_ground_truth(
         List of patches with ground truth labels
     """
     # Import patch extraction
-    from ..core.modules.patch_extractor import extract_patches
+    from ..core.classification.patch_extractor import extract_patches
     
     # Fetch ground truth
     logger.info("Fetching ground truth data from IGN BD TOPO®...")
@@ -1335,7 +1335,7 @@ def generate_patches_with_ground_truth(
         elif compute_ndvi_if_missing and 'rgb' in features and 'nir' in features:
             logger.info("Computing NDVI from RGB and NIR for refinement...")
             try:
-                from ..core.modules.enrichment import compute_ndvi
+                from ..core.classification.enrichment import compute_ndvi
                 rgb = features['rgb']
                 nir = features['nir']
                 ndvi = compute_ndvi(rgb, nir)
