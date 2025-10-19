@@ -1947,9 +1947,12 @@ class LiDARProcessor:
         except ImportError:
             logger.debug("psutil not available - skipping memory checks")
         
-        # Find LAZ files (recursively)
+        # Find LAZ files (recursively) - exclude enriched files to avoid reprocessing
         laz_files = (list(input_dir.rglob("*.laz")) +
                      list(input_dir.rglob("*.LAZ")))
+        
+        # Filter out enriched files (those ending with _enriched.laz)
+        laz_files = [f for f in laz_files if not f.stem.endswith('_enriched')]
         
         if not laz_files:
             logger.error(f"No LAZ files found in {input_dir}")
@@ -2245,8 +2248,10 @@ class LiDARProcessor:
         # Create output directory
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Find all LAZ files
+        # Find all LAZ files - exclude enriched files to avoid reprocessing
         laz_files = sorted(input_dir.glob("*.laz"))
+        laz_files = [f for f in laz_files if not f.stem.endswith('_enriched')]
+        
         if not laz_files:
             logger.warning(f"No LAZ files found in {input_dir}")
             return 0
