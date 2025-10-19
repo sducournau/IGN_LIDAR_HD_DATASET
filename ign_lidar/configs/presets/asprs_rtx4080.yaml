@@ -103,6 +103,19 @@ processor:
     use_ndvi_classification: true # Enable if NIR available
     min_confidence: 0.8 # High confidence for ASPRS compliance
 
+  # ============================================================================
+  # BUILDING CLUSTERING (V5.1 Enhancement)
+  # ============================================================================
+  building_clustering:
+    enabled: true # Enable building clustering for ASPRS
+    use_centroid_attraction: true # Assign ambiguous points to nearest centroid
+    attraction_radius: 5.0 # Maximum distance for centroid attraction (meters)
+    min_points_per_building: 10 # Minimum points to form valid cluster
+    adjust_polygons: true # Adjust polygon boundaries to match point cloud
+    polygon_buffer: 0.5 # Buffer distance for polygon adjustment (meters)
+    wall_buffer: 0.3 # Additional buffer for near-vertical walls (meters)
+    detect_near_vertical_walls: true # Enable wall detection
+
 # Features: ASPRS-optimized feature set with RTX 4080 tuning
 features:
   mode: "asprs_classes" # ASPRS feature mode

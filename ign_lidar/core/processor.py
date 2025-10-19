@@ -4,7 +4,7 @@ Main LiDAR Processing Class
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Literal, Union, Optional, List
+from typing import Dict, Any, Literal, Union, Optional, List, Tuple
 import multiprocessing as mp
 from functools import partial
 import time
@@ -824,6 +824,148 @@ class LiDARProcessor:
         # Write LAZ file
         las.write(str(save_path))
     
+    def _augment_ground_with_dtm(
+        self,
+        points: np.ndarray,
+        classification: np.ndarray,
+        bbox: Tuple[float, float, float, float]
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Augment ground points using RGE ALTI DTM.
+        
+        This function adds synthetic ground points from the DTM in areas where:
+        - Ground points are missing (under vegetation, buildings)
+        - Point density is low (gaps in coverage)
+        - Better ground reference is needed for accurate height computation
+        
+        Args:
+            points: Original point cloud [N, 3] (X, Y, Z)
+            classification: Point classifications [N]
+            bbox: Bounding box (minx, miny, maxx, maxy)
+            
+        Returns:
+            Tuple of (augmented_points, augmented_classification)
+        """
+        try:
+            from ..io.rge_alti_fetcher import RGEALTIFetcher
+            
+            # Get DTM configuration
+            dtm_config = OmegaConf.select(self.config, 'data_sources.rge_alti', default={})
+            augment_config = OmegaConf.select(self.config, 'ground_truth.rge_alti', default={})
+            
+            # Initialize RGE ALTI fetcher
+            cache_dir = self.config.get('cache_dir')
+            if cache_dir:
+                cache_dir = Path(cache_dir) / 'rge_alti'
+            
+            fetcher = RGEALTIFetcher(
+                cache_dir=str(cache_dir) if cache_dir else None,
+                resolution=dtm_config.get('resolution', 1.0),
+                use_wcs=dtm_config.get('use_wcs', True),
+                api_key=dtm_config.get('api_key', 'pratique')
+            )
+            
+            # Fetch DTM for tile bbox
+            logger.debug(f"      Fetching DTM for bbox: {bbox}")
+            dtm_data = fetcher.fetch_dtm_for_bbox(bbox, crs="EPSG:2154")
+            if dtm_data is None:
+                logger.warning(f"      Failed to fetch DTM - skipping ground augmentation")
+                return points, classification
+            
+            # Get augmentation parameters
+            spacing = augment_config.get('augmentation_spacing', 2.0)
+            min_spacing = augment_config.get('min_spacing_to_existing', 1.5)
+            max_height_diff = augment_config.get('max_height_difference', 5.0)
+            synthetic_class = augment_config.get('synthetic_ground_class', 2)  # ASPRS Ground
+            
+            # Identify areas needing augmentation
+            strategy = augment_config.get('augmentation_strategy', 'intelligent')
+            priority = augment_config.get('augmentation_priority', {})
+            
+            # Get existing ground points
+            ground_mask = classification == 2  # ASPRS Ground class
+            existing_ground = points[ground_mask]
+            
+            logger.debug(f"      Existing ground points: {len(existing_ground):,}")
+            logger.debug(f"      Augmentation strategy: {strategy}")
+            
+            # Generate synthetic ground points from DTM
+            logger.debug(f"      Generating synthetic points (spacing={spacing}m)")
+            synthetic_points = fetcher.generate_ground_points(bbox, spacing=spacing, crs="EPSG:2154")
+            
+            if synthetic_points is None or len(synthetic_points) == 0:
+                logger.warning(f"      No synthetic points generated from DTM")
+                return points, classification
+            
+            logger.debug(f"      Generated {len(synthetic_points):,} candidate synthetic points")
+            
+            # Filter synthetic points based on strategy and existing coverage
+            if strategy in ['gaps', 'intelligent']:
+                # Only add points where existing ground is sparse
+                from scipy.spatial import cKDTree
+                
+                # Build KD-tree of existing ground points
+                if len(existing_ground) > 0:
+                    tree = cKDTree(existing_ground[:, :2])  # XY only
+                    
+                    # Find distance to nearest existing ground point
+                    distances, _ = tree.query(synthetic_points[:, :2])
+                    
+                    # Keep only points farther than min_spacing from existing ground
+                    sparse_mask = distances >= min_spacing
+                    synthetic_points = synthetic_points[sparse_mask]
+                    
+                    logger.debug(f"      Filtered to {len(synthetic_points):,} points in sparse areas")
+            
+            # Validate synthetic points against nearby real points
+            if augment_config.get('validate_against_neighbors', True) and len(existing_ground) > 0:
+                from scipy.spatial import cKDTree
+                
+                # Build KD-tree of all points
+                tree = cKDTree(points[:, :2])
+                
+                # Find nearest neighbors for validation
+                distances, indices = tree.query(synthetic_points[:, :2], k=5)
+                
+                # Compute average Z of nearby points
+                nearby_z = points[indices, 2]
+                avg_nearby_z = nearby_z.mean(axis=1)
+                
+                # Keep only points with consistent elevation
+                height_diff = np.abs(synthetic_points[:, 2] - avg_nearby_z)
+                valid_mask = height_diff <= max_height_diff
+                
+                n_rejected = (~valid_mask).sum()
+                if n_rejected > 0:
+                    logger.debug(f"      Rejected {n_rejected:,} points with inconsistent elevation")
+                
+                synthetic_points = synthetic_points[valid_mask]
+            
+            if len(synthetic_points) == 0:
+                logger.info(f"      No synthetic points passed validation")
+                return points, classification
+            
+            # Merge synthetic points with original point cloud
+            augmented_points = np.vstack([points, synthetic_points])
+            
+            # Create classification array for synthetic points
+            synthetic_classification = np.full(len(synthetic_points), synthetic_class, dtype=classification.dtype)
+            augmented_classification = np.concatenate([classification, synthetic_classification])
+            
+            logger.info(f"      ✅ Added {len(synthetic_points):,} validated synthetic ground points")
+            logger.debug(f"      Total points: {len(points):,} → {len(augmented_points):,}")
+            
+            return augmented_points, augmented_classification
+            
+        except ImportError as e:
+            logger.error(f"      ❌ RGEALTIFetcher not available: {e}")
+            logger.error(f"         Install required packages: pip install rasterio requests")
+            return points, classification
+        except Exception as e:
+            logger.error(f"      ❌ Ground augmentation failed: {e}")
+            logger.debug(f"      Exception details:", exc_info=True)
+            return points, classification
+    
     def _redownload_tile(self, laz_file: Path) -> bool:
         """
         Attempt to re-download a corrupted tile from IGN WFS.
@@ -1264,6 +1406,82 @@ class LiDARProcessor:
         input_ndvi_v = input_ndvi
         enriched_features_v = enriched_features
         
+        # 1a. Augment ground points with RGE ALTI DTM (BEFORE feature computation)
+        # This step adds synthetic ground points from DTM to fill gaps under vegetation, buildings, etc.
+        # ⚡ CRITICAL: Must be done BEFORE feature computation so features are computed on all points
+        rge_alti_enabled = OmegaConf.select(self.config, 'data_sources.rge_alti.enabled', default=False)
+        augment_ground = OmegaConf.select(self.config, 'ground_truth.rge_alti.augment_ground', default=False)
+        
+        if rge_alti_enabled and augment_ground:
+            logger.info(f"  🌍 Augmenting ground points with RGE ALTI DTM...")
+            try:
+                # Get tile bounding box
+                bbox = (
+                    float(points_v[:, 0].min()),
+                    float(points_v[:, 1].min()),
+                    float(points_v[:, 0].max()),
+                    float(points_v[:, 1].max())
+                )
+                
+                # Augment ground points using DTM
+                points_augmented, classification_augmented = self._augment_ground_with_dtm(
+                    points=points_v,
+                    classification=classification_v,
+                    bbox=bbox
+                )
+                
+                # Update point cloud with augmented data
+                n_added = len(points_augmented) - len(points_v)
+                if n_added > 0:
+                    logger.info(f"  ✅ Added {n_added:,} synthetic ground points from DTM")
+                    
+                    # Replace original data with augmented data
+                    points_v = points_augmented
+                    classification_v = classification_augmented
+                    
+                    # Extend other arrays with null/default values for synthetic points
+                    # Synthetic points don't have intensity, return_number, RGB, NIR data
+                    if intensity_v is not None:
+                        intensity_v = np.concatenate([
+                            intensity_v,
+                            np.zeros(n_added, dtype=intensity_v.dtype)
+                        ])
+                    if return_number_v is not None:
+                        return_number_v = np.concatenate([
+                            return_number_v,
+                            np.ones(n_added, dtype=return_number_v.dtype)  # Set to 1 (single return)
+                        ])
+                    if input_rgb_v is not None:
+                        input_rgb_v = np.concatenate([
+                            input_rgb_v,
+                            np.zeros((n_added, 3), dtype=input_rgb_v.dtype)
+                        ])
+                    if input_nir_v is not None:
+                        input_nir_v = np.concatenate([
+                            input_nir_v,
+                            np.zeros(n_added, dtype=input_nir_v.dtype)
+                        ])
+                    if input_ndvi_v is not None:
+                        input_ndvi_v = np.concatenate([
+                            input_ndvi_v,
+                            np.zeros(n_added, dtype=input_ndvi_v.dtype)
+                        ])
+                    
+                    # Update original_data to include augmented points
+                    original_data['points'] = points_v
+                    original_data['classification'] = classification_v
+                    original_data['intensity'] = intensity_v
+                    original_data['return_number'] = return_number_v
+                    original_data['input_rgb'] = input_rgb_v
+                    original_data['input_nir'] = input_nir_v
+                    original_data['input_ndvi'] = input_ndvi_v
+                else:
+                    logger.info(f"  ℹ️  No ground points added (sufficient existing coverage)")
+                    
+            except Exception as e:
+                logger.error(f"  ❌ Failed to augment ground points with DTM: {e}")
+                logger.debug(f"  Exception details:", exc_info=True)
+        
         # 2. Compute all features using FeatureOrchestrator (Phase 4.3)
         # Store tile metadata in tile_data for orchestrator to use
         if tile_metadata:
@@ -1535,15 +1753,63 @@ class LiDARProcessor:
                     pct_reclass_changed = (n_reclass_changed / len(labels_v)) * 100
                     logger.info(f"  ✅ Reclassification completed: {n_reclass_changed:,} points changed ({pct_reclass_changed:.2f}%)")
                     
+                    # 🆕 V5.2: Reclassify vegetation above BD TOPO surfaces
+                    # This step uses height_above_ground from RGE ALTI DTM to identify
+                    # vegetation (trees, bushes) that are above roads, sports facilities, etc.
+                    reclassify_vegetation = reclassification_config.get('reclassify_vegetation_above_surfaces', True)
+                    
+                    if reclassify_vegetation and height_above_ground is not None:
+                        logger.info(f"\n  🌳 Reclassifying vegetation above BD TOPO surfaces...")
+                        
+                        # Get thresholds from config
+                        veg_height_threshold = reclassification_config.get('vegetation_height_threshold', 2.0)
+                        veg_ndvi_threshold = reclassification_config.get('vegetation_ndvi_threshold', 0.3)
+                        
+                        # Get NDVI if available
+                        ndvi_for_veg = all_features.get('ndvi')
+                        
+                        # Reclassify vegetation above surfaces
+                        labels_before_veg = labels_v.copy()
+                        labels_v, veg_stats = reclassifier.reclassify_vegetation_above_surfaces(
+                            points=points_v,
+                            labels=labels_v,
+                            ground_truth_features=gt_data['ground_truth'],
+                            height_above_ground=height_above_ground,
+                            ndvi=ndvi_for_veg,
+                            height_threshold=veg_height_threshold,
+                            ndvi_threshold=veg_ndvi_threshold
+                        )
+                        
+                        # Log vegetation reclassification results
+                        n_veg_changed = np.sum(labels_v != labels_before_veg)
+                        if n_veg_changed > 0:
+                            logger.info(f"  ✅ Vegetation reclassification: {n_veg_changed:,} points reclassified")
+                            
+                            # Log details by surface type
+                            for surface_type in ['roads', 'sports', 'cemeteries', 'parking']:
+                                key = f'{surface_type}_vegetation'
+                                if key in veg_stats and veg_stats[key] > 0:
+                                    logger.info(f"      {surface_type}: {veg_stats[key]:,} vegetation points")
+                        else:
+                            logger.info(f"  ℹ️  No vegetation found above BD TOPO surfaces")
+                    elif not reclassify_vegetation:
+                        logger.debug(f"  ℹ️  Vegetation reclassification disabled in config")
+                    elif height_above_ground is None:
+                        logger.warning(f"  ⚠️  height_above_ground not available - skipping vegetation reclassification")
+                        logger.warning(f"      → Enable RGE ALTI: data_sources.rge_alti.enabled = true")
+                    
                     # Show final class distribution
                     unique_final, counts_final = np.unique(labels_v, return_counts=True)
-                    logger.info(f"  📊 Final classification distribution:")
-                    for cls_code in [11, 10, 40, 41, 42, 43]:  # BD TOPO classes of interest
+                    logger.info(f"\n  📊 Final classification distribution:")
+                    for cls_code in [11, 10, 40, 41, 42, 43, 3, 4, 5]:  # BD TOPO + vegetation classes
                         if cls_code in unique_final:
                             count = counts_final[unique_final == cls_code][0]
                             pct = (count / len(labels_v)) * 100
-                            cls_names = {11: "Roads", 10: "Railways", 40: "Parking", 
-                                       41: "Sports", 42: "Cemetery", 43: "Power Lines"}
+                            cls_names = {
+                                11: "Roads", 10: "Railways", 40: "Parking", 
+                                41: "Sports", 42: "Cemetery", 43: "Power Lines",
+                                3: "Low Vegetation", 4: "Medium Vegetation", 5: "High Vegetation"
+                            }
                             logger.info(f"      Class {cls_code} ({cls_names.get(cls_code, 'Unknown')}): {count:,} ({pct:.2f}%)")
                 else:
                     logger.warning(f"  ⚠️  No ground truth data available for reclassification")

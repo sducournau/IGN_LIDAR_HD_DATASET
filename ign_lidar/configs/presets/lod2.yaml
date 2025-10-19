@@ -109,6 +109,49 @@ processor:
     use_geometric_rules: true # Important for buildings
     min_confidence: 0.7
 
+  # ============================================================================
+  # BUILDING CLUSTERING (V5.1 Enhancement)
+  # ============================================================================
+  building_clustering:
+    enabled: true # Enable building clustering by footprint
+    use_centroid_attraction: true # Assign ambiguous points to nearest centroid
+    attraction_radius: 5.0 # Maximum distance for centroid attraction (meters)
+    min_points_per_building: 10 # Minimum points to form valid cluster
+    adjust_polygons: true # Adjust polygon boundaries to match point cloud
+    polygon_buffer: 0.5 # Buffer distance for polygon adjustment (meters)
+    wall_buffer: 0.3 # Additional buffer for near-vertical walls (meters)
+    detect_near_vertical_walls: true # Enable wall detection for LOD2
+
+  # ============================================================================
+  # PLANE DETECTION (V5.1 Enhancement)
+  # ============================================================================
+  plane_detection:
+    enabled: true # Enable plane detection for LOD2
+
+    # Horizontal planes (flat roofs, terraces)
+    horizontal_angle_max: 10.0 # Maximum angle from horizontal (degrees)
+    horizontal_planarity_min: 0.75 # Minimum planarity for horizontal planes
+
+    # Vertical planes (walls, facades)
+    vertical_angle_min: 75.0 # Minimum angle from horizontal (degrees)
+    vertical_planarity_min: 0.65 # Minimum planarity for vertical planes
+
+    # Inclined planes (pitched roofs)
+    inclined_angle_min: 15.0 # Minimum angle for inclined surfaces (degrees)
+    inclined_angle_max: 70.0 # Maximum angle for inclined surfaces (degrees)
+    inclined_planarity_min: 0.70 # Minimum planarity for inclined planes
+
+    # General parameters
+    min_points_per_plane: 50 # Minimum points to form valid plane
+    max_plane_distance: 0.15 # Maximum distance from plane for inliers (meters)
+    use_spatial_coherence: true # Use spatial clustering for plane segmentation
+
+    # Roof type classification
+    classify_roof_types: true # Enable automatic roof type classification
+
+    # Architectural elements
+    detect_architectural_elements: false # Disabled for LOD2 (use LOD3)
+
 # Features: LOD2-optimized feature set
 features:
   mode: "lod2" # LOD2 feature mode

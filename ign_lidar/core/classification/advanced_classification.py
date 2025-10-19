@@ -293,8 +293,11 @@ class AdvancedClassifier:
         # Stage 2: NDVI-based vegetation detection
         if self.use_ndvi and ndvi is not None:
             logger.info("  Stage 2: NDVI-based vegetation refinement (multi-level)")
+            # Store current labels as "original" for preservation
+            original_labels_for_ndvi = labels.copy()
             labels, confidence = self._classify_by_ndvi(
-                labels, confidence, ndvi, height, curvature, planarity
+                labels, confidence, ndvi, height, curvature, planarity,
+                original_labels=original_labels_for_ndvi
             )
         
         # Stage 3: Ground truth (highest priority - overwrites previous)
@@ -459,32 +462,44 @@ class AdvancedClassifier:
         ndvi: np.ndarray,
         height: Optional[np.ndarray],
         curvature: Optional[np.ndarray] = None,
-        planarity: Optional[np.ndarray] = None
+        planarity: Optional[np.ndarray] = None,
+        original_labels: Optional[np.ndarray] = None
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Classify and refine using NDVI with multi-level thresholds.
         
-        Multi-level NDVI Classification:
-        - NDVI ≥ 0.60: Dense forest (high vegetation)
-        - NDVI ≥ 0.50: Healthy trees (high vegetation)
-        - NDVI ≥ 0.40: Moderate vegetation (medium)
-        - NDVI ≥ 0.30: Grass/shrubs (low/medium by height)
-        - NDVI ≥ 0.20: Sparse vegetation (low)
-        - NDVI < 0.20: Non-vegetation
+        ENHANCED NDVI Classification with Increased Sensitivity:
+        - NDVI ≥ 0.65: Dense forest (high vegetation) - INCREASED from 0.60
+        - NDVI ≥ 0.55: Healthy trees (high vegetation) - INCREASED from 0.50
+        - NDVI ≥ 0.45: Moderate vegetation (medium) - INCREASED from 0.40
+        - NDVI ≥ 0.35: Grass/shrubs (low/medium by height) - INCREASED from 0.30
+        - NDVI ≥ 0.25: Sparse vegetation (low) - INCREASED from 0.20
+        - NDVI < 0.25: Non-vegetation
+        
+        NEW FEATURE: Original Classification Preservation
+        - If original_labels provided, preserve vegetation where NDVI confirms
+        - Prevents loss of manually classified or high-confidence vegetation
         """
         
-        # Multi-level NDVI thresholds
-        NDVI_DENSE_FOREST = 0.60
-        NDVI_HEALTHY_TREES = 0.50
-        NDVI_MODERATE_VEG = 0.40
-        NDVI_GRASS = 0.30
-        NDVI_SPARSE_VEG = 0.20
+        # Multi-level NDVI thresholds (INCREASED SENSITIVITY)
+        NDVI_DENSE_FOREST = 0.65  # Was 0.60 - now more selective for dense forest
+        NDVI_HEALTHY_TREES = 0.55  # Was 0.50 - increased to capture healthier vegetation
+        NDVI_MODERATE_VEG = 0.45   # Was 0.40 - higher threshold for moderate vegetation
+        NDVI_GRASS = 0.35          # Was 0.30 - increased for grass/shrub detection
+        NDVI_SPARSE_VEG = 0.25     # Was 0.20 - more sensitive sparse vegetation detection
+        
+        # ORIGINAL LABEL PRESERVATION: Store original vegetation classifications
+        original_veg_mask = None
+        if original_labels is not None:
+            veg_classes = [self.ASPRS_LOW_VEGETATION, self.ASPRS_MEDIUM_VEGETATION, self.ASPRS_HIGH_VEGETATION]
+            original_veg_mask = np.isin(original_labels, veg_classes)
+            logger.info(f"    Preserving {original_veg_mask.sum():,} original vegetation labels where NDVI confirms")
         
         # Only override low-confidence classifications
         low_confidence_mask = confidence < 0.8
         
         if height is not None:
-            # Dense forest (NDVI ≥ 0.60)
+            # Dense forest (NDVI ≥ 0.65) - INCREASED THRESHOLD
             dense_forest = (ndvi >= NDVI_DENSE_FOREST) & low_confidence_mask
             if curvature is not None and planarity is not None:
                 # Validate with features: forests have high curvature, low planarity
@@ -537,8 +552,18 @@ class AdvancedClassifier:
             logger.info(f"      Dense forest (NDVI≥0.6): {np.sum(dense_forest):,}")
             logger.info(f"      Healthy trees (NDVI≥0.5): {np.sum(healthy_trees):,}")
             logger.info(f"      Moderate veg (NDVI≥0.4): {np.sum(moderate_veg):,}")
-            logger.info(f"      Grass (NDVI≥0.3): {np.sum(grass):,}")
-            logger.info(f"      Sparse veg (NDVI≥0.2): {np.sum(sparse_veg):,}")
+            logger.info(f"      Grass (NDVI≥0.35): {np.sum(grass):,}")
+            logger.info(f"      Sparse veg (NDVI≥0.25): {np.sum(sparse_veg):,}")
+            
+            # ORIGINAL LABEL PRESERVATION: Restore original vegetation where NDVI confirms
+            if original_veg_mask is not None:
+                # For points originally classified as vegetation with confirming NDVI
+                preserve_mask = original_veg_mask & (ndvi >= NDVI_SPARSE_VEG)
+                n_preserved = preserve_mask.sum()
+                if n_preserved > 0:
+                    labels[preserve_mask] = original_labels[preserve_mask]
+                    confidence[preserve_mask] = 0.95  # High confidence from original + NDVI
+                    logger.info(f"    Preserved {n_preserved:,} original vegetation labels with NDVI confirmation")
         else:
             # No height - use simple NDVI classification
             high_ndvi = (ndvi >= NDVI_HEALTHY_TREES) & low_confidence_mask

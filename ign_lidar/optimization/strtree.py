@@ -315,6 +315,10 @@ class OptimizedGroundTruthClassifier:
         """
         Pre-filter point candidates by geometric features.
         
+        🆕 V5.2: Uses height_above_ground from RGE ALTI DTM for more accurate filtering.
+        This significantly improves classification of roads, sports facilities, and 
+        vegetation by using true ground reference instead of local height estimation.
+        
         Returns:
             Dict of feature_type -> candidate_indices
         """
@@ -323,12 +327,18 @@ class OptimizedGroundTruthClassifier:
         if height is None or planarity is None:
             return candidates_map
         
-        # Road candidates: low height, high planarity
+        # 🆕 Use height_above_ground (from DTM) for more accurate filtering
+        # height parameter now contains height_above_ground computed from RGE ALTI
+        height_above_ground = height
+        
+        # Road candidates: VERY low height above ground, high planarity
+        # 🆕 V5.2: Stricter threshold (0.5m vs 2.0m) thanks to accurate DTM reference
+        # This excludes vegetation above roads (trees, bushes) automatically
         if 'roads' in ground_truth_features and ground_truth_features['roads'] is not None:
             road_mask = (
-                (height <= 2.0) &
-                (height >= -0.5) &
-                (planarity >= 0.7)
+                (height_above_ground <= 0.5) &  # 🆕 STRICT: max 50cm above DTM ground
+                (height_above_ground >= -0.2) &  # 🆕 Tolerance for slight embedding
+                (planarity >= 0.7)               # High planarity (flat surface)
             )
             if intensity is not None:
                 # Roads typically have moderate intensity (asphalt/concrete)
@@ -336,24 +346,76 @@ class OptimizedGroundTruthClassifier:
             
             candidates_map['roads'] = np.where(road_mask)[0]
             reduction = len(candidates_map['roads']) / len(points) * 100
-            logger.info(f"  Road candidates: {len(candidates_map['roads']):,} ({reduction:.1f}%)")
+            logger.info(f"  Road candidates: {len(candidates_map['roads']):,} ({reduction:.1f}%) [DTM-filtered]")
         
-        # Railway candidates: low height, medium planarity
+        # Railway candidates: low height above ground, medium planarity
+        # 🆕 V5.2: Stricter threshold (0.8m vs 2.0m) for rails + ballast
         if 'railways' in ground_truth_features and ground_truth_features['railways'] is not None:
             rail_mask = (
-                (height <= 2.0) &
-                (height >= -0.5) &
-                (planarity >= 0.5)
+                (height_above_ground <= 0.8) &  # 🆕 Rails + ballast + ties
+                (height_above_ground >= -0.2) &  # 🆕 Slight embedding tolerance
+                (planarity >= 0.5)               # Medium planarity
             )
             candidates_map['railways'] = np.where(rail_mask)[0]
             reduction = len(candidates_map['railways']) / len(points) * 100
-            logger.info(f"  Railway candidates: {len(candidates_map['railways']):,} ({reduction:.1f}%)")
+            logger.info(f"  Railway candidates: {len(candidates_map['railways']):,} ({reduction:.1f}%) [DTM-filtered]")
         
-        # Building candidates: elevated or low planarity
+        # Sports facility candidates: low-medium height, high planarity
+        # 🆕 V5.2: NEW filter for sports surfaces (tennis courts, football fields, etc.)
+        if 'sports' in ground_truth_features and ground_truth_features['sports'] is not None:
+            sports_mask = (
+                (height_above_ground <= 2.0) &   # 🆕 Sports surfaces + low equipment
+                (height_above_ground >= -0.2) &  # Ground level
+                (planarity >= 0.65)              # Relatively flat surfaces
+            )
+            candidates_map['sports'] = np.where(sports_mask)[0]
+            reduction = len(candidates_map['sports']) / len(points) * 100
+            logger.info(f"  Sports candidates: {len(candidates_map['sports']):,} ({reduction:.1f}%) [DTM-filtered]")
+        
+        # Cemetery candidates: low-medium height
+        # 🆕 V5.2: NEW filter for cemeteries (tombs, monuments typically < 2.5m)
+        if 'cemeteries' in ground_truth_features and ground_truth_features['cemeteries'] is not None:
+            cemetery_mask = (
+                (height_above_ground <= 2.5) &   # 🆕 Tombs + monuments
+                (height_above_ground >= -0.2)    # Ground level
+            )
+            candidates_map['cemeteries'] = np.where(cemetery_mask)[0]
+            reduction = len(candidates_map['cemeteries']) / len(points) * 100
+            logger.info(f"  Cemetery candidates: {len(candidates_map['cemeteries']):,} ({reduction:.1f}%) [DTM-filtered]")
+        
+        # Parking candidates: very low height (similar to roads)
+        # 🆕 V5.2: NEW filter for parking areas
+        if 'parking' in ground_truth_features and ground_truth_features['parking'] is not None:
+            parking_mask = (
+                (height_above_ground <= 0.5) &   # 🆕 Similar to roads
+                (height_above_ground >= -0.2) &  # Ground level
+                (planarity >= 0.7)               # Flat surface
+            )
+            if intensity is not None:
+                # Parking typically has moderate intensity (asphalt/concrete)
+                parking_mask = parking_mask & (intensity >= 0.1) & (intensity <= 0.9)
+            
+            candidates_map['parking'] = np.where(parking_mask)[0]
+            reduction = len(candidates_map['parking']) / len(points) * 100
+            logger.info(f"  Parking candidates: {len(candidates_map['parking']):,} ({reduction:.1f}%) [DTM-filtered]")
+        
+        # Water candidates: at or slightly below/above DTM ground level
+        # 🆕 V5.2: NEW filter for water surfaces
+        if 'water' in ground_truth_features and ground_truth_features['water'] is not None:
+            water_mask = (
+                (height_above_ground <= 0.3) &   # 🆕 Water surface ± ripples
+                (height_above_ground >= -0.5) &  # 🆕 Slight depression
+                (planarity >= 0.6)               # Relatively flat
+            )
+            candidates_map['water'] = np.where(water_mask)[0]
+            reduction = len(candidates_map['water']) / len(points) * 100
+            logger.info(f"  Water candidates: {len(candidates_map['water']):,} ({reduction:.1f}%) [DTM-filtered]")
+        
+        # Building candidates: elevated or low planarity (no change needed)
         if 'buildings' in ground_truth_features and ground_truth_features['buildings'] is not None:
             building_mask = (
-                (height >= 1.0) |  # Elevated structures
-                (planarity < 0.5)   # Non-planar (facades, edges)
+                (height_above_ground >= 1.0) |  # Elevated structures
+                (planarity < 0.5)                # Non-planar (facades, edges)
             )
             candidates_map['buildings'] = np.where(building_mask)[0]
             reduction = len(candidates_map['buildings']) / len(points) * 100

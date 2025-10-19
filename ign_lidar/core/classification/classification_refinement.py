@@ -101,12 +101,17 @@ class RefinementConfig:
     
     # Road-specific parameters - from ClassificationThresholds (Issue #1, #8)
     ROAD_BUFFER_TOLERANCE = ClassificationThresholds.ROAD_BUFFER_TOLERANCE
-    ROAD_HEIGHT_MAX = ClassificationThresholds.ROAD_HEIGHT_MAX  # Updated: 2.0m (was 1.5m)
+    ROAD_HEIGHT_MAX = ClassificationThresholds.ROAD_HEIGHT_MAX  # Updated: 1.5m (reduced to exclude trees)
     ROAD_HEIGHT_MIN = ClassificationThresholds.ROAD_HEIGHT_MIN  # Updated: -0.5m (was -0.3m)
-    ROAD_PLANARITY_MIN = ClassificationThresholds.ROAD_PLANARITY_MIN
+    ROAD_PLANARITY_MIN = ClassificationThresholds.ROAD_PLANARITY_MIN  # Updated: 0.7 (increased)
     ROAD_INTENSITY_FILTER = True   # Use intensity to refine road detection
     ROAD_MIN_INTENSITY = ClassificationThresholds.ROAD_INTENSITY_MIN
     ROAD_MAX_INTENSITY = ClassificationThresholds.ROAD_INTENSITY_MAX
+    
+    # Road vegetation/building exclusion parameters (ENHANCED)
+    ROAD_NDVI_MAX = ClassificationThresholds.ROAD_NDVI_MAX  # 0.20 - exclude vegetation
+    ROAD_CURVATURE_MAX = ClassificationThresholds.ROAD_CURVATURE_MAX  # 0.05 - exclude complex surfaces
+    ROAD_VERTICALITY_MAX = ClassificationThresholds.ROAD_VERTICALITY_MAX  # 0.30 - exclude vertical structures
     
     # Railway-specific parameters - from ClassificationThresholds (Issue #4, #8)
     RAIL_BUFFER_TOLERANCE = ClassificationThresholds.RAIL_BUFFER_MULTIPLIER * ClassificationThresholds.ROAD_BUFFER_TOLERANCE
@@ -652,6 +657,9 @@ def refine_road_classification(
     normals: Optional[np.ndarray] = None,
     road_types: Optional[np.ndarray] = None,
     rail_types: Optional[np.ndarray] = None,
+    ndvi: Optional[np.ndarray] = None,
+    verticality: Optional[np.ndarray] = None,
+    curvature: Optional[np.ndarray] = None,
     mode: str = 'lod2',
     config: RefinementConfig = None
 ) -> Tuple[np.ndarray, int]:
@@ -669,6 +677,8 @@ def refine_road_classification(
     - Low roughness (smooth surfaces)
     - Low height above ground
     - Typical surface intensity values
+    - ENHANCED: Filters to exclude vegetation (NDVI, curvature)
+    - ENHANCED: Filters to exclude buildings (verticality, height)
     
     Args:
         labels: Current classification labels [N]
@@ -682,6 +692,9 @@ def refine_road_classification(
         normals: Surface normals [N, 3]
         road_types: Road type classifications [N] from BD TOPO
         rail_types: Rail type classifications [N] from BD TOPO
+        ndvi: NDVI values [N] for vegetation filtering
+        verticality: Verticality values [N] for building filtering
+        curvature: Surface curvature [N] for vegetation filtering
         mode: Detection mode ('asprs_standard', 'asprs_extended', or 'lod2')
         config: Refinement configuration
         
@@ -741,27 +754,78 @@ def refine_road_classification(
     # LOD2 class IDs
     LOD2_GROUND = 9
     LOD2_OTHER = 14
+    LOD2_VEG_LOW = 10
+    LOD2_VEG_HIGH = 11
+    LOD2_WALL = 0  # Building walls
     
-    # Use ground truth if available and prioritized
+    # === STEP 1: Filter ground truth with enhanced exclusion rules ===
     if ground_truth_road_mask is not None and config.USE_GROUND_TRUTH:
+        # Create filtered road mask excluding vegetation and buildings
+        filtered_road_mask = ground_truth_road_mask.copy()
+        
+        # EXCLUSION 1: Remove vegetation using NDVI
+        if ndvi is not None:
+            # Vegetation has NDVI > ROAD_NDVI_MAX (even stressed vegetation)
+            vegetation_ndvi_mask = ndvi > config.ROAD_NDVI_MAX
+            filtered_road_mask = filtered_road_mask & ~vegetation_ndvi_mask
+            n_excluded_ndvi = (ground_truth_road_mask & vegetation_ndvi_mask).sum()
+            if n_excluded_ndvi > 0:
+                logger.debug(f"  NDVI filter: {n_excluded_ndvi} vegetation points excluded from roads (NDVI > {config.ROAD_NDVI_MAX})")
+        
+        # EXCLUSION 2: Remove vegetation using curvature (complex surfaces)
+        if curvature is not None:
+            # Vegetation has high curvature (branches, leaves)
+            vegetation_curve_mask = curvature > config.ROAD_CURVATURE_MAX
+            filtered_road_mask = filtered_road_mask & ~vegetation_curve_mask
+            n_excluded_curve = (ground_truth_road_mask & vegetation_curve_mask & ~(ndvi > config.ROAD_NDVI_MAX if ndvi is not None else False)).sum()
+            if n_excluded_curve > 0:
+                logger.debug(f"  Curvature filter: {n_excluded_curve} complex surface points excluded from roads (curvature > {config.ROAD_CURVATURE_MAX})")
+        
+        # EXCLUSION 3: Remove building structures using verticality
+        if verticality is not None:
+            # Buildings have high verticality (walls)
+            building_vertical_mask = verticality > config.ROAD_VERTICALITY_MAX
+            filtered_road_mask = filtered_road_mask & ~building_vertical_mask
+            n_excluded_vert = (ground_truth_road_mask & building_vertical_mask).sum()
+            if n_excluded_vert > 0:
+                logger.debug(f"  Verticality filter: {n_excluded_vert} vertical structure points excluded from roads (verticality > {config.ROAD_VERTICALITY_MAX})")
+        
+        # EXCLUSION 4: Remove elevated points (above road level)
+        if height is not None:
+            # Roads should be at ground level (not elevated structures)
+            elevated_mask = height > config.ROAD_HEIGHT_MAX
+            filtered_road_mask = filtered_road_mask & ~elevated_mask
+            n_excluded_height = (ground_truth_road_mask & elevated_mask).sum()
+            if n_excluded_height > 0:
+                logger.debug(f"  Height filter: {n_excluded_height} elevated points excluded from roads")
+        
+        # EXCLUSION 5: Protect existing building/vegetation classifications
+        protected_mask = np.isin(labels, [LOD2_WALL, LOD2_VEG_LOW, LOD2_VEG_HIGH])
+        filtered_road_mask = filtered_road_mask & ~protected_mask
+        n_excluded_protected = (ground_truth_road_mask & protected_mask).sum()
+        if n_excluded_protected > 0:
+            logger.debug(f"  Classification protection: {n_excluded_protected} building/vegetation points protected")
+        
+        # Apply filtered ground truth
         if config.GROUND_TRUTH_PRIORITY:
-            # Override with ground truth
-            changed = ground_truth_road_mask & (refined != LOD2_GROUND)
-            refined[ground_truth_road_mask] = LOD2_GROUND
+            changed = filtered_road_mask & (refined != LOD2_GROUND)
+            refined[filtered_road_mask] = LOD2_GROUND
             num_changed += changed.sum()
             
-            logger.debug(f"  Ground truth roads: {changed.sum()} points assigned")
+            total_excluded = (ground_truth_road_mask & ~filtered_road_mask).sum()
+            logger.debug(f"  Ground truth roads: {changed.sum()} points assigned, {total_excluded} points excluded by filters")
     
-    # Use geometric features to refine road detection
+    # === STEP 2: Use geometric features to refine road detection ===
     if height is not None and planarity is not None:
         # Road candidates: very flat + very low + smooth
         road_candidates = (
             (height < config.ROAD_HEIGHT_MAX) &  # Very close to ground
+            (height > config.ROAD_HEIGHT_MIN) &  # Not below ground (depression)
             (planarity > config.PLANARITY_ROAD_MIN) &  # Very flat
             (labels == LOD2_GROUND)  # Already classified as ground
         )
         
-        # Add roughness constraint if available
+        # Add roughness constraint if available (smooth surfaces)
         if roughness is not None:
             road_candidates = road_candidates & (roughness < config.ROUGHNESS_ROAD_MAX)
         
@@ -774,12 +838,23 @@ def refine_road_classification(
             )
             road_candidates = road_candidates & intensity_match
         
+        # ADDITIONAL EXCLUSION: Remove vegetation from geometric detection
+        if ndvi is not None:
+            road_candidates = road_candidates & (ndvi < config.ROAD_NDVI_MAX)
+        
+        if curvature is not None:
+            road_candidates = road_candidates & (curvature < config.ROAD_CURVATURE_MAX)
+        
+        # ADDITIONAL EXCLUSION: Remove vertical structures (buildings, poles)
+        if verticality is not None:
+            road_candidates = road_candidates & (verticality < config.ROAD_VERTICALITY_MAX)
+        
         # Keep as ground class but mark as refined roads
         # (In LOD2, roads are part of ground class)
         # No actual class change needed, just validation
         n_road_validated = road_candidates.sum()
         if n_road_validated > 0:
-            logger.debug(f"  Geometric features: {n_road_validated} road points validated")
+            logger.debug(f"  Geometric features: {n_road_validated} road points validated with enhanced filters")
     
     return refined, num_changed
 
@@ -1050,6 +1125,10 @@ def refine_classification(
         road_types_feat = features.get('road_types')
         rail_types_feat = features.get('rail_types')
         
+        # Get additional features for enhanced filtering
+        verticality_feat = features.get('verticality')
+        curvature_feat = features.get('curvature')
+        
         refined, n_transport = refine_road_classification(
             labels=refined,
             points=points,
@@ -1062,6 +1141,9 @@ def refine_classification(
             normals=normals,
             road_types=road_types_feat,
             rail_types=rail_types_feat,
+            ndvi=ndvi,
+            verticality=verticality_feat,
+            curvature=curvature_feat,
             mode=transport_mode,
             config=config
         )

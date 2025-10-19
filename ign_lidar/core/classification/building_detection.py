@@ -57,20 +57,25 @@ class BuildingDetectionConfig:
         # === Mode-specific Thresholds ===
         if mode == BuildingDetectionMode.ASPRS:
             # ASPRS: Simple binary detection (building vs non-building)
-            self.wall_verticality_min = 0.65
-            self.wall_planarity_min = 0.5
+            # ENHANCED: Near-vertical wall detection with buffer extension
+            self.wall_verticality_min = 0.60  # Lowered from 0.65 to catch more walls
+            self.wall_planarity_min = 0.45    # Lowered from 0.5 for rough walls
+            self.wall_buffer_distance = 0.3   # NEW: Extend to wall boundaries (meters)
             self.roof_horizontality_min = 0.80
             self.roof_planarity_min = 0.65
             self.anisotropy_min = 0.45
             self.linearity_edge_min = 0.35
             self.use_ground_truth = True
             self.ground_truth_priority = True
+            self.use_polygon_buffer = True    # NEW: Use building polygon buffers
             
         elif mode == BuildingDetectionMode.LOD2:
             # LOD2: Separate walls, roofs, other building elements
-            self.wall_verticality_min = 0.70
-            self.wall_planarity_min = 0.55
-            self.wall_score_min = 0.35        # planarity × verticality
+            # ENHANCED: Improved wall detection with near-vertical tolerance
+            self.wall_verticality_min = 0.65  # Lowered from 0.70 for near-vertical
+            self.wall_planarity_min = 0.50    # Lowered from 0.55 for textured walls
+            self.wall_score_min = 0.30        # Lowered from 0.35 (planarity × verticality)
+            self.wall_buffer_distance = 0.4   # NEW: Extend to wall boundaries
             self.roof_horizontality_min = 0.85
             self.roof_planarity_min = 0.70
             self.roof_score_min = 0.50         # planarity × horizontality
@@ -78,6 +83,7 @@ class BuildingDetectionConfig:
             self.linearity_edge_min = 0.40
             self.use_ground_truth = True
             self.ground_truth_priority = True
+            self.use_polygon_buffer = True    # NEW: Use building polygon buffers
             # LOD2-specific
             self.detect_flat_roofs = True
             self.detect_sloped_roofs = True

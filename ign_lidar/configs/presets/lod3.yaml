@@ -106,6 +106,54 @@ processor:
     use_geometric_rules: true
     min_confidence: 0.75 # Higher confidence for LOD3
 
+  # ============================================================================
+  # BUILDING CLUSTERING (V5.1 Enhancement)
+  # ============================================================================
+  building_clustering:
+    enabled: true # Enable building clustering by footprint
+    use_centroid_attraction: true # Assign ambiguous points to nearest centroid
+    attraction_radius: 5.0 # Maximum distance for centroid attraction (meters)
+    min_points_per_building: 10 # Minimum points to form valid cluster
+    adjust_polygons: true # Adjust polygon boundaries to match point cloud
+    polygon_buffer: 0.5 # Buffer distance for polygon adjustment (meters)
+    wall_buffer: 0.3 # Additional buffer for near-vertical walls (meters)
+    detect_near_vertical_walls: true # Enable wall detection for LOD3
+
+  # ============================================================================
+  # PLANE DETECTION (V5.1 Enhancement - Enhanced for LOD3)
+  # ============================================================================
+  plane_detection:
+    enabled: true # Enable full plane detection for LOD3
+
+    # Horizontal planes (flat roofs, terraces, balconies)
+    horizontal_angle_max: 8.0 # Stricter angle threshold (degrees)
+    horizontal_planarity_min: 0.80 # Higher planarity requirement
+
+    # Vertical planes (walls, facades, dormers)
+    vertical_angle_min: 78.0 # Stricter angle threshold (degrees)
+    vertical_planarity_min: 0.70 # Higher planarity requirement
+
+    # Inclined planes (pitched roofs, slopes)
+    inclined_angle_min: 12.0 # Wider range for detail (degrees)
+    inclined_angle_max: 75.0 # Wider range for detail (degrees)
+    inclined_planarity_min: 0.75 # Higher planarity requirement
+
+    # General parameters (stricter for LOD3)
+    min_points_per_plane: 30 # Lower threshold for small elements
+    max_plane_distance: 0.10 # Tighter tolerance (10cm)
+    use_spatial_coherence: true # Use spatial clustering
+
+    # Roof type classification
+    classify_roof_types: true # Enable automatic roof type classification
+
+    # Architectural elements (ENABLED for LOD3)
+    detect_architectural_elements: true # Detect balconies, chimneys, dormers, parapets
+    balcony_max_area: 20.0 # Maximum area for balconies (m²)
+    chimney_max_area: 10.0 # Maximum area for chimneys (m²)
+    chimney_min_height: 8.0 # Minimum height for chimneys (meters)
+    dormer_min_protrusion: 1.0 # Minimum protrusion above roof (meters)
+    parapet_max_height: 2.0 # Maximum height for parapets (meters)
+
 # Features: LOD3-optimized feature set (maximum detail)
 features:
   mode: "lod3" # LOD3 feature mode

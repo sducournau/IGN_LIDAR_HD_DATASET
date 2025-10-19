@@ -280,6 +280,136 @@ class OptimizedReclassifier:
         
         return updated_labels, stats
     
+    def reclassify_vegetation_above_surfaces(
+        self,
+        points: np.ndarray,
+        labels: np.ndarray,
+        ground_truth_features: Dict[str, gpd.GeoDataFrame],
+        height_above_ground: np.ndarray,
+        ndvi: Optional[np.ndarray] = None,
+        height_threshold: float = 2.0,
+        ndvi_threshold: float = 0.3
+    ) -> Tuple[np.ndarray, Dict[str, int]]:
+        """
+        🆕 V5.2: Reclassify vegetation points that are above BD TOPO surfaces.
+        
+        This function identifies points that are:
+        1. Inside BD TOPO polygons (roads, sports, cemeteries, parking)
+        2. Significantly above ground (height_above_ground > threshold)
+        3. Have vegetation signature (NDVI > threshold)
+        
+        These are typically trees/bushes above roads, vegetation in sports facilities,
+        etc. that should be classified as vegetation rather than the underlying surface.
+        
+        Args:
+            points: XYZ coordinates [N, 3]
+            labels: Current classification labels [N] (modified in-place)
+            ground_truth_features: Dict of feature_type -> GeoDataFrame
+            height_above_ground: Height above DTM ground [N] - from RGE ALTI
+            ndvi: Optional NDVI values [N] for vegetation detection
+            height_threshold: Minimum height above ground to consider (default: 2.0m)
+            ndvi_threshold: Minimum NDVI to consider as vegetation (default: 0.3)
+            
+        Returns:
+            Tuple of:
+            - Updated labels [N]
+            - Statistics dict with counts per feature type
+        """
+        stats = {}
+        updated_labels = labels.copy()
+        
+        logger.info(f"\n🌳 Reclassifying vegetation above BD TOPO surfaces...")
+        logger.info(f"  Height threshold: {height_threshold}m")
+        logger.info(f"  NDVI threshold: {ndvi_threshold if ndvi is not None else 'N/A (NDVI not available)'}")
+        
+        # Feature types to check for overlying vegetation
+        surface_types = {
+            'roads': self.ASPRS_ROAD,
+            'sports': self.ASPRS_SPORTS,
+            'cemeteries': self.ASPRS_GROUND,  # Cemeteries usually classified as ground
+            'parking': self.ASPRS_PARKING
+        }
+        
+        total_reclassified = 0
+        
+        for feature_type, asprs_code in surface_types.items():
+            if feature_type not in ground_truth_features:
+                continue
+            
+            gdf = ground_truth_features[feature_type]
+            if gdf is None or len(gdf) == 0:
+                stats[f'{feature_type}_vegetation'] = 0
+                continue
+            
+            logger.info(f"\n  Checking {feature_type}: {len(gdf)} features")
+            
+            # Find points currently classified as this surface type
+            surface_mask = labels == asprs_code
+            n_surface_points = surface_mask.sum()
+            
+            if n_surface_points == 0:
+                logger.info(f"    No points classified as {feature_type} (class {asprs_code})")
+                stats[f'{feature_type}_vegetation'] = 0
+                continue
+            
+            logger.info(f"    Found {n_surface_points:,} points classified as {feature_type}")
+            
+            # Apply height filter
+            high_points_mask = surface_mask & (height_above_ground > height_threshold)
+            n_high = high_points_mask.sum()
+            
+            logger.info(f"    {n_high:,} points > {height_threshold}m above ground")
+            
+            if n_high == 0:
+                stats[f'{feature_type}_vegetation'] = 0
+                continue
+            
+            # Apply NDVI filter if available
+            if ndvi is not None:
+                vegetation_mask = high_points_mask & (ndvi > ndvi_threshold)
+                n_vegetation = vegetation_mask.sum()
+                logger.info(f"    {n_vegetation:,} points with NDVI > {ndvi_threshold} (vegetation signature)")
+            else:
+                # Without NDVI, use more conservative height threshold
+                conservative_threshold = height_threshold + 1.0  # +1m safety margin
+                vegetation_mask = high_points_mask & (height_above_ground > conservative_threshold)
+                n_vegetation = vegetation_mask.sum()
+                logger.info(f"    {n_vegetation:,} points > {conservative_threshold}m (conservative without NDVI)")
+            
+            if n_vegetation == 0:
+                stats[f'{feature_type}_vegetation'] = 0
+                continue
+            
+            # Classify by height: low/medium/high vegetation
+            veg_points = np.where(vegetation_mask)[0]
+            veg_heights = height_above_ground[veg_points]
+            
+            # Low vegetation: 2-3m
+            low_veg = veg_points[veg_heights <= 3.0]
+            # Medium vegetation: 3-10m
+            medium_veg = veg_points[(veg_heights > 3.0) & (veg_heights <= 10.0)]
+            # High vegetation: >10m
+            high_veg = veg_points[veg_heights > 10.0]
+            
+            # Update labels
+            updated_labels[low_veg] = self.ASPRS_LOW_VEGETATION
+            updated_labels[medium_veg] = self.ASPRS_MEDIUM_VEGETATION
+            updated_labels[high_veg] = self.ASPRS_HIGH_VEGETATION
+            
+            n_reclassified = len(veg_points)
+            total_reclassified += n_reclassified
+            stats[f'{feature_type}_vegetation'] = n_reclassified
+            
+            logger.info(f"    ✅ Reclassified {n_reclassified:,} vegetation points:")
+            logger.info(f"       Low (3): {len(low_veg):,} | Medium (4): {len(medium_veg):,} | High (5): {len(high_veg):,}")
+        
+        stats['total_vegetation_reclassified'] = total_reclassified
+        
+        logger.info(f"\n🌳 Vegetation Reclassification Summary:")
+        logger.info(f"  Total reclassified: {total_reclassified:,} points")
+        
+        return updated_labels, stats
+    
     def _classify_feature(
         self,
         points: np.ndarray,

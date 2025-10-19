@@ -34,7 +34,7 @@ class ClassificationThresholds:
     # ===================================================================
     
     # Road height thresholds (meters)
-    ROAD_HEIGHT_MAX = 2.0  # Increased from 1.5m to handle elevated sections
+    ROAD_HEIGHT_MAX = 1.5  # Maximum height for road surfaces (reduced to exclude trees/buildings)
     ROAD_HEIGHT_MIN = -0.5  # Increased tolerance from -0.3m for depressions
     ROAD_HEIGHT_MAX_STRICT = 0.5  # For strict mode if needed
     
@@ -44,10 +44,15 @@ class ClassificationThresholds:
     RAIL_HEIGHT_MAX_STRICT = 0.8  # For strict mode if needed
     
     # Road geometric thresholds
-    ROAD_PLANARITY_MIN = 0.6  # Minimum planarity for road surfaces
+    ROAD_PLANARITY_MIN = 0.7  # Minimum planarity for road surfaces (increased for flatter surfaces)
     ROAD_PLANARITY_MIN_STRICT = 0.8  # Strict mode for urban roads
     ROAD_ROUGHNESS_MAX = 0.05  # Maximum roughness for paved roads
     ROAD_BUFFER_TOLERANCE = 0.5  # Additional buffer beyond BD TOPO width (meters)
+    
+    # Road vegetation/building exclusion thresholds
+    ROAD_NDVI_MAX = 0.20  # Maximum NDVI for road surfaces (exclude vegetation)
+    ROAD_CURVATURE_MAX = 0.05  # Maximum curvature (exclude complex surfaces like trees)
+    ROAD_VERTICALITY_MAX = 0.30  # Maximum verticality (exclude building walls, poles)
     
     # Railway geometric thresholds
     RAIL_PLANARITY_MIN = 0.5  # Lower than roads due to ballast
