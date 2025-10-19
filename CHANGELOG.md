@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🌐 DTM Fallback - LiDAR HD MNT → RGE ALTI (v5.2.3)
+
+**Automatic fallback between DTM sources for improved reliability**
+
+#### Added
+
+**Automatic Fallback in `rge_alti_fetcher.py`:**
+
+- **Multi-layer WMS fallback:**
+  - Primary: LiDAR HD MNT (1m resolution, best quality)
+  - Fallback: RGE ALTI (1m-5m resolution, broader coverage)
+  - Automatic retry with alternative source on failure
+- **DTM source tracking:**
+  - Metadata includes `source` field indicating which layer was used
+  - Enables quality analysis and debugging
+- **Enhanced error handling:**
+  - Continue to fallback layer instead of immediate failure
+  - Clear logging of which attempts succeeded/failed
+
+**Improved Error Messages in `processor.py`:**
+
+- Detailed failure messages listing all attempted sources
+- Actionable tips for users (check connection, pre-download tiles)
+- Clear explanation of impact on processing
+
+**Documentation:**
+
+- **`DTM_FALLBACK_GUIDE.md`:** Comprehensive user guide
+  - How fallback works
+  - Log message interpretation
+  - Configuration options
+  - Best practices and troubleshooting
+  - Performance and quality analysis
+- **`DTM_FALLBACK_IMPLEMENTATION.md`:** Technical details
+  - Implementation summary
+  - Testing procedures
+  - Migration notes
+
+#### Fixed
+
+- **502 Bad Gateway handling:** System now falls back to RGE ALTI instead of skipping ground augmentation
+- **Service unavailability:** Processing continues successfully when primary DTM source is down
+- **User experience:** Clear, actionable feedback when DTM fetch fails
+- **Array indexing bug:** Fixed "arrays used as indices must be of integer type" error in DTM sampling
+  - Added explicit `.astype(np.int32)` conversion for row/col indices in `sample_elevation_at_points()`
+  - Prevents type errors when sampling elevations from cached DTM grids
+
+#### Performance
+
+- **No impact with caching:** Cache hit = instant (< 1s)
+- **Minimal overhead on fallback:** +5-10 seconds per tile only on first run
+- **Cached runs identical:** Same performance regardless of DTM source
+
+#### Migration Notes
+
+- ✅ **Fully backwards compatible:** No configuration changes required
+- Existing cache files remain valid
+- Output format unchanged
+- API unchanged (internal improvement only)
+
+---
+
 ### 📐 ASPRS Feature Documentation (v5.2.2)
 
 **Complete feature requirements for classification and ground truth refinement**

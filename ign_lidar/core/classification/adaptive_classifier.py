@@ -18,7 +18,7 @@ Version: 1.0
 
 import numpy as np
 import logging
-from typing import Dict, Tuple, Optional, List, Set
+from typing import Dict, Tuple, Optional, List, Set, Any
 from dataclasses import dataclass
 from enum import Enum
 
@@ -562,3 +562,542 @@ class AdaptiveClassifier:
             }
         
         return report
+
+
+# ============================================================================
+# Comprehensive Adaptive Classification for All Feature Types
+# ============================================================================
+
+@dataclass
+class AdaptiveReclassificationConfig:
+    """Configuration for adaptive reclassification with ground truth as guidance."""
+    
+    # General confidence thresholds
+    MIN_CONFIDENCE = 0.5           # Minimum confidence to classify
+    HIGH_CONFIDENCE = 0.7          # High confidence classification
+    GT_WEIGHT = 0.20               # Weight for ground truth proximity (guidance only)
+    GEOMETRY_WEIGHT = 0.80         # Weight for geometric features (primary)
+    
+    # Fuzzy boundary settings
+    BUFFER_DISTANCE = 3.0          # Distance for fuzzy boundary (meters)
+    DECAY_RATE = 0.5               # Confidence decay outside GT polygon
+    
+    # Water parameters
+    WATER_HEIGHT_MAX = 0.5
+    WATER_PLANARITY_MIN = 0.90
+    WATER_CURVATURE_MAX = 0.02
+    WATER_NORMAL_Z_MIN = 0.92
+    WATER_NDVI_MAX = 0.15
+    WATER_ROUGHNESS_MAX = 0.02
+    
+    # Road parameters
+    ROAD_HEIGHT_MAX = 1.5
+    ROAD_HEIGHT_MIN = -0.5
+    ROAD_PLANARITY_MIN = 0.75
+    ROAD_CURVATURE_MAX = 0.05
+    ROAD_NORMAL_Z_MIN = 0.85
+    ROAD_NDVI_MAX = 0.20
+    ROAD_ROUGHNESS_MAX = 0.05
+    ROAD_VERTICALITY_MAX = 0.30
+    
+    # Vegetation parameters
+    VEG_NDVI_MIN = 0.25
+    VEG_CURVATURE_MIN = 0.02
+    VEG_PLANARITY_MAX = 0.50
+    VEG_ROUGHNESS_MIN = 0.03
+    VEG_LOW_HEIGHT_MAX = 0.5
+    VEG_HIGH_HEIGHT_MIN = 2.0
+    
+    # Bridge parameters
+    BRIDGE_HEIGHT_MIN = 3.0
+    BRIDGE_HEIGHT_MAX = 50.0
+
+
+class ComprehensiveAdaptiveClassifier:
+    """
+    Comprehensive adaptive classifier that treats ground truth as guidance
+    for ALL feature types (buildings, vegetation, roads, water, etc.).
+    
+    Key improvements:
+    1. Ground truth is guidance, not absolute truth
+    2. Point cloud features drive classification
+    3. Fuzzy boundaries with confidence-based voting
+    4. Handles all feature types consistently
+    """
+    
+    # ASPRS class codes
+    UNCLASSIFIED = 1
+    GROUND = 2
+    LOW_VEG = 3
+    MEDIUM_VEG = 4
+    HIGH_VEG = 5
+    BUILDING = 6
+    WATER = 9
+    ROAD = 11
+    BRIDGE = 17
+    
+    def __init__(self, config: Optional[AdaptiveReclassificationConfig] = None):
+        """Initialize comprehensive adaptive classifier."""
+        self.config = config or AdaptiveReclassificationConfig()
+        logger.info("Initialized ComprehensiveAdaptiveClassifier")
+        logger.info("  → Ground truth = guidance (not absolute truth)")
+        logger.info("  → Point cloud features = primary signal")
+    
+    def compute_gt_proximity_confidence(
+        self,
+        points: np.ndarray,
+        gt_polygons: Optional[Any],
+        buffer_distance: Optional[float] = None
+    ) -> np.ndarray:
+        """
+        Compute soft confidence based on proximity to ground truth polygons.
+        Uses fuzzy boundaries with exponential decay.
+        """
+        if gt_polygons is None:
+            return np.zeros(len(points))
+        
+        buffer_dist = buffer_distance or self.config.BUFFER_DISTANCE
+        
+        try:
+            from shapely.geometry import Point as ShapelyPoint
+            from shapely.strtree import STRtree
+            import geopandas as gpd
+            
+            # Handle GeoDataFrame or list of geometries
+            if isinstance(gt_polygons, gpd.GeoDataFrame):
+                if len(gt_polygons) == 0:
+                    return np.zeros(len(points))
+                geoms = list(gt_polygons.geometry)
+            else:
+                geoms = gt_polygons
+            
+            if not geoms:
+                return np.zeros(len(points))
+            
+            tree = STRtree(geoms)
+            confidence = np.zeros(len(points), dtype=np.float32)
+            
+            for i, pt in enumerate(points):
+                shapely_pt = ShapelyPoint(pt[0], pt[1])
+                nearest = tree.nearest(shapely_pt)
+                
+                if nearest is not None:
+                    if nearest.contains(shapely_pt):
+                        confidence[i] = 1.0
+                    else:
+                        dist = shapely_pt.distance(nearest)
+                        if dist < buffer_dist:
+                            # Exponential decay
+                            confidence[i] = np.exp(-dist / self.config.DECAY_RATE)
+            
+            return confidence
+            
+        except ImportError:
+            logger.warning("Shapely not available - skipping GT proximity")
+            return np.zeros(len(points))
+    
+    def refine_water_adaptive(
+        self,
+        points: np.ndarray,
+        labels: np.ndarray,
+        gt_water: Optional[Any] = None,
+        height: Optional[np.ndarray] = None,
+        planarity: Optional[np.ndarray] = None,
+        curvature: Optional[np.ndarray] = None,
+        normals: Optional[np.ndarray] = None,
+        ndvi: Optional[np.ndarray] = None,
+        roughness: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, Dict[str, int]]:
+        """
+        Adaptive water classification using confidence-based voting.
+        Ground truth provides spatial hints, geometry validates.
+        """
+        stats = {'water_validated': 0, 'water_added': 0, 'water_rejected': 0}
+        refined = labels.copy()
+        n_points = len(points)
+        
+        # Build multi-feature confidence score
+        water_conf = np.zeros(n_points, dtype=np.float32)
+        total_weight = 0.0
+        
+        # 1. Planarity - Water is extremely flat (weight: 0.30)
+        if planarity is not None:
+            plan_score = np.clip(
+                (planarity - self.config.WATER_PLANARITY_MIN) / 
+                (1.0 - self.config.WATER_PLANARITY_MIN), 0, 1
+            )
+            water_conf += plan_score * 0.30
+            total_weight += 0.30
+        
+        # 2. Height - Near ground (weight: 0.25)
+        if height is not None:
+            height_score = (np.abs(height) <= self.config.WATER_HEIGHT_MAX).astype(np.float32)
+            water_conf += height_score * 0.25
+            total_weight += 0.25
+        
+        # 3. Normals - Horizontal (weight: 0.20)
+        if normals is not None:
+            normal_score = np.clip(
+                (np.abs(normals[:, 2]) - self.config.WATER_NORMAL_Z_MIN) /
+                (1.0 - self.config.WATER_NORMAL_Z_MIN), 0, 1
+            )
+            water_conf += normal_score * 0.20
+            total_weight += 0.20
+        
+        # 4. Curvature - Very low (weight: 0.10)
+        if curvature is not None:
+            curv_score = 1.0 - np.clip(curvature / self.config.WATER_CURVATURE_MAX, 0, 1)
+            water_conf += curv_score * 0.10
+            total_weight += 0.10
+        
+        # 5. NDVI - Low (weight: 0.05)
+        if ndvi is not None:
+            ndvi_score = 1.0 - np.clip(ndvi / self.config.WATER_NDVI_MAX, 0, 1)
+            water_conf += ndvi_score * 0.05
+            total_weight += 0.05
+        
+        # 6. Roughness - Smooth (weight: 0.05)
+        if roughness is not None:
+            rough_score = 1.0 - np.clip(roughness / self.config.WATER_ROUGHNESS_MAX, 0, 1)
+            water_conf += rough_score * 0.05
+            total_weight += 0.05
+        
+        # 7. Ground truth - Guidance only (weight: 0.05)
+        if gt_water is not None:
+            gt_conf = self.compute_gt_proximity_confidence(points, gt_water)
+            water_conf += gt_conf * 0.05
+            total_weight += 0.05
+        
+        # Normalize
+        if total_weight > 0:
+            water_conf /= total_weight
+        
+        # Apply high threshold for water
+        is_water = water_conf >= self.config.HIGH_CONFIDENCE
+        currently_water = labels == self.WATER
+        
+        refined[currently_water & is_water] = self.WATER
+        stats['water_validated'] = np.sum(currently_water & is_water)
+        
+        refined[~currently_water & is_water] = self.WATER
+        stats['water_added'] = np.sum(~currently_water & is_water)
+        
+        refined[currently_water & ~is_water] = self.GROUND
+        stats['water_rejected'] = np.sum(currently_water & ~is_water)
+        
+        if sum(stats.values()) > 0:
+            logger.info(f"  Water: ✓{stats['water_validated']:,} +{stats['water_added']:,} ✗{stats['water_rejected']:,}")
+        
+        return refined, stats
+    
+    def refine_roads_adaptive(
+        self,
+        points: np.ndarray,
+        labels: np.ndarray,
+        gt_roads: Optional[Any] = None,
+        height: Optional[np.ndarray] = None,
+        planarity: Optional[np.ndarray] = None,
+        curvature: Optional[np.ndarray] = None,
+        normals: Optional[np.ndarray] = None,
+        ndvi: Optional[np.ndarray] = None,
+        roughness: Optional[np.ndarray] = None,
+        verticality: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, Dict[str, int]]:
+        """
+        Adaptive road classification with tree canopy detection.
+        """
+        stats = {
+            'road_validated': 0, 'road_added': 0, 'road_rejected': 0,
+            'tree_canopy': 0, 'bridge': 0
+        }
+        refined = labels.copy()
+        n_points = len(points)
+        
+        # Build road confidence
+        road_conf = np.zeros(n_points, dtype=np.float32)
+        total_weight = 0.0
+        
+        # 1. Planarity (weight: 0.25)
+        if planarity is not None:
+            plan_score = np.clip(
+                (planarity - self.config.ROAD_PLANARITY_MIN) /
+                (1.0 - self.config.ROAD_PLANARITY_MIN), 0, 1
+            )
+            road_conf += plan_score * 0.25
+            total_weight += 0.25
+        
+        # 2. Height - Near ground (weight: 0.20)
+        if height is not None:
+            height_score = (
+                (height >= self.config.ROAD_HEIGHT_MIN) &
+                (height <= self.config.ROAD_HEIGHT_MAX)
+            ).astype(np.float32)
+            road_conf += height_score * 0.20
+            total_weight += 0.20
+        
+        # 3. Normals - Horizontal (weight: 0.15)
+        if normals is not None:
+            normal_score = np.clip(
+                (np.abs(normals[:, 2]) - self.config.ROAD_NORMAL_Z_MIN) /
+                (1.0 - self.config.ROAD_NORMAL_Z_MIN), 0, 1
+            )
+            road_conf += normal_score * 0.15
+            total_weight += 0.15
+        
+        # 4. NDVI - Low (weight: 0.15)
+        if ndvi is not None:
+            ndvi_score = 1.0 - np.clip(ndvi / self.config.ROAD_NDVI_MAX, 0, 1)
+            road_conf += ndvi_score * 0.15
+            total_weight += 0.15
+        
+        # 5. Verticality - Not vertical (weight: 0.10)
+        if verticality is not None:
+            vert_score = 1.0 - np.clip(verticality / self.config.ROAD_VERTICALITY_MAX, 0, 1)
+            road_conf += vert_score * 0.10
+            total_weight += 0.10
+        
+        # 6. Curvature - Smooth (weight: 0.05)
+        if curvature is not None:
+            curv_score = 1.0 - np.clip(curvature / self.config.ROAD_CURVATURE_MAX, 0, 1)
+            road_conf += curv_score * 0.05
+            total_weight += 0.05
+        
+        # 7. Roughness - Smooth (weight: 0.05)
+        if roughness is not None:
+            rough_score = 1.0 - np.clip(roughness / self.config.ROAD_ROUGHNESS_MAX, 0, 1)
+            road_conf += rough_score * 0.05
+            total_weight += 0.05
+        
+        # 8. Ground truth - Guidance (weight: 0.05)
+        if gt_roads is not None:
+            gt_conf = self.compute_gt_proximity_confidence(points, gt_roads)
+            road_conf += gt_conf * 0.05
+            total_weight += 0.05
+        
+        # Normalize
+        if total_weight > 0:
+            road_conf /= total_weight
+        
+        # Detect special cases
+        is_road = road_conf >= self.config.MIN_CONFIDENCE
+        
+        # Tree canopy over road: high NDVI + elevated
+        if ndvi is not None and height is not None:
+            tree_canopy = (
+                (ndvi > 0.3) &
+                (height > self.config.ROAD_HEIGHT_MAX) &
+                (road_conf > 0.3)
+            )
+            refined[tree_canopy] = self.HIGH_VEG
+            stats['tree_canopy'] = np.sum(tree_canopy)
+            is_road[tree_canopy] = False
+        
+        # Bridge: elevated but road-like
+        if height is not None:
+            bridge_mask = (
+                is_road &
+                (height >= self.config.BRIDGE_HEIGHT_MIN) &
+                (height <= self.config.BRIDGE_HEIGHT_MAX)
+            )
+            refined[bridge_mask] = self.BRIDGE
+            stats['bridge'] = np.sum(bridge_mask)
+            is_road[bridge_mask] = False
+        
+        # Classify roads
+        currently_road = labels == self.ROAD
+        refined[currently_road & is_road] = self.ROAD
+        stats['road_validated'] = np.sum(currently_road & is_road)
+        
+        refined[~currently_road & is_road] = self.ROAD
+        stats['road_added'] = np.sum(~currently_road & is_road)
+        
+        refined[currently_road & ~is_road] = self.GROUND
+        stats['road_rejected'] = np.sum(currently_road & ~is_road)
+        
+        if sum(stats.values()) > 0:
+            logger.info(f"  Roads: ✓{stats['road_validated']:,} +{stats['road_added']:,} ✗{stats['road_rejected']:,}")
+            if stats['tree_canopy'] > 0:
+                logger.info(f"    🌳 Tree canopy: {stats['tree_canopy']:,}")
+            if stats['bridge'] > 0:
+                logger.info(f"    🌉 Bridges: {stats['bridge']:,}")
+        
+        return refined, stats
+    
+    def refine_vegetation_adaptive(
+        self,
+        points: np.ndarray,
+        labels: np.ndarray,
+        gt_vegetation: Optional[Any] = None,
+        ndvi: Optional[np.ndarray] = None,
+        height: Optional[np.ndarray] = None,
+        curvature: Optional[np.ndarray] = None,
+        planarity: Optional[np.ndarray] = None,
+        roughness: Optional[np.ndarray] = None,
+        sphericity: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, Dict[str, int]]:
+        """
+        Adaptive vegetation classification using multi-feature confidence.
+        """
+        stats = {'veg_total': 0, 'low_veg': 0, 'medium_veg': 0, 'high_veg': 0, 'veg_rejected': 0}
+        refined = labels.copy()
+        n_points = len(points)
+        
+        # Build vegetation confidence
+        veg_conf = np.zeros(n_points, dtype=np.float32)
+        total_weight = 0.0
+        
+        # 1. NDVI - Primary (weight: 0.40)
+        if ndvi is not None:
+            ndvi_score = np.clip((ndvi - self.config.VEG_NDVI_MIN) / (0.8 - self.config.VEG_NDVI_MIN), 0, 1)
+            veg_conf += ndvi_score * 0.40
+            total_weight += 0.40
+        
+        # 2. Curvature - Complex surfaces (weight: 0.20)
+        if curvature is not None:
+            curv_score = np.clip((curvature - self.config.VEG_CURVATURE_MIN) / 0.10, 0, 1)
+            veg_conf += curv_score * 0.20
+            total_weight += 0.20
+        
+        # 3. Planarity - Inverse (weight: 0.15)
+        if planarity is not None:
+            plan_score = 1.0 - np.clip(planarity / self.config.VEG_PLANARITY_MAX, 0, 1)
+            veg_conf += plan_score * 0.15
+            total_weight += 0.15
+        
+        # 4. Roughness (weight: 0.10)
+        if roughness is not None:
+            rough_score = np.clip((roughness - self.config.VEG_ROUGHNESS_MIN) / 0.10, 0, 1)
+            veg_conf += rough_score * 0.10
+            total_weight += 0.10
+        
+        # 5. Sphericity (weight: 0.10)
+        if sphericity is not None:
+            veg_conf += np.clip(sphericity, 0, 1) * 0.10
+            total_weight += 0.10
+        
+        # 6. Ground truth - Minimal (weight: 0.05)
+        if gt_vegetation is not None:
+            gt_conf = self.compute_gt_proximity_confidence(points, gt_vegetation)
+            veg_conf += gt_conf * 0.05
+            total_weight += 0.05
+        
+        # Normalize
+        if total_weight > 0:
+            veg_conf /= total_weight
+        
+        # Classify vegetation
+        is_veg = veg_conf >= self.config.MIN_CONFIDENCE
+        
+        # Classify by height
+        if height is not None:
+            low_mask = is_veg & (height <= self.config.VEG_LOW_HEIGHT_MAX)
+            refined[low_mask] = self.LOW_VEG
+            stats['low_veg'] = np.sum(low_mask)
+            
+            high_mask = is_veg & (height >= self.config.VEG_HIGH_HEIGHT_MIN)
+            refined[high_mask] = self.HIGH_VEG
+            stats['high_veg'] = np.sum(high_mask)
+            
+            medium_mask = is_veg & ~low_mask & ~high_mask
+            refined[medium_mask] = self.MEDIUM_VEG
+            stats['medium_veg'] = np.sum(medium_mask)
+        else:
+            refined[is_veg] = self.MEDIUM_VEG
+            stats['medium_veg'] = np.sum(is_veg)
+        
+        stats['veg_total'] = np.sum(is_veg)
+        
+        # Reject low-confidence vegetation
+        currently_veg = np.isin(labels, [self.LOW_VEG, self.MEDIUM_VEG, self.HIGH_VEG])
+        rejected = currently_veg & ~is_veg
+        refined[rejected] = self.UNCLASSIFIED
+        stats['veg_rejected'] = np.sum(rejected)
+        
+        if stats['veg_total'] > 0:
+            logger.info(f"  Vegetation: {stats['veg_total']:,} (L:{stats['low_veg']:,} M:{stats['medium_veg']:,} H:{stats['high_veg']:,})")
+            if stats['veg_rejected'] > 0:
+                logger.info(f"    ✗ Rejected: {stats['veg_rejected']:,}")
+        
+        return refined, stats
+    
+    def classify_all_adaptive(
+        self,
+        points: np.ndarray,
+        labels: np.ndarray,
+        ground_truth_data: Optional[Dict] = None,
+        features: Optional[Dict[str, np.ndarray]] = None
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Comprehensive adaptive classification for all feature types.
+        
+        Order: Water → Buildings → Roads → Vegetation
+        """
+        refined = labels.copy()
+        all_stats = {}
+        
+        features = features or {}
+        ground_truth_data = ground_truth_data or {}
+        
+        logger.info("\n=== Adaptive Classification (All Features) ===")
+        
+        # 1. Water
+        refined, water_stats = self.refine_water_adaptive(
+            points, refined,
+            gt_water=ground_truth_data.get('water'),
+            height=features.get('height'),
+            planarity=features.get('planarity'),
+            curvature=features.get('curvature'),
+            normals=features.get('normals'),
+            ndvi=features.get('ndvi'),
+            roughness=features.get('roughness')
+        )
+        all_stats.update(water_stats)
+        
+        # 2. Roads
+        refined, road_stats = self.refine_roads_adaptive(
+            points, refined,
+            gt_roads=ground_truth_data.get('roads'),
+            height=features.get('height'),
+            planarity=features.get('planarity'),
+            curvature=features.get('curvature'),
+            normals=features.get('normals'),
+            ndvi=features.get('ndvi'),
+            roughness=features.get('roughness'),
+            verticality=features.get('verticality')
+        )
+        all_stats.update(road_stats)
+        
+        # 3. Vegetation
+        refined, veg_stats = self.refine_vegetation_adaptive(
+            points, refined,
+            gt_vegetation=ground_truth_data.get('vegetation'),
+            ndvi=features.get('ndvi'),
+            height=features.get('height'),
+            curvature=features.get('curvature'),
+            planarity=features.get('planarity'),
+            roughness=features.get('roughness'),
+            sphericity=features.get('sphericity')
+        )
+        all_stats.update(veg_stats)
+        
+        logger.info("=== Adaptive Classification Complete ===\n")
+        
+        return refined, all_stats
+
+
+# Convenience function
+def refine_all_classifications_adaptive(
+    points: np.ndarray,
+    labels: np.ndarray,
+    ground_truth_data: Optional[Dict] = None,
+    features: Optional[Dict[str, np.ndarray]] = None,
+    config: Optional[AdaptiveReclassificationConfig] = None
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Apply adaptive classification to all feature types.
+    
+    Treats ground truth as guidance for buildings, vegetation, roads, water, etc.
+    Point cloud features are the primary classification signal.
+    """
+    classifier = ComprehensiveAdaptiveClassifier(config)
+    return classifier.classify_all_adaptive(points, labels, ground_truth_data, features)

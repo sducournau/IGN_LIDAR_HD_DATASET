@@ -50,8 +50,8 @@
 #     input_dir="/path/to/tiles" \
 #     output_dir="/path/to/output"
 #
-# Version: 5.2.0 (Building Fusion + RGE ALTI DTM Integration)
-# Date: October 19, 2025
+# Version: 5.2.2 (Building Fusion + RGE ALTI DTM + Adaptive Ground Truth)
+# Date: October 20, 2025
 # Hardware: RTX 4080 16GB (or similar)
 # Dependencies: rasterio (for DTM reading), requests (for WCS download)
 # ============================================================================
@@ -62,9 +62,9 @@ defaults:
   - _self_
 
 # Configuration metadata
-config_version: "5.2.0"
-config_name: "asprs_bdtopo_cadastre_rge_alti_optimized"
-config_description: "Optimized ASPRS + BD TOPO + Cadastre + RGE ALTI for RTX 4080"
+config_version: "5.2.2"
+config_name: "asprs_bdtopo_cadastre_rge_alti_adaptive_optimized"
+config_description: "Optimized ASPRS + BD TOPO + Cadastre + RGE ALTI + Adaptive Ground Truth for RTX 4080"
 
 # ============================================================================
 # PATHS (Override these via CLI or custom config)
@@ -153,7 +153,7 @@ processor:
     min_cluster_size: 10
 
     # Geometric thresholds
-    building_buffer_distance: 2.0 # 2m buffer around buildings
+    building_buffer_distance: 3.0 # INCREASED from 2.0m buffer around buildings
     verticality_threshold: 0.7 # 0.7 for building facades
 
 # ============================================================================
@@ -186,7 +186,7 @@ variable_object_filtering:
 
   # Classification behavior
   reclassify_to: 1 # Reclassify filtered objects to class 1 (unassigned)
-  create_vehicle_class: false # If true, create separate vehicle class
+  create_vehicle_class: true # If true, create separate vehicle class
   vehicle_class_code: 18 # Class code for vehicles (if create_vehicle_class=true)
 
   # Logging
@@ -214,16 +214,16 @@ variable_object_filtering:
 
     # Adaptive polygon adjustment - INCREASED for better wall/roof capture
     enable_translation: true # Move polygons to point cloud centroid
-    max_translation: 6.0 # INCREASED from 5.0m (allow more movement)
+    max_translation: 8.0 # INCREASED from 6.0m (allow more movement)
 
     enable_scaling: true # Resize polygons to match point extent
-    max_scale_factor: 1.8 # INCREASED from 1.5x (allow more expansion)
+    max_scale_factor: 2.0 # INCREASED from 1.8x (allow more expansion)
 
-    enable_rotation: false # Disabled (CPU intensive)
+    enable_rotation: true # Disabled (CPU intensive)
     max_rotation: 15.0
 
     enable_buffering: true # CRITICAL for wall/roof capture
-    adaptive_buffer_range: [0.5, 1.5] # INCREASED from [0.3, 1.0] meters
+    adaptive_buffer_range: [1.0, 2.5] # INCREASED from [0.5, 1.5] meters for maximum coverage
     # Larger buffers capture more wall and roof edge points
 
     # Point cloud analysis
@@ -241,12 +241,73 @@ variable_object_filtering:
   building_clustering:
     enabled: true # Works with fused polygons
     use_centroid_attraction: true # Assign ambiguous points to nearest centroid
-    attraction_radius: 6.0 # INCREASED from 5.0m (wider attraction)
+    attraction_radius: 8.0 # INCREASED from 6.0m (wider attraction for maximum coverage)
     min_points_per_building: 10 # Minimum points to form valid cluster
     adjust_polygons: false # DISABLED when fusion is enabled (fusion handles it)
     polygon_buffer: 0.0 # Fusion handles buffering
     wall_buffer: 0.0 # Fusion handles buffering
     detect_near_vertical_walls: true # Still enabled for analysis
+
+  # ============================================================================
+  # ADAPTIVE BUILDING CLASSIFICATION (V5.2.2) ⭐ NEW
+  # ============================================================================
+  # Use ground truth as guidance, not strict boundaries
+  # Point cloud features drive final classification decisions
+  adaptive_building_classification:
+    enabled: true # Enable adaptive classification
+
+    # Building Feature Signature - What defines a building?
+    signature:
+      # Height characteristics
+      min_height: 1.5 # Minimum elevation (meters)
+      typical_height_range: [2.5, 50.0] # Expected height range
+
+      # Wall characteristics
+      wall_verticality_min: 0.65 # Min verticality for walls
+      wall_planarity_max: 0.6 # Max horizontal planarity for walls
+
+      # Roof characteristics
+      roof_planarity_min: 0.75 # Min planarity for flat roofs
+      roof_curvature_max: 0.08 # Max curvature for smooth roofs
+      roof_normal_z_range: [0.3, 1.0] # Allow horizontal to inclined roofs
+
+      # Spectral characteristics
+      ndvi_max: 0.25 # Max NDVI (buildings not vegetation)
+      ndvi_wall_max: 0.20 # Stricter for walls
+
+      # Spatial coherence
+      min_cluster_size: 10 # Min points to form building cluster
+      max_isolation_distance: 5.0 # Max distance from cluster (meters)
+
+    # Fuzzy Boundaries - Smooth transitions at polygon edges
+    fuzzy_boundary_inner: 0.0 # Distance inside polygon for certain classification
+    fuzzy_boundary_outer: 2.0 # Distance outside polygon to consider (meters)
+    fuzzy_decay_function: "gaussian" # "linear", "gaussian", "exponential"
+
+    # Adaptive Expansion - Capture points outside polygons
+    enable_adaptive_expansion: true
+    max_expansion_distance: 3.0 # Max distance to expand (meters)
+    expansion_confidence_threshold: 0.7 # Min confidence to expand
+
+    # Intelligent Rejection - Filter non-building points inside polygons
+    enable_intelligent_rejection: true
+    rejection_confidence_threshold: 0.4 # Max confidence to reject
+
+    # Spatial Coherence - Buildings are spatially consistent
+    enable_spatial_clustering: true
+    spatial_radius: 2.0 # Radius for neighbor check (meters)
+    min_neighbor_ratio: 0.3 # Min ratio of building neighbors
+
+    # Classification Threshold
+    min_classification_confidence: 0.5 # Min confidence to classify as building
+
+    # Feature Weights - How much to trust each evidence source
+    feature_weights:
+      height: 0.25 # Height is critical (25%)
+      geometry: 0.30 # Geometry is most important (30%)
+      spectral: 0.15 # NDVI helps distinguish vegetation (15%)
+      spatial: 0.20 # Spatial coherence is important (20%)
+      ground_truth: 0.10 # Ground truth is guidance, not absolute (10%)
 
   # ============================================================================
   # PLANE DETECTION (V5.1 Enhancement) ⭐ NEW - Enhanced Roof Detection
@@ -285,8 +346,8 @@ features:
   mode: "asprs_classes"
   include_extra: true
 
-  # Geometric parameters
-  k_neighbors: 20 # Standard neighborhood
+  # Geometric parameters (increased for adaptive classification)
+  k_neighbors: 50 # Increased from 20 for better feature accuracy
   search_radius: 1.0 # 1 meter radius
 
   # ============================================================================
@@ -303,11 +364,18 @@ features:
   neighbor_query_batch_size: 30_000_000 # 30M = ONE batch for typical tiles
   feature_batch_size: 30_000_000 # 30M = ONE batch for typical tiles
 
-  # Essential features for ASPRS
+  # Essential features for ASPRS + Adaptive Classification
   compute_normals: true
   compute_curvature: true
   compute_height: true # Critical for vegetation height
   compute_geometric: true # Planarity, verticality
+
+  # Additional features for adaptive classification
+  compute_planarity: true # Explicit planarity computation
+  compute_verticality: true # Explicit verticality for walls
+  compute_linearity: true # Helps with edge detection
+  compute_sphericity: true # Distinguish organic shapes
+  compute_eigenfeatures: true # Full eigenvalue analysis
 
   # Architectural features (disabled for ASPRS)
   compute_architectural: false
@@ -503,6 +571,30 @@ ground_truth:
   # Pre-classify with BD TOPO before geometric rules
   preclassify: true
 
+  # ============================================================================
+  # ADAPTIVE GROUND TRUTH (V5.2.2) ⭐ NEW - Flexible Classification
+  # ============================================================================
+  # Treat ground truth polygons as guidance rather than strict boundaries
+  # Point cloud features drive final classification decisions
+  adaptive_mode: true # Enable adaptive ground truth classification
+
+  # Fuzzy boundaries for smooth transitions
+  fuzzy_boundary_enabled: true
+  fuzzy_boundary_inner: 0.0 # Certain classification inside polygon
+  fuzzy_boundary_outer: 2.0 # Consider points up to 2m outside
+  fuzzy_decay_function: "gaussian" # Smooth confidence decay
+
+  # Adaptive expansion beyond polygons
+  adaptive_expansion_enabled: true
+  max_expansion_distance: 3.0 # Expand up to 3m beyond polygons
+  expansion_confidence_threshold: 0.7 # High confidence required
+
+  # Intelligent rejection inside polygons
+  intelligent_rejection_enabled: true
+  rejection_confidence_threshold: 0.4 # Reject low confidence points
+  reject_vegetation_in_polygons: true # Filter vegetation
+  reject_outliers_in_polygons: true # Filter outliers
+
   # RGE ALTI DTM-specific settings ⭐ NEW
   rge_alti:
     enabled: true # Auto-enabled when data_sources.rge_alti.enabled=true
@@ -556,7 +648,7 @@ ground_truth:
     road_buffer: 2.5
     railway_buffer: 2.0
     power_line_buffer: 5.0
-    building_buffer: 0.8 # INCREASED from 0.3m (capture more wall points)
+    building_buffer: 1.5 # INCREASED from 0.8m (capture more wall points)
     water_buffer: 1.0
 
     # Fallback widths (meters)
@@ -623,6 +715,36 @@ output:
   include_local_height: true # Add height_above_ground_local (for comparison)
   include_dtm_elevation: true # Add ground elevation from DTM
   include_synthetic_flag: true # Mark DTM-derived synthetic points
+
+  # Adaptive classification outputs ⭐ NEW
+  save_adaptive_report: true # Save adaptive classification statistics
+  include_confidence_scores: true # Add classification confidence to LAZ
+
+  # Extra dimensions for adaptive analysis
+  extra_dims:
+    - name: "BuildingConfidence"
+      type: "float32"
+      description: "Building classification confidence (0-1)"
+
+    - name: "IsWall"
+      type: "uint8"
+      description: "1 if point is likely a wall"
+
+    - name: "IsRoof"
+      type: "uint8"
+      description: "1 if point is likely a roof"
+
+    - name: "DistanceToPolygon"
+      type: "float32"
+      description: "Signed distance to nearest building polygon (m)"
+
+    - name: "AdaptiveExpanded"
+      type: "uint8"
+      description: "1 if classified via adaptive expansion"
+
+    - name: "IntelligentRejected"
+      type: "uint8"
+      description: "1 if rejected despite being in polygon"
 
   # Export parcel statistics (if cadastre enabled)
   export_parcel_stats: false # Enable if parcel classification used

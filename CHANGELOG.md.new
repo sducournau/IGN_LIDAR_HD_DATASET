@@ -1,0 +1,29 @@
+## [5.2.1] - 2025-10-19
+
+### Added
+- **Automatic DTM fallback:** LiDAR HD MNT → RGE ALTI when primary WMS service fails
+- **Enhanced error messages:** More informative DTM fetch failure messages with actionable tips
+- **DTM source tracking:** Metadata now includes which DTM source was used (LiDAR HD or RGE ALTI)
+- **Comprehensive documentation:** New `DTM_FALLBACK_GUIDE.md` with troubleshooting and best practices
+- **Implementation guide:** New `DTM_FALLBACK_IMPLEMENTATION.md` with technical details
+
+### Changed
+- **`rge_alti_fetcher.py`:** `_fetch_from_wms()` now tries multiple WMS layers with automatic fallback
+- **`processor.py`:** Improved error messages when DTM fetch fails from all sources
+
+### Fixed
+- **502 Bad Gateway errors:** System now falls back to RGE ALTI instead of skipping ground augmentation
+- **Service availability:** Processing continues successfully even when primary DTM source is unavailable
+
+### Performance
+- No performance impact with caching (cache hit = instant)
+- +5-10 seconds per tile only on first run if fallback occurs
+- Cached runs identical regardless of DTM source used
+
+### Migration Notes
+- ✅ **Fully backwards compatible** - no configuration changes required
+- Existing cache files remain valid
+- Output format unchanged
+- API unchanged (internal improvement only)
+
+---

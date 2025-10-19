@@ -149,6 +149,22 @@ except ImportError:
     ClassificationRule = None
     FeatureImportance = None
 
+# Adaptive building classifier module (new in v5.2.2 - Enhanced building classification)
+try:
+    from .adaptive_building_classifier import (
+        AdaptiveBuildingClassifier,
+        BuildingFeatureSignature,
+        PointBuildingScore,
+        ClassificationConfidence
+    )
+    _HAS_ADAPTIVE_BUILDING = True
+except ImportError:
+    _HAS_ADAPTIVE_BUILDING = False
+    AdaptiveBuildingClassifier = None
+    BuildingFeatureSignature = None
+    PointBuildingScore = None
+    ClassificationConfidence = None
+
 __all__ = [
     # Memory management
     'aggressive_memory_cleanup',
@@ -217,4 +233,9 @@ __all__ = [
     'AdaptiveClassifier',
     'ClassificationRule',
     'FeatureImportance',
+    # Adaptive building classifier (optional, v5.2.2)
+    'AdaptiveBuildingClassifier',
+    'BuildingFeatureSignature',
+    'PointBuildingScore',
+    'ClassificationConfidence',
 ]

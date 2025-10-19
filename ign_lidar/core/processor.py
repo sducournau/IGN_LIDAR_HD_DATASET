@@ -869,7 +869,9 @@ class LiDARProcessor:
             logger.debug(f"      Fetching DTM for bbox: {bbox}")
             dtm_data = fetcher.fetch_dtm_for_bbox(bbox, crs="EPSG:2154")
             if dtm_data is None:
-                logger.warning(f"      Failed to fetch DTM - skipping ground augmentation")
+                logger.warning(f"      Failed to fetch DTM from all sources (cache, local, WMS)")
+                logger.warning(f"      Skipping ground augmentation - using existing LiDAR ground points only")
+                logger.info(f"      💡 Tip: Check your internet connection or consider pre-downloading DTM tiles")
                 return points, classification
             
             # Get augmentation parameters
@@ -1475,6 +1477,48 @@ class LiDARProcessor:
                     original_data['input_rgb'] = input_rgb_v
                     original_data['input_nir'] = input_nir_v
                     original_data['input_ndvi'] = input_ndvi_v
+                    
+                    # CRITICAL FIX: Update tile_data as well so feature computation uses augmented points
+                    # This ensures all feature arrays match the augmented point count
+                    tile_data['points'] = points_v
+                    tile_data['classification'] = classification_v
+                    tile_data['intensity'] = intensity_v
+                    tile_data['return_number'] = return_number_v
+                    tile_data['input_rgb'] = input_rgb_v
+                    tile_data['input_nir'] = input_nir_v
+                    tile_data['input_ndvi'] = input_ndvi_v
+                    
+                    # If enriched_features exist from input, they need to be extended too
+                    # Otherwise feature orchestrator might use stale features with wrong size
+                    if enriched_features_v:
+                        logger.debug(f"      Extending {len(enriched_features_v)} enriched features with default values")
+                        extended_enriched = {}
+                        for feat_name, feat_data in enriched_features_v.items():
+                            if isinstance(feat_data, np.ndarray) and len(feat_data.shape) > 0:
+                                if len(feat_data) == len(points) - n_added:  # Original point count
+                                    # Extend with zeros/defaults
+                                    if len(feat_data.shape) == 1:
+                                        extended_enriched[feat_name] = np.concatenate([
+                                            feat_data,
+                                            np.zeros(n_added, dtype=feat_data.dtype)
+                                        ])
+                                    else:
+                                        # Multi-dimensional feature
+                                        extended_enriched[feat_name] = np.concatenate([
+                                            feat_data,
+                                            np.zeros((n_added, *feat_data.shape[1:]), dtype=feat_data.dtype)
+                                        ])
+                                else:
+                                    # Feature size doesn't match - keep as is but warn
+                                    logger.warning(f"      Enriched feature '{feat_name}' size mismatch: {len(feat_data)} vs {len(points) - n_added}")
+                                    extended_enriched[feat_name] = feat_data
+                            else:
+                                # Not an array or scalar - keep as is
+                                extended_enriched[feat_name] = feat_data
+                        
+                        enriched_features_v = extended_enriched
+                        tile_data['enriched_features'] = enriched_features_v
+                        original_data['enriched_features'] = enriched_features_v
                 else:
                     logger.info(f"  ℹ️  No ground points added (sufficient existing coverage)")
                     
@@ -1496,6 +1540,15 @@ class LiDARProcessor:
         
         # For ground truth classification, use height_above_ground if available (critical for road/rail filtering!)
         height_above_ground = all_features.get('height_above_ground', height)  # Fallback to height if not available
+        
+        # CRITICAL CHECK: Verify feature arrays match point count after DTM augmentation
+        n_points_current = len(points_v)
+        if height_above_ground is not None and len(height_above_ground) != n_points_current:
+            logger.error(f"  ❌ CRITICAL: height_above_ground size mismatch!")
+            logger.error(f"     Expected: {n_points_current:,} points")
+            logger.error(f"     Got: {len(height_above_ground):,} points")
+            logger.error(f"     This indicates features were computed before DTM augmentation")
+            raise ValueError(f"Feature array size mismatch: {len(height_above_ground)} != {n_points_current}")
         
         # Extract geometric features (excluding main features and spectral/style features)
         excluded_features = {'normals', 'curvature', 'height', 'rgb', 'nir', 'ndvi', 'architectural_style'}

@@ -8,13 +8,23 @@ RGE ALTI® provides:
 - 1m resolution DTM for mainland France and DOM-TOM
 - Derived from LiDAR and other elevation sources
 - Regular grid format (ASC, GeoTIFF)
-- Available via IGN Géoservices WCS (Web Coverage Service)
+- Available via IGN Géoplateforme WMS (Web Map Service)
+
+Data Sources (in priority order):
+1. Cache - Locally cached GeoTIFF files from previous requests
+2. Local files - Pre-downloaded DTM tiles
+3. WMS - Live download from https://data.geopf.fr/wms-r/wms
 
 Use cases:
 1. Ground point augmentation: Add synthetic ground points from DTM
 2. Height normalization: Compute height above ground using DTM reference
 3. Terrain analysis: Slope, aspect, roughness from high-quality DTM
 4. Classification improvement: Better ground/non-ground separation
+
+Migration Note (October 2025):
+- Old WCS service (wxs.ign.fr) is deprecated and non-functional
+- New WMS service (data.geopf.fr) is used for online DTM fetching
+- WMS caching ensures efficient repeated access
 
 Author: MNT Integration Enhancement
 Date: October 19, 2025
@@ -47,16 +57,27 @@ except ImportError:
 
 class RGEALTIFetcher:
     """
-    Fetcher for IGN RGE ALTI® digital terrain model data.
+    Fetcher for IGN digital terrain model data (LiDAR HD MNT preferred, RGE ALTI fallback).
     
     Supports multiple data sources:
-    1. WCS (Web Coverage Service) - Direct download from IGN Géoservices
-    2. Local files - Pre-downloaded GeoTIFF or ASC files
+    1. WMS (Web Map Service) - Download from IGN Géoplateforme with caching
+    2. Local files - Pre-downloaded GeoTIFF files
     3. Cache - Local cache of previously fetched tiles
+    
+    Default DTM: LiDAR HD MNT (1m resolution from LiDAR, best quality for LiDAR projects)
+    Fallback: RGE ALTI (1m-5m resolution, broader coverage)
     """
     
-    # IGN Géoservices WCS endpoint for RGE ALTI
-    WCS_ENDPOINT = "https://wxs.ign.fr/altimetrie/geoportail/r/wcs"
+    # IGN Géoplateforme WMS endpoint (replaces deprecated WCS)
+    WMS_ENDPOINT = "https://data.geopf.fr/wms-r/wms"
+    WMS_VERSION = "1.3.0"
+    
+    # Layer names for different DTM sources
+    LAYER_LIDAR_HD_MNT = "IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW"  # LiDAR HD MNT (preferred)
+    LAYER_RGE_ALTI = "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES"  # RGE ALTI (fallback)
+    
+    # Legacy WCS endpoint (no longer functional)
+    WCS_ENDPOINT = "https://wxs.ign.fr/altimetrie/geoportail/r/wcs"  # DEPRECATED
     WCS_VERSION = "2.0.1"
     COVERAGE_ID = "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES"
     
@@ -70,37 +91,61 @@ class RGEALTIFetcher:
         resolution: float = RESOLUTION_1M,
         use_wcs: bool = True,
         local_dtm_dir: Optional[str] = None,
-        api_key: Optional[str] = None
+        api_key: Optional[str] = None,
+        prefer_lidar_hd: bool = True
     ):
         """
-        Initialize RGE ALTI fetcher.
+        Initialize DTM fetcher (LiDAR HD MNT preferred, RGE ALTI fallback).
         
         Args:
             cache_dir: Directory for caching downloaded tiles
             resolution: Grid resolution in meters (1.0 or 5.0)
-            use_wcs: Enable WCS download from IGN Géoservices
+            use_wcs: Enable WMS download (parameter name kept for compatibility)
             local_dtm_dir: Directory containing local DTM files
-            api_key: IGN Géoservices API key (optional, free tier available)
+            api_key: Legacy parameter (no longer needed for WMS)
+            prefer_lidar_hd: Use LiDAR HD MNT layer (default: True, best quality)
         """
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.resolution = resolution
-        self.use_wcs = use_wcs and HAS_REQUESTS
         self.local_dtm_dir = Path(local_dtm_dir) if local_dtm_dir else None
-        self.api_key = api_key or "pratique"  # Public demo key
+        self.prefer_lidar_hd = prefer_lidar_hd
+        
+        # Select WMS layer based on preference
+        # LiDAR HD MNT: 1m resolution, best quality, derived from LiDAR
+        # RGE ALTI: broader coverage but may be lower quality
+        if prefer_lidar_hd:
+            self.wms_layer = self.LAYER_LIDAR_HD_MNT
+            dtm_source = "LiDAR HD MNT (1m, best quality)"
+        else:
+            self.wms_layer = self.LAYER_RGE_ALTI
+            dtm_source = "RGE ALTI (broader coverage)"
+        
+        # Use WMS instead of deprecated WCS (October 2025 migration)
+        # WMS provides elevation data via GetMap requests with automatic caching
+        self.use_wms = use_wcs and HAS_REQUESTS and HAS_RASTERIO
+        self.use_wcs = False  # WCS is deprecated
         
         if not HAS_RASTERIO:
             logger.warning("rasterio not available - DTM fetching disabled")
-            self.use_wcs = False
+            self.use_wms = False
+            
+        if not HAS_REQUESTS:
+            logger.warning("requests not available - WMS fetching disabled")
+            self.use_wms = False
             
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
-            logger.info(f"RGE ALTI cache: {self.cache_dir}")
+            logger.info(f"DTM cache: {self.cache_dir}")
         
         if self.local_dtm_dir and self.local_dtm_dir.exists():
             n_files = len(list(self.local_dtm_dir.glob("*.tif")))
             logger.info(f"Local DTM directory: {self.local_dtm_dir} ({n_files} files)")
         
-        logger.info(f"RGE ALTI Fetcher initialized (resolution={resolution}m, WCS={use_wcs})")
+        logger.info(
+            f"DTM Fetcher initialized: {dtm_source}, resolution={resolution}m, "
+            f"WMS={'enabled' if self.use_wms else 'disabled'}, "
+            f"local_dir={local_dtm_dir}"
+        )
     
     def fetch_dtm_for_bbox(
         self,
@@ -136,15 +181,15 @@ class RGEALTIFetcher:
                     self._save_to_cache(bbox, crs, local_dtm)
                 return local_dtm
         
-        # Try WCS download
-        if self.use_wcs:
-            wcs_dtm = self._fetch_from_wcs(bbox, crs)
-            if wcs_dtm is not None:
-                logger.info("Fetched DTM from IGN WCS")
+        # Try WMS download (replaces deprecated WCS)
+        if self.use_wms:
+            wms_dtm = self._fetch_from_wms(bbox, crs)
+            if wms_dtm is not None:
+                logger.info("Fetched DTM from IGN WMS")
                 # Cache for future use
                 if self.cache_dir:
-                    self._save_to_cache(bbox, crs, wcs_dtm)
-                return wcs_dtm
+                    self._save_to_cache(bbox, crs, wms_dtm)
+                return wms_dtm
         
         logger.warning(f"Failed to fetch DTM for bbox {bbox}")
         return None
@@ -197,9 +242,9 @@ class RGEALTIFetcher:
             op=np.floor
         )
         
-        # Clip to grid bounds
-        rows = np.clip(rows, 0, grid.shape[0] - 1)
-        cols = np.clip(cols, 0, grid.shape[1] - 1)
+        # Clip to grid bounds and convert to integers
+        rows = np.clip(rows, 0, grid.shape[0] - 1).astype(np.int32)
+        cols = np.clip(cols, 0, grid.shape[1] - 1).astype(np.int32)
         
         # Sample elevations
         elevations = grid[rows, cols]
@@ -415,61 +460,111 @@ class RGEALTIFetcher:
         
         return None
     
-    def _fetch_from_wcs(
+    def _fetch_from_wms(
         self,
         bbox: Tuple[float, float, float, float],
         crs: str
     ) -> Optional[Tuple[np.ndarray, Dict[str, Any]]]:
-        """Fetch DTM from IGN WCS service."""
-        if not self.use_wcs or not HAS_REQUESTS or not HAS_RASTERIO:
+        """
+        Fetch DTM from IGN WMS service using GetMap request.
+        
+        Implements automatic fallback:
+        1. Try LiDAR HD MNT (1m, best quality)
+        2. If that fails, fall back to RGE ALTI (broader coverage)
+        """
+        if not self.use_wms or not HAS_REQUESTS or not HAS_RASTERIO:
             return None
         
-        # Build WCS GetCoverage request
+        # Build WMS GetMap request for elevation data
         minx, miny, maxx, maxy = bbox
         
-        params = {
-            'SERVICE': 'WCS',
-            'VERSION': self.WCS_VERSION,
-            'REQUEST': 'GetCoverage',
-            'COVERAGEID': self.COVERAGE_ID,
-            'FORMAT': 'image/geotiff',
-            'SUBSET': [
-                f'X({minx},{maxx})',
-                f'Y({miny},{maxy})'
-            ],
-            'RESOLUTION': self.resolution,
-            'CRS': crs,
-            'apikey': self.api_key
-        }
+        # Calculate pixel dimensions based on resolution
+        width = int((maxx - minx) / self.resolution)
+        height = int((maxy - miny) / self.resolution)
         
-        try:
-            logger.info(f"Fetching DTM from IGN WCS: {bbox}")
-            response = requests.get(self.WCS_ENDPOINT, params=params, timeout=60)
-            response.raise_for_status()
-            
-            # Save to temporary file and read with rasterio
-            import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tmp:
-                tmp.write(response.content)
-                tmp_path = tmp.name
+        # Ensure reasonable image size (max 2048x2048)
+        max_size = 2048
+        if width > max_size or height > max_size:
+            scale = max(width / max_size, height / max_size)
+            width = int(width / scale)
+            height = int(height / scale)
+            logger.warning(f"Downsampling WMS request to {width}x{height} to stay within limits")
+        
+        # Define layers to try (primary + fallback)
+        layers_to_try = []
+        if self.prefer_lidar_hd:
+            layers_to_try = [
+                (self.LAYER_LIDAR_HD_MNT, "LiDAR HD MNT"),
+                (self.LAYER_RGE_ALTI, "RGE ALTI (fallback)")
+            ]
+        else:
+            layers_to_try = [
+                (self.LAYER_RGE_ALTI, "RGE ALTI"),
+                (self.LAYER_LIDAR_HD_MNT, "LiDAR HD MNT (fallback)")
+            ]
+        
+        # Try each layer in order
+        for layer_name, layer_desc in layers_to_try:
+            params = {
+                'SERVICE': 'WMS',
+                'VERSION': self.WMS_VERSION,
+                'REQUEST': 'GetMap',
+                'LAYERS': layer_name,
+                'STYLES': '',
+                'FORMAT': 'image/geotiff',
+                'BBOX': f'{minx},{miny},{maxx},{maxy}',
+                'WIDTH': width,
+                'HEIGHT': height,
+                'CRS': crs
+            }
             
             try:
-                with rasterio.open(tmp_path) as src:
-                    grid = src.read(1)
-                    metadata = {
-                        'transform': src.transform,
-                        'crs': src.crs,
-                        'resolution': (src.res[0], src.res[1]),
-                        'bounds': src.bounds,
-                        'nodata': src.nodata
-                    }
-                return grid, metadata
-            finally:
-                Path(tmp_path).unlink(missing_ok=True)
+                logger.info(f"Fetching DTM from IGN WMS ({layer_desc}): {bbox} ({width}x{height})")
+                response = requests.get(self.WMS_ENDPOINT, params=params, timeout=60)
+                response.raise_for_status()
                 
-        except Exception as e:
-            logger.warning(f"WCS fetch failed: {e}")
-            return None
+                # Check if we got an error message instead of image
+                content_type = response.headers.get('Content-Type', '')
+                if 'xml' in content_type or 'text' in content_type:
+                    error_text = response.text[:500]
+                    logger.warning(f"WMS returned error for {layer_desc}: {error_text}")
+                    continue  # Try next layer
+                
+                # Save to temporary file and read with rasterio
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tmp:
+                    tmp.write(response.content)
+                    tmp_path = tmp.name
+                
+                try:
+                    with rasterio.open(tmp_path) as src:
+                        grid = src.read(1)
+                        
+                        # Create proper geotransform
+                        from rasterio.transform import from_bounds as create_transform
+                        transform = create_transform(minx, miny, maxx, maxy, width, height)
+                        
+                        metadata = {
+                            'transform': transform,
+                            'crs': crs,
+                            'resolution': (self.resolution, self.resolution),
+                            'bounds': bbox,
+                            'nodata': src.nodata if src.nodata is not None else -9999.0,
+                            'source': layer_desc  # Track which layer was used
+                        }
+                    logger.info(f"✅ Successfully fetched DTM using {layer_desc}")
+                    return grid, metadata
+                finally:
+                    Path(tmp_path).unlink(missing_ok=True)
+                    
+            except Exception as e:
+                logger.warning(f"WMS fetch failed for {layer_desc}: {e}")
+                # Continue to next layer instead of returning None immediately
+                continue
+        
+        # All layers failed
+        logger.error(f"Failed to fetch DTM from all WMS layers for bbox {bbox}")
+        return None
     
     def _get_cache_filename(self, bbox: Tuple[float, float, float, float], crs: str) -> str:
         """Generate cache filename from bbox."""
