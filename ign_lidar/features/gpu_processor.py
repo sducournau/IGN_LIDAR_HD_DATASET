@@ -765,8 +765,38 @@ class GPUProcessor:
         This method builds a global KDTree once and processes points in chunks
         to avoid VRAM exhaustion for large datasets.
         """
-        # TODO: Implementation from features_gpu_chunked.py compute_all_features_chunked
-        raise NotImplementedError("Chunked processing implementation pending")
+        features = {}
+        
+        # Determine which features to compute
+        if feature_types is None:
+            feature_types = ['normals', 'curvature', 'eigenvalues', 'verticality']
+        
+        # Compute normals first if needed
+        normals = None
+        if any(ft in feature_types for ft in ['normals', 'curvature', 'verticality']):
+            normals = self._compute_normals_chunked(points, k, show_progress)
+            if 'normals' in feature_types:
+                features['normals'] = normals
+        
+        # Compute curvature
+        if 'curvature' in feature_types:
+            if normals is None:
+                normals = self._compute_normals_chunked(points, k, show_progress)
+            features['curvature'] = self._compute_curvature_chunked(
+                points, normals, k, show_progress
+            )
+        
+        # Compute verticality
+        if 'verticality' in feature_types:
+            if normals is None:
+                normals = self._compute_normals_chunked(points, k, show_progress)
+            features['verticality'] = self._compute_verticality_batch(normals)
+        
+        # Compute eigenvalue features
+        if 'eigenvalues' in feature_types:
+            logger.info("Eigenvalue features via GPU Bridge - pending integration")
+        
+        return features
     
     def _compute_normals_chunked(
         self,
@@ -776,9 +806,308 @@ class GPUProcessor:
     ) -> np.ndarray:
         """
         Compute normals using chunked processing (from features_gpu_chunked.py).
+        
+        Strategy (automatic selection):
+        1. FAISS (preferred): Ultra-fast k-NN, 50-100× faster than cuML
+        2. cuML fallback: Global KDTree + chunked queries
+        3. CPU fallback: sklearn KDTree
         """
-        # TODO: Implementation from features_gpu_chunked.py compute_normals_chunked
-        raise NotImplementedError("Chunked normals implementation pending")
+        if not self.use_gpu:
+            logger.warning("GPU not available, using CPU batch processing")
+            return self._compute_normals_cpu(points, k)
+        
+        N = len(points)
+        
+        # Try FAISS first (50-100× speedup)
+        if FAISS_AVAILABLE and self.use_cuml:
+            logger.info(f"  🚀 Using FAISS for ultra-fast k-NN ({N:,} points)")
+            try:
+                return self._compute_normals_with_faiss(points, k, show_progress)
+            except Exception as e:
+                logger.warning(f"  ⚠ FAISS failed: {e}, falling back to cuML")
+        
+        # Fallback to per-chunk strategy with global KDTree
+        num_chunks = (N + self.chunk_size - 1) // self.chunk_size
+        logger.info(f"  🔧 Using global KDTree: {N:,} points in {num_chunks} chunks")
+        return self._compute_normals_per_chunk(points, k, show_progress)
+    
+    def _compute_normals_with_faiss(
+        self,
+        points: np.ndarray,
+        k: int,
+        show_progress: bool
+    ) -> np.ndarray:
+        """
+        Compute normals using FAISS for 50-100× faster k-NN queries.
+        
+        FAISS dramatically outperforms cuML for massive neighbor queries:
+        - 18.6M points: cuML ~51 min → FAISS ~30-60 seconds
+        """
+        N = points.shape[0]
+        normals = np.zeros((N, 3), dtype=np.float32)
+        
+        logger.info(f"  🚀 FAISS: Ultra-fast k-NN computation")
+        logger.info(f"     {N:,} points → Expected: 30-90 seconds")
+        
+        # Build FAISS index
+        index = self._build_faiss_index(points, k)
+        
+        # Query all neighbors in one batch
+        logger.info(f"  ⚡ Querying all {N:,} × {k} neighbors...")
+        distances, indices = index.search(points.astype(np.float32), k)
+        logger.info(f"     ✓ All neighbors found")
+        
+        # Compute normals from neighbors
+        logger.info(f"  ⚡ Computing normals from neighborhoods...")
+        
+        if self.use_gpu and cp is not None:
+            # GPU PCA
+            points_gpu = self._to_gpu(points)
+            indices_gpu = self._to_gpu(indices)
+            normals_gpu = self._compute_normals_from_neighbors_gpu(
+                points_gpu, indices_gpu
+            )
+            normals = self._to_cpu(normals_gpu)
+            del points_gpu, indices_gpu, normals_gpu
+        else:
+            # CPU PCA
+            normals = self._compute_normals_from_neighbors_cpu(points, indices)
+        
+        logger.info(f"     ✓ Normals computed")
+        
+        # Cleanup
+        del index, distances, indices
+        self._free_gpu_memory(force=True)
+        
+        return normals
+    
+    def _build_faiss_index(self, points: np.ndarray, k: int):
+        """
+        Build FAISS index for ultra-fast k-NN queries.
+        
+        FAISS is optimized for billion-scale nearest neighbor search.
+        """
+        N, D = points.shape
+        logger.info(f"  🚀 Building FAISS index ({N:,} points, k={k})...")
+        
+        # Use IVF for large datasets (>5M points)
+        use_ivf = N > 5_000_000
+        
+        if use_ivf:
+            # IVF parameters
+            nlist = min(8192, max(256, int(np.sqrt(N))))
+            nprobe = min(128, nlist // 8)
+            
+            logger.info(f"     Using IVF: {nlist} clusters, {nprobe} probes")
+            
+            # Create IVF index
+            quantizer = faiss.IndexFlatL2(D)
+            index = faiss.IndexIVFFlat(quantizer, D, nlist, faiss.METRIC_L2)
+            
+            # Move to GPU if available
+            if self.use_gpu and self.use_cuml:
+                try:
+                    res = faiss.StandardGpuResources()
+                    res.setTempMemory(4 * 1024 * 1024 * 1024)  # 4GB
+                    co = faiss.GpuClonerOptions()
+                    co.useFloat16 = False
+                    index = faiss.index_cpu_to_gpu(res, 0, index, co)
+                    logger.info("     ✓ FAISS index on GPU")
+                except Exception as e:
+                    logger.warning(f"     GPU failed: {e}, using CPU")
+            
+            # Train index
+            logger.info(f"     Training index...")
+            train_size = min(N, nlist * 256)
+            if train_size < N:
+                train_idx = np.random.choice(N, train_size, replace=False)
+                train_data = points[train_idx].astype(np.float32)
+            else:
+                train_data = points.astype(np.float32)
+            
+            index.train(train_data)
+            logger.info(f"     ✓ Trained on {len(train_data):,} points")
+            
+            # Add all points
+            logger.info(f"     Adding {N:,} points...")
+            index.add(points.astype(np.float32))
+            
+            # Set nprobe
+            if hasattr(index, 'nprobe'):
+                index.nprobe = nprobe
+            elif hasattr(index, 'setNumProbes'):
+                index.setNumProbes(nprobe)
+            
+            logger.info(f"     ✓ FAISS IVF index ready")
+        else:
+            # Flat index for smaller datasets
+            logger.info(f"     Using Flat (exact) index")
+            index = faiss.IndexFlatL2(D)
+            
+            if self.use_gpu and self.use_cuml:
+                try:
+                    res = faiss.StandardGpuResources()
+                    res.setTempMemory(2 * 1024 * 1024 * 1024)  # 2GB
+                    index = faiss.index_cpu_to_gpu(res, 0, index)
+                    logger.info("     ✓ FAISS index on GPU")
+                except Exception as e:
+                    logger.warning(f"     GPU failed: {e}, using CPU")
+            
+            index.add(points.astype(np.float32))
+            logger.info(f"     ✓ FAISS Flat index ready")
+        
+        return index
+    
+    def _compute_normals_per_chunk(
+        self,
+        points: np.ndarray,
+        k: int,
+        show_progress: bool
+    ) -> np.ndarray:
+        """
+        Compute normals using global KDTree with chunked queries.
+        
+        Strategy:
+        1. Build ONE global KDTree on GPU
+        2. Query neighbors in chunks to manage memory
+        3. Compute normals on GPU with vectorized operations
+        """
+        N = len(points)
+        normals = np.zeros((N, 3), dtype=np.float32)
+        num_chunks = (N + self.chunk_size - 1) // self.chunk_size
+        
+        # Transfer points to GPU once
+        points_gpu = self._to_gpu(points)
+        
+        # Build global KDTree once
+        logger.info(f"  🔨 Building global KDTree ({N:,} points)...")
+        if self.use_cuml and cuNearestNeighbors is not None:
+            knn = cuNearestNeighbors(n_neighbors=k, metric='euclidean')
+            knn.fit(points_gpu)
+            logger.info("  ✓ Global GPU KDTree built (cuML)")
+        else:
+            points_cpu = self._to_cpu(points_gpu)
+            knn = NearestNeighbors(
+                n_neighbors=k, metric='euclidean', 
+                algorithm='kd_tree', n_jobs=-1
+            )
+            knn.fit(points_cpu)
+            logger.info("  ✓ Global CPU KDTree built (sklearn)")
+        
+        # Process in chunks
+        chunk_iterator = range(num_chunks)
+        if show_progress:
+            chunk_iterator = tqdm(
+                chunk_iterator,
+                desc=f"  🎯 GPU Normals ({N:,} pts, {num_chunks} chunks)",
+                unit="chunk"
+            )
+        
+        for chunk_idx in chunk_iterator:
+            start_idx = chunk_idx * self.chunk_size
+            end_idx = min((chunk_idx + 1) * self.chunk_size, N)
+            
+            # Query neighbors for chunk
+            if self.use_cuml and cuNearestNeighbors is not None:
+                chunk_points = points_gpu[start_idx:end_idx]
+                distances, indices = knn.kneighbors(chunk_points)
+                
+                # Compute normals on GPU
+                chunk_normals = self._compute_normals_from_neighbors_gpu(
+                    points_gpu, indices
+                )
+                normals[start_idx:end_idx] = self._to_cpu(chunk_normals)
+                
+                del chunk_points, distances, chunk_normals
+            else:
+                # CPU path
+                chunk_points = points[start_idx:end_idx]
+                distances, indices = knn.kneighbors(chunk_points)
+                chunk_normals = self._compute_normals_from_neighbors_cpu(
+                    points, indices
+                )
+                normals[start_idx:end_idx] = chunk_normals
+                del chunk_points, distances, chunk_normals
+            
+            # Periodic cleanup
+            if chunk_idx % 10 == 0:
+                self._free_gpu_memory()
+        
+        # Final cleanup
+        del points_gpu, knn
+        self._free_gpu_memory(force=True)
+        
+        return normals
+    
+    def _compute_normals_from_neighbors_gpu(
+        self,
+        points_gpu,
+        neighbor_indices
+    ):
+        """
+        Compute normals using vectorized covariance computation on GPU.
+        
+        ~100× faster than per-point PCA loops.
+        """
+        M, k = neighbor_indices.shape
+        
+        # Gather neighbor points: [M, k, 3]
+        neighbor_points = points_gpu[neighbor_indices]
+        
+        # Center neighborhoods
+        centroids = cp.mean(neighbor_points, axis=1, keepdims=True)
+        centered = neighbor_points - centroids
+        del neighbor_points, centroids
+        
+        # Compute covariance matrices: [M, 3, 3]
+        cov_matrices = cp.einsum('mki,mkj->mij', centered, centered) / k
+        del centered
+        
+        # Ensure symmetry
+        cov_T = cp.transpose(cov_matrices, (0, 2, 1))
+        cov_matrices = (cov_matrices + cov_T) / 2
+        del cov_T
+        
+        # Use fast inverse power iteration for eigenvectors
+        if cov_matrices.dtype != cp.float32:
+            cov_matrices = cov_matrices.astype(cp.float32)
+        
+        normals = inverse_power_iteration(
+            cov_matrices, num_iterations=8, epsilon=1e-12
+        )
+        del cov_matrices
+        
+        return normals
+    
+    def _compute_normals_from_neighbors_cpu(
+        self,
+        points: np.ndarray,
+        neighbor_indices: np.ndarray
+    ) -> np.ndarray:
+        """CPU fallback for computing normals from neighbor indices."""
+        M, k = neighbor_indices.shape
+        
+        # Gather neighbor points
+        neighbor_points = points[neighbor_indices]
+        
+        # Center neighborhoods
+        centroids = np.mean(neighbor_points, axis=1, keepdims=True)
+        centered = neighbor_points - centroids
+        
+        # Compute covariance matrices
+        cov_matrices = np.einsum('mki,mkj->mij', centered, centered) / k
+        
+        # Add regularization
+        cov_matrices += 1e-8 * np.eye(3, dtype=np.float32)
+        
+        # Eigendecomposition
+        eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
+        normals = eigenvectors[:, :, 0]  # Smallest eigenvector
+        
+        # Ensure upward orientation
+        normals[normals[:, 2] < 0] *= -1
+        
+        return normals.astype(np.float32)
     
     def _compute_curvature_chunked(
         self,
@@ -788,10 +1117,96 @@ class GPUProcessor:
         show_progress: bool
     ) -> np.ndarray:
         """
-        Compute curvature using chunked processing (from features_gpu_chunked.py).
+        Compute curvature using chunked processing.
+        
+        Similar strategy to chunked normals: global KDTree + chunked queries.
         """
-        # TODO: Implementation from features_gpu_chunked.py compute_curvature_chunked
-        raise NotImplementedError("Chunked curvature implementation pending")
+        N = len(points)
+        curvature = np.zeros(N, dtype=np.float32)
+        num_chunks = (N + self.chunk_size - 1) // self.chunk_size
+        
+        # Build global KDTree once
+        logger.info(f"  🔨 Building global KDTree for curvature ({N:,} points)...")
+        if self.use_gpu and self.use_cuml and cuNearestNeighbors is not None:
+            points_gpu = self._to_gpu(points)
+            normals_gpu = self._to_gpu(normals)
+            
+            knn = cuNearestNeighbors(n_neighbors=k, metric='euclidean')
+            knn.fit(points_gpu)
+            logger.info("  ✓ Global GPU KDTree built")
+            
+            # Process in chunks
+            chunk_iterator = range(num_chunks)
+            if show_progress:
+                chunk_iterator = tqdm(
+                    chunk_iterator,
+                    desc=f"  🎯 GPU Curvature ({N:,} pts)",
+                    unit="chunk"
+                )
+            
+            for chunk_idx in chunk_iterator:
+                start_idx = chunk_idx * self.chunk_size
+                end_idx = min((chunk_idx + 1) * self.chunk_size, N)
+                
+                chunk_points = points_gpu[start_idx:end_idx]
+                distances, indices = knn.kneighbors(chunk_points)
+                
+                # Compute curvature on GPU
+                batch_normals = normals_gpu[start_idx:end_idx]
+                neighbor_normals = normals_gpu[indices]
+                
+                query_normals_expanded = batch_normals[:, cp.newaxis, :]
+                normal_diff = neighbor_normals - query_normals_expanded
+                curv_norms = cp.linalg.norm(normal_diff, axis=2)
+                batch_curvature = cp.mean(curv_norms, axis=1)
+                
+                curvature[start_idx:end_idx] = self._to_cpu(batch_curvature)
+                
+                del chunk_points, distances, batch_normals, neighbor_normals
+                
+                if chunk_idx % 10 == 0:
+                    self._free_gpu_memory()
+            
+            del points_gpu, normals_gpu, knn
+            self._free_gpu_memory(force=True)
+        else:
+            # CPU fallback
+            tree = KDTree(points, metric='euclidean', leaf_size=40)
+            _, neighbor_indices = tree.query(points, k=k)
+            curvature = compute_curvature_from_normals(
+                points, normals, neighbor_indices
+            )
+        
+        return curvature
+    
+    def _free_gpu_memory(self, force: bool = False):
+        """
+        Smart GPU memory cleanup - only when needed.
+        
+        Args:
+            force: Force cleanup regardless of usage threshold
+        """
+        if not self.use_gpu or cp is None:
+            return
+        
+        try:
+            if cp.cuda.is_available():
+                mempool = cp.get_default_memory_pool()
+                used_bytes = mempool.used_bytes()
+                used_gb = used_bytes / (1024**3)
+                
+                # Only cleanup if >80% VRAM used or forced
+                threshold_gb = self.vram_limit_gb * 0.8
+                
+                if force or used_gb > threshold_gb:
+                    pinned_mempool = cp.get_default_pinned_memory_pool()
+                    mempool.free_all_blocks()
+                    pinned_mempool.free_all_blocks()
+                    logger.debug(f"GPU memory cleanup: {used_gb:.2f}GB freed")
+        except Exception as e:
+            logger.debug(f"Could not free GPU memory: {e}")
+        
+        gc.collect()
     
     # ==========================================================================
     # UTILITY METHODS
