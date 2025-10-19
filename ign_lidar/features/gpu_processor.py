@@ -1212,8 +1212,12 @@ class GPUProcessor:
     # UTILITY METHODS
     # ==========================================================================
     
-    def _to_gpu(self, array: np.ndarray) -> cp.ndarray:
-        """Transfer array to GPU."""
+    def _to_gpu(self, array: np.ndarray):
+        """Transfer array to GPU.
+        
+        Returns:
+            GPU array if GPU available, otherwise numpy array
+        """
         if not self.use_gpu or cp is None:
             return array
         return cp.asarray(array, dtype=array.dtype)
