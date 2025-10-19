@@ -36,6 +36,7 @@ try:
     from shapely.geometry import Polygon, MultiPolygon, Point
     from shapely.strtree import STRtree
     from shapely.ops import unary_union
+    from shapely.affinity import translate
     import geopandas as gpd
     HAS_SPATIAL = True
 except ImportError:
@@ -268,6 +269,94 @@ class BuildingClusterer:
         
         return building_ids, valid_clusters
     
+    def optimize_bbox_for_building(
+        self,
+        points: np.ndarray,
+        heights: Optional[np.ndarray],
+        initial_bbox: Tuple[float, float, float, float],
+        max_shift: float = 5.0,
+        step: float = 0.5,
+        height_threshold: float = 0.5,
+        ground_penalty: float = 1.0,
+        non_ground_reward: float = 1.0
+    ) -> Tuple[Tuple[float, float], Tuple[float, float, float, float]]:
+        """
+        Search for an optimal translation (dx, dy) of a bounding box to maximize
+        inclusion of non-ground (building) points while minimizing included ground.
+
+        This simple grid search evaluates translations within [-max_shift, max_shift]
+        at resolution `step`. The objective is:
+            score = non_ground_reward * N_non_ground - ground_penalty * N_ground
+                    - tiny * (dx**2 + dy**2)
+
+        Args:
+            points: Point coordinates [M, 3] (X, Y, Z) or [M, 2]
+            heights: Heights above ground [M] (if None use Z from points when available)
+            initial_bbox: (xmin, ymin, xmax, ymax)
+            max_shift: Maximum translation in meters in both axes
+            step: Grid step in meters
+            height_threshold: Threshold above which a point is considered non-ground
+            ground_penalty: Penalty weight for including ground points
+            non_ground_reward: Reward weight for including non-ground points
+
+        Returns:
+            best_shift: (dx, dy)
+            best_bbox: translated bbox (xmin+dx, ymin+dy, xmax+dx, ymax+dy)
+        """
+        if points is None or len(points) == 0:
+            return (0.0, 0.0), initial_bbox
+
+        pts_xy = points[:, :2] if points.shape[1] >= 2 else points
+        if heights is None:
+            # Try to use Z from points if available
+            if points.shape[1] >= 3:
+                heights = points[:, 2]
+            else:
+                # No height info -> cannot distinguish ground, return no-shift
+                return (0.0, 0.0), initial_bbox
+
+        xmin, ymin, xmax, ymax = initial_bbox
+
+        dxs = np.arange(-max_shift, max_shift + 1e-9, step)
+        dys = np.arange(-max_shift, max_shift + 1e-9, step)
+
+        best_score = -np.inf
+        best_shift = (0.0, 0.0)
+        best_bbox = initial_bbox
+
+        # Precompute masks for speed
+        xs = pts_xy[:, 0]
+        ys = pts_xy[:, 1]
+        hg = heights
+
+        tiny = 1e-3
+        for dx in dxs:
+            xmin_t = xmin + dx
+            xmax_t = xmax + dx
+            in_x = (xs >= xmin_t) & (xs <= xmax_t)
+            if not in_x.any():
+                # no points in this x slice for any dy, skip computing ys
+                continue
+            for dy in dys:
+                ymin_t = ymin + dy
+                ymax_t = ymax + dy
+                mask = in_x & (ys >= ymin_t) & (ys <= ymax_t)
+
+                if not mask.any():
+                    score = -tiny * (dx * dx + dy * dy)
+                else:
+                    n_non_ground = np.sum(mask & (hg > height_threshold))
+                    n_ground = np.sum(mask & (hg <= height_threshold))
+                    score = non_ground_reward * n_non_ground - ground_penalty * n_ground - tiny * (dx * dx + dy * dy)
+
+                if score > best_score:
+                    best_score = score
+                    best_shift = (dx, dy)
+                    best_bbox = (xmin_t, ymin_t, xmax_t, ymax_t)
+
+        return best_shift, best_bbox
+
+
     def _adjust_polygons(
         self,
         points: np.ndarray,
@@ -301,6 +390,34 @@ class BuildingClusterer:
             else:
                 adjusted_poly = poly.buffer(base_buffer, cap_style='square')
             
+            # Attempt to optimize bbox translation to better match point cloud
+            try:
+                bbox = adjusted_poly.bounds  # (minx, miny, maxx, maxy)
+
+                # Use points Z values if available
+                heights = None
+                if points is not None and points.shape[1] >= 3:
+                    heights = points[:, 2]
+
+                best_shift, best_bbox = self.optimize_bbox_for_building(
+                    points=points,
+                    heights=heights,
+                    initial_bbox=bbox,
+                    max_shift=self.polygon_buffer + self.wall_buffer + 2.0,
+                    step=max(0.5, self.polygon_buffer / 2.0),
+                    height_threshold=0.5,
+                    ground_penalty=1.0,
+                    non_ground_reward=1.0
+                )
+
+                dx, dy = best_shift
+                if dx != 0.0 or dy != 0.0:
+                    adjusted_poly = translate(adjusted_poly, xoff=dx, yoff=dy)
+                    logger.debug(f"Translated polygon by dx={dx:.2f}, dy={dy:.2f} to better fit points")
+            except Exception:
+                # If optimization fails, keep adjusted_poly as-is
+                logger.debug("BBox optimization failed for a polygon; keeping buffered polygon")
+
             adjusted.append(adjusted_poly)
         
         total_buffer_used = self.polygon_buffer + (self.wall_buffer if self.detect_near_vertical_walls else 0)

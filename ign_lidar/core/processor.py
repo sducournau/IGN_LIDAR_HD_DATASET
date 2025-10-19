@@ -1823,6 +1823,45 @@ class LiDARProcessor:
         else:
             logger.debug(f"  ℹ️  Reclassification disabled (enabled={reclass_enabled})")
         
+        # 3ab. 🆕 V5.2.1: Filter variable objects using DTM heights
+        # This step removes temporary/mobile objects like vehicles, urban furniture, etc.
+        # Uses height_above_ground computed from RGE ALTI DTM
+        try:
+            from ..core.classification.variable_object_filter import apply_variable_object_filtering
+            
+            # Apply filtering if enabled and height_above_ground is available
+            if height_above_ground is not None:
+                labels_before_filter = labels_v.copy()
+                labels_v, filter_stats = apply_variable_object_filtering(
+                    points=points_v,
+                    classification=labels_v,
+                    height_above_ground=height_above_ground,
+                    config=self.config,
+                    features=geo_features  # Pass geometric features for wall detection
+                )
+                
+                # Log filtering results
+                if filter_stats.get('total_filtered', 0) > 0:
+                    n_filtered = filter_stats['total_filtered']
+                    pct_filtered = (n_filtered / len(labels_v)) * 100
+                    logger.info(f"  ✅ Variable object filtering: {n_filtered:,} points ({pct_filtered:.2f}%)")
+                    
+                    # Log breakdown by type
+                    if filter_stats.get('vehicles_filtered', 0) > 0:
+                        logger.info(f"      🚗 Vehicles: {filter_stats['vehicles_filtered']:,} points")
+                    if filter_stats.get('furniture_filtered', 0) > 0:
+                        logger.info(f"      🪑 Urban furniture: {filter_stats['furniture_filtered']:,} points")
+                    if filter_stats.get('walls_filtered', 0) > 0:
+                        logger.info(f"      🧱 Walls/fences: {filter_stats['walls_filtered']:,} points")
+            else:
+                logger.debug("  ℹ️  height_above_ground not available - skipping variable object filtering")
+                
+        except ImportError:
+            logger.debug("  ℹ️  Variable object filter module not available")
+        except Exception as e:
+            logger.warning(f"  ⚠️  Variable object filtering failed: {e}")
+            logger.debug("  Exception details:", exc_info=True)
+        
         # 3b. Refine classification using NDVI, ground truth, and geometric features
         if self.lod_level == 'LOD2':
             # Prepare features for refinement

@@ -156,6 +156,42 @@ processor:
     building_buffer_distance: 2.0 # 2m buffer around buildings
     verticality_threshold: 0.7 # 0.7 for building facades
 
+# ============================================================================
+# VARIABLE OBJECT FILTERING (V5.2.1) ⭐ NEW - DTM-based filtering
+# ============================================================================
+# Filter temporary/mobile objects using height above DTM from RGE ALTI
+# Removes: vehicles, urban furniture, temporary structures
+# Requires: RGE ALTI enabled (data_sources.rge_alti.enabled = true)
+# ============================================================================
+variable_object_filtering:
+  enabled: true # Enable filtering of variable objects
+
+  # 🚗 Vehicle filtering (cars, trucks, buses, trains)
+  filter_vehicles: true
+  vehicle_height_range: [0.8, 4.0] # Height range in meters (min, max)
+  # - Roads: 0.8-4.0m → filters cars (1.4-1.8m) and trucks (2.5-4.0m)
+  # - Parking: 0.5-4.0m → filters parked vehicles (lower threshold)
+  # - Railways: 1.5-5.0m → filters trains and wagons (higher threshold)
+
+  # 🪑 Urban furniture filtering (benches, poles, signs, trash bins)
+  filter_urban_furniture: true
+  furniture_height_range: [0.5, 4.0] # Height range for furniture
+  furniture_max_cluster_size: 50 # Max points in cluster to be considered furniture
+  # Small isolated elevated objects on artificial surfaces → likely furniture
+
+  # 🧱 Wall/fence filtering (optional - usually kept in classification)
+  filter_walls: false # Keep walls in classification by default
+  wall_height_range: [0.5, 2.5] # Typical wall/fence height
+  wall_min_verticality: 0.8 # High verticality required for walls
+
+  # Classification behavior
+  reclassify_to: 1 # Reclassify filtered objects to class 1 (unassigned)
+  create_vehicle_class: false # If true, create separate vehicle class
+  vehicle_class_code: 18 # Class code for vehicles (if create_vehicle_class=true)
+
+  # Logging
+  verbose: true # Log detailed filtering statistics
+
   # ============================================================================
   # BUILDING FUSION (V5.1 Enhancement) ⭐ NEW - Multi-Source Comparison
   # ============================================================================

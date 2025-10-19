@@ -48,6 +48,7 @@ dependencies = [
     "shapely>=2.0.0",  # Geometric operations for ground truth labeling
     "geopandas>=0.12.0",  # GeoDataFrame support for vector data
     "rtree>=1.0.0",  # Spatial indexing for efficient geometric operations
+    "rasterio>=1.3.0",  # Raster data I/O for DTM/MNT processing (RGE ALTI®)
 ]
 
 [project.optional-dependencies]
