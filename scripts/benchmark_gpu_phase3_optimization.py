@@ -26,7 +26,7 @@ except ImportError:
     logger.warning("⚠️  CuPy not available - cannot run GPU benchmarks")
 
 try:
-    from ign_lidar.features.features_gpu_chunked import GPUChunkedFeatureComputer
+    from ign_lidar.features.gpu_processor import GPUProcessor as GPUChunkedFeatureComputer
     CHUNKED_AVAILABLE = True
 except ImportError:
     CHUNKED_AVAILABLE = False

@@ -5,7 +5,7 @@ Quick test to verify the chunking fix for large point clouds.
 import sys
 sys.path.insert(0, '/mnt/d/Users/Simon/OneDrive/Documents/GitHub/IGN_LIDAR_HD_DATASET')
 
-from ign_lidar.features.features_gpu_chunked import GPUChunkedFeatureComputer
+from ign_lidar.features.gpu_processor import GPUProcessor as GPUChunkedFeatureComputer
 
 # Test the _should_batch_neighbor_queries method
 computer = GPUChunkedFeatureComputer(

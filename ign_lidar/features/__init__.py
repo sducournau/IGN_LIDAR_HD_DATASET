@@ -22,12 +22,9 @@ Unified API (recommended):
     verticality = compute_verticality(normals, mode='gpu') 
     features = extract_geometric_features(points, normals, mode='auto')
 
-Legacy modules (deprecated - will be removed):
-- features: CPU-based feature extraction
-- features_gpu: GPU-accelerated feature extraction (CuPy)
-- features_gpu_chunked: GPU feature extraction for large files  
-- features_boundary: Boundary-aware feature extraction
-- factory: Factory pattern (replaced by Strategy pattern)
+Legacy notes:
+- Factory pattern has been replaced by Strategy pattern
+- Old GPU modules (features_gpu, features_gpu_chunked) have been consolidated into gpu_processor.py
 """
 
 # Strategy Pattern (NEW - Week 2 refactoring)
@@ -74,17 +71,11 @@ from .compute.architectural import (
 )
 from .compute.density import compute_density_features
 
-# Note: The following functions were removed during Phase 2 cleanup:
-# - compute_all_features_with_gpu -> Use GPUStrategy instead
+# Note: Deprecated functions removed during Phase 2+ cleanup:
+# - compute_all_features_with_gpu -> Use GPUStrategy or GPUProcessor
 # - compute_features_by_mode -> Use Strategy pattern (BaseFeatureStrategy.auto_select)
-# - compute_building_scores -> Not found in core modules
-# - compute_edge_strength -> Not found in core modules  
-# - compute_roof_plane_score -> Defined but never used
-# - compute_opening_likelihood -> Defined but never used
-# - compute_structural_element_score -> Defined but never used
-
-# Factory Pattern has been removed - use Strategy Pattern instead
-# All functionality moved to Strategy pattern (strategies.py, strategy_*.py)
+# - Legacy GPU modules (features_gpu.py, features_gpu_chunked.py) -> Use gpu_processor.py
+# - Factory Pattern -> Use Strategy Pattern (strategies.py, strategy_*.py)
 
 from .orchestrator import (
     FeatureOrchestrator,

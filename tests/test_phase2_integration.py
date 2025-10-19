@@ -26,7 +26,7 @@ def sample_point_cloud():
 def sample_neighbors():
     """Create sample neighbor indices."""
     np.random.seed(42)
-    return np.random.randint(0, 1000, size=(1000, 20), dtype=np.int32)
+    return np.random.randint(0, 1000, size=(1000, 20), dtype=np.int64)
 
 
 class TestPhase2Integration:
@@ -149,7 +149,7 @@ class TestPhase2Integration:
         points = np.column_stack([x, y, z]).astype(np.float32)
         
         # Create neighbors
-        neighbors = np.random.randint(0, 1000, size=(1000, 20), dtype=np.int32)
+        neighbors = np.random.randint(0, 1000, size=(1000, 20), dtype=np.int64)
         normals = np.random.rand(1000, 3).astype(np.float32)
         
         computer = GPUProcessor(use_gpu=False)
@@ -169,7 +169,7 @@ class TestPhase2Integration:
         # In real chunked processing, the full point cloud is passed
         # but only a subset of neighbors is computed for the chunk
         # Create neighbors that only reference valid indices for the chunk
-        chunk_neighbors = np.random.randint(0, 500, size=(500, 20), dtype=np.int32)
+        chunk_neighbors = np.random.randint(0, 500, size=(500, 20), dtype=np.int64)
         
         # Pass full points array (as done in real usage) with chunk neighbors
         features = computer.compute_eigenvalue_features(

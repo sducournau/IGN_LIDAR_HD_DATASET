@@ -558,6 +558,8 @@ Each patch is saved as NPZ with:
 **User Guides** ([docs/guides/](docs/guides/)):
 
 - [ASPRS Classification Guide](docs/guides/ASPRS_CLASSIFICATION_GUIDE.md) - Complete ASPRS standards
+- [ASPRS Feature Requirements](docs/guides/ASPRS_FEATURE_REQUIREMENTS.md) - Feature specifications for classification
+- [ASPRS Features Quick Reference](docs/guides/ASPRS_FEATURES_QUICK_REFERENCE.md) - Fast lookup of features by class
 - [Building Classification Guide](docs/guides/BUILDING_CLASSIFICATION_QUICK_REFERENCE.md) - Building class reference
 - [Vegetation Classification Guide](docs/guides/VEGETATION_CLASSIFICATION_GUIDE.md) - Vegetation analysis
 

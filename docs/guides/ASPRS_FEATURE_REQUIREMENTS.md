@@ -319,8 +319,7 @@ assert is_valid, f"Missing features: {missing}"
 
 ## See Also
 
-- [Ground Truth Refinement Guide](docs/guides/ground-truth-refinement.md)
-- [Vegetation Feature-Based Update](VEGETATION_FEATURE_BASED_UPDATE.md)
-- [CHANGELOG](CHANGELOG.md)
-- [Module: asprs_classes.py](ign_lidar/asprs_classes.py)
-- [Module: ground_truth_refinement.py](ign_lidar/core/modules/ground_truth_refinement.py)
+- [Ground Truth Refinement Guide](ground-truth-refinement.md)
+- [CHANGELOG](../../CHANGELOG.md)
+- [Module: asprs_classes.py](../../ign_lidar/asprs_classes.py)
+- [Module: ground_truth_refinement.py](../../ign_lidar/core/modules/ground_truth_refinement.py)

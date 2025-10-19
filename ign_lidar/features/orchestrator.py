@@ -260,7 +260,7 @@ class FeatureOrchestrator:
             bool: True if GPU is available and working
         """
         try:
-            from .features_gpu import GPU_AVAILABLE
+            from .gpu_processor import GPU_AVAILABLE
             
             if not GPU_AVAILABLE:
                 logger.warning(

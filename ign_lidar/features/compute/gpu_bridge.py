@@ -342,6 +342,9 @@ class GPUCoreBridge:
         
         Uses numpy for compatibility when GPU is unavailable.
         """
+        # Ensure neighbors is integer type for indexing
+        neighbors = neighbors.astype(np.int64) if neighbors.dtype != np.int64 else neighbors
+        
         N, k = neighbors.shape
         
         # Get neighbor points
