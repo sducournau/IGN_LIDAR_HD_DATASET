@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 3.0.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
+**Version 3.0.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -542,34 +542,40 @@ Each patch is saved as NPZ with:
 
 ## 📚 Documentation
 
+### 📖 Documentation Hub
+
+**[Complete Documentation Index](DOCUMENTATION.md)** - Central navigation for all documentation
+
 ### Quick Links
 
-- **[📖 Complete Documentation Index](DOCUMENTATION.md)** - Full documentation navigation
-- [📖 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) - Online documentation site
-- [🚀 Installation Guide](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/installation/quick-start)
+- [� Online Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) - Full documentation site
+- [🚀 Quick Start Guide](docs/QUICK_START_DEVELOPER.md) - Get started in 5 minutes
 - [📋 Testing Guide](TESTING.md) - Test suite and development testing
 - [📝 Changelog](CHANGELOG.md) - Version history and release notes
 
-### User Guides
+### Documentation by Category
 
-Located in **[docs/guides/](docs/guides/)**:
+**User Guides** ([docs/guides/](docs/guides/)):
 
 - [ASPRS Classification Guide](docs/guides/ASPRS_CLASSIFICATION_GUIDE.md) - Complete ASPRS standards
 - [Building Classification Guide](docs/guides/BUILDING_CLASSIFICATION_QUICK_REFERENCE.md) - Building class reference
 - [Vegetation Classification Guide](docs/guides/VEGETATION_CLASSIFICATION_GUIDE.md) - Vegetation analysis
 
-### Examples & Configuration
+**Configuration Examples** ([examples/](examples/)):
 
-Located in **[examples/](examples/)**:
-
-- [Example Configurations](examples/) - YAML configuration templates
+- [Example Configurations](examples/) - Ready-to-use YAML templates
 - [Versailles Configs](examples/) - LOD2, LOD3, and ASPRS examples
 - [Architectural Analysis](examples/ARCHITECTURAL_STYLES_README.md) - Style detection
-- [Multi-scale Training](examples/MULTI_SCALE_TRAINING_STRATEGY.md) - Advanced training
 
-### Architecture & API
+**Technical Documentation**:
 
+- [GPU Refactoring](docs/gpu-refactoring/) - Complete GPU optimization project (6,500+ lines)
+- [Implementation Plans](docs/implementation/) - Strategic roadmaps
+- [Audit Reports](docs/audit/) - Code quality analysis
 - [System Architecture](docs/architecture/) - Design documentation
+
+**API References**:
+
 - [Geometric Features Reference](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/features/geometric-features)
 - [Feature Modes Guide](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/features/feature-modes)
 - [CLI Reference](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/api/cli)
