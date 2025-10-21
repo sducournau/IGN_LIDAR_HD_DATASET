@@ -78,7 +78,32 @@ const config: Config = {
     ],
   ],
 
-  themes: ["@docusaurus/theme-mermaid"],
+  themes: [
+    "@docusaurus/theme-mermaid",
+    [
+      "@easyops-cn/docusaurus-search-local",
+      {
+        // Options for local search
+        hashed: true,
+        language: ["en", "fr"], // Bilingual search support
+        indexDocs: true,
+        indexBlog: true,
+        indexPages: false,
+        docsRouteBasePath: "/",
+        blogRouteBasePath: "/blog",
+        // Search result limits
+        searchResultLimits: 8,
+        searchResultContextMaxLength: 50,
+        // Exclude patterns
+        ignoreFiles: [
+          /archive\//,
+          /legacy\//,
+          /migration\//,
+          /^docs\/docs\/docs\//,
+        ],
+      },
+    ],
+  ],
 
   themeConfig: {
     // Replace with your project's social card
