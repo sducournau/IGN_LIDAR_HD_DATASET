@@ -29,6 +29,27 @@ const sidebars: SidebarsConfig = {
       ],
     },
 
+    // User Guides (Moved earlier for better UX)
+    {
+      type: "category",
+      label: "📖 User Guides",
+      items: [
+        "guides/rge-alti-integration",
+        "guides/plane-detection",
+        "guides/wall-detection",
+        "guides/variable-object-filtering",
+        "guides/cli-commands",
+        "guides/hydra-cli",
+        "guides/auto-params",
+        "guides/preprocessing",
+        "guides/complete-workflow",
+        "guides/unified-pipeline",
+        "guides/regional-processing",
+        "guides/performance",
+        "guides/troubleshooting",
+      ],
+    },
+
     // Configuration V5 (NEW SECTION)
     {
       type: "category",
@@ -45,8 +66,11 @@ const sidebars: SidebarsConfig = {
     // Core Features
     {
       type: "category",
-      label: "� Core Features",
+      label: "🎯 Core Features",
       items: [
+        "features/adaptive-classification",
+        "features/building-analysis",
+        "features/road-classification",
         "features/smart-skip",
         "features/format-preferences",
         "features/enriched-laz-only",
@@ -156,6 +180,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "📚 Technical Reference",
       items: [
+        "reference/dtm-processing",
         "architecture",
         "workflows",
         "reference/workflow-diagrams",
