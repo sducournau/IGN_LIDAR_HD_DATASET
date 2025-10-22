@@ -1,0 +1,508 @@
+"""
+Transport Detection Module with Multi-Mode Support
+
+This module provides enhanced road and railway detection capabilities for different
+classification modes: ASPRS standard, ASPRS extended, and LOD2 training.
+
+Migrated from transport_detection.py to transport/detection.py (Phase 3C).
+
+Modes:
+- ASPRS_STANDARD: Simple road (11) and rail (10) detection
+- ASPRS_EXTENDED: Detailed road types (motorway, primary, etc.) and rail types
+- LOD2: Ground-level transport surfaces for LOD2 training
+
+Author: Transport Detection Enhancement
+Date: October 15, 2025
+Updated: October 22, 2025 - Migrated to transport module (Phase 3C)
+Version: 3.1.0
+"""
+
+import logging
+from typing import Optional, Dict, Any, Tuple
+import numpy as np
+
+# Import from transport module base and utils
+from .base import (
+    TransportMode,
+    DetectionConfig,
+    TransportStats,
+    TransportDetectionResult,
+    TransportDetectorBase,
+    DetectionStrategy,
+)
+from .utils import (
+    validate_transport_height,
+    check_transport_planarity,
+    filter_by_roughness,
+    filter_by_intensity,
+    check_horizontality,
+)
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Transport Detector Implementation
+# ============================================================================
+
+class TransportDetector(TransportDetectorBase):
+    """
+    Advanced transport detector supporting multiple detection modes.
+    
+    Implements different strategies optimized for:
+    - ASPRS_STANDARD: Simple road/rail classification
+    - ASPRS_EXTENDED: Detailed road/rail type classification
+    - LOD2: Ground-level transport surfaces for training
+    
+    Inherits from TransportDetectorBase and implements abstract methods.
+    """
+    
+    def __init__(self, config: Optional[DetectionConfig] = None):
+        """
+        Initialize transport detector.
+        
+        Args:
+            config: Detection configuration (defaults to ASPRS_STANDARD mode)
+        """
+        if config is None:
+            config = DetectionConfig(mode=TransportMode.ASPRS_STANDARD)
+        
+        super().__init__(config)
+        logger.info(f"🚗🚂 Transport Detector initialized in {self.config.mode.value.upper()} mode")
+        
+    def detect_transport(
+        self,
+        labels: np.ndarray,
+        height: np.ndarray,
+        planarity: np.ndarray,
+        roughness: Optional[np.ndarray] = None,
+        intensity: Optional[np.ndarray] = None,
+        normals: Optional[np.ndarray] = None,
+        road_ground_truth_mask: Optional[np.ndarray] = None,
+        rail_ground_truth_mask: Optional[np.ndarray] = None,
+        road_types: Optional[np.ndarray] = None,
+        rail_types: Optional[np.ndarray] = None,
+        road_widths: Optional[np.ndarray] = None,
+        points: Optional[np.ndarray] = None
+    ) -> TransportDetectionResult:
+        """
+        Detect roads and railways using mode-appropriate strategies.
+        
+        Args:
+            labels: Current classification labels [N]
+            height: Height above ground [N] in meters
+            planarity: Planarity values [N], range [0, 1]
+            roughness: Surface roughness [N]
+            intensity: LiDAR intensity [N], normalized [0, 1]
+            normals: Surface normals [N, 3]
+            road_ground_truth_mask: Boolean mask [N] for road points
+            rail_ground_truth_mask: Boolean mask [N] for rail points
+            road_types: Road type classification [N] from BD TOPO
+            rail_types: Rail type classification [N] from BD TOPO
+            road_widths: Road width values [N] from BD TOPO
+            points: Point coordinates [N, 3] (for spatial analysis)
+            
+        Returns:
+            TransportDetectionResult with labels, stats, and confidence
+        """
+        if self.config.mode == TransportMode.ASPRS_STANDARD:
+            refined_labels, stats = self._detect_asprs_standard(
+                labels, height, planarity, roughness, intensity, normals,
+                road_ground_truth_mask, rail_ground_truth_mask
+            )
+        elif self.config.mode == TransportMode.ASPRS_EXTENDED:
+            refined_labels, stats = self._detect_asprs_extended(
+                labels, height, planarity, roughness, intensity, normals,
+                road_ground_truth_mask, rail_ground_truth_mask,
+                road_types, rail_types, road_widths
+            )
+        elif self.config.mode == TransportMode.LOD2:
+            refined_labels, stats = self._detect_lod2(
+                labels, height, planarity, roughness, intensity, normals,
+                road_ground_truth_mask, rail_ground_truth_mask
+            )
+        else:
+            raise ValueError(f"Unsupported detection mode: {self.config.mode}")
+        
+        # Determine primary strategy used
+        if road_ground_truth_mask is not None or rail_ground_truth_mask is not None:
+            strategy = DetectionStrategy.HYBRID
+        elif self.config.use_geometric_detection:
+            strategy = DetectionStrategy.GEOMETRIC
+        else:
+            strategy = DetectionStrategy.GROUND_TRUTH
+        
+        return TransportDetectionResult(
+            labels=refined_labels,
+            stats=stats,
+            confidence=None,  # TODO: Add confidence calculation
+            mode=self.config.mode,
+            strategy=strategy
+        )
+    
+    def _detect_asprs_standard(
+        self,
+        labels: np.ndarray,
+        height: np.ndarray,
+        planarity: np.ndarray,
+        roughness: Optional[np.ndarray],
+        intensity: Optional[np.ndarray],
+        normals: Optional[np.ndarray],
+        road_ground_truth_mask: Optional[np.ndarray],
+        rail_ground_truth_mask: Optional[np.ndarray]
+    ) -> Tuple[np.ndarray, TransportStats]:
+        """
+        ASPRS Standard mode: Simple road (11) and rail (10) detection.
+        
+        Detection strategies:
+        1. Ground truth (if available)
+        2. Geometric detection (planarity, height, roughness)
+        3. Intensity refinement (for roads)
+        """
+        refined = labels.copy()
+        stats = TransportStats()
+        
+        ASPRS_ROAD = 11
+        ASPRS_RAIL = 10
+        
+        # === ROAD DETECTION ===
+        
+        # Strategy 1: Ground truth roads
+        if road_ground_truth_mask is not None and self.config.use_road_ground_truth:
+            if self.config.ground_truth_priority:
+                road_points = road_ground_truth_mask & (refined != ASPRS_ROAD)
+                refined[road_points] = ASPRS_ROAD
+                stats.roads_ground_truth = road_points.sum()
+        
+        # Strategy 2: Geometric road detection
+        if self.config.use_geometric_detection:
+            # Use shared validation functions from utils
+            valid_height = validate_transport_height(
+                height, 
+                self.config.road_height_min,
+                self.config.road_height_max,
+                transport_type="road"
+            )
+            
+            valid_planarity = check_transport_planarity(
+                planarity,
+                self.config.road_planarity_min,
+                transport_type="road"
+            )
+            
+            road_candidates = valid_height & valid_planarity & (refined != ASPRS_ROAD)
+            
+            # Add roughness constraint
+            if roughness is not None:
+                valid_roughness = filter_by_roughness(
+                    roughness,
+                    self.config.road_roughness_max,
+                    transport_type="road"
+                )
+                road_candidates = road_candidates & valid_roughness
+            
+            # Add horizontality constraint
+            if normals is not None:
+                valid_horizontal = check_horizontality(normals, horizontality_min=0.9)
+                road_candidates = road_candidates & valid_horizontal
+            
+            # Intensity refinement for asphalt
+            if self.config.road_intensity_filter and intensity is not None:
+                asphalt_intensity = filter_by_intensity(
+                    intensity,
+                    self.config.intensity_asphalt_min,
+                    self.config.intensity_asphalt_max,
+                    material="asphalt"
+                )
+                road_candidates = road_candidates & asphalt_intensity
+            
+            refined[road_candidates] = ASPRS_ROAD
+            stats.roads_geometric = road_candidates.sum()
+        
+        # === RAIL DETECTION ===
+        
+        # Strategy 1: Ground truth rails
+        if rail_ground_truth_mask is not None and self.config.use_rail_ground_truth:
+            if self.config.ground_truth_priority:
+                rail_points = rail_ground_truth_mask & (refined != ASPRS_RAIL)
+                refined[rail_points] = ASPRS_RAIL
+                stats.rails_ground_truth = rail_points.sum()
+        
+        # Strategy 2: Geometric rail detection
+        if self.config.use_geometric_detection:
+            # Use shared validation functions
+            valid_height = validate_transport_height(
+                height,
+                self.config.rail_height_min,
+                self.config.rail_height_max,
+                transport_type="railway"
+            )
+            
+            valid_planarity = check_transport_planarity(
+                planarity,
+                self.config.rail_planarity_min,
+                transport_type="railway"
+            )
+            
+            rail_candidates = (
+                valid_height & 
+                valid_planarity & 
+                (refined != ASPRS_RAIL) &
+                (refined != ASPRS_ROAD)  # Don't overlap with roads
+            )
+            
+            if roughness is not None:
+                valid_roughness = filter_by_roughness(
+                    roughness,
+                    self.config.rail_roughness_max,
+                    transport_type="railway"
+                )
+                rail_candidates = rail_candidates & valid_roughness
+            
+            refined[rail_candidates] = ASPRS_RAIL
+            stats.rails_geometric = rail_candidates.sum()
+        
+        # Calculate totals
+        stats.total_roads = (refined == ASPRS_ROAD).sum()
+        stats.total_rails = (refined == ASPRS_RAIL).sum()
+        
+        return refined, stats
+    
+    def _detect_asprs_extended(
+        self,
+        labels: np.ndarray,
+        height: np.ndarray,
+        planarity: np.ndarray,
+        roughness: Optional[np.ndarray],
+        intensity: Optional[np.ndarray],
+        normals: Optional[np.ndarray],
+        road_ground_truth_mask: Optional[np.ndarray],
+        rail_ground_truth_mask: Optional[np.ndarray],
+        road_types: Optional[np.ndarray],
+        rail_types: Optional[np.ndarray],
+        road_widths: Optional[np.ndarray]
+    ) -> Tuple[np.ndarray, TransportStats]:
+        """
+        ASPRS Extended mode: Detailed road and rail type classification.
+        
+        Road types: Motorway (32), Primary (33), Secondary (34), etc.
+        Rail types: Main line (standard 10), Tram (special handling)
+        
+        Uses BD TOPO attributes to classify road/rail types.
+        """
+        refined = labels.copy()
+        stats = TransportStats()
+        
+        # Extended ASPRS codes
+        ASPRS_ROAD = 11
+        ASPRS_RAIL = 10
+        ASPRS_MOTORWAY = 32
+        ASPRS_PRIMARY = 33
+        ASPRS_SECONDARY = 34
+        ASPRS_TERTIARY = 35
+        ASPRS_RESIDENTIAL = 36
+        ASPRS_SERVICE = 37
+        
+        # === ROAD DETECTION WITH TYPES ===
+        
+        if road_ground_truth_mask is not None and self.config.use_road_ground_truth:
+            road_points = road_ground_truth_mask
+            
+            # Classify by type if available
+            if road_types is not None and self.config.detect_road_types:
+                # Use road_types array to assign specific classes
+                # Assumes road_types contains ASPRS codes
+                refined[road_points] = road_types[road_points]
+                
+                # Count by type
+                stats.motorways = ((refined == ASPRS_MOTORWAY) & road_points).sum()
+                stats.primary_roads = ((refined == ASPRS_PRIMARY) & road_points).sum()
+                stats.secondary_roads = ((refined == ASPRS_SECONDARY) & road_points).sum()
+                stats.residential_roads = ((refined == ASPRS_RESIDENTIAL) & road_points).sum()
+                stats.service_roads = ((refined == ASPRS_SERVICE) & road_points).sum()
+                stats.other_roads = (
+                    road_points.sum() - stats.motorways - stats.primary_roads -
+                    stats.secondary_roads - stats.residential_roads - stats.service_roads
+                )
+            else:
+                # No type information, use standard road class
+                refined[road_points] = ASPRS_ROAD
+            
+            stats.roads_ground_truth = road_points.sum()
+        
+        # === RAIL DETECTION WITH TYPES ===
+        
+        if rail_ground_truth_mask is not None and self.config.use_rail_ground_truth:
+            rail_points = rail_ground_truth_mask
+            
+            # Classify by type if available
+            if rail_types is not None and self.config.detect_rail_types:
+                refined[rail_points] = rail_types[rail_points]
+                
+                # Count types
+                stats.main_railways = ((refined == ASPRS_RAIL) & rail_points).sum()
+                # Could add tram, metro, etc. if codes defined
+            else:
+                refined[rail_points] = ASPRS_RAIL
+            
+            stats.rails_ground_truth = rail_points.sum()
+        
+        # Calculate totals
+        road_classes = [ASPRS_ROAD, ASPRS_MOTORWAY, ASPRS_PRIMARY, ASPRS_SECONDARY,
+                       ASPRS_TERTIARY, ASPRS_RESIDENTIAL, ASPRS_SERVICE]
+        stats.total_roads = np.isin(refined, road_classes).sum()
+        stats.total_rails = (refined == ASPRS_RAIL).sum()
+        
+        return refined, stats
+    
+    def _detect_lod2(
+        self,
+        labels: np.ndarray,
+        height: np.ndarray,
+        planarity: np.ndarray,
+        roughness: Optional[np.ndarray],
+        intensity: Optional[np.ndarray],
+        normals: Optional[np.ndarray],
+        road_ground_truth_mask: Optional[np.ndarray],
+        rail_ground_truth_mask: Optional[np.ndarray]
+    ) -> Tuple[np.ndarray, TransportStats]:
+        """
+        LOD2 mode: Roads and rails as ground-level surfaces.
+        
+        In LOD2 training, roads and rails are typically part of the ground class.
+        This mode helps validate and refine ground classification.
+        """
+        refined = labels.copy()
+        stats = TransportStats()
+        
+        LOD2_GROUND = 9
+        
+        # In LOD2, transport surfaces are ground class
+        # We validate but don't change the class
+        
+        if road_ground_truth_mask is not None:
+            # Ensure road points are classified as ground
+            road_as_ground = road_ground_truth_mask & (refined != LOD2_GROUND)
+            refined[road_as_ground] = LOD2_GROUND
+            stats.roads_validated = road_ground_truth_mask.sum()
+        
+        if rail_ground_truth_mask is not None:
+            # Ensure rail points are classified as ground
+            rail_as_ground = rail_ground_truth_mask & (refined != LOD2_GROUND)
+            refined[rail_as_ground] = LOD2_GROUND
+            stats.rails_validated = rail_ground_truth_mask.sum()
+        
+        # Geometric validation of transport surfaces
+        if self.config.use_geometric_detection:
+            transport_height_max = max(self.config.road_height_max, self.config.rail_height_max)
+            transport_planarity_min = min(self.config.road_planarity_min, self.config.rail_planarity_min)
+            
+            valid_height = validate_transport_height(
+                height, -0.5, transport_height_max, transport_type="transport"
+            )
+            valid_planarity = check_transport_planarity(
+                planarity, transport_planarity_min, transport_type="transport"
+            )
+            
+            transport_candidates = valid_height & valid_planarity
+            
+            if roughness is not None:
+                transport_roughness_max = max(self.config.road_roughness_max, self.config.rail_roughness_max)
+                valid_roughness = filter_by_roughness(
+                    roughness, transport_roughness_max, transport_type="transport"
+                )
+                transport_candidates = transport_candidates & valid_roughness
+            
+            # These are likely transport, ensure they're ground class
+            transport_as_ground = transport_candidates & (refined != LOD2_GROUND)
+            refined[transport_as_ground] = LOD2_GROUND
+        
+        stats.transport_ground_total = stats.roads_validated + stats.rails_validated
+        
+        return refined, stats
+
+
+# ============================================================================
+# Convenience Functions
+# ============================================================================
+
+def detect_transport_multi_mode(
+    labels: np.ndarray,
+    features: Dict[str, np.ndarray],
+    mode: str = 'asprs_standard',
+    road_ground_truth_mask: Optional[np.ndarray] = None,
+    rail_ground_truth_mask: Optional[np.ndarray] = None,
+    road_types: Optional[np.ndarray] = None,
+    rail_types: Optional[np.ndarray] = None,
+    config: Optional[DetectionConfig] = None
+) -> TransportDetectionResult:
+    """
+    Convenience function for transport detection with automatic mode selection.
+    
+    Args:
+        labels: Current classification labels [N]
+        features: Dictionary of computed features
+        mode: Detection mode ('asprs_standard', 'asprs_extended', or 'lod2')
+        road_ground_truth_mask: Optional ground truth road mask
+        rail_ground_truth_mask: Optional ground truth rail mask
+        road_types: Optional road type classifications from BD TOPO
+        rail_types: Optional rail type classifications from BD TOPO
+        config: Optional custom configuration
+        
+    Returns:
+        TransportDetectionResult with labels, stats, and confidence
+    """
+    # Parse mode
+    if isinstance(mode, str):
+        mode = mode.lower()
+        if mode not in ['asprs_standard', 'asprs_extended', 'lod2']:
+            raise ValueError(f"Invalid mode: {mode}. Must be 'asprs_standard', 'asprs_extended', or 'lod2'")
+        mode_enum = TransportMode(mode)
+    else:
+        mode_enum = mode
+    
+    # Create config if not provided
+    if config is None:
+        config = DetectionConfig(mode=mode_enum)
+    
+    # Create detector
+    detector = TransportDetector(config=config)
+    
+    # Extract features
+    height = features.get('height')
+    planarity = features.get('planarity')
+    roughness = features.get('roughness')
+    intensity = features.get('intensity')
+    normals = features.get('normals')
+    road_widths = features.get('road_widths')
+    points = features.get('points')
+    
+    # Validate required features
+    if height is None or planarity is None:
+        raise ValueError("Height and planarity features are required for transport detection")
+    
+    # Run detection
+    return detector.detect_transport(
+        labels=labels,
+        height=height,
+        planarity=planarity,
+        roughness=roughness,
+        intensity=intensity,
+        normals=normals,
+        road_ground_truth_mask=road_ground_truth_mask,
+        rail_ground_truth_mask=rail_ground_truth_mask,
+        road_types=road_types,
+        rail_types=rail_types,
+        road_widths=road_widths,
+        points=points
+    )
+
+
+# ============================================================================
+# Export
+# ============================================================================
+
+__all__ = [
+    'TransportDetector',
+    'detect_transport_multi_mode'
+]

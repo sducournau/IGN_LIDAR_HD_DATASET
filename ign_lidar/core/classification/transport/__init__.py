@@ -112,47 +112,18 @@ from .utils import (
     HAS_SCIPY,
 )
 
-# Import implementation classes (will be added in Phase 3C)
-# These imports will fail initially but will work after migration
-try:
-    from .detection import (
-        TransportDetector,
-        detect_transport_multi_mode,
-    )
-    _HAS_DETECTION = True
-except ImportError:
-    _HAS_DETECTION = False
-    # Provide informative error message
-    def _not_implemented(*args, **kwargs):
-        raise NotImplementedError(
-            "Transport detection module not yet migrated. "
-            "Use legacy 'from ign_lidar.core.classification.transport_detection import ...' "
-            "until Phase 3C migration is complete."
-        )
-    TransportDetector = _not_implemented
-    detect_transport_multi_mode = _not_implemented
+# Import implementation classes (migrated in Phase 3C)
+from .detection import (
+    TransportDetector,
+    detect_transport_multi_mode,
+)
 
-try:
-    from .enhancement import (
-        AdaptiveTransportBuffer,
-        SpatialTransportClassifier,
-        TransportClassificationScore,
-        TransportCoverageStats,
-    )
-    _HAS_ENHANCEMENT = True
-except ImportError:
-    _HAS_ENHANCEMENT = False
-    # Provide informative error message
-    def _not_implemented(*args, **kwargs):
-        raise NotImplementedError(
-            "Transport enhancement module not yet migrated. "
-            "Use legacy 'from ign_lidar.core.classification.transport_enhancement import ...' "
-            "until Phase 3C migration is complete."
-        )
-    AdaptiveTransportBuffer = _not_implemented
-    SpatialTransportClassifier = _not_implemented
-    TransportClassificationScore = _not_implemented
-    TransportCoverageStats = _not_implemented
+from .enhancement import (
+    AdaptiveTransportBuffer,
+    SpatialTransportClassifier,
+    TransportClassificationScore,
+    TransportCoverageStats,
+)
 
 
 # ============================================================================
@@ -233,9 +204,9 @@ def get_module_status() -> dict:
     """
     return {
         'version': __version__,
-        'detection_available': _HAS_DETECTION,
-        'enhancement_available': _HAS_ENHANCEMENT,
+        'detection_available': True,  # Migrated in Phase 3C
+        'enhancement_available': True,  # Migrated in Phase 3C
         'shapely_available': HAS_SHAPELY,
         'scipy_available': HAS_SCIPY,
-        'phase_3_complete': _HAS_DETECTION and _HAS_ENHANCEMENT,
+        'phase_3_complete': True,  # Phase 3C migration complete
     }
