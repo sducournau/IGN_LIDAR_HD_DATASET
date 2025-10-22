@@ -608,7 +608,7 @@ save_patches(patches, "output.laz")
 - [Unified Pipeline Guide](../guides/unified-pipeline.md) - Workflow overview
 - [Configuration API](configuration.md) - Configuration options
 - [Preprocessing Guide](../guides/preprocessing.md) - Preprocessing functions
-- [Features Overview](../guides/features/overview.md) - Feature computation
+- [Feature Modes](../features/feature-modes.md) - Feature computation modes
 
 ---
 

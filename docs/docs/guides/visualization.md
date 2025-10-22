@@ -562,4 +562,4 @@ gpu_renderer.fast_render(
 3. **Consistency checking** between adjacent areas
 4. **Documentation of detected anomalies**
 
-See also: [Performance Guide](./performance.md) | [Visualization API](../api/visualization.md) | [QGIS Integration](../reference/cli-qgis.md)
+See also: [Performance Guide](./performance.md) | [Core Module API](../api/core-module.md) | [QGIS Integration](../reference/cli-qgis.md)

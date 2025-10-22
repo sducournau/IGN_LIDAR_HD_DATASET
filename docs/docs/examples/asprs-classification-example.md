@@ -814,7 +814,7 @@ You've learned how to:
 **Next Steps**:
 
 - Try [LOD2 Classification Example](./lod2-classification-example.md)
-- Explore [LOD3 Classification Example](./lod3-classification-example.md)
+- Explore [LOD3 Classification](../features/lod3-classification.md)
 - Learn about [Classification Workflows](../reference/classification-workflow.md)
 
 ---

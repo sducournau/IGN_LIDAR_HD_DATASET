@@ -446,6 +446,6 @@ https://github.com/sducournau/IGN_LIDAR_HD_DATASET
 ## See Also
 
 - [Complete Workflow Guide](../guides/complete-workflow.md)
-- [Patch Extraction](../features/patch-extraction.md)
+- [Ground Truth Classification](../features/ground-truth-classification.md)
 - [RGB Augmentation](../features/rgb-augmentation.md)
 - [IGN Géoplateforme Documentation](https://geoservices.ign.fr/)

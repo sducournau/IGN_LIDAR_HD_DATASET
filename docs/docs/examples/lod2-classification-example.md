@@ -724,8 +724,8 @@ features:
 
 - [LOD Classification Reference](../reference/lod-classification.md)
 - [Classification Workflow](../reference/classification-workflow.md)
-- [Building Component Extraction](../features/building-extraction.md)
-- [ASPRS to LOD2 Mapping](../reference/asprs-lod-mapping.md)
+- [Building Analysis](../features/building-analysis.md)
+- [ASPRS Classification](../reference/asprs-classification.md)
 
 ---
 
@@ -741,9 +741,9 @@ You've learned how to:
 
 **Next Steps**:
 
-- Try [LOD3 Classification Example](./lod3-classification-example.md)
-- Explore [Building Component Extraction](../features/building-extraction.md)
-- Learn about [CityGML Export](../guides/citygml-export.md)
+- Try [LOD3 Classification](../features/lod3-classification.md)
+- Explore [Building Analysis](../features/building-analysis.md)
+- Learn about [Visualization](../guides/visualization.md)
 
 ---
 

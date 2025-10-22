@@ -264,7 +264,7 @@ The mapping dictionaries are defined in `ign_lidar/classes.py`:
 
 - [LOD3 Classification](../features/lod3-classification.md) - Level of Detail concepts
 - [Enriched LAZ Output](../features/enriched-laz-only.md) - Understanding output files
-- [API Reference](../api/classes.md) - Python API for class definitions
+- [Configuration API](../api/configuration.md) - Python API for configuration
 
 ## References
 

@@ -423,10 +423,10 @@ processor = LiDARProcessor(
 
 ### Learn More
 
-- 📖 [Features Guide](features/overview.md) - Deep dive into all features
-- ⚡ [GPU Guide](gpu/overview.md) - GPU acceleration details
-- 🔧 [Configuration Guide](features/pipeline-configuration.md) - Advanced workflows
-- 🎨 [RGB Augmentation](features/rgb-augmentation.md) - Color enrichment
+- 📖 [Feature Modes](../features/feature-modes.md) - Deep dive into all features
+- ⚡ [GPU Guide](../gpu/overview.md) - GPU acceleration details
+- 🔧 [Configuration Guide](../features/pipeline-configuration.md) - Advanced workflows
+- 🎨 [RGB Augmentation](../features/rgb-augmentation.md) - Color enrichment
 
 ### Examples
 

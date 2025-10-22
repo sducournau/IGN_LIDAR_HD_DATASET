@@ -532,5 +532,5 @@ print(f"ML feature shape: {ml_features.shape}")  # (50000, 13)
 
 - [Architectural Styles Guide](../features/architectural-styles.md) - Detailed style descriptions
 - [Feature Extraction API](./features.md) - Other geometric features
-- [Dataset Creation Guide](../guides/dataset-creation.md) - Using styles in datasets
-- [Feature Modes Reference](../reference/feature-modes.md) - LOD2/LOD3 feature sets
+- [Ground Truth Classification](../features/ground-truth-classification.md) - Using architectural features
+- [Feature Modes Reference](../features/feature-modes.md) - LOD2/LOD3 feature sets
