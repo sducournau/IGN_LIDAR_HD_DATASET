@@ -708,9 +708,9 @@ ground_truth:
 
 ## Related Documentation
 
-- [DTM Processing Guide](./dtm-processing.md) - Complete DTM enrichment reference
+- [DTM Processing Guide](../reference/dtm-processing.md) - Complete DTM enrichment reference
 - [Ground Truth Classification](../features/ground-truth-classification.md) - Using BD TOPO data
-- [Configuration Guide](../guides/configuration.md) - Complete configuration reference
+- [Configuration Guide](./configuration-system.md) - Complete configuration reference
 - [Height Features](../features/geometric-features.md#height-computation) - Height calculation methods
 
 ---
