@@ -544,7 +544,7 @@ water_classification:
 ```python
 from ign_lidar.io.rge_alti_fetcher import RGEALTIFetcher, augment_ground_with_rge_alti
 from ign_lidar.core.classification.advanced_classification import AdvancedClassifier
-from ign_lidar.core.classification.building_clustering import cluster_buildings_multi_source
+from ign_lidar.core.classification.building import cluster_buildings_multi_source
 from ign_lidar.io.wfs_ground_truth import IGNGroundTruthFetcher
 
 # Step 1: Load point cloud

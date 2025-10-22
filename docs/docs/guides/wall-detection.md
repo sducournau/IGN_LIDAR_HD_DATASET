@@ -66,7 +66,7 @@ Quand activé:
 ### Exemple 1: Mode ASPRS avec Détection des Murs
 
 ```python
-from ign_lidar.core.classification.building_clustering import BuildingClusterer
+from ign_lidar.core.classification.building import BuildingClusterer
 
 # Configuration améliorée
 clusterer = BuildingClusterer(
@@ -95,7 +95,7 @@ print(f"Murs détectés et inclus dans les clusters")
 ### Exemple 2: Mode LOD2 pour Reconstruction
 
 ```python
-from ign_lidar.core.classification.building_detection import BuildingDetectionConfig, BuildingDetectionMode
+from ign_lidar.core.classification.building import BuildingDetectionConfig, BuildingDetectionMode
 
 # Configuration LOD2 avec murs améliorés
 config = BuildingDetectionConfig(mode=BuildingDetectionMode.LOD2)
@@ -112,7 +112,7 @@ print(f"Wall buffer: {config.wall_buffer_distance}m")
 ### Exemple 3: Pipeline Complet avec Murs
 
 ```python
-from ign_lidar.core.classification.building_clustering import cluster_buildings_multi_source
+from ign_lidar.core.classification.building import cluster_buildings_multi_source
 from ign_lidar.features.compute.features import compute_normals
 
 # 1. Calculer les normales (requis pour détection murs)

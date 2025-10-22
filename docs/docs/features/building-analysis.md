@@ -666,7 +666,7 @@ enricher.export_cluster_statistics(
 ### Full Example
 
 ```python
-from ign_lidar.core.classification.building_fusion import (
+from ign_lidar.core.classification.building import (
     BuildingFusion, BuildingSource
 )
 from ign_lidar.core.classification.cluster_enrichment import ClusterEnricher

@@ -108,7 +108,7 @@ for plane in vertical_planes:
 **Buffers étendus pour les murs:**
 
 ```python
-from ign_lidar.core.classification.building_clustering import BuildingClusterer
+from ign_lidar.core.classification.building import BuildingClusterer
 
 clusterer = BuildingClusterer(
     polygon_buffer=0.5,  # Buffer de base
