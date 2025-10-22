@@ -20,8 +20,9 @@ from enum import IntEnum
 import numpy as np
 from dataclasses import dataclass
 
-from ign_lidar.classes import LOD2_CLASSES, LOD3_CLASSES, ASPRS_TO_LOD2, ASPRS_TO_LOD3
-from ign_lidar.asprs_classes import ASPRSClass
+from ign_lidar.classification_schema import (
+    LOD2_CLASSES, LOD3_CLASSES, ASPRS_TO_LOD2, ASPRS_TO_LOD3, ASPRSClass
+)
 
 logger = logging.getLogger(__name__)
 

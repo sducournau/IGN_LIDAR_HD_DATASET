@@ -183,7 +183,7 @@ def get_classification_distribution(
     Returns:
         distribution: Dictionary mapping class code to statistics
     """
-    from ign_lidar.asprs_classes import ASPRS_CLASS_NAMES
+    from ign_lidar.classification_schema import ASPRS_CLASS_NAMES
     
     if class_names is None:
         class_names = ASPRS_CLASS_NAMES

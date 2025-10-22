@@ -21,7 +21,7 @@ try:
 except ImportError:
     TORCH_AVAILABLE = False
 
-from ..classes import ASPRS_TO_LOD2, ASPRS_TO_LOD3
+from ..classification_schema import ASPRS_TO_LOD2, ASPRS_TO_LOD3
 from ..io.metadata import MetadataManager
 from ..features.architectural_styles import (
     get_architectural_style_id
@@ -52,8 +52,8 @@ from .optimization_factory import optimization_factory, auto_optimize_config
 # Dataset manager for ML dataset creation with train/val/test splits
 from ..datasets.dataset_manager import DatasetManager, DatasetConfig
 
-# Classification refinement module
-from .classification.classification_refinement import refine_classification, RefinementConfig
+# Classification module (unified in v3.1.0)
+from .classification import UnifiedClassifier, refine_classification_unified
 
 # Reclassification module (optimized)
 from .classification.reclassifier import OptimizedReclassifier, reclassify_tile_optimized
@@ -1654,9 +1654,9 @@ class LiDARProcessor:
                             logger.info(f"      ⚡ Power Lines (43): {'✅' if has_power else '❌'}")
                     
                     else:
-                        # LEGACY: Use AdvancedClassifier (slower, kept for backward compatibility)
-                        logger.warning("  ⚠️  Using legacy AdvancedClassifier (slower). Set processor.use_optimized_ground_truth=true for 10× speedup")
-                        from ..core.classification.advanced_classification import AdvancedClassifier
+                        # Use UnifiedClassifier with comprehensive strategy
+                        logger.info("  Using UnifiedClassifier with comprehensive strategy")
+                        from .classification import UnifiedClassifier, ClassificationStrategy
                         
                         # Get building and transport detection modes from config
                         building_mode = self.config.processor.get('building_detection_mode', 'asprs')
@@ -1668,8 +1668,9 @@ class LiDARProcessor:
                         logger.info(f"  🔧 Building detection mode: {building_mode}")
                         logger.info(f"  🔧 Transport detection mode: {transport_mode}")
                         
-                        # Create advanced classifier with appropriate modes and config parameters
-                        classifier = AdvancedClassifier(
+                        # Create unified classifier with comprehensive strategy and appropriate config
+                        classifier = UnifiedClassifier(
+                            strategy=ClassificationStrategy.COMPREHENSIVE,
                             use_ground_truth=True,
                             use_ndvi=self.config.features.get('compute_ndvi', False),
                             use_geometric=True,
@@ -1945,15 +1946,13 @@ class LiDARProcessor:
                 if 'ground_truth_road_mask' in tile_data:
                     ground_truth_data['road_mask'] = tile_data['ground_truth_road_mask']
             
-            # Apply refinement
+            # Apply refinement using unified classifier
             if refinement_features:
-                labels_v, refinement_stats = refine_classification(
+                labels_v, refinement_stats = refine_classification_unified(
                     labels=labels_v,
                     features=refinement_features,
                     ground_truth_data=ground_truth_data,
-                    config=RefinementConfig(),
-                    lod_level=self.lod_level,
-                    logger_instance=logger
+                    lod_level=self.lod_level
                 )
         
         # 4. Combine features (FeatureComputer has already computed everything)

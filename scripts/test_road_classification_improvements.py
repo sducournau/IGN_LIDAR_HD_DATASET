@@ -14,11 +14,8 @@ import numpy as np
 import logging
 from typing import Tuple
 
-# Import du module de raffinement
-from ign_lidar.core.classification.classification_refinement import (
-    refine_road_classification,
-    RefinementConfig
-)
+# Import du module de classification unifié
+from ign_lidar.core.classification import UnifiedClassifier
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

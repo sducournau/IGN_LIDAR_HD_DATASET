@@ -27,12 +27,15 @@ def test_list_presets():
     for preset in presets:
         print(f"  - {preset}")
     
-    assert len(presets) == 6, f"Expected 6 presets, found {len(presets)}"
+    # Updated count: now 8 presets (added asprs_cpu and asprs_rtx4080_fast)
+    assert len(presets) == 8, f"Expected 8 presets, found {len(presets)}"
     assert 'minimal' in presets
     assert 'lod2' in presets
     assert 'lod3' in presets
     assert 'asprs' in presets
+    assert 'asprs_cpu' in presets
     assert 'asprs_rtx4080' in presets
+    assert 'asprs_rtx4080_fast' in presets
     assert 'full' in presets
     
     print("✓ PASSED")

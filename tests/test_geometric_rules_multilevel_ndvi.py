@@ -66,7 +66,7 @@ class TestMultiLevelNDVIConstants:
     
     def test_alignment_with_advanced_classification(self):
         """Test that constants align with advanced_classification.py."""
-        from ign_lidar.core.modules.advanced_classification import AdvancedClassifier
+        from ign_lidar.core.classification import AdvancedClassifier
         
         engine = GeometricRulesEngine()
         classifier = AdvancedClassifier()

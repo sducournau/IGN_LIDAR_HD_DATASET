@@ -25,7 +25,7 @@ import numpy as np
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from ign_lidar.core.modules.advanced_classification import AdvancedClassifier
+from ign_lidar.core.classification import AdvancedClassifier
 from ign_lidar.io.cadastre import CadastreFetcher
 from ign_lidar.io.bd_foret import BDForetFetcher
 from ign_lidar.io.rpg import RPGFetcher

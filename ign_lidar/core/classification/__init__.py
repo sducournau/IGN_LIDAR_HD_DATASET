@@ -135,19 +135,35 @@ except ImportError:
     get_artifact_free_features = None
     ArtifactReport = None
 
-# Adaptive classifier module (new in v5.0)
+# Unified classifier module (new in v3.1.0 - consolidation)
 try:
-    from .adaptive_classifier import (
-        AdaptiveClassifier,
+    from .unified_classifier import (
+        UnifiedClassifier,
+        ClassificationStrategy,
         ClassificationRule,
-        FeatureImportance
+        FeatureImportance,
+        UnifiedClassifierConfig,
+        classify_points_unified,
+        refine_classification_unified
     )
-    _HAS_ADAPTIVE_CLASSIFIER = True
+    _HAS_UNIFIED_CLASSIFIER = True
 except ImportError:
-    _HAS_ADAPTIVE_CLASSIFIER = False
-    AdaptiveClassifier = None
+    _HAS_UNIFIED_CLASSIFIER = False
+    UnifiedClassifier = None
+    ClassificationStrategy = None
     ClassificationRule = None
     FeatureImportance = None
+    UnifiedClassifierConfig = None
+    classify_points_unified = None
+    refine_classification_unified = None
+
+# Backward compatibility removed in v3.1.0
+# Use UnifiedClassifier instead:
+#   - AdvancedClassifier → UnifiedClassifier(strategy='comprehensive')
+#   - AdaptiveClassifier → UnifiedClassifier(strategy='adaptive')
+#   - refine_classification() → UnifiedClassifier().refine_classification()
+
+_HAS_ADAPTIVE_CLASSIFIER = _HAS_UNIFIED_CLASSIFIER
 
 # Adaptive building classifier module (new in v5.2.2 - Enhanced building classification)
 try:
@@ -229,8 +245,12 @@ __all__ = [
     'validate_features_before_classification',
     'get_artifact_free_features',
     'ArtifactReport',
-    # Adaptive classifier (optional, v5.0)
-    'AdaptiveClassifier',
+    # Unified classifier (v3.1.0 - new)
+    'UnifiedClassifier',
+    'ClassificationStrategy',
+    'UnifiedClassifierConfig',
+    'classify_points_unified',
+    'refine_classification_unified',
     'ClassificationRule',
     'FeatureImportance',
     # Adaptive building classifier (optional, v5.2.2)

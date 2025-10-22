@@ -919,7 +919,7 @@ class GrammarParser:
         
         Traverses the tree and assigns appropriate labels to points.
         """
-        from ign_lidar.classes import LOD2_CLASSES, LOD3_CLASSES
+        from ign_lidar.classification_schema import LOD2_CLASSES, LOD3_CLASSES
         
         refined = labels.copy()
         

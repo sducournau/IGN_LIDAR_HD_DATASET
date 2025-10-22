@@ -12,6 +12,7 @@ Modes:
 Author: Transport Detection Enhancement
 Date: October 15, 2025
 Updated: October 16, 2025 - Integrated unified thresholds (Issue #8)
+Updated: October 22, 2025 - Migrated to consolidated thresholds module (v3.1)
 """
 
 import logging
@@ -19,7 +20,8 @@ from typing import Optional, Dict, Any, Tuple
 from enum import Enum
 import numpy as np
 
-from .classification_thresholds import ClassificationThresholds
+# Import unified thresholds (v3.1 - consolidated)
+from .thresholds import ClassificationThresholds
 
 logger = logging.getLogger(__name__)
 

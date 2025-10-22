@@ -554,7 +554,7 @@ def patch_advanced_classifier():
         patch_advanced_classifier()
     """
     try:
-        from ign_lidar.core.modules.advanced_classification import AdvancedClassifier
+        from ign_lidar.core.classification import AdvancedClassifier
         
         # Save original method
         if not hasattr(AdvancedClassifier, '_classify_by_ground_truth_original'):

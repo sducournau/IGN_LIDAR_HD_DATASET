@@ -22,7 +22,7 @@ from ign_lidar.io.cadastre import CadastreFetcher
 from ign_lidar.io.bd_foret import BDForetFetcher
 from ign_lidar.io.rpg import RPGFetcher
 from ign_lidar.io.bd_topo import BDTopoFetcher
-from ign_lidar.core.modules.advanced_classification import AdvancedClassifier
+from ign_lidar.core.classification import AdvancedClassifier
 from ign_lidar.preprocessing.features import FeatureComputer
 
 # Setup logging
