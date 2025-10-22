@@ -84,7 +84,7 @@ This release fixes critical issues with BD TOPO® ground truth classification th
 - YAML configuration files with example templates
 - CLI parameter overrides with `--config-file`
 
-📖 [Full Release History](CHANGELOG.md)
+📖 [Full Release History](release-notes/v3.0.0.md)
 
 ---
 
@@ -254,7 +254,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - 🐛 [Report Issues](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)
 - 💡 [Feature Requests](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues)
-- 📖 [Contributing Guide](CONTRIBUTING.md)
+- 📖 [Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
 ---
 

@@ -639,7 +639,7 @@ print(f"Mean Z difference: {np.abs(test_z_dtm - test_z_actual).mean():.2f}m")
 
 - [RGE ALTI Integration](../guides/rge-alti-integration.md) - Full RGE ALTI setup guide
 - [Ground Truth Classification](../features/ground-truth-classification.md) - Using ground truth data
-- [Configuration Guide](../guides/configuration.md) - Complete configuration reference
+- [Configuration Guide](../guides/configuration-system.md) - Complete configuration reference
 - [Height Computation](../features/geometric-features.md#height-above-ground) - HAG calculation
 
 ---
