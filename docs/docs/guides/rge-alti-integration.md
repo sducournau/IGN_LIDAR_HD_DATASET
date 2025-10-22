@@ -245,7 +245,7 @@ params = {
 
 | Method          | First Access | Subsequent Access | Data Quality    |
 | --------------- | ------------ | ----------------- | --------------- |
-| **WMS + Cache** | ~2-5 seconds | <0.1 seconds      | Good (rendered) |
+| **WMS + Cache** | ~2-5 seconds | &lt;0.1 seconds   | Good (rendered) |
 | **Local files** | ~0.1 seconds | ~0.1 seconds      | Best (raw)      |
 
 ### Cache Management

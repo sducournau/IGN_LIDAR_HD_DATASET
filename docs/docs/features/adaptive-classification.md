@@ -123,7 +123,7 @@ def compute_boundary_confidence(distance_to_polygon_edge):
 | 1.0m outside       | 0.78       | Likely belongs                  |
 | 2.0m outside       | 0.37       | Uncertain                       |
 | 3.0m outside       | 0.11       | Unlikely belongs                |
-| >4m outside        | <0.05      | Almost certainly doesn't belong |
+| >4m outside        | &lt;0.05   | Almost certainly doesn't belong |
 
 ### 3. Adaptive Polygon Optimization
 

@@ -243,9 +243,9 @@ for elem_type, elem_list in elements.items():
 
 **Critères:**
 
-- Plans horizontaux de petite taille (<20 m²)
+- Plans horizontaux de petite taille (&lt;20 m²)
 - Hauteur intermédiaire (2-15m)
-- Peu de points (<500)
+- Peu de points (&lt;500)
 - Projection depuis façade
 
 **Code:**

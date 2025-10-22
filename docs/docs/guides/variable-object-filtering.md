@@ -190,7 +190,7 @@ Open output LAZ in CloudCompare and check:
 ### Performance
 
 - **Processing time:** +10-30 seconds per tile
-- **Memory:** Negligible (<100MB)
+- **Memory:** Negligible (&lt;100MB)
 - **DTM download:** +1-2 minutes first time (then cached)
 
 ### Classification Quality

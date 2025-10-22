@@ -304,7 +304,7 @@ is_bridge = (height_above_ground > 2.0) & in_road_polygon
 
 ### Tunnel Detection
 
-**Underground road points (<-0.5m below ground) = tunnel/underpass:**
+**Underground road points (&lt;-0.5m below ground) = tunnel/underpass:**
 
 ```python
 is_tunnel = (height_above_ground < -0.5) & in_road_polygon
