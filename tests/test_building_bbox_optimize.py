@@ -1,5 +1,5 @@
 import numpy as np
-from ign_lidar.core.classification.building_clustering import BuildingClusterer
+from ign_lidar.core.classification.building import BuildingClusterer
 
 
 def test_optimize_bbox_for_building_translation():

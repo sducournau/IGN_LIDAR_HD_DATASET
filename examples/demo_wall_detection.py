@@ -26,7 +26,7 @@ def example_wall_detection_asprs():
     Shows how to use the enhanced building clusterer to detect
     walls (murs) and extend building polygons to boundaries.
     """
-    from ign_lidar.core.classification.building_clustering import BuildingClusterer
+    from ign_lidar.core.classification.building import BuildingClusterer
     from ign_lidar.io.wfs_ground_truth import IGNGroundTruthFetcher
     from ign_lidar.features.compute.features import compute_normals
     
@@ -102,7 +102,7 @@ def example_wall_detection_lod2():
     Shows how to use LOD2 mode with enhanced wall detection
     for detailed building element separation.
     """
-    from ign_lidar.core.classification.building_detection import (
+    from ign_lidar.core.classification.building import (
         BuildingDetector, BuildingDetectionConfig, BuildingDetectionMode
     )
     from ign_lidar.features.compute.features import compute_normals, compute_planarity
@@ -289,7 +289,7 @@ def example_complete_pipeline():
     5. Cluster by building polygons with extended buffers
     6. Analyze and save results
     """
-    from ign_lidar.core.classification.building_clustering import cluster_buildings_multi_source
+    from ign_lidar.core.classification.building import cluster_buildings_multi_source
     from ign_lidar.io.wfs_ground_truth import IGNGroundTruthFetcher
     from ign_lidar.features.compute.features import compute_normals
     

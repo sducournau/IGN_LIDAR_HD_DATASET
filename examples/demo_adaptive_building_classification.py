@@ -41,7 +41,7 @@ def demonstrate_adaptive_building_classification():
     logger.info("=" * 80)
     
     try:
-        from ign_lidar.core.classification.adaptive_building_classifier import (
+        from ign_lidar.core.classification.building import (
             AdaptiveBuildingClassifier,
             BuildingFeatureSignature
         )
