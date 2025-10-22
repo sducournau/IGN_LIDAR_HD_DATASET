@@ -1,23 +1,55 @@
 """
 Classification Thresholds for ASPRS and BD TOPO Integration
 
-This module provides a central location for all classification thresholds used across
-the IGN LiDAR HD classification system. This ensures consistency and makes it easier
-to tune parameters.
+⚠️ DEPRECATED - Use ign_lidar.core.classification.thresholds instead
+
+This module is deprecated as of v3.1.0 and will be removed in v4.0.0.
+It now serves as a backward compatibility wrapper around the new unified
+thresholds module.
+
+Migration:
+    # Old (deprecated)
+    from ign_lidar.core.classification.classification_thresholds import ClassificationThresholds
+    
+    # New (recommended)
+    from ign_lidar.core.classification.thresholds import (
+        ThresholdConfig,
+        get_thresholds,
+        ClassificationThresholds  # Backward compatibility wrapper
+    )
+
+For full migration guide, see: docs/THRESHOLD_MIGRATION_GUIDE.md
 
 Created to address Issue #8: Conflicting Height Thresholds
 See: docs/AUDIT_ACTION_PLAN.md
 
 Author: IGN LiDAR HD Development Team
 Date: October 16, 2025
+Updated: October 22, 2025 - Deprecated in favor of thresholds.py
 """
 
+import warnings
 from typing import Dict, Any
 
+# Import the new unified thresholds module
+from .thresholds import ClassificationThresholds as _NewClassificationThresholds
 
-class ClassificationThresholds:
+# Issue deprecation warning
+warnings.warn(
+    "classification_thresholds.py is deprecated as of v3.1.0 and will be removed in v4.0.0. "
+    "Please use 'from ign_lidar.core.classification.thresholds import ThresholdConfig' instead. "
+    "See docs/THRESHOLD_MIGRATION_GUIDE.md for migration guide.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+
+class ClassificationThresholds(_NewClassificationThresholds):
     """
     Classification thresholds for ASPRS and BD TOPO integration.
+    
+    ⚠️ DEPRECATED: This is a backward compatibility wrapper.
+    Use ThresholdConfig from thresholds.py instead.
     
     This class provides a single source of truth for all geometric, height,
     and intensity thresholds used throughout the classification pipeline.
@@ -27,6 +59,10 @@ class ClassificationThresholds:
     - Buildings
     - Vegetation
     - Geometric features
+    
+    New Usage:
+        from ign_lidar.core.classification.thresholds import get_thresholds
+        thresholds = get_thresholds(mode='lod2', strict=True)
     """
     
     # ===================================================================

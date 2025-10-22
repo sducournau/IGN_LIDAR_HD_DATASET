@@ -7,6 +7,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ⚠️ New Deprecations (Phase 1 - Threshold Consolidation)
+
+- **DEPRECATED:** `ign_lidar.core.classification.classification_thresholds` (use `thresholds` instead)
+- **DEPRECATED:** `ign_lidar.core.classification.optimized_thresholds` (use `thresholds` instead)
+- These modules now serve as backward compatibility wrappers
+- Will be removed in v4.0.0
+- See `docs/THRESHOLD_MIGRATION_GUIDE.md` for migration instructions
+
+### 🔄 Changed (Classification Module Consolidation)
+
+- **Consolidated threshold configuration** into unified `thresholds.py` module
+  - Single source of truth for all classification thresholds
+  - Eliminated duplication across 3 files (1,821 lines total)
+  - Better organization: NDVI, Geometric, Height, Transport, Building categories
+  - Context-aware adaptive thresholds (season, urban/rural, mode)
+- **Enhanced threshold features**:
+  - Mode-specific thresholds (ASPRS, LOD2, LOD3)
+  - Strict mode for urban areas
+  - Validation and consistency checking
+  - Export/import to dictionary format
+
+### 📚 Documentation
+
+- **Consolidation plan** (`docs/CLASSIFICATION_CONSOLIDATION_PLAN.md`)
+  - Complete analysis of 33 files in classification module
+  - Phased implementation roadmap
+  - Risk management and success metrics
+- **Threshold migration guide** (`docs/THRESHOLD_MIGRATION_GUIDE.md`)
+  - Step-by-step migration instructions
+  - Before/after code examples
+  - Complete API mapping table
+  - Testing guidelines
+
+## [3.1.0] - 2025-10-22
+
+### ⚠️ Deprecations
+
+- **DEPRECATED:** `ign_lidar.classes` module (use `ign_lidar.classification_schema` instead)
+- **DEPRECATED:** `ign_lidar.asprs_classes` module (use `ign_lidar.classification_schema` instead)
+- These modules will be removed in v4.0.0 (mid-2026)
+- All functionality preserved via backward compatibility layer with deprecation warnings
+
+### 🔄 Changed
+
+- **Consolidated all classification schemas** into `ign_lidar.classification_schema`
+  - Unified ASPRS LAS 1.4 codes, LOD2/LOD3 classes, and BD TOPO® mappings
+  - Single source of truth for all classification logic
+  - Eliminated 650+ lines of duplicated code
+- **Updated internal imports** across all core modules to use unified schema
+  - `hierarchical_classifier.py`, `processor.py`, `grammar_3d.py`, `class_normalization.py`
+- **Replaced old files** with deprecation warnings and import redirects
+  - Old imports still work but emit clear migration guidance
+  - Two-layer warning system (file-level + package-level)
+
+### ✨ Added
+
+- **Complete feature requirement definitions** in classification schema
+  - `WATER_FEATURES`, `ROAD_FEATURES`, `VEGETATION_FEATURES`, `BUILDING_FEATURES`
+  - `ALL_CLASSIFICATION_FEATURES` list for reference
+- **Enhanced backward compatibility** with clear migration path
+  - Type-safe enum-based classes (LOD2Class, LOD3Class) alongside dict-based legacy access
+  - Comprehensive `__all__` exports for proper API surface
+
+### 📚 Documentation
+
+- **Comprehensive audit report** (`CLASSIFICATION_AUDIT_CONSOLIDATION_REPORT.md`)
+  - Detailed analysis of duplication across files
+  - Import analysis and risk assessment
+- **Step-by-step action plan** (`CONSOLIDATION_ACTION_PLAN.md`)
+  - Implementation guide with verification steps
+  - Rollback procedures and testing strategy
+- **Completion report** (`CONSOLIDATION_COMPLETE.md`)
+  - Verification results and metrics
+  - Migration guide for external users
+
+### 🐛 Fixed
+
+- **Eliminated code duplication:** Removed 650+ lines of duplicate classification definitions
+- **Resolved inconsistent imports:** All modules now use single authoritative source
+- **Improved maintainability:** Changes to classification logic now require updates in only one place
+
+### 📊 Metrics
+
+- **Code reduction:** 46% reduction in classification code (1,890 → 1,016 lines)
+- **Duplication eliminated:** 100% (650 lines)
+- **Maintenance burden:** 3 files → 1 active file (2 deprecation wrappers)
+- **Test results:** All classification tests passing ✅
+
 ### 🌐 DTM Fallback - LiDAR HD MNT → RGE ALTI (v5.2.3)
 
 **Automatic fallback between DTM sources for improved reliability**
