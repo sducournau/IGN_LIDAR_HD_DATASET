@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ⚠️ New Deprecations (Phase 2 - Building Module Restructuring)
+
+- **DEPRECATED:** `ign_lidar.core.classification.adaptive_building_classifier` (use `building.adaptive` or `building` instead)
+- **DEPRECATED:** `ign_lidar.core.classification.building_detection` (use `building.detection` or `building` instead)
+- **DEPRECATED:** `ign_lidar.core.classification.building_clustering` (use `building.clustering` or `building` instead)
+- **DEPRECATED:** `ign_lidar.core.classification.building_fusion` (use `building.fusion` or `building` instead)
+- These modules now serve as backward compatibility wrappers
+- Will be removed in v4.0.0 (mid-2026)
+- See `docs/BUILDING_MODULE_MIGRATION_GUIDE.md` for migration instructions
+
 ### ⚠️ New Deprecations (Phase 1 - Threshold Consolidation)
 
 - **DEPRECATED:** `ign_lidar.core.classification.classification_thresholds` (use `thresholds` instead)
@@ -16,6 +26,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - See `docs/THRESHOLD_MIGRATION_GUIDE.md` for migration instructions
 
 ### 🔄 Changed (Classification Module Consolidation)
+
+#### Phase 2: Building Module Restructuring
+
+- **Restructured building classification modules** into organized `building/` subdirectory
+  - Consolidated 4 modules (2,963 lines): `adaptive`, `detection`, `clustering`, `fusion`
+  - New structure: `ign_lidar.core.classification.building.*`
+  - Created shared infrastructure (832 lines):
+    - `building/base.py`: Abstract base classes, enums, configurations
+    - `building/utils.py`: 20+ shared utility functions
+    - `building/__init__.py`: Public API exports
+  - Backward compatibility maintained via thin wrappers (~40 lines each)
+  - Zero breaking changes - all APIs unchanged
+- **New base classes available**:
+  - `BuildingClassifierBase`, `BuildingDetectorBase`, `BuildingClustererBase`, `BuildingFusionBase`
+  - Standard enums: `BuildingMode`, `BuildingSource`, `ClassificationConfidence`
+  - Unified configuration: `BuildingConfigBase`, `BuildingClassificationResult`
+- **Shared utilities** eliminate duplication:
+  - Spatial operations (polygon containment, buffering, indexing)
+  - Height filtering and statistics
+  - Geometric computations (centroids, areas, principal axes)
+  - Feature computations (verticality, planarity, horizontality)
+  - Distance computations and validation
+- **Updated examples and documentation**:
+  - 3 example scripts updated to use new imports
+  - 4 documentation files updated with new import patterns
+  - All tests passing (340 passed)
+
+#### Phase 1: Threshold Consolidation
 
 - **Consolidated threshold configuration** into unified `thresholds.py` module
   - Single source of truth for all classification thresholds
@@ -30,6 +68,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 📚 Documentation
 
+- **Phase 2 completion** (`docs/PHASE_2_COMPLETION_SUMMARY.md`)
+  - Complete metrics and impact analysis
+  - Module structure documentation
+  - Verification results and test summary
+  - Future work recommendations
+- **Building module migration guide** (`docs/BUILDING_MODULE_MIGRATION_GUIDE.md`)
+  - Comprehensive migration instructions
+  - Before/after code examples for all building classes
+  - Troubleshooting section and FAQ
+  - Migration checklist and timeline
 - **Consolidation plan** (`docs/CLASSIFICATION_CONSOLIDATION_PLAN.md`)
   - Complete analysis of 33 files in classification module
   - Phased implementation roadmap
