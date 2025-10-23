@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Quick Reference Card**: One-page reference guide (`RULES_FRAMEWORK_QUICK_REFERENCE.md`)
+
   - All core classes and methods on single page
   - 7 confidence calculation methods with examples
   - 6 confidence combination strategies
@@ -18,12 +19,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clear learning path for new users
   - Complements comprehensive developer guide
 
+- **Visual Architecture Guide**: System diagrams (`RULES_FRAMEWORK_ARCHITECTURE.md`)
+  - Complete system architecture with Mermaid diagrams
+  - Data flow visualizations (sequential + hierarchical execution)
+  - Component relationship class diagrams
+  - Confidence calculation pipeline
+  - Conflict resolution strategies
+  - State machine for rule execution
+  - Module organization structure
+  - Performance models and optimization strategies
+  - Integration points with existing pipeline
+  - Learning path visualization
+  - Documentation navigation map
+
 ### Documentation
 
 - Enhanced developer experience with rapid-access reference
 - Copy-paste ready code examples for all major features
-- 482 lines of concise, actionable guidance
-- Perfect for quick lookup during development
+- Visual learning with 15+ Mermaid diagrams
+- Complete documentation suite (quick reference + guide + architecture)
+- 1,137 lines of new documentation (482 quick ref + 655 architecture)
+- Perfect for quick lookup and system understanding
 
 ## [Unreleased]
 
