@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1] - 2025-10-23
+
+### Added
+
+- **Quick Reference Card**: One-page reference guide (`RULES_FRAMEWORK_QUICK_REFERENCE.md`)
+  - All core classes and methods on single page
+  - 7 confidence calculation methods with examples
+  - 6 confidence combination strategies
+  - Common implementation patterns (height-based, multi-feature, contextual)
+  - Performance optimization tips
+  - Clear learning path for new users
+  - Complements comprehensive developer guide
+
+### Documentation
+
+- Enhanced developer experience with rapid-access reference
+- Copy-paste ready code examples for all major features
+- 482 lines of concise, actionable guidance
+- Perfect for quick lookup during development
+
 ## [Unreleased]
 
 ### ⚠️ New Deprecations (Phase 3 - Transport Module Consolidation)
