@@ -35,6 +35,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🔄 Changed (Classification Module Consolidation)
 
+#### Phase 4B: Rules Module Infrastructure (Complete)
+
+- **Created comprehensive rule-based classification infrastructure** (1,758 lines)
+  - New structure: `ign_lidar.core.classification.rules.*`
+  - Complete framework for geometric, spectral, and grammar-based rules
+  - Ready for future rule development and migration
+- **Infrastructure components** (5 modules):
+  - `rules/base.py` (513 lines): Abstract base classes, enums, dataclasses
+    - `BaseRule`, `RuleEngine`, `HierarchicalRuleEngine` abstract classes
+    - `RuleType`, `RulePriority`, `ExecutionStrategy`, `ConflictResolution` enums
+    - `RuleResult`, `RuleStats`, `RuleConfig`, `RuleEngineConfig` dataclasses
+  - `rules/validation.py` (339 lines): Feature validation utilities
+    - `validate_features()`, `validate_feature_shape()`, `check_feature_quality()`
+    - `FeatureRequirements` dataclass for required/optional features
+    - Quality assessment and statistics functions
+  - `rules/confidence.py` (347 lines): Confidence scoring and combination
+    - 7 confidence methods: binary, linear, sigmoid, gaussian, threshold, exponential, composite
+    - 6 combination strategies: weighted average, max, min, product, geometric mean, harmonic mean
+    - `calibrate_confidence()`, `normalize_confidence()` utilities
+  - `rules/hierarchy.py` (346 lines): Hierarchical rule execution
+    - `RuleLevel` dataclass for multi-level organization
+    - `HierarchicalRuleEngine` with level-specific strategies
+    - Strategies: first_match, all_matches, priority, weighted
+  - `rules/__init__.py` (213 lines): Public API with 40+ exports
+- **Features implemented**:
+  - Type-safe architecture with dataclasses and enums
+  - Extensible plugin system via abstract base classes
+  - Comprehensive validation (shape, quality, range checking)
+  - Flexible confidence scoring (7 methods, 6 combination strategies)
+  - Hierarchical execution with conflict resolution
+  - Performance tracking per rule and level
+- **Status**: Infrastructure complete, module migration deferred (optional Phase 4C)
+- **Documentation**:
+  - `docs/PHASE_4A_RULES_GRAMMAR_ANALYSIS.md`: Analysis of 3 rule modules (2,436 lines)
+  - `docs/PHASE_4B_INFRASTRUCTURE_COMPLETE.md`: Complete infrastructure documentation
+  - Migration options and recommendations for Phase 4C
+
 #### Phase 3: Transport Module Consolidation
 
 - **Restructured transport classification modules** into organized `transport/` subdirectory
