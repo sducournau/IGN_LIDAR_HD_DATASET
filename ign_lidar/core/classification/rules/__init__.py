@@ -99,6 +99,27 @@ from .hierarchy import (
     HierarchicalRuleEngine,
 )
 
+# ================================
+# Legacy Engine Adapters
+# ================================
+
+from .adapters import (
+    LegacyEngineAdapter,
+    MultiClassAdapter,
+)
+
+from .spectral_adapter import (
+    SpectralRulesAdapter,
+    create_spectral_vegetation_rule,
+    create_spectral_water_rule,
+)
+
+from .geometric_adapter import (
+    GeometricRulesAdapter,
+    create_geometric_building_rule,
+    create_geometric_road_rule,
+)
+
 
 # ================================
 # Public API
@@ -125,6 +146,18 @@ __all__ = [
     'BaseRule',
     'RuleEngine',
     'HierarchicalRuleEngine',
+    
+    # Legacy Adapters
+    'LegacyEngineAdapter',
+    'MultiClassAdapter',
+    'SpectralRulesAdapter',
+    'GeometricRulesAdapter',
+    
+    # Adapter Factory Functions
+    'create_spectral_vegetation_rule',
+    'create_spectral_water_rule',
+    'create_geometric_building_rule',
+    'create_geometric_road_rule',
     
     # Validation
     'validate_features',
