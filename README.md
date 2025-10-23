@@ -33,6 +33,7 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 - 🏗️ **Building Classification**: LOD2/LOD3 schemas with 15-30+ classes
 - 📦 **Flexible Output**: NPZ, HDF5, PyTorch, LAZ formats
 - ⚙️ **YAML Configuration**: Reproducible workflows with example configs
+- 🎲 **Rules Framework**: Extensible rule-based classification system (NEW in v3.2.0)
 
 ---
 
@@ -58,9 +59,47 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ---
 
-## ✨ What's New in v3.0.0
+## ✨ What's New
 
-### 🤖 **FeatureComputer with Automatic Mode Selection**
+### 🎲 **Rules Framework (v3.2.0 - October 2025)**
+
+**NEW:** Extensible rule-based classification system with exceptional documentation!
+
+- **Plugin Architecture** - Create custom rules without modifying framework
+- **7 Confidence Methods** - Binary, linear, sigmoid, gaussian, threshold, exponential, composite
+- **Hierarchical Execution** - Multi-level classification with coarse-to-fine refinement
+- **Type-Safe Design** - Complete type hints and dataclass-based API
+- **Exceptional Docs** - Three-tier documentation (quick ref, guide, architecture)
+- **Visual Learning** - 15+ Mermaid diagrams showing system design
+- **Production Ready** - Zero breaking changes, 100% backward compatible
+
+```python
+from ign_lidar.core.classification.rules import BaseRule, RuleEngine
+
+class BuildingHeightRule(BaseRule):
+    def evaluate(self, context):
+        mask = context.additional_features['height'] > 3.0
+        return RuleResult(
+            point_indices=np.where(mask)[0],
+            classifications=np.full(mask.sum(), 6),  # Building
+            confidence_scores=np.ones(mask.sum()) * 0.9
+        )
+
+engine = RuleEngine()
+engine.add_rule(BuildingHeightRule())
+result = engine.execute(points, labels)
+```
+
+📖 **Documentation:**
+
+- [Quick Reference](docs/RULES_FRAMEWORK_QUICK_REFERENCE.md) - One-page API reference
+- [Developer Guide](docs/RULES_FRAMEWORK_DEVELOPER_GUIDE.md) - Complete tutorials
+- [Architecture](docs/RULES_FRAMEWORK_ARCHITECTURE.md) - Visual system design
+- [Examples](examples/README_RULES_EXAMPLES.md) - Working code samples
+
+---
+
+### 🤖 **FeatureComputer with Automatic Mode Selection (v3.0.0)**
 
 **Major Release (October 2025):** Intelligent automatic computation mode selection!
 
