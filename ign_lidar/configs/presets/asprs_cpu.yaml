@@ -28,8 +28,9 @@
 # USAGE:
 #   ign-lidar-hd process --preset asprs_cpu input/ output/
 #
-# Version: 5.1.0 CPU
-# Date: October 18, 2025
+# Package Version: 3.1.0
+# Config Version: 5.1.0 CPU
+# Date: October 23, 2025
 # ============================================================================
 
 # Inherit from base configuration

@@ -33,7 +33,8 @@
 #     input_dir="/path/to/tiles" \
 #     output_dir="/path/to/output"
 #
-# Version: 5.1.0
+# Package Version: 3.1.0
+# Config Version: 5.1.0
 # Date: October 19, 2025
 # Hardware: RTX 4080 16GB (or similar)
 # ============================================================================

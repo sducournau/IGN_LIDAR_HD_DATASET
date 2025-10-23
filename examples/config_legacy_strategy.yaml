@@ -10,7 +10,8 @@
 #
 # Note: This is the default when use_feature_computer is not specified.
 #
-# Version: 3.0.0 (Legacy - Consider migrating to modern presets)
+# Package Version: 3.1.0
+# Config Version: 5.1.0 (Legacy - Consider migrating to modern presets)
 # Date: October 18, 2025
 
 # Configuration metadata

@@ -20,10 +20,11 @@
 # - Spatially coherent results within parcels
 #
 # Usage:
-#   ign-lidar-hd process -c examples/config_parcel_versailles.yaml
+#   ign-lidar-hd process --config-file examples/config_parcel_versailles.yaml
 #
-# Version: 5.1.0 (Phase 1 - Parcel Classification)
-# Date: October 19, 2025
+# Package Version: 3.1.0
+# Config Version: 5.1.0 (Phase 1 - Parcel Classification)
+# Date: October 23, 2025
 # ============================================================================
 
 # Inherit from ASPRS preset

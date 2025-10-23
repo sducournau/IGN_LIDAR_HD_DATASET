@@ -22,8 +22,9 @@
 #   ign-lidar-hd process -c "ign_lidar/configs/presets/asprs_rtx4080_fast.yaml" \
 #     input_dir="/path/to/tiles" output_dir="/path/to/output"
 #
-# Version: 5.1.0 RTX4080-FAST
-# Date: October 18, 2025
+# Package Version: 3.1.0
+# Config Version: 5.1.0 RTX4080-FAST
+# Date: October 23, 2025
 # ============================================================================
 
 # Inherit from base configuration

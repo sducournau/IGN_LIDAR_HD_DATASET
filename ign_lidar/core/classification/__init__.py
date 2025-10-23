@@ -259,3 +259,33 @@ __all__ = [
     'PointBuildingScore',
     'ClassificationConfidence',
 ]
+
+# DTM Augmentation module (new in v3.1.0 - Enhanced MNT integration)
+try:
+    from .dtm_augmentation import (
+        DTMAugmenter,
+        DTMAugmentationConfig,
+        DTMAugmentationStats,
+        AugmentationStrategy,
+        AugmentationArea,
+        augment_with_dtm
+    )
+    _HAS_DTM_AUGMENTATION = True
+except ImportError:
+    _HAS_DTM_AUGMENTATION = False
+    DTMAugmenter = None
+    DTMAugmentationConfig = None
+    DTMAugmentationStats = None
+    AugmentationStrategy = None
+    AugmentationArea = None
+    augment_with_dtm = None
+
+# Export DTM augmentation
+__all__ += [
+    'DTMAugmenter',
+    'DTMAugmentationConfig',
+    'DTMAugmentationStats',
+    'AugmentationStrategy',
+    'AugmentationArea',
+    'augment_with_dtm',
+]

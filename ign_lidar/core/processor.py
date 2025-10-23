@@ -831,12 +831,19 @@ class LiDARProcessor:
         bbox: Tuple[float, float, float, float]
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Augment ground points using RGE ALTI DTM.
+        Augment ground points using RGE ALTI DTM (UPGRADED V3.1).
         
-        This function adds synthetic ground points from the DTM in areas where:
-        - Ground points are missing (under vegetation, buildings)
-        - Point density is low (gaps in coverage)
-        - Better ground reference is needed for accurate height computation
+        This function uses the new comprehensive DTM augmentation module to add
+        synthetic ground points intelligently in areas where they are most needed:
+        - Under vegetation (CRITICAL for accurate height computation)
+        - Under buildings (ground-level reference)
+        - Coverage gaps (improve terrain coverage)
+        
+        The new system provides:
+        - Intelligent area prioritization (vegetation > buildings > gaps)
+        - Better validation (height consistency, spatial filtering)
+        - Detailed statistics and logging
+        - Building polygon integration for targeted augmentation
         
         Args:
             points: Original point cloud [N, 3] (X, Y, Z)
@@ -848,6 +855,11 @@ class LiDARProcessor:
         """
         try:
             from ..io.rge_alti_fetcher import RGEALTIFetcher
+            from .classification.dtm_augmentation import (
+                DTMAugmenter,
+                DTMAugmentationConfig,
+                AugmentationStrategy
+            )
             
             # Get DTM configuration
             dtm_config = OmegaConf.select(self.config, 'data_sources.rge_alti', default={})
@@ -862,111 +874,110 @@ class LiDARProcessor:
                 cache_dir=str(cache_dir) if cache_dir else None,
                 resolution=dtm_config.get('resolution', 1.0),
                 use_wcs=dtm_config.get('use_wcs', True),
-                api_key=dtm_config.get('api_key', 'pratique')
+                api_key=dtm_config.get('api_key', 'pratique'),
+                prefer_lidar_hd=dtm_config.get('prefer_lidar_hd', True)  # Use LiDAR HD MNT by default
             )
             
-            # Fetch DTM for tile bbox
-            logger.debug(f"      Fetching DTM for bbox: {bbox}")
-            dtm_data = fetcher.fetch_dtm_for_bbox(bbox, crs="EPSG:2154")
-            if dtm_data is None:
-                logger.warning(f"      Failed to fetch DTM from all sources (cache, local, WMS)")
-                logger.warning(f"      Skipping ground augmentation - using existing LiDAR ground points only")
-                logger.info(f"      💡 Tip: Check your internet connection or consider pre-downloading DTM tiles")
+            # Map strategy string to enum
+            strategy_map = {
+                'full': AugmentationStrategy.FULL,
+                'gaps': AugmentationStrategy.GAPS,
+                'intelligent': AugmentationStrategy.INTELLIGENT
+            }
+            strategy_name = augment_config.get('augmentation_strategy', 'intelligent')
+            strategy = strategy_map.get(strategy_name, AugmentationStrategy.INTELLIGENT)
+            
+            # Get priority areas configuration
+            priority_config = augment_config.get('augmentation_priority', {})
+            
+            # Build augmentation configuration from config file
+            aug_config = DTMAugmentationConfig(
+                enabled=True,
+                strategy=strategy,
+                spacing=augment_config.get('augmentation_spacing', 2.0),
+                min_spacing_to_existing=augment_config.get('min_spacing_to_existing', 1.5),
+                augment_vegetation=priority_config.get('vegetation', True),
+                augment_buildings=priority_config.get('buildings', True),
+                augment_water=priority_config.get('water', False),
+                augment_roads=priority_config.get('roads', False),
+                augment_gaps=priority_config.get('gaps', True),
+                max_height_difference=augment_config.get('max_height_difference', 5.0),
+                validate_against_neighbors=augment_config.get('validate_against_neighbors', True),
+                min_neighbors_for_validation=augment_config.get('min_neighbors_for_validation', 3),
+                neighbor_search_radius=augment_config.get('neighbor_search_radius', 10.0),
+                synthetic_ground_class=augment_config.get('synthetic_ground_class', 2),
+                mark_as_synthetic=augment_config.get('mark_as_synthetic', True),
+                verbose=True
+            )
+            
+            # Get building polygons if available (for targeted augmentation under buildings)
+            building_polygons = None
+            if self.data_fetcher is not None:
+                try:
+                    # Try to fetch building polygons for this bbox
+                    minx, miny, maxx, maxy = bbox
+                    building_gdf = self.data_fetcher._fetch_bd_topo_buildings(
+                        minx, miny, maxx, maxy
+                    )
+                    if building_gdf is not None and len(building_gdf) > 0:
+                        building_polygons = building_gdf
+                        logger.debug(f"      Using {len(building_polygons)} building polygons for targeted augmentation")
+                except Exception as e:
+                    logger.debug(f"      Could not fetch building polygons: {e}")
+            
+            # Create augmenter and run augmentation
+            augmenter = DTMAugmenter(config=aug_config)
+            
+            augmented_points, augmented_labels, augmentation_attrs = augmenter.augment_point_cloud(
+                points=points,
+                labels=classification,
+                dtm_fetcher=fetcher,
+                bbox=bbox,
+                building_polygons=building_polygons,
+                crs="EPSG:2154"
+            )
+            
+            # Check if any points were added
+            n_added = len(augmented_points) - len(points)
+            if n_added > 0:
+                # Store augmentation attributes for output if requested
+                if augment_config.get('save_augmentation_report', True):
+                    self._store_augmentation_stats(augmentation_attrs, n_added)
+                
+                return augmented_points, augmented_labels
+            else:
+                logger.info(f"      ℹ️  No ground points added (sufficient existing coverage)")
                 return points, classification
-            
-            # Get augmentation parameters
-            spacing = augment_config.get('augmentation_spacing', 2.0)
-            min_spacing = augment_config.get('min_spacing_to_existing', 1.5)
-            max_height_diff = augment_config.get('max_height_difference', 5.0)
-            synthetic_class = augment_config.get('synthetic_ground_class', 2)  # ASPRS Ground
-            
-            # Identify areas needing augmentation
-            strategy = augment_config.get('augmentation_strategy', 'intelligent')
-            priority = augment_config.get('augmentation_priority', {})
-            
-            # Get existing ground points
-            ground_mask = classification == 2  # ASPRS Ground class
-            existing_ground = points[ground_mask]
-            
-            logger.debug(f"      Existing ground points: {len(existing_ground):,}")
-            logger.debug(f"      Augmentation strategy: {strategy}")
-            
-            # Generate synthetic ground points from DTM
-            logger.debug(f"      Generating synthetic points (spacing={spacing}m)")
-            synthetic_points = fetcher.generate_ground_points(bbox, spacing=spacing, crs="EPSG:2154")
-            
-            if synthetic_points is None or len(synthetic_points) == 0:
-                logger.warning(f"      No synthetic points generated from DTM")
-                return points, classification
-            
-            logger.debug(f"      Generated {len(synthetic_points):,} candidate synthetic points")
-            
-            # Filter synthetic points based on strategy and existing coverage
-            if strategy in ['gaps', 'intelligent']:
-                # Only add points where existing ground is sparse
-                from scipy.spatial import cKDTree
-                
-                # Build KD-tree of existing ground points
-                if len(existing_ground) > 0:
-                    tree = cKDTree(existing_ground[:, :2])  # XY only
-                    
-                    # Find distance to nearest existing ground point
-                    distances, _ = tree.query(synthetic_points[:, :2])
-                    
-                    # Keep only points farther than min_spacing from existing ground
-                    sparse_mask = distances >= min_spacing
-                    synthetic_points = synthetic_points[sparse_mask]
-                    
-                    logger.debug(f"      Filtered to {len(synthetic_points):,} points in sparse areas")
-            
-            # Validate synthetic points against nearby real points
-            if augment_config.get('validate_against_neighbors', True) and len(existing_ground) > 0:
-                from scipy.spatial import cKDTree
-                
-                # Build KD-tree of all points
-                tree = cKDTree(points[:, :2])
-                
-                # Find nearest neighbors for validation
-                distances, indices = tree.query(synthetic_points[:, :2], k=5)
-                
-                # Compute average Z of nearby points
-                nearby_z = points[indices, 2]
-                avg_nearby_z = nearby_z.mean(axis=1)
-                
-                # Keep only points with consistent elevation
-                height_diff = np.abs(synthetic_points[:, 2] - avg_nearby_z)
-                valid_mask = height_diff <= max_height_diff
-                
-                n_rejected = (~valid_mask).sum()
-                if n_rejected > 0:
-                    logger.debug(f"      Rejected {n_rejected:,} points with inconsistent elevation")
-                
-                synthetic_points = synthetic_points[valid_mask]
-            
-            if len(synthetic_points) == 0:
-                logger.info(f"      No synthetic points passed validation")
-                return points, classification
-            
-            # Merge synthetic points with original point cloud
-            augmented_points = np.vstack([points, synthetic_points])
-            
-            # Create classification array for synthetic points
-            synthetic_classification = np.full(len(synthetic_points), synthetic_class, dtype=classification.dtype)
-            augmented_classification = np.concatenate([classification, synthetic_classification])
-            
-            logger.info(f"      ✅ Added {len(synthetic_points):,} validated synthetic ground points")
-            logger.debug(f"      Total points: {len(points):,} → {len(augmented_points):,}")
-            
-            return augmented_points, augmented_classification
             
         except ImportError as e:
-            logger.error(f"      ❌ RGEALTIFetcher not available: {e}")
-            logger.error(f"         Install required packages: pip install rasterio requests")
+            logger.error(f"      ❌ DTM augmentation module not available: {e}")
+            logger.error(f"         Install required packages: pip install rasterio requests scipy geopandas")
             return points, classification
         except Exception as e:
             logger.error(f"      ❌ Ground augmentation failed: {e}")
             logger.debug(f"      Exception details:", exc_info=True)
             return points, classification
+    
+    def _store_augmentation_stats(self, augmentation_attrs: dict, n_added: int):
+        """Store DTM augmentation statistics for later reporting."""
+        if not hasattr(self, '_augmentation_stats'):
+            self._augmentation_stats = []
+        
+        # Extract area distribution
+        area_labels = augmentation_attrs.get('augmentation_area', [])
+        if len(area_labels) > 0:
+            from .classification.dtm_augmentation import AugmentationArea
+            
+            # Count points per area
+            area_counts = {}
+            for area_val in area_labels:
+                area_name = area_val if isinstance(area_val, str) else AugmentationArea(area_val).name
+                area_counts[area_name] = area_counts.get(area_name, 0) + 1
+            
+            self._augmentation_stats.append({
+                'total_added': n_added,
+                'area_distribution': area_counts
+            })
     
     def _redownload_tile(self, laz_file: Path) -> bool:
         """

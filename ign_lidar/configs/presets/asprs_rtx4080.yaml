@@ -24,8 +24,9 @@
 # USAGE:
 #   ign-lidar-hd process --preset asprs_rtx4080 input/ output/
 #
-# Version: 5.1.0 RTX4080
-# Date: October 18, 2025
+# Package Version: 3.1.0
+# Config Version: 5.1.0 RTX4080
+# Date: October 23, 2025
 # ============================================================================
 
 # Inherit from base configuration

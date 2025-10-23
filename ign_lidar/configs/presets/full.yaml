@@ -31,9 +31,12 @@
 #   ign-lidar-hd process --preset full input/ output/
 #
 # ALTERNATIVES:
-#   - For production → use 'lod2', 'lod3', or 'asprs' presets
-#   - For quick preview → use 'minimal' preset
-#   - For specific use case → use focused presets
+#   - For research → use this preset
+#   - For production → use specific presets (asprs, lod2, lod3)
+#
+# Package Version: 3.1.0
+# Config Version: 5.1.0
+# Date: October 23, 2025
 #
 # WARNING:
 #   This preset is SLOW and requires significant resources:
@@ -41,9 +44,6 @@
 #   - High-speed internet for orthophoto download
 #   - Large storage space for outputs
 #   - Processing time: 5-10× longer than minimal
-#
-# Version: 5.1.0
-# Date: October 18, 2025
 # ============================================================================
 
 # Inherit from base configuration
