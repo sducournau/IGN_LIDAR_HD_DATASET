@@ -28,16 +28,15 @@ import pandas as pd
 from ...classification_schema import ASPRSClass, LOD2Class, LOD3Class
 from .thresholds import get_thresholds, ThresholdConfig
 
-# Import supporting modules
-from .building_detection import (
+# Import supporting modules (Phase 2 & 3 reorganization)
+from .building import (
     BuildingDetectionMode,
     BuildingDetectionConfig,
-    BuildingDetector,
-    detect_buildings_multi_mode
+    BuildingDetector
 )
-from .transport_detection import (
-    TransportDetectionMode,
-    TransportDetectionConfig,
+from .transport import (
+    TransportMode as TransportDetectionMode,
+    DetectionConfig as TransportDetectionConfig,
     TransportDetector,
     detect_transport_multi_mode
 )
@@ -601,14 +600,129 @@ class UnifiedClassifier:
         """
         Classify points using the configured strategy.
         
+        Applies multi-strategy classification to LiDAR point cloud data with
+        support for ground truth integration and parcel-based refinement.
+        
         Args:
-            data: DataFrame with columns: x, y, z, height, and geometric features
-            ground_truth_data: Optional ground truth data (building/road/vegetation masks or geometries)
-            parcel_gdf: Optional parcel geometries (for parcel-based classification)
-            verbose: Enable verbose logging
+            data: DataFrame with point cloud data. Required columns:
+                 - 'x', 'y', 'z': Point coordinates in meters
+                 - 'height': Height above ground in meters
+                 Optional columns (improve accuracy):
+                 - 'planarity': Planarity measure [0, 1]
+                 - 'verticality': Verticality measure [0, 1]
+                 - 'curvature': Surface curvature
+                 - 'roughness': Surface roughness
+                 - 'normal_z': Z-component of surface normal
+                 - 'ndvi': NDVI vegetation index [-1, 1]
+                 - 'nir': Near-infrared reflectance
+                 - 'intensity': LiDAR return intensity
+            ground_truth_data: Optional dictionary containing:
+                - 'building_mask': Boolean array [N] or GeoDataFrame
+                - 'road_mask': Boolean array [N] or GeoDataFrame
+                - 'vegetation_mask': Boolean array [N] or GeoDataFrame
+            parcel_gdf: Optional GeoDataFrame with cadastral parcels for
+                       parcel-based building classification
+            verbose: If True, log classification progress and statistics
         
         Returns:
-            Classification labels array [N]
+            Classification labels [N] as integer array. Label values depend
+            on the classifier mode (ASPRS, LOD2, or LOD3).
+        
+        Example:
+            Basic usage with minimum features:
+            
+            >>> import pandas as pd
+            >>> import numpy as np
+            >>> from ign_lidar.core.classification import UnifiedClassifier
+            >>> 
+            >>> # Create sample point cloud data
+            >>> n_points = 1000
+            >>> data = pd.DataFrame({
+            ...     'x': np.random.rand(n_points) * 100,
+            ...     'y': np.random.rand(n_points) * 100,
+            ...     'z': np.random.rand(n_points) * 20,
+            ...     'height': np.random.rand(n_points) * 15,
+            ...     'planarity': np.random.rand(n_points)
+            ... })
+            >>> 
+            >>> # Create classifier
+            >>> classifier = UnifiedClassifier(strategy='basic')
+            >>> labels = classifier.classify_points(data)
+            >>> 
+            >>> # Check results
+            >>> print(f"Classified {len(labels)} points")
+            Classified 1000 points
+            >>> unique_classes = np.unique(labels)
+            >>> print(f"Found {len(unique_classes)} classes")
+            Found 5 classes
+            
+            Advanced usage with comprehensive features and ground truth:
+            
+            >>> # Add more features for better classification
+            >>> data['ndvi'] = np.random.rand(n_points) * 2 - 1
+            >>> data['verticality'] = np.random.rand(n_points)
+            >>> data['roughness'] = np.random.rand(n_points) * 0.5
+            >>> 
+            >>> # Create ground truth data
+            >>> building_indices = np.random.choice(n_points, 200, replace=False)
+            >>> building_mask = np.zeros(n_points, dtype=bool)
+            >>> building_mask[building_indices] = True
+            >>> 
+            >>> ground_truth = {
+            ...     'building_mask': building_mask
+            ... }
+            >>> 
+            >>> # Use comprehensive strategy
+            >>> classifier = UnifiedClassifier(
+            ...     strategy='comprehensive',
+            ...     mode='asprs_extended'
+            ... )
+            >>> labels = classifier.classify_points(
+            ...     data,
+            ...     ground_truth_data=ground_truth,
+            ...     verbose=True
+            ... )
+            >>> 
+            >>> # Analyze results
+            >>> from ign_lidar.classification_schema import get_class_name
+            >>> for class_code in np.unique(labels):
+            ...     count = (labels == class_code).sum()
+            ...     percentage = 100 * count / len(labels)
+            ...     name = get_class_name(class_code, mode='asprs_extended')
+            ...     print(f"{name}: {count} ({percentage:.1f}%)")
+            
+            Adaptive classification with feature importance:
+            
+            >>> # Use adaptive strategy (handles missing features)
+            >>> classifier = UnifiedClassifier(strategy='adaptive')
+            >>> 
+            >>> # Even with limited features, adaptive works
+            >>> minimal_data = pd.DataFrame({
+            ...     'x': data['x'],
+            ...     'y': data['y'],
+            ...     'z': data['z'],
+            ...     'height': data['height']
+            ... })
+            >>> labels = classifier.classify_points(minimal_data, verbose=False)
+            >>> print(f"Classified with limited features: {len(labels)} points")
+            Classified with limited features: 1000 points
+        
+        Note:
+            - BASIC strategy: Fastest, uses only height and planarity
+            - ADAPTIVE strategy: Adapts to available features automatically
+            - COMPREHENSIVE strategy: Full pipeline with ground truth integration
+            
+            Classification quality improves with more features, especially:
+            - Planarity and verticality for buildings
+            - NDVI for vegetation discrimination
+            - Roughness for surface texture analysis
+            
+            Ground truth masks significantly improve accuracy but are optional.
+        
+        See Also:
+            - UnifiedClassifierConfig: Configuration options
+            - get_thresholds: Get classification thresholds
+            - ASPRSClass: ASPRS classification codes
         """
         if self.strategy == ClassificationStrategy.ADAPTIVE:
             # Use adaptive classification
@@ -900,7 +1014,7 @@ class UnifiedClassifier:
         Classify roads with intelligent buffering.
         
         Args:
-            data: DataFrame with features
+            data: DataFrame with features (height, planarity, points)
             labels: Current labels
             road_mask: Boolean mask for road points
         
@@ -910,9 +1024,15 @@ class UnifiedClassifier:
         # Direct road points
         labels[road_mask] = self.ASPRS_ROAD
         
-        # TODO: Implement intelligent buffering logic here
-        # This would expand road classification to nearby points
-        # based on geometric similarity
+        # Intelligent buffering: expand to nearby geometrically similar points
+        if road_mask.any() and 'planarity' in data.columns and 'height' in data.columns:
+            buffered_mask = self._compute_intelligent_buffer(
+                data=data,
+                seed_mask=road_mask,
+                feature_type='road',
+                labels=labels
+            )
+            labels[buffered_mask] = self.ASPRS_ROAD
         
         return labels
     
@@ -926,7 +1046,7 @@ class UnifiedClassifier:
         Classify railways with intelligent buffering.
         
         Args:
-            data: DataFrame with features
+            data: DataFrame with features (height, planarity, points)
             labels: Current labels
             rail_mask: Boolean mask for rail points
         
@@ -936,7 +1056,15 @@ class UnifiedClassifier:
         # Direct rail points
         labels[rail_mask] = self.ASPRS_RAIL
         
-        # TODO: Implement intelligent buffering logic here
+        # Intelligent buffering: expand to nearby geometrically similar points
+        if rail_mask.any() and 'planarity' in data.columns and 'height' in data.columns:
+            buffered_mask = self._compute_intelligent_buffer(
+                data=data,
+                seed_mask=rail_mask,
+                feature_type='railway',
+                labels=labels
+            )
+            labels[buffered_mask] = self.ASPRS_RAIL
         
         return labels
     
@@ -969,6 +1097,211 @@ class UnifiedClassifier:
         labels[unclassified & (height >= self.thresholds.height.high_veg_height_min)] = self.ASPRS_HIGH_VEGETATION
         
         return labels
+    
+    def _compute_intelligent_buffer(
+        self,
+        data: pd.DataFrame,
+        seed_mask: np.ndarray,
+        feature_type: str,
+        labels: np.ndarray
+    ) -> np.ndarray:
+        """
+        Compute intelligent buffer zone around seed points based on geometric similarity.
+        
+        This method expands classification to nearby points that have similar 
+        geometric characteristics (height, planarity) to the seed points.
+        
+        Args:
+            data: DataFrame with features (x, y, z, height, planarity, etc.)
+            seed_mask: Boolean mask for seed points (e.g., ground truth roads)
+            feature_type: Type of feature ('road', 'railway', 'building')
+            labels: Current classification labels
+        
+        Returns:
+            Boolean mask for buffered points (excluding seed points)
+        """
+        if not seed_mask.any():
+            return np.zeros(len(data), dtype=bool)
+        
+        # Get required features
+        height = data['height'].values
+        planarity = data['planarity'].values if 'planarity' in data.columns else None
+        
+        # Compute adaptive buffer distance based on point density
+        if 'x' in data.columns and 'y' in data.columns:
+            seed_points = data.loc[seed_mask, ['x', 'y']].values
+            if len(seed_points) > 10:
+                # Estimate point density (points per square meter)
+                from scipy.spatial import distance_matrix
+                sample_indices = np.random.choice(len(seed_points), min(100, len(seed_points)), replace=False)
+                sample_points = seed_points[sample_indices]
+                distances = distance_matrix(sample_points, sample_points)
+                np.fill_diagonal(distances, np.inf)
+                mean_nearest_dist = np.mean(np.min(distances, axis=1))
+                point_density = 1.0 / (mean_nearest_dist ** 2) if mean_nearest_dist > 0 else 1.0
+            else:
+                point_density = 1.0
+        else:
+            point_density = 1.0
+        
+        # Adaptive buffer distance based on feature type and density
+        base_buffer = {
+            'road': 2.0,
+            'railway': 3.0,
+            'building': 1.0
+        }.get(feature_type, 1.5)
+        
+        # Adjust based on point density (higher density = smaller buffer)
+        density_factor = np.clip(10.0 / point_density, 0.5, 2.0)
+        buffer_distance = base_buffer * density_factor
+        
+        # Find candidate points within buffer distance
+        if 'x' in data.columns and 'y' in data.columns and HAS_SPATIAL:
+            # Spatial approach using distance
+            all_points = data[['x', 'y']].values
+            seed_indices = np.where(seed_mask)[0]
+            
+            # Create boolean mask for candidates
+            candidate_mask = np.zeros(len(data), dtype=bool)
+            
+            # Find points within buffer distance of any seed point
+            for seed_idx in seed_indices:
+                seed_xy = all_points[seed_idx]
+                distances = np.sqrt(
+                    (all_points[:, 0] - seed_xy[0])**2 + 
+                    (all_points[:, 1] - seed_xy[1])**2
+                )
+                candidate_mask |= (distances <= buffer_distance) & (distances > 0)
+        else:
+            # Fallback: use height proximity if no spatial coordinates
+            seed_heights = height[seed_mask]
+            mean_seed_height = np.mean(seed_heights)
+            std_seed_height = np.std(seed_heights) if len(seed_heights) > 1 else 0.2
+            candidate_mask = np.abs(height - mean_seed_height) <= (2 * std_seed_height + 0.5)
+            candidate_mask &= ~seed_mask  # Exclude seed points
+        
+        # Filter candidates by geometric similarity
+        if candidate_mask.any():
+            # Compute feature similarity thresholds from seed points
+            seed_height = height[seed_mask]
+            height_mean = np.mean(seed_height)
+            height_std = np.std(seed_height) if len(seed_height) > 1 else 0.3
+            
+            # Height similarity
+            height_similar = np.abs(height - height_mean) <= (2 * height_std + 0.5)
+            
+            # Planarity similarity (if available)
+            if planarity is not None:
+                seed_planarity = planarity[seed_mask]
+                planarity_mean = np.mean(seed_planarity)
+                planarity_std = np.std(seed_planarity) if len(seed_planarity) > 1 else 0.1
+                
+                # Transport features should have high planarity
+                planarity_threshold = max(0.5, planarity_mean - planarity_std)
+                planarity_similar = planarity >= planarity_threshold
+                
+                # Combine conditions
+                buffered_mask = candidate_mask & height_similar & planarity_similar
+            else:
+                buffered_mask = candidate_mask & height_similar
+            
+            # Exclude points already classified (except unclassified)
+            unclassified_code = 1  # ASPRS unclassified
+            buffered_mask &= (labels == unclassified_code)
+        else:
+            buffered_mask = np.zeros(len(data), dtype=bool)
+        
+        return buffered_mask
+    
+    def _validate_vehicle_size(
+        self,
+        coords: np.ndarray,
+        candidate_mask: np.ndarray,
+        min_points: int = 10,
+        max_points: int = 5000,
+        min_area: float = 4.0,
+        max_area: float = 50.0
+    ) -> np.ndarray:
+        """
+        Validate vehicle candidates using clustering and size constraints.
+        
+        Uses DBSCAN clustering to group candidate points, then validates each
+        cluster based on point count and 2D footprint area.
+        
+        Args:
+            coords: Point coordinates [N, 2] or [N, 3]
+            candidate_mask: Boolean mask for candidate points [N]
+            min_points: Minimum points per vehicle cluster
+            max_points: Maximum points per vehicle cluster
+            min_area: Minimum 2D footprint area (m²)
+            max_area: Maximum 2D footprint area (m²)
+        
+        Returns:
+            Boolean mask for validated vehicle points [N]
+        """
+        if not candidate_mask.any():
+            return np.zeros(len(coords), dtype=bool)
+        
+        try:
+            from sklearn.cluster import DBSCAN
+            from scipy.spatial import ConvexHull
+        except ImportError:
+            logger.warning("sklearn or scipy not available - skipping vehicle size validation")
+            return np.zeros(len(coords), dtype=bool)
+        
+        validated_mask = np.zeros(len(coords), dtype=bool)
+        
+        # Extract candidate points (use XY coordinates)
+        candidate_coords = coords[candidate_mask, :2]
+        
+        if len(candidate_coords) < min_points:
+            return validated_mask
+        
+        # Cluster candidates (eps=2.0m for vehicle separation)
+        clustering = DBSCAN(eps=2.0, min_samples=min_points).fit(candidate_coords)
+        labels = clustering.labels_
+        
+        # Validate each cluster
+        candidate_indices = np.where(candidate_mask)[0]
+        
+        for cluster_id in set(labels):
+            if cluster_id == -1:  # Noise points
+                continue
+            
+            cluster_mask_local = (labels == cluster_id)
+            cluster_points = candidate_coords[cluster_mask_local]
+            
+            # Check point count
+            n_cluster_points = len(cluster_points)
+            if not (min_points <= n_cluster_points <= max_points):
+                continue
+            
+            # Compute 2D convex hull area
+            try:
+                if n_cluster_points >= 4:  # ConvexHull requires at least 4 points in 2D
+                    hull = ConvexHull(cluster_points)
+                    area = hull.volume  # In 2D, volume = area
+                    
+                    # Validate area
+                    if min_area <= area <= max_area:
+                        # Mark these points as validated
+                        global_indices = candidate_indices[cluster_mask_local]
+                        validated_mask[global_indices] = True
+                elif n_cluster_points >= min_points:
+                    # For small clusters, estimate area from bounding box
+                    x_range = cluster_points[:, 0].max() - cluster_points[:, 0].min()
+                    y_range = cluster_points[:, 1].max() - cluster_points[:, 1].min()
+                    area = x_range * y_range
+                    
+                    if min_area <= area <= max_area:
+                        global_indices = candidate_indices[cluster_mask_local]
+                        validated_mask[global_indices] = True
+            except Exception as e:
+                # Skip clusters with hull computation errors
+                logger.debug(f"Cluster {cluster_id} hull computation failed: {e}")
+                continue
+        
+        return validated_mask
     
     def _log_distribution(self, labels: np.ndarray):
         """Log classification distribution."""
@@ -1147,26 +1480,59 @@ class UnifiedClassifier:
         
         Args:
             labels: Current classification labels [N]
-            features: Dictionary of feature arrays
+            features: Dictionary of feature arrays (height, x, y, z)
         
         Returns:
             Tuple of (refined_labels, n_detected)
         """
-        # Vehicle detection would require clustering and size analysis
-        # For now, simple height-based detection
         refined = labels.copy()
         n_detected = 0
         
         height = features.get('height')
+        points = features.get('points')  # [N, 3] or separate x, y, z
         
-        if height is not None:
-            vehicle_candidates = (
-                (height >= self.thresholds.height.vehicle_height_min) &
-                (height <= self.thresholds.height.vehicle_height_max)
-            )
+        if height is None:
+            return refined, n_detected
+        
+        # Initial height-based filtering
+        vehicle_candidates = (
+            (height >= self.thresholds.height.vehicle_height_min) &
+            (height <= self.thresholds.height.vehicle_height_max)
+        )
+        
+        if not vehicle_candidates.any():
+            return refined, 0
+        
+        # Apply clustering and size validation if spatial data is available
+        if points is not None or ('x' in features and 'y' in features and 'z' in features):
+            # Get point coordinates
+            if points is not None:
+                coords = points if points.shape[1] >= 2 else None
+            else:
+                coords = np.column_stack([
+                    features['x'], features['y'], features.get('z', features['height'])
+                ])
             
-            # TODO: Add clustering and size validation
-            # For now, we don't change labels to avoid false positives
+            if coords is not None:
+                validated_mask = self._validate_vehicle_size(
+                    coords=coords,
+                    candidate_mask=vehicle_candidates,
+                    min_points=10,
+                    max_points=5000,
+                    min_area=4.0,   # m² (small car ~10 m²)
+                    max_area=50.0   # m² (truck/bus ~40 m²)
+                )
+                
+                # Update labels for validated vehicles (use extended ASPRS code if available)
+                vehicle_code = getattr(ASPRSClass, 'VEHICLE', 13)  # ASPRS Extended: Vehicle = 13
+                changed = (refined != vehicle_code) & validated_mask
+                refined[validated_mask] = vehicle_code
+                n_detected = np.sum(changed)
+            else:
+                # Fallback: count candidates without validation
+                n_detected = np.sum(vehicle_candidates)
+        else:
+            # No spatial data - count candidates but don't classify
             n_detected = np.sum(vehicle_candidates)
         
         return refined, n_detected
@@ -1299,18 +1665,123 @@ class UnifiedClassifier:
         
         Args:
             labels: Current classification labels [N]
-            features: Dictionary of feature arrays
+            features: Dictionary of feature arrays (height, planarity, verticality, 
+                     intensity, normals, roughness, etc.)
         
         Returns:
             LOD3 classification labels [N]
         """
-        # LOD3 classification requires more sophisticated analysis
-        # For now, delegate to LOD2 and extend with additional classes
+        # Start with LOD2 classification (roof, walls)
         lod3_labels = self.classify_lod2_elements(labels, features)
         
-        # TODO: Add LOD3-specific element detection
-        # - Windows, doors, balconies, chimneys, etc.
-        # This would require additional geometric analysis and clustering
+        # LOD3-specific element detection
+        # For comprehensive LOD3 element detection, consider using a dedicated module:
+        # ign_lidar/core/classification/lod3_detector.py (future enhancement)
+        
+        # Basic LOD3 element detection
+        building_points = (labels == self.ASPRS_BUILDING)
+        
+        if not building_points.any():
+            return lod3_labels
+        
+        # Extract features
+        height = features.get('height')
+        planarity = features.get('planarity')
+        verticality = features.get('verticality')
+        intensity = features.get('intensity')
+        roughness = features.get('roughness')
+        normal_z = features.get('normal_z')
+        
+        if height is None:
+            return lod3_labels
+        
+        building_indices = np.where(building_points)[0]
+        b_height = height[building_points]
+        
+        # 1. Chimney detection (high, vertical, small footprint)
+        if verticality is not None and planarity is not None:
+            b_verticality = verticality[building_points]
+            b_planarity = planarity[building_points]
+            
+            # Chimneys are typically: high, vertical, cylindrical (low planarity)
+            chimney_candidates = (
+                (b_height > 5.0) &  # Above roof level
+                (b_verticality > 0.9) &  # Very vertical
+                (b_planarity < 0.5)  # Cylindrical, not planar
+            )
+            
+            if chimney_candidates.any():
+                lod3_labels[building_indices[chimney_candidates]] = LOD3Class.CHIMNEY.value
+        
+        # 2. Balcony detection (medium height, horizontal, protruding)
+        if planarity is not None and normal_z is not None:
+            b_planarity = planarity[building_points]
+            b_normal_z = normal_z[building_points]
+            
+            # Balconies: horizontal surfaces at mid-height, not at roof level
+            roof_height_estimate = np.percentile(b_height, 90)
+            balcony_candidates = (
+                (b_height > 2.0) &  # Above ground floor
+                (b_height < roof_height_estimate - 1.0) &  # Below roof
+                (b_planarity > 0.8) &  # Flat horizontal surface
+                (b_normal_z > 0.9)  # Pointing up
+            )
+            
+            if balcony_candidates.any():
+                lod3_labels[building_indices[balcony_candidates]] = LOD3Class.BALCONY.value
+        
+        # 3. Window detection (intensity drops, vertical surfaces)
+        if intensity is not None and verticality is not None:
+            b_intensity = intensity[building_points]
+            b_verticality = verticality[building_points]
+            
+            # Windows: vertical surfaces with lower intensity (glass reflects less)
+            mean_intensity = np.mean(b_intensity)
+            window_candidates = (
+                (b_verticality > 0.7) &  # Vertical surface
+                (b_intensity < mean_intensity - 0.2) &  # Lower intensity
+                (b_height > 1.0) & (b_height < 10.0)  # Reasonable window height
+            )
+            
+            if window_candidates.any():
+                lod3_labels[building_indices[window_candidates]] = LOD3Class.WINDOW.value
+        
+        # 4. Roof type refinement (gable vs hip vs flat)
+        if planarity is not None and normal_z is not None:
+            b_planarity = planarity[building_points]
+            b_normal_z = normal_z[building_points]
+            
+            # Identify roof points (already classified as ROOF_FLAT in LOD2)
+            roof_lod2 = (lod3_labels[building_indices] == LOD2Class.ROOF_FLAT.value)
+            
+            if roof_lod2.any():
+                roof_normal_z = b_normal_z[roof_lod2]
+                roof_planarity = b_planarity[roof_lod2]
+                
+                # Flat roof: very horizontal
+                flat_roof = (roof_normal_z > 0.95) & (roof_planarity > 0.9)
+                
+                # Gable roof: moderate slope, high planarity
+                gable_roof = (roof_normal_z < 0.95) & (roof_normal_z > 0.7) & (roof_planarity > 0.85)
+                
+                # Hip roof: similar to gable but more complex geometry
+                # (This is a simplified heuristic - true hip roof detection requires clustering)
+                hip_roof = (roof_normal_z < 0.95) & (roof_normal_z > 0.7) & (roof_planarity > 0.75) & ~gable_roof
+                
+                # Update labels
+                roof_indices = building_indices[roof_lod2]
+                lod3_labels[roof_indices[flat_roof]] = LOD3Class.ROOF_FLAT.value
+                lod3_labels[roof_indices[gable_roof]] = LOD3Class.ROOF_GABLE.value
+                lod3_labels[roof_indices[hip_roof]] = LOD3Class.ROOF_HIP.value
+        
+        # Note: For production-quality LOD3 element detection, consider implementing:
+        # - Window/door detection using intensity patterns and geometry
+        # - Dormer detection using roof plane clustering
+        # - Skylight detection using material property analysis
+        # - Architectural detail recognition using machine learning
+        # 
+        # These features can be added in a dedicated LOD3Detector module:
+        # ign_lidar/core/classification/lod3_detector.py
         
         return lod3_labels
 

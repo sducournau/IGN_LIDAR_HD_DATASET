@@ -1,0 +1,84 @@
+%% Classification Module Structure
+%% Shows the organization of the classification module
+
+graph TB
+    subgraph "Package Root"
+        SCHEMA[classification_schema.py<br/>ASPRSClass, LOD2Class, LOD3Class]
+        THRESH[thresholds.py<br/>ThresholdConfig]
+    end
+
+    subgraph "Core Classification Module"
+        UNIFIED[unified_classifier.py<br/>UnifiedClassifier]
+        HIERARCHICAL[hierarchical_classifier.py<br/>HierarchicalClassifier]
+    end
+
+    subgraph "Building Module"
+        direction TB
+        BUILD_BASE[base.py<br/>BuildingClassifierBase]
+        BUILD_DETECT[detection.py<br/>BuildingDetector]
+        BUILD_ADAPT[adaptive.py<br/>AdaptiveBuildingClassifier]
+        BUILD_CLUSTER[clustering.py<br/>BuildingClusterer]
+        BUILD_FUSION[fusion.py<br/>BuildingFusion]
+        BUILD_UTILS[utils.py<br/>Helper Functions]
+        
+        BUILD_BASE --> BUILD_DETECT
+        BUILD_BASE --> BUILD_ADAPT
+        BUILD_DETECT --> BUILD_CLUSTER
+        BUILD_CLUSTER --> BUILD_FUSION
+    end
+
+    subgraph "Transport Module"
+        direction TB
+        TRANS_DETECT[detection.py<br/>TransportDetector]
+        TRANS_ENHANCE[enhancement.py<br/>enhance_classification]
+        
+        TRANS_DETECT --> TRANS_ENHANCE
+    end
+
+    subgraph "Rules Framework"
+        direction TB
+        RULES_BASE[base.py<br/>BaseRule, RuleEngine<br/>HierarchicalRuleEngine]
+        RULES_VALID[validation.py<br/>Feature Validation]
+        RULES_CONF[confidence.py<br/>Confidence Scoring]
+        RULES_HIER[hierarchy.py<br/>Hierarchical Execution]
+        RULES_GEO[geometric_rules.py<br/>GeometricRulesEngine]
+        RULES_SPEC[spectral_rules.py<br/>SpectralRulesEngine]
+        
+        RULES_BASE --> RULES_VALID
+        RULES_BASE --> RULES_CONF
+        RULES_BASE --> RULES_HIER
+        RULES_BASE --> RULES_GEO
+        RULES_BASE --> RULES_SPEC
+    end
+
+    %% Dependencies
+    SCHEMA --> UNIFIED
+    SCHEMA --> HIERARCHICAL
+    SCHEMA --> BUILD_BASE
+    SCHEMA --> TRANS_DETECT
+    
+    THRESH --> UNIFIED
+    THRESH --> BUILD_DETECT
+    THRESH --> TRANS_DETECT
+    
+    UNIFIED --> BUILD_ADAPT
+    UNIFIED --> TRANS_ENHANCE
+    
+    HIERARCHICAL --> RULES_HIER
+    
+    BUILD_DETECT -.uses.-> RULES_GEO
+    TRANS_DETECT -.uses.-> RULES_GEO
+    BUILD_ADAPT -.uses.-> RULES_CONF
+    
+    %% Styling
+    classDef schema fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef core fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef building fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef transport fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef rules fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class SCHEMA,THRESH schema
+    class UNIFIED,HIERARCHICAL core
+    class BUILD_BASE,BUILD_DETECT,BUILD_ADAPT,BUILD_CLUSTER,BUILD_FUSION,BUILD_UTILS building
+    class TRANS_DETECT,TRANS_ENHANCE transport
+    class RULES_BASE,RULES_VALID,RULES_CONF,RULES_HIER,RULES_GEO,RULES_SPEC rules

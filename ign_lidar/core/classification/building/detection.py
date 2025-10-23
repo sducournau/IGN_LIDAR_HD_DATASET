@@ -164,23 +164,176 @@ class BuildingDetector:
         """
         Detect buildings using mode-appropriate strategies.
         
+        Applies multi-strategy building detection optimized for different
+        classification modes: ASPRS (general), LOD2 (training), LOD3 (detailed).
+        
         Args:
-            labels: Current classification labels [N]
-            height: Height above ground [N] in meters
-            planarity: Planarity values [N], range [0, 1]
-            verticality: Verticality values [N], range [0, 1]
-            normals: Surface normals [N, 3]
-            linearity: Linearity values [N], range [0, 1]
-            anisotropy: Anisotropy values [N], range [0, 1]
-            curvature: Surface curvature [N]
-            intensity: LiDAR intensity [N], normalized [0, 1]
-            wall_score: Pre-computed wall likelihood [N]
-            roof_score: Pre-computed roof likelihood [N]
-            ground_truth_mask: Boolean mask [N] for building points
-            points: Point coordinates [N, 3] (for LOD3 spatial analysis)
-            
+            labels: Current classification labels [N]. Points already classified
+                   as buildings will be preserved or refined.
+            height: Height above ground [N] in meters. Used for height-based
+                   filtering (min 2.5m, max 200m by default).
+            planarity: Planarity values [N] in range [0, 1]. Indicates how
+                      flat/planar a surface is (1.0 = perfectly planar).
+            verticality: Verticality values [N] in range [0, 1]. Indicates
+                        vertical orientation (1.0 = perfectly vertical).
+                        Required for wall detection.
+            normals: Surface normals [N, 3]. Unit vectors indicating surface
+                    orientation. Z-component used for horizontality.
+            linearity: Linearity values [N] in range [0, 1]. Indicates
+                      linear/edge-like features (building edges).
+            anisotropy: Anisotropy values [N] in range [0, 1]. Indicates
+                       structured/organized point distribution.
+            curvature: Surface curvature [N]. Used for LOD3 element detection
+                      (chimneys, dormers have high curvature).
+            intensity: LiDAR return intensity [N], normalized to [0, 1].
+                      Different materials have different intensities.
+            wall_score: Pre-computed wall likelihood [N] = planarity × verticality.
+                       Optional optimization to avoid recomputation.
+            roof_score: Pre-computed roof likelihood [N] = planarity × horizontality.
+                       Optional optimization to avoid recomputation.
+            ground_truth_mask: Boolean mask [N] indicating known building points
+                              from external data (BD TOPO, cadastre). Highest
+                              confidence source.
+            points: Point coordinates [N, 3] in meters. Required for LOD3
+                   spatial analysis and clustering.
+        
         Returns:
-            Tuple of (refined_labels, detection_stats)
+            Tuple of (refined_labels, detection_stats) where:
+            - refined_labels: Updated classification labels [N]
+            - detection_stats: Dictionary with detection statistics:
+              - 'ground_truth': Points from ground truth data
+              - 'walls': Points detected as walls
+              - 'roofs': Points detected as roofs
+              - 'structured': Points from structure detection
+              - 'edges': Points from edge detection
+              - 'total': Total building points detected
+        
+        Example:
+            Basic ASPRS building detection with minimal features:
+            
+            >>> import numpy as np
+            >>> from ign_lidar.core.classification.building import (
+            ...     BuildingDetector, BuildingDetectionMode
+            ... )
+            >>> 
+            >>> # Create detector
+            >>> detector = BuildingDetector()  # Default: ASPRS mode
+            >>> 
+            >>> # Minimal required features
+            >>> n = 1000
+            >>> labels = np.ones(n, dtype=int)  # All unclassified initially
+            >>> height = np.random.rand(n) * 15  # Heights 0-15m
+            >>> planarity = np.random.rand(n)
+            >>> 
+            >>> # Detect buildings
+            >>> refined_labels, stats = detector.detect_buildings(
+            ...     labels, height, planarity
+            ... )
+            >>> 
+            >>> print(f"Detected {stats['total']} building points")
+            >>> print(f"Wall points: {stats['walls']}")
+            >>> print(f"Roof points: {stats['roofs']}")
+            
+            Advanced LOD2 detection with ground truth:
+            
+            >>> from ign_lidar.core.classification.building import (
+            ...     BuildingDetector, BuildingDetectionConfig,
+            ...     BuildingDetectionMode
+            ... )
+            >>> 
+            >>> # Configure for LOD2 mode
+            >>> config = BuildingDetectionConfig(mode=BuildingDetectionMode.LOD2)
+            >>> detector = BuildingDetector(config=config)
+            >>> 
+            >>> # Full feature set
+            >>> height = np.random.rand(1000) * 20
+            >>> planarity = np.random.rand(1000)
+            >>> verticality = np.random.rand(1000)
+            >>> normals = np.random.randn(1000, 3)
+            >>> normals = normals / np.linalg.norm(normals, axis=1, keepdims=True)
+            >>> 
+            >>> # Ground truth from cadastre
+            >>> building_indices = np.random.choice(1000, 300, replace=False)
+            >>> ground_truth = np.zeros(1000, dtype=bool)
+            >>> ground_truth[building_indices] = True
+            >>> 
+            >>> # Detect with all features
+            >>> labels = np.ones(1000, dtype=int)
+            >>> refined, stats = detector.detect_buildings(
+            ...     labels=labels,
+            ...     height=height,
+            ...     planarity=planarity,
+            ...     verticality=verticality,
+            ...     normals=normals,
+            ...     ground_truth_mask=ground_truth
+            ... )
+            >>> 
+            >>> print(f"Ground truth: {stats['ground_truth']} points")
+            >>> print(f"Geometric detection: {stats['walls'] + stats['roofs']} points")
+            >>> print(f"Total buildings: {stats['total']} points")
+            
+            LOD3 detection with spatial clustering:
+            
+            >>> # Configure for LOD3 (detailed elements)
+            >>> config = BuildingDetectionConfig(mode=BuildingDetectionMode.LOD3)
+            >>> detector = BuildingDetector(config=config)
+            >>> 
+            >>> # Add spatial coordinates for clustering
+            >>> points = np.random.rand(1000, 3) * 100
+            >>> intensity = np.random.rand(1000)
+            >>> curvature = np.random.rand(1000) * 0.5
+            >>> 
+            >>> refined, stats = detector.detect_buildings(
+            ...     labels=labels,
+            ...     height=height,
+            ...     planarity=planarity,
+            ...     verticality=verticality,
+            ...     normals=normals,
+            ...     intensity=intensity,
+            ...     curvature=curvature,
+            ...     points=points
+            ... )
+            >>> 
+            >>> # LOD3 provides element-level classification
+            >>> # (walls, roofs, windows, doors, balconies, etc.)
+        
+        Note:
+            Detection strategies by mode:
+            
+            **ASPRS Mode:**
+            - Binary classification (building vs non-building)
+            - Uses: ground truth → walls → roofs → structure → edges
+            - Output: All building points get ASPRS code 6
+            
+            **LOD2 Mode:**
+            - Element classification (walls, roofs, other)
+            - Uses: ground truth → geometric elements
+            - Output: Separate codes for walls, roofs
+            - Purpose: Training data for LOD2 reconstruction
+            
+            **LOD3 Mode:**
+            - Detailed element detection
+            - Uses: ground truth → geometry → clustering → intensity
+            - Output: Detailed elements (windows, doors, balconies, etc.)
+            - Purpose: Architectural detail modeling
+            
+            **Ground Truth Priority:**
+            When ground_truth_mask is provided and ground_truth_priority=True,
+            those points are classified with highest confidence regardless of
+            geometric features.
+            
+            **Feature Importance:**
+            - Height + planarity: Minimum required
+            - Verticality: Essential for wall detection
+            - Normals: Improves roof detection accuracy
+            - Linearity/anisotropy: Catches building edges/structure
+            - Intensity: LOD3 material discrimination
+            - Points: LOD3 spatial clustering
+        
+        See Also:
+            - BuildingDetectionConfig: Configuration options
+            - BuildingDetectionMode: Available detection modes
+            - AdaptiveBuildingClassifier: Alternative adaptive approach
         """
         if self.config.mode == BuildingDetectionMode.ASPRS:
             return self._detect_asprs(

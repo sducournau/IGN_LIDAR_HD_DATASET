@@ -60,15 +60,110 @@ def validate_features(
     requirements: FeatureRequirements,
     n_points: Optional[int] = None
 ) -> None:
-    """Validate that features meet requirements
+    """
+    Validate that features meet requirements.
+    
+    Checks feature availability, array shapes, and value validity (NaN/Inf)
+    according to the provided requirements specification.
     
     Args:
-        features: Dictionary of feature arrays {name: values}
-        requirements: Feature requirements specification
-        n_points: Expected number of points (inferred if None)
+        features: Dictionary of feature arrays {name: values}. Each value
+                 should be a numpy array with consistent length.
+        requirements: Feature requirements specification defining:
+                     - required: Features that must be present
+                     - optional: Features that improve results if present
+                     - min_quality: Minimum fraction of valid values
+                     - allow_nan: Whether NaN values are acceptable
+        n_points: Expected number of points. If None, inferred from the
+                 first feature array length.
     
     Raises:
-        ValueError: If required features are missing or invalid
+        ValueError: If required features are missing, arrays have wrong
+                   shape, or contain invalid values (NaN/Inf when not allowed)
+    
+    Example:
+        Basic validation with required features:
+        
+        >>> import numpy as np
+        >>> from ign_lidar.core.classification.rules.validation import (
+        ...     validate_features, FeatureRequirements
+        ... )
+        >>> 
+        >>> # Define requirements
+        >>> requirements = FeatureRequirements(
+        ...     required={'height', 'planarity'},
+        ...     optional={'ndvi', 'intensity'}
+        ... )
+        >>> 
+        >>> # Valid features - validation passes
+        >>> features = {
+        ...     'height': np.random.rand(100) * 10,
+        ...     'planarity': np.random.rand(100)
+        ... }
+        >>> validate_features(features, requirements)  # No exception = valid
+        >>> 
+        >>> # Add optional feature - still valid
+        >>> features['ndvi'] = np.random.rand(100) * 2 - 1
+        >>> validate_features(features, requirements)
+        
+        Validation catches missing required features:
+        
+        >>> # Missing required feature 'planarity'
+        >>> bad_features = {'height': np.random.rand(100)}
+        >>> try:
+        ...     validate_features(bad_features, requirements)
+        ... except ValueError as e:
+        ...     print(f"Caught error: {e}")
+        Caught error: Missing required features: {'planarity'}
+        
+        Validation catches shape mismatches:
+        
+        >>> # Mismatched array lengths
+        >>> bad_features = {
+        ...     'height': np.random.rand(100),
+        ...     'planarity': np.random.rand(50)  # Wrong length!
+        ... }
+        >>> try:
+        ...     validate_features(bad_features, requirements)
+        ... except ValueError as e:
+        ...     print(f"Caught error: {e}")
+        Caught error: Feature 'planarity' has 50 values, expected 100
+        
+        Validation catches NaN values:
+        
+        >>> # Features with NaN values
+        >>> features_with_nan = {
+        ...     'height': np.random.rand(100),
+        ...     'planarity': np.random.rand(100)
+        ... }
+        >>> features_with_nan['height'][10:15] = np.nan
+        >>> 
+        >>> try:
+        ...     validate_features(features_with_nan, requirements)
+        ... except ValueError as e:
+        ...     print(f"Caught error: {e}")
+        Caught error: Feature 'height' contains 5 NaN values (5.0%)
+        
+        Allowing NaN values when needed:
+        
+        >>> # Create requirements that allow NaN
+        >>> flexible_requirements = FeatureRequirements(
+        ...     required={'height'},
+        ...     allow_nan=True
+        ... )
+        >>> validate_features(features_with_nan, flexible_requirements)  # OK now
+    
+    Note:
+        - Validation is strict: all required features must be present
+        - Optional features are not checked if absent
+        - Array shapes must match n_points exactly
+        - NaN and Inf values are rejected unless explicitly allowed
+        - Extra features (not in required or optional) are ignored
+    
+    See Also:
+        - FeatureRequirements: Define feature requirements
+        - check_feature_quality: Check individual feature quality
+        - validate_feature_shape: Validate specific array shapes
     """
     # Check for missing required features
     available = set(features.keys())

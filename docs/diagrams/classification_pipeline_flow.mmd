@@ -1,0 +1,91 @@
+%% Classification Pipeline Flow
+%% Shows the step-by-step classification process
+
+graph TB
+    START([Point Cloud Data]) --> INPUT_VALID{Input<br/>Validation}
+    
+    INPUT_VALID -->|Valid| FEATURE_ENG[Feature Engineering]
+    INPUT_VALID -->|Invalid| ERROR([Error:<br/>Invalid Input])
+    
+    FEATURE_ENG --> FEATURE_CHECK{Required<br/>Features?}
+    FEATURE_CHECK -->|Missing| FEATURE_COMP[Feature Computation]
+    FEATURE_CHECK -->|Complete| STRATEGY
+    FEATURE_COMP --> STRATEGY
+    
+    STRATEGY{Classification<br/>Strategy}
+    
+    %% ASPRS Path
+    STRATEGY -->|ASPRS| ASPRS_GROUND[Ground Detection<br/>height < threshold]
+    ASPRS_GROUND --> ASPRS_BUILD[Building Detection<br/>planarity + height]
+    ASPRS_BUILD --> ASPRS_VEG[Vegetation Detection<br/>NDVI + verticality]
+    ASPRS_VEG --> ASPRS_TRANS[Transport Detection<br/>road/railway rules]
+    ASPRS_TRANS --> ASPRS_RESULT[ASPRS Classes<br/>Ground/Building/Vegetation/etc.]
+    
+    %% LOD2 Path
+    STRATEGY -->|LOD2| LOD2_GROUND[Ground Detection]
+    LOD2_GROUND --> LOD2_BUILD[Building Detection<br/>+ Footprint Clustering]
+    LOD2_BUILD --> LOD2_ROOF[Roof Detection<br/>+ Plane Segmentation]
+    LOD2_ROOF --> LOD2_WALL[Wall Detection<br/>Vertical surfaces]
+    LOD2_WALL --> LOD2_VEG[Vegetation]
+    LOD2_VEG --> LOD2_RESULT[LOD2 Classes<br/>Roof/Wall/Ground/etc.]
+    
+    %% LOD3 Path
+    STRATEGY -->|LOD3| LOD3_GROUND[Ground Detection]
+    LOD3_GROUND --> LOD3_BUILD[Building Detection<br/>+ Spatial Clustering]
+    LOD3_BUILD --> LOD3_ELEM[Element Detection<br/>Windows/Doors/Balconies]
+    LOD3_ELEM --> LOD3_ROOF[Roof Elements<br/>Chimneys/Dormers]
+    LOD3_ROOF --> LOD3_DETAIL[Detail Features<br/>Textures/Materials]
+    LOD3_DETAIL --> LOD3_RESULT[LOD3 Classes<br/>Window/Door/Chimney/etc.]
+    
+    %% Comprehensive Path
+    STRATEGY -->|Comprehensive| COMP_ASPRS[ASPRS Classification]
+    COMP_ASPRS --> COMP_LOD2[LOD2 Refinement]
+    COMP_LOD2 --> COMP_LOD3[LOD3 Elements]
+    COMP_LOD3 --> COMP_FUSE[Result Fusion<br/>Hierarchical Merging]
+    COMP_FUSE --> COMP_RESULT[Multi-Level Classes<br/>All schemas combined]
+    
+    %% Adaptive Path
+    STRATEGY -->|Adaptive| ADAPT_ASSESS[Feature Assessment<br/>Quality scoring]
+    ADAPT_ASSESS --> ADAPT_SELECT{Feature<br/>Quality?}
+    ADAPT_SELECT -->|High| ADAPT_LOD3[LOD3 Classification]
+    ADAPT_SELECT -->|Medium| ADAPT_LOD2[LOD2 Classification]
+    ADAPT_SELECT -->|Low| ADAPT_ASPRS[ASPRS Classification]
+    ADAPT_LOD3 --> ADAPT_RESULT[Adaptive Result<br/>Best available detail]
+    ADAPT_LOD2 --> ADAPT_RESULT
+    ADAPT_ASPRS --> ADAPT_RESULT
+    
+    %% Post-Processing
+    ASPRS_RESULT --> POST
+    LOD2_RESULT --> POST
+    LOD3_RESULT --> POST
+    COMP_RESULT --> POST
+    ADAPT_RESULT --> POST
+    
+    POST[Post-Processing]
+    POST --> CONF_SCORE[Confidence Scoring]
+    CONF_SCORE --> CONFLICT{Conflicts?}
+    CONFLICT -->|Yes| RESOLVE[Conflict Resolution<br/>Hierarchical rules]
+    CONFLICT -->|No| VALIDATION
+    RESOLVE --> VALIDATION
+    
+    VALIDATION[Result Validation]
+    VALIDATION --> VALID_CHECK{Valid?}
+    VALID_CHECK -->|Yes| STATS[Statistics Computation]
+    VALID_CHECK -->|No| RETRY{Can<br/>Retry?}
+    RETRY -->|Yes| FEATURE_COMP
+    RETRY -->|No| ERROR_CLASS([Error:<br/>Classification Failed])
+    
+    STATS --> FINAL([Final Classification<br/>+ Statistics + Confidence])
+    
+    %% Styling
+    classDef startEnd fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    classDef decision fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef process fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef result fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef error fill:#ffebee,stroke:#c62828,stroke-width:2px
+    
+    class START,FINAL startEnd
+    class INPUT_VALID,FEATURE_CHECK,STRATEGY,ADAPT_SELECT,CONFLICT,VALID_CHECK,RETRY decision
+    class FEATURE_ENG,FEATURE_COMP,POST,CONF_SCORE,RESOLVE,VALIDATION,STATS process
+    class ASPRS_RESULT,LOD2_RESULT,LOD3_RESULT,COMP_RESULT,ADAPT_RESULT result
+    class ERROR,ERROR_CLASS error

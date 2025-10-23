@@ -3,6 +3,8 @@ Loader module for reading and validating LiDAR data.
 
 This module provides functions to load LAZ/LAS files with proper error handling,
 data validation, and typed data structures.
+
+Migrated from classification/loader.py as part of Task 7 (I/O Module Consolidation).
 """
 
 import logging

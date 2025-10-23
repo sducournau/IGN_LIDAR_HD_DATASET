@@ -49,8 +49,8 @@ from .memory import aggressive_memory_cleanup, clear_gpu_cache
 # Note: FeatureManager and FeatureComputer have been consolidated into FeatureOrchestrator
 # in ign_lidar.features.orchestrator (Phase 4.3)
 from .config_validator import ConfigValidator, ProcessingMode
-from .tile_loader import TileLoader
-from .serialization import (
+from .io import TileLoader
+from .io import (
     save_patch_npz,
     save_patch_hdf5,
     save_patch_torch,
@@ -58,7 +58,7 @@ from .serialization import (
     save_patch_multi_format,
     validate_format_support
 )
-from .loader import (
+from .io import (
     LiDARData,
     LiDARLoadError,
     LiDARCorruptionError,

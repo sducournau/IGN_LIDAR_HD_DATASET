@@ -1,0 +1,133 @@
+%% Rules Framework Architecture
+%% Hierarchical rule engine with confidence scoring
+
+graph TB
+    subgraph "Input Layer"
+        INPUT([Point Cloud Data<br/>+ Features])
+        CONFIG[Rule Configuration<br/>Thresholds/Priorities]
+    end
+    
+    INPUT --> VALIDATE
+    CONFIG --> ENGINE
+    
+    subgraph "Validation Layer"
+        VALIDATE[Feature Validation]
+        VALIDATE --> CHECK_REQ[Check Required Features]
+        VALIDATE --> CHECK_SHAPE[Check Array Shapes]
+        VALIDATE --> CHECK_RANGE[Check Value Ranges]
+        VALIDATE --> CHECK_QUALITY[Check Feature Quality]
+        
+        CHECK_REQ --> VALID_RESULT{All Valid?}
+        CHECK_SHAPE --> VALID_RESULT
+        CHECK_RANGE --> VALID_RESULT
+        CHECK_QUALITY --> VALID_RESULT
+        
+        VALID_RESULT -->|No| ERROR([Validation Error])
+        VALID_RESULT -->|Yes| ENGINE
+    end
+    
+    subgraph "Hierarchical Rule Engine"
+        ENGINE[HierarchicalRuleEngine]
+        
+        ENGINE --> LEVEL1[Level 1: High Priority<br/>Geometric Rules]
+        ENGINE --> LEVEL2[Level 2: Medium Priority<br/>Spectral Rules]
+        ENGINE --> LEVEL3[Level 3: Low Priority<br/>Context Rules]
+        
+        LEVEL1 --> EXEC1[Execute Geometric Rules]
+        LEVEL2 --> EXEC2[Execute Spectral Rules]
+        LEVEL3 --> EXEC3[Execute Context Rules]
+        
+        EXEC1 --> GEO_RULES
+        EXEC2 --> SPEC_RULES
+        EXEC3 --> CTX_RULES
+    end
+    
+    subgraph "Geometric Rules"
+        GEO_RULES[GeometricRulesEngine]
+        GEO_RULES --> GEO_PLAN[Planarity Rule<br/>flat surfaces]
+        GEO_RULES --> GEO_VERT[Verticality Rule<br/>vertical surfaces]
+        GEO_RULES --> GEO_HEIGHT[Height Rule<br/>elevation thresholds]
+        GEO_RULES --> GEO_SHAPE[Shape Rule<br/>geometric patterns]
+        
+        GEO_PLAN --> GEO_CONF[Confidence Computation]
+        GEO_VERT --> GEO_CONF
+        GEO_HEIGHT --> GEO_CONF
+        GEO_SHAPE --> GEO_CONF
+    end
+    
+    subgraph "Spectral Rules"
+        SPEC_RULES[SpectralRulesEngine]
+        SPEC_RULES --> SPEC_NDVI[NDVI Rule<br/>vegetation index]
+        SPEC_RULES --> SPEC_INTENS[Intensity Rule<br/>reflectance]
+        SPEC_RULES --> SPEC_COLOR[Color Rule<br/>RGB analysis]
+        
+        SPEC_NDVI --> SPEC_CONF[Confidence Computation]
+        SPEC_INTENS --> SPEC_CONF
+        SPEC_COLOR --> SPEC_CONF
+    end
+    
+    subgraph "Context Rules"
+        CTX_RULES[ContextRulesEngine]
+        CTX_RULES --> CTX_SPATIAL[Spatial Context<br/>neighborhood]
+        CTX_RULES --> CTX_PROXIMITY[Proximity Rules<br/>nearby features]
+        CTX_RULES --> CTX_GROUND[Ground Truth<br/>reference data]
+        
+        CTX_SPATIAL --> CTX_CONF[Confidence Computation]
+        CTX_PROXIMITY --> CTX_CONF
+        CTX_GROUND --> CTX_CONF
+    end
+    
+    subgraph "Confidence Layer"
+        GEO_CONF --> COMBINE[Confidence Combination]
+        SPEC_CONF --> COMBINE
+        CTX_CONF --> COMBINE
+        
+        COMBINE --> STRATEGY{Combination<br/>Strategy}
+        
+        STRATEGY -->|Weighted| WEIGHTED[Weighted Average<br/>Priority-based weights]
+        STRATEGY -->|Maximum| MAX[Maximum Confidence<br/>Best rule wins]
+        STRATEGY -->|Minimum| MIN[Minimum Confidence<br/>Conservative]
+        STRATEGY -->|Product| PROD[Product<br/>All must agree]
+        
+        WEIGHTED --> FINAL_CONF[Final Confidence Scores]
+        MAX --> FINAL_CONF
+        MIN --> FINAL_CONF
+        PROD --> FINAL_CONF
+    end
+    
+    subgraph "Conflict Resolution"
+        FINAL_CONF --> CONFLICTS{Conflicts<br/>Detected?}
+        
+        CONFLICTS -->|Yes| RESOLVE[Resolution Strategy]
+        CONFLICTS -->|No| MERGE
+        
+        RESOLVE --> RES_PRIORITY[Priority-Based<br/>Higher priority wins]
+        RESOLVE --> RES_CONF[Confidence-Based<br/>Higher confidence wins]
+        RESOLVE --> RES_HIER[Hierarchical<br/>Parent class wins]
+        
+        RES_PRIORITY --> MERGE
+        RES_CONF --> MERGE
+        RES_HIER --> MERGE
+    end
+    
+    MERGE[Merge Rule Results] --> PERF[Performance Tracking]
+    PERF --> RESULT([Classification Result<br/>+ Confidence + Statistics])
+    
+    %% Styling
+    classDef input fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef validation fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef engine fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef rules fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef confidence fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef resolution fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef output fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+    classDef error fill:#ffebee,stroke:#c62828,stroke-width:2px
+    
+    class INPUT,CONFIG input
+    class VALIDATE,CHECK_REQ,CHECK_SHAPE,CHECK_RANGE,CHECK_QUALITY,VALID_RESULT validation
+    class ENGINE,LEVEL1,LEVEL2,LEVEL3,EXEC1,EXEC2,EXEC3 engine
+    class GEO_RULES,GEO_PLAN,GEO_VERT,GEO_HEIGHT,GEO_SHAPE,SPEC_RULES,SPEC_NDVI,SPEC_INTENS,SPEC_COLOR,CTX_RULES,CTX_SPATIAL,CTX_PROXIMITY,CTX_GROUND rules
+    class GEO_CONF,SPEC_CONF,CTX_CONF,COMBINE,STRATEGY,WEIGHTED,MAX,MIN,PROD,FINAL_CONF confidence
+    class CONFLICTS,RESOLVE,RES_PRIORITY,RES_CONF,RES_HIER,MERGE,PERF resolution
+    class RESULT output
+    class ERROR error

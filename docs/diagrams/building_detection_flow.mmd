@@ -1,0 +1,74 @@
+%% Building Detection Process
+%% Detailed flow for building detection and classification
+
+graph TB
+    START([Point Cloud<br/>+ Features]) --> MODE{Detection<br/>Mode}
+    
+    %% ASPRS Mode
+    MODE -->|ASPRS| ASPRS_GROUND[Filter Non-Ground<br/>height > threshold]
+    ASPRS_GROUND --> ASPRS_PLAN[Planarity Filter<br/>planarity > 0.8]
+    ASPRS_PLAN --> ASPRS_HEIGHT[Height Filter<br/>2m < height < 50m]
+    ASPRS_HEIGHT --> ASPRS_NDVI[Vegetation Filter<br/>NDVI < 0.3]
+    ASPRS_NDVI --> ASPRS_GT{Ground<br/>Truth?}
+    ASPRS_GT -->|Yes| ASPRS_REFINE[Refine with Polygons<br/>Spatial overlap]
+    ASPRS_GT -->|No| ASPRS_RESULT
+    ASPRS_REFINE --> ASPRS_RESULT[ASPRS Buildings<br/>Binary mask]
+    
+    %% LOD2 Mode
+    MODE -->|LOD2| LOD2_ASPRS[ASPRS Detection<br/>Initial buildings]
+    LOD2_ASPRS --> LOD2_CLUSTER[Spatial Clustering<br/>DBSCAN by footprint]
+    LOD2_CLUSTER --> LOD2_ROOF[Roof Detection<br/>Plane segmentation]
+    LOD2_ROOF --> LOD2_WALL[Wall Detection<br/>Vertical surfaces]
+    LOD2_WALL --> LOD2_GROUND_FLOOR[Ground Floor<br/>Low vertical surfaces]
+    LOD2_GROUND_FLOOR --> LOD2_GT{Ground<br/>Truth?}
+    LOD2_GT -->|Yes| LOD2_ASSIGN[Assign Building IDs<br/>from polygons]
+    LOD2_GT -->|No| LOD2_AUTO_ID
+    LOD2_ASSIGN --> LOD2_RESULT
+    LOD2_AUTO_ID[Auto Building IDs<br/>from clusters] --> LOD2_RESULT[LOD2 Classes<br/>Roof/Wall/Ground]
+    
+    %% LOD3 Mode
+    MODE -->|LOD3| LOD3_LOD2[LOD2 Detection<br/>Base classification]
+    LOD3_LOD2 --> LOD3_SPATIAL[Spatial Clustering<br/>Building-level DBSCAN]
+    LOD3_SPATIAL --> LOD3_ELEMENTS[Element Detection]
+    
+    LOD3_ELEMENTS --> LOD3_WINDOW[Window Detection<br/>Regular patterns<br/>height 1-3m]
+    LOD3_ELEMENTS --> LOD3_DOOR[Door Detection<br/>Ground level<br/>height 2-2.5m]
+    LOD3_ELEMENTS --> LOD3_BALCONY[Balcony Detection<br/>Protruding surfaces<br/>height 0.2-0.5m]
+    LOD3_ELEMENTS --> LOD3_CHIMNEY[Chimney Detection<br/>Roof protrusions<br/>vertical cylinders]
+    
+    LOD3_WINDOW --> LOD3_MERGE[Merge Elements]
+    LOD3_DOOR --> LOD3_MERGE
+    LOD3_BALCONY --> LOD3_MERGE
+    LOD3_CHIMNEY --> LOD3_MERGE
+    
+    LOD3_MERGE --> LOD3_VALIDATE[Validation<br/>Size/position checks]
+    LOD3_VALIDATE --> LOD3_GT{Ground<br/>Truth?}
+    LOD3_GT -->|Yes| LOD3_REFINE[Refine Elements<br/>Match to polygons]
+    LOD3_GT -->|No| LOD3_RESULT
+    LOD3_REFINE --> LOD3_RESULT[LOD3 Classes<br/>Window/Door/Balcony/etc.]
+    
+    %% Results to Post-Processing
+    ASPRS_RESULT --> POST[Post-Processing]
+    LOD2_RESULT --> POST
+    LOD3_RESULT --> POST
+    
+    POST --> CONF[Confidence Scoring<br/>Feature-based confidence]
+    CONF --> STATS[Statistics<br/>Count/area/height per class]
+    STATS --> FINAL([Classified Buildings<br/>+ Statistics + Confidence])
+    
+    %% Styling
+    classDef startEnd fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    classDef decision fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef detection fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef clustering fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef elements fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef postproc fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef result fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+    
+    class START,FINAL startEnd
+    class MODE,ASPRS_GT,LOD2_GT,LOD3_GT decision
+    class ASPRS_GROUND,ASPRS_PLAN,ASPRS_HEIGHT,ASPRS_NDVI,LOD2_ASPRS,LOD2_ROOF,LOD2_WALL,LOD2_GROUND_FLOOR,LOD3_LOD2 detection
+    class LOD2_CLUSTER,LOD3_SPATIAL,ASPRS_REFINE,LOD2_ASSIGN,LOD2_AUTO_ID clustering
+    class LOD3_ELEMENTS,LOD3_WINDOW,LOD3_DOOR,LOD3_BALCONY,LOD3_CHIMNEY,LOD3_MERGE,LOD3_VALIDATE,LOD3_REFINE elements
+    class POST,CONF,STATS postproc
+    class ASPRS_RESULT,LOD2_RESULT,LOD3_RESULT result

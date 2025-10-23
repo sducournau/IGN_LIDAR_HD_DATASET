@@ -132,10 +132,23 @@ class TransportDetector(TransportDetectorBase):
         else:
             strategy = DetectionStrategy.GROUND_TRUTH
         
+        # Compute confidence scores for detected transport points
+        confidence = self._compute_detection_confidence(
+            labels=labels,
+            refined_labels=refined_labels,
+            height=height,
+            planarity=planarity,
+            roughness=roughness,
+            intensity=intensity,
+            normals=normals,
+            road_ground_truth_mask=road_ground_truth_mask,
+            rail_ground_truth_mask=rail_ground_truth_mask
+        )
+        
         return TransportDetectionResult(
             labels=refined_labels,
             stats=stats,
-            confidence=None,  # TODO: Add confidence calculation
+            confidence=confidence,
             mode=self.config.mode,
             strategy=strategy
         )
@@ -420,6 +433,150 @@ class TransportDetector(TransportDetectorBase):
         stats.transport_ground_total = stats.roads_validated + stats.rails_validated
         
         return refined, stats
+    
+    def _compute_detection_confidence(
+        self,
+        labels: np.ndarray,
+        refined_labels: np.ndarray,
+        height: np.ndarray,
+        planarity: np.ndarray,
+        roughness: Optional[np.ndarray],
+        intensity: Optional[np.ndarray],
+        normals: Optional[np.ndarray],
+        road_ground_truth_mask: Optional[np.ndarray],
+        rail_ground_truth_mask: Optional[np.ndarray]
+    ) -> np.ndarray:
+        """
+        Compute confidence scores for detected transport points.
+        
+        Confidence is based on:
+        - Ground truth presence (high confidence = 1.0)
+        - Feature quality (planarity, height, roughness, intensity)
+        - Multi-feature agreement
+        
+        Args:
+            labels: Original classification labels [N]
+            refined_labels: Refined classification labels [N]
+            height: Height above ground [N]
+            planarity: Planarity values [N]
+            roughness: Surface roughness [N]
+            intensity: LiDAR intensity [N]
+            normals: Surface normals [N, 3]
+            road_ground_truth_mask: Boolean mask for ground truth roads
+            rail_ground_truth_mask: Boolean mask for ground truth rails
+            
+        Returns:
+            Confidence scores [N] in range [0, 1]
+        """
+        n_points = len(labels)
+        confidence = np.zeros(n_points, dtype=np.float32)
+        
+        # Identify changed points (newly classified as transport)
+        changed_mask = labels != refined_labels
+        
+        if not changed_mask.any():
+            return confidence
+        
+        # Strategy 1: Ground truth = high confidence (1.0)
+        if road_ground_truth_mask is not None:
+            gt_road_points = road_ground_truth_mask & changed_mask
+            confidence[gt_road_points] = 1.0
+        
+        if rail_ground_truth_mask is not None:
+            gt_rail_points = rail_ground_truth_mask & changed_mask
+            confidence[gt_rail_points] = 1.0
+        
+        # Strategy 2: Geometric detection = feature-based confidence
+        geometric_mask = changed_mask & (confidence == 0.0)
+        
+        if geometric_mask.any():
+            # Initialize feature confidences
+            planarity_conf = planarity.copy()
+            
+            # Height confidence (closer to ground = higher confidence)
+            max_height = max(self.config.road_height_max, self.config.rail_height_max)
+            height_conf = np.clip(1.0 - np.abs(height) / max_height, 0.0, 1.0)
+            
+            # Roughness confidence (lower roughness = higher confidence)
+            roughness_conf = None
+            if roughness is not None:
+                max_roughness = max(self.config.road_roughness_max, self.config.rail_roughness_max)
+                roughness_conf = np.clip(1.0 - roughness / max_roughness, 0.0, 1.0)
+            
+            # Intensity confidence (for roads, higher intensity often indicates pavement)
+            intensity_conf = None
+            if intensity is not None:
+                # Normalize intensity to [0, 1] if needed
+                intensity_norm = intensity.copy()
+                if intensity_norm.max() > 1.0:
+                    intensity_norm = intensity_norm / intensity_norm.max()
+                # Roads typically have moderate-to-high intensity
+                intensity_conf = np.clip(intensity_norm, 0.0, 1.0)
+            
+            # Horizontality confidence (from normals if available)
+            horizontality_conf = None
+            if normals is not None and normals.shape[1] == 3:
+                # Vertical component of normal (should be close to 1.0 for horizontal surfaces)
+                vertical_component = np.abs(normals[:, 2])
+                horizontality_conf = np.clip(vertical_component, 0.0, 1.0)
+            
+            # Combine confidences based on available features
+            combined_conf = self._combine_feature_confidences(
+                planarity_conf, height_conf, roughness_conf, 
+                intensity_conf, horizontality_conf
+            )
+            
+            # Assign combined confidence to geometric detection points
+            confidence[geometric_mask] = combined_conf[geometric_mask]
+        
+        return confidence
+    
+    def _combine_feature_confidences(
+        self,
+        planarity_conf: np.ndarray,
+        height_conf: np.ndarray,
+        roughness_conf: Optional[np.ndarray],
+        intensity_conf: Optional[np.ndarray],
+        horizontality_conf: Optional[np.ndarray]
+    ) -> np.ndarray:
+        """
+        Combine multiple feature confidences with adaptive weighting.
+        
+        Args:
+            planarity_conf: Planarity confidence [N]
+            height_conf: Height confidence [N]
+            roughness_conf: Roughness confidence [N] or None
+            intensity_conf: Intensity confidence [N] or None
+            horizontality_conf: Horizontality confidence [N] or None
+            
+        Returns:
+            Combined confidence [N] in range [0, 1]
+        """
+        # Build weighted combination based on available features
+        features = [
+            (planarity_conf, 0.40),  # Planarity is most important
+            (height_conf, 0.30),     # Height is second most important
+        ]
+        
+        if roughness_conf is not None:
+            features.append((roughness_conf, 0.20))
+        
+        if intensity_conf is not None:
+            features.append((intensity_conf, 0.10))
+        
+        if horizontality_conf is not None:
+            features.append((horizontality_conf, 0.10))
+        
+        # Normalize weights to sum to 1.0
+        total_weight = sum(weight for _, weight in features)
+        normalized_features = [(conf, weight / total_weight) for conf, weight in features]
+        
+        # Weighted combination
+        combined = np.zeros_like(planarity_conf, dtype=np.float32)
+        for conf, weight in normalized_features:
+            combined += weight * conf
+        
+        return combined
 
 
 # ============================================================================

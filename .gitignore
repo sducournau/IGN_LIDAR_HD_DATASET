@@ -40,6 +40,7 @@ test_env/
 *.swp
 *.swo
 *~
+*.un~
 
 # OS
 .DS_Store

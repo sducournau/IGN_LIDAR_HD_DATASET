@@ -1,0 +1,63 @@
+%% Data Flow Through Classification
+%% Shows how data transforms through the pipeline
+
+graph LR
+    subgraph "Input Stage"
+        RAW[Raw LiDAR Data<br/>━━━━━━━━━━<br/>x, y, z<br/>intensity<br/>return_number]
+    end
+    
+    subgraph "Preprocessing Stage"
+        RAW --> NORM[Normalization<br/>━━━━━━━━━━<br/>height = z - ground<br/>intensity 0-1]
+        NORM --> FEAT_COMP[Feature Computation<br/>━━━━━━━━━━<br/>+ planarity<br/>+ verticality<br/>+ NDVI<br/>+ curvature]
+    end
+    
+    subgraph "Classification Stage"
+        FEAT_COMP --> CLASS_INPUT[Classification Input<br/>━━━━━━━━━━<br/>x, y, z, height<br/>intensity<br/>planarity, verticality<br/>NDVI, curvature]
+        
+        CLASS_INPUT --> CLASSIFIER[Classifier<br/>━━━━━━━━━━<br/>Strategy: ASPRS/LOD2/LOD3<br/>Thresholds<br/>Ground truth optional]
+        
+        CLASSIFIER --> CLASS_LOGIC[Classification Logic<br/>━━━━━━━━━━<br/>Rule evaluation<br/>Feature thresholding<br/>Spatial analysis]
+        
+        CLASS_LOGIC --> LABELS[Classification Labels<br/>━━━━━━━━━━<br/>class_id per point<br/>Integer codes]
+    end
+    
+    subgraph "Confidence Stage"
+        LABELS --> CONF_COMP[Confidence Computation<br/>━━━━━━━━━━<br/>Feature quality<br/>Rule agreement<br/>Spatial consistency]
+        
+        CONF_COMP --> CONF_SCORES[Confidence Scores<br/>━━━━━━━━━━<br/>0.0 - 1.0 per point<br/>Float values]
+    end
+    
+    subgraph "Post-Processing Stage"
+        LABELS --> MAPPING[Schema Mapping<br/>━━━━━━━━━━<br/>ID → Class Name<br/>ID → Description]
+        CONF_SCORES --> MAPPING
+        
+        MAPPING --> NAMED[Named Classes<br/>━━━━━━━━━━<br/>Ground<br/>Building<br/>Vegetation<br/>etc.]
+        
+        NAMED --> STATS[Statistics<br/>━━━━━━━━━━<br/>Count per class<br/>Area per class<br/>Mean confidence]
+    end
+    
+    subgraph "Output Stage"
+        NAMED --> OUTPUT[Classification Output<br/>━━━━━━━━━━<br/>labels: array<br/>confidence: array<br/>statistics: dict]
+        STATS --> OUTPUT
+        
+        OUTPUT --> EXPORT{Export<br/>Format}
+        
+        EXPORT -->|LAS/LAZ| LAS[LAS File<br/>━━━━━━━━━━<br/>classification field<br/>user_data confidence]
+        EXPORT -->|CSV| CSV[CSV File<br/>━━━━━━━━━━<br/>x,y,z,class,conf<br/>tabular format]
+        EXPORT -->|DataFrame| DF[Pandas DataFrame<br/>━━━━━━━━━━<br/>all fields<br/>in-memory]
+    end
+    
+    %% Styling
+    classDef input fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef preproc fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef classify fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef confidence fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef postproc fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef output fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    
+    class RAW input
+    class NORM,FEAT_COMP preproc
+    class CLASS_INPUT,CLASSIFIER,CLASS_LOGIC,LABELS classify
+    class CONF_COMP,CONF_SCORES confidence
+    class MAPPING,NAMED,STATS postproc
+    class OUTPUT,EXPORT,LAS,CSV,DF output

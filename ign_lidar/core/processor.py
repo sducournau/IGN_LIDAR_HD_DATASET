@@ -32,7 +32,7 @@ from .processing_metadata import ProcessingMetadata
 # Import refactored modules from classification package
 # Note: FeatureManager has been replaced by FeatureOrchestrator in Phase 4.3
 from .classification.config_validator import ConfigValidator
-from .classification.serialization import save_patch_npz, save_patch_hdf5, save_patch_torch, save_patch_laz, save_patch_multi_format
+from .classification.io import save_patch_npz, save_patch_hdf5, save_patch_torch, save_patch_laz, save_patch_multi_format
 from .classification.patch_extractor import (
     PatchConfig,
     AugmentationConfig,
@@ -40,7 +40,7 @@ from .classification.patch_extractor import (
     format_patch_for_architecture
 )
 # Phase 3.4: Tile processing modules
-from .classification.tile_loader import TileLoader
+from .classification.io import TileLoader
 # Note: FeatureComputer has been replaced by FeatureOrchestrator in Phase 4.3
 
 # Phase 4.3: New unified orchestrator V5 (consolidated)
@@ -1989,7 +1989,7 @@ class LiDARProcessor:
             logger.info(f"  💾 Saving updated enriched tile (no patch extraction)")
             
             # Import the new function
-            from .classification.serialization import save_enriched_tile_laz
+            from .classification.io import save_enriched_tile_laz
             
             # Prepare output path - in enriched_only mode, save directly to output_dir
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -2164,7 +2164,7 @@ class LiDARProcessor:
         
         # 🆕 Save enriched LAZ tile in "both" mode (after patches are saved)
         if self.save_enriched_laz and not self.only_enriched_laz:
-            from .classification.serialization import save_enriched_tile_laz
+            from .classification.io import save_enriched_tile_laz
             
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = output_dir / f"{laz_file.stem}_enriched.laz"

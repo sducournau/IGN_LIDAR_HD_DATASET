@@ -92,7 +92,7 @@ class TestFeatureComputer:
             gpu_comp = computer._get_gpu_computer()
             assert gpu_comp is not None
             assert computer._gpu_computer is gpu_comp
-        except ImportError:
+        except (ImportError, RuntimeError):
             pytest.skip("GPU not available")
     
     def test_select_mode_automatic(self, mock_mode_selector):
@@ -162,7 +162,7 @@ class TestFeatureComputer:
         
         # Verify
         assert np.array_equal(normals, expected_normals)
-        mock_cpu_comp.compute_normals.assert_called_once_with(sample_points, k=10)
+        mock_cpu_comp.compute_normals.assert_called_once_with(sample_points, k_neighbors=10)
     
     @patch('ign_lidar.features.feature_computer.FeatureComputer._get_gpu_computer')
     def test_compute_normals_gpu(self, mock_get_gpu, sample_points, mock_mode_selector):
@@ -170,7 +170,8 @@ class TestFeatureComputer:
         # Setup
         mock_gpu_comp = MagicMock()
         expected_normals = np.random.rand(len(sample_points), 3)
-        mock_gpu_comp.compute_normals.return_value = expected_normals
+        # GPU strategy returns features dict from compute()
+        mock_gpu_comp.compute.return_value = {'normals': expected_normals}
         mock_get_gpu.return_value = mock_gpu_comp
         
         mock_mode_selector.select_mode.return_value = ComputationMode.GPU
@@ -182,7 +183,7 @@ class TestFeatureComputer:
         
         # Verify
         assert np.array_equal(normals, expected_normals)
-        mock_gpu_comp.compute_normals.assert_called_once_with(sample_points, k=10)
+        mock_gpu_comp.compute.assert_called_once_with(sample_points)
     
     @patch('ign_lidar.features.feature_computer.FeatureComputer._get_cpu_computer')
     def test_compute_curvature_cpu(self, mock_get_cpu, sample_points, mock_mode_selector):
@@ -213,9 +214,11 @@ class TestFeatureComputer:
         mock_gpu_comp = MagicMock()
         expected_features = {
             'planarity': np.random.rand(len(sample_points)),
-            'linearity': np.random.rand(len(sample_points))
+            'linearity': np.random.rand(len(sample_points)),
+            'sphericity': np.random.rand(len(sample_points)),
+            'anisotropy': np.random.rand(len(sample_points))
         }
-        mock_gpu_comp.compute_geometric_features.return_value = expected_features
+        mock_gpu_comp.compute.return_value = expected_features
         mock_get_gpu.return_value = mock_gpu_comp
         
         mock_mode_selector.select_mode.return_value = ComputationMode.GPU
@@ -232,7 +235,7 @@ class TestFeatureComputer:
         # Verify
         assert 'planarity' in features
         assert 'linearity' in features
-        mock_gpu_comp.compute_geometric_features.assert_called_once()
+        mock_gpu_comp.compute.assert_called_once()
     
     @patch('ign_lidar.features.feature_computer.FeatureComputer._get_boundary_computer')
     def test_compute_normals_with_boundary(
@@ -244,8 +247,9 @@ class TestFeatureComputer:
         buffer_points = sample_points[500:]
         
         mock_boundary_comp = MagicMock()
-        expected_normals = np.random.rand(len(core_points), 3)
-        mock_boundary_comp.compute_normals_with_boundary.return_value = expected_normals
+        # The compute() method returns features dict with all normals (core + buffer)
+        all_normals = np.random.rand(len(sample_points), 3)
+        mock_boundary_comp.compute.return_value = {'normals': all_normals}
         mock_get_boundary.return_value = mock_boundary_comp
         
         computer = FeatureComputer(mode_selector=mock_mode_selector)
@@ -255,9 +259,10 @@ class TestFeatureComputer:
             core_points, buffer_points, k=10
         )
         
-        # Verify
-        assert np.array_equal(normals, expected_normals)
-        mock_boundary_comp.compute_normals_with_boundary.assert_called_once()
+        # Verify - should return only core point normals
+        assert normals.shape == (len(core_points), 3)
+        assert np.array_equal(normals, all_normals[:len(core_points)])
+        mock_boundary_comp.compute.assert_called_once()
     
     def test_get_mode_recommendations(self, mock_mode_selector):
         """Test getting mode recommendations."""
