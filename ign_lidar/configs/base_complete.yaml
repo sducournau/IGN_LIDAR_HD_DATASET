@@ -1,0 +1,383 @@
+# ============================================================================
+# IGN LiDAR HD - Complete Base Configuration v5.5
+# ============================================================================
+# Single source of truth for all configuration defaults
+# Complete schema with ALL required keys
+# Smart defaults that work for 80% of use cases
+#
+# Usage:
+#   1. Zero-config (uses all defaults):
+#      ign-lidar-hd process input_dir=/data output_dir=/output
+#
+#   2. As base for custom configs:
+#      defaults:
+#        - /base_complete
+#
+#   3. With overrides:
+#      ign-lidar-hd process --config-name base_complete \
+#        input_dir=/data output_dir=/output \
+#        processor.use_gpu=false
+# ============================================================================
+
+config_version: "5.5.0"
+config_name: "base_complete"
+config_description: "Complete base configuration with smart defaults"
+
+# ============================================================================
+# PATHS (Required via CLI or override)
+# ============================================================================
+input_dir: null # REQUIRED: Set via CLI
+output_dir: null # REQUIRED: Set via CLI
+
+# ============================================================================
+# PROCESSOR - Smart Defaults
+# ============================================================================
+processor:
+  # Processing mode
+  lod_level: "ASPRS" # "ASPRS", "LOD2", "LOD3"
+  processing_mode: "enriched_only" # "patches_only", "both", "enriched_only", "reclassify_only"
+
+  # GPU settings (auto-detected, conservative defaults)
+  use_gpu: true # Auto-detect GPU and fallback to CPU if unavailable
+  gpu_batch_size: 4_000_000 # 4M points - conservative for 8GB+ VRAM
+  gpu_memory_target: 0.85 # Use 85% of available VRAM
+  gpu_streams: 4 # 4 CUDA streams for pipeline parallelism
+  vram_limit_gb: null # Auto-detect, or set manually (e.g., 14 for 16GB GPU)
+  cleanup_frequency: 3 # Clean GPU memory every N tiles
+
+  # FAISS GPU configuration (NEW - addresses hardcoded limits)
+  faiss_gpu_threshold: 15_000_000 # Use GPU FAISS for <= 15M points
+  faiss_allow_large_gpu: false # Set true for 16GB+ GPUs to allow larger batches
+  faiss_estimated_temp_memory_gb: 3.0 # Estimated temp memory for FAISS operations
+
+  # CPU workers (auto-detected based on hardware)
+  num_workers: 1 # 1 for GPU (optimal), 4-8 for CPU (auto-detect)
+  chunk_size: 4_000_000 # Processing chunk size
+
+  # Ground truth
+  ground_truth_method: "auto" # "auto", "gpu", "strtree", "rtree"
+  ground_truth_chunk_size: 4_000_000 # Chunk size for ground truth operations
+  use_optimized_ground_truth: true # Use optimized ground truth pipeline
+
+  # Reclassification
+  reclassification:
+    enabled: true
+    acceleration_mode: "auto" # "auto", "gpu", "cpu"
+    chunk_size: 4_000_000
+    min_confidence: 0.7
+    use_geometric_rules: true
+    use_ndvi_classification: false # Requires NIR channel
+    show_progress: true
+
+  # Preprocessing
+  preprocess:
+    enabled: false
+    remove_duplicates: true
+    remove_outliers: true
+    outlier_std_multiplier: 3.0
+
+  # Stitching (for multi-tile workflows)
+  stitching:
+    enabled: false
+    buffer_size: 10.0 # meters
+    blend_overlap: true
+
+  # Runtime
+  skip_existing: false # Skip already processed tiles
+  output_format: "laz" # "laz", "las"
+  use_strategy_pattern: true # Use strategy pattern for extensibility
+  use_stitching: false # Legacy flag, use preprocess.enabled instead
+
+  # Memory optimizations
+  enable_memory_pooling: true
+  enable_async_transfers: true # Async CPU-GPU transfers
+  adaptive_chunk_sizing: true # Adapt chunk size based on available memory
+
+# ============================================================================
+# FEATURES - Smart Defaults
+# ============================================================================
+features:
+  mode: "asprs_classes" # "minimal", "lod2", "lod3", "asprs_classes", "full"
+  k_neighbors: 20 # Number of neighbors for feature computation
+  search_radius: 1.0 # meters - fallback if k-neighbors fails
+
+  # GPU settings (matches processor settings)
+  use_gpu: true # Auto-detect
+  gpu_batch_size: 4_000_000
+  neighbor_query_batch_size: 4_000_000
+  feature_batch_size: 3_000_000
+
+  # Essential geometric features
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: true
+  compute_planarity: true
+  compute_verticality: true
+  compute_linearity: true
+  compute_sphericity: true
+  compute_eigenfeatures: true
+
+  # Height computation
+  height_method: "hybrid" # "dtm_only", "local_only", "hybrid"
+  use_rge_alti_for_height: false # Disabled by default (requires API access)
+  dtm_interpolation: "cubic" # "nearest", "linear", "cubic"
+  compute_height_above_ground: true
+  compute_height_local: true
+  compute_z_from_dtm: false # Only if RGE ALTI enabled
+
+  # Spectral features (disabled by default)
+  use_rgb: false # Enable if RGB channels available
+  use_nir: false # Enable if NIR channel available
+  compute_ndvi: false # Requires NIR
+
+  # Advanced features (disabled by default - expensive)
+  compute_architectural: false # LOD3 architectural features
+  compute_boundaries: false # Boundary detection
+  compute_multiscale: false # Multi-scale analysis
+
+  # Optimization
+  enable_caching: true
+  enable_auto_tuning: true
+  cache_max_size: 50 # Cache size for feature computations
+  validate_features: true # Validate computed features
+  handle_nan_values: true # Handle NaN values gracefully
+
+# ============================================================================
+# DATA SOURCES - Minimal Defaults
+# ============================================================================
+data_sources:
+  # BD TOPO - Essential geographic features
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true
+      roads: true
+      water: true
+      vegetation: false # Disable for speed
+    wfs_url: "https://data.geopf.fr/wfs"
+    max_features: 10000
+    timeout: 30
+    cache_enabled: true
+    cache_dir: null # Auto: {input_dir}/cache
+    use_gpu: false # CPU sufficient for vector operations
+    road_buffer: 2.5 # meters
+
+  # BD TOPO additional features (disabled by default)
+  bd_topo_bridges: false
+  bd_topo_power_lines: false
+  bd_topo_sports: false
+  bd_topo_cemeteries: false
+  bd_topo_parking: false
+
+  # Cadastre (disabled by default)
+  cadastre:
+    enabled: false
+    wfs_url: "https://data.geopf.fr/wfs"
+    typename: "CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle"
+    cache_enabled: true
+    use_gpu: false
+    use_as_building_proxy: false
+
+  # OpenStreetMap (disabled by default)
+  osm:
+    enabled: false
+    overpass_url: "https://overpass-api.de/api/interpreter"
+    timeout: 180
+    cache_enabled: true
+    cache_ttl_days: 30
+
+  # RGE ALTI - DTM augmentation (disabled by default - requires API)
+  rge_alti:
+    enabled: false
+    use_wcs: true
+    wcs_url: "https://wxs.ign.fr/altimetrie/geoportail/r/wcs"
+    coverage_id: "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES"
+    resolution: 1.0 # 1m DTM resolution
+    cache_enabled: true
+    cache_ttl_days: 90
+    cache_dir: null # Auto: {input_dir}/cache
+
+    # DTM augmentation (disabled by default)
+    augment_ground_points: false
+    augmentation_spacing: 2.0 # meters (2m² spacing)
+    augmentation_areas: [] # ["vegetation", "gaps", "buildings"]
+    compute_height_from_dtm: false
+    dtm_height_priority: "medium"
+
+# ============================================================================
+# GROUND TRUTH - Standard Configuration
+# ============================================================================
+ground_truth:
+  enabled: true
+  method: "auto" # "auto", "gpu", "strtree", "rtree"
+  chunk_size: 4_000_000
+  cache_compression: true
+  preclassify: true # Pre-classify points using ground truth
+  show_progress: true
+  use_gpu: true # Auto-detect
+
+  # Adaptive ground truth
+  adaptive_mode: true
+  fuzzy_boundary_enabled: true
+  fuzzy_boundary_outer: 2.5 # meters - tolerance at polygon edges
+
+  # RGE ALTI augmentation (disabled if rge_alti.enabled=false)
+  rge_alti:
+    enabled: false
+    augment_ground: false
+    augmentation_strategy: "intelligent" # "simple", "intelligent", "adaptive"
+    augmentation_spacing: 2.0 # meters
+    min_spacing_to_existing: 1.5 # meters
+    augmentation_priority:
+      vegetation: true
+      buildings: true
+      water: false
+      roads: false
+      gaps: true
+    max_height_difference: 3.0 # meters
+    validate_against_neighbors: true
+    synthetic_ground_class: 2 # ASPRS class 2 (ground)
+    mark_as_synthetic: true
+
+  # BD TOPO classification mapping
+  bd_topo:
+    enabled: true
+    classification_mapping:
+      buildings: 6 # Building
+      roads: 11 # Road surface
+      water: 9 # Water
+      low_vegetation: 3 # Low vegetation
+      medium_vegetation: 4 # Medium vegetation
+      high_vegetation: 5 # High vegetation
+      bridges: 17 # Bridge deck
+      power_lines: 14 # Wire - conductor
+    road_buffer: 3.0 # meters
+    building_buffer: 1.2 # meters
+
+  # Performance
+  parallel_fetch: true
+  max_parallel_requests: 16
+
+# ============================================================================
+# OUTPUT
+# ============================================================================
+output:
+  format: "laz" # "laz", "las"
+  save_enriched: true # Save enriched point cloud
+  save_patches: false # Save extracted patches (LOD2/LOD3)
+  save_metadata: true # Save processing metadata
+  save_stats: true # Save statistics
+  validate_output: true # Validate output files
+  save_fusion_report: false # Save building fusion report
+  save_dtm_augmentation_report: false # Save DTM augmentation report
+  include_dtm_height: false # Include DTM height as dimension
+  include_synthetic_flag: false # Flag synthetic points
+
+# ============================================================================
+# VARIABLE OBJECT FILTERING
+# ============================================================================
+variable_object_filtering:
+  enabled: true
+  filter_vehicles: true
+  vehicle_height_range: [0.8, 4.0] # meters
+  filter_urban_furniture: true
+  furniture_height_range: [0.5, 4.0] # meters
+  create_vehicle_class: true
+  vehicle_class_code: 18 # ASPRS class 18 (vehicle)
+  reclassify_to: 1 # Unassigned
+
+  # Building fusion (disabled by default)
+  building_fusion:
+    enabled: false
+    source_priority: ["bd_topo", "cadastre", "osm"]
+    min_quality_score: 0.5
+    fusion_mode: "best" # "best", "weighted_merge", "consensus"
+    enable_multi_source_fusion: false
+
+  # Adaptive building classification (disabled by default)
+  adaptive_building_classification:
+    enabled: false
+    signature:
+      min_height: 1.2
+      wall_verticality_min: 0.6
+      roof_planarity_min: 0.7
+    enable_adaptive_expansion: false
+    enable_intelligent_rejection: false
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  level: INFO # DEBUG, INFO, WARNING, ERROR
+  show_progress: true
+  detailed_timing: true
+  enable_performance_metrics: true
+  enable_profiling: false # Enable for performance debugging
+  log_memory: false # Log memory usage
+  log_timing: false # Log detailed timing
+
+# ============================================================================
+# OPTIMIZATIONS
+# ============================================================================
+optimizations:
+  enable_caching: true
+  cache_max_size_mb: 256 # MB - cache size for features/data
+  enable_parallel_processing: true # Parallel tile processing
+  max_workers: null # Auto-detect: 1 for GPU, 4-8 for CPU
+  enable_auto_tuning: true # Auto-tune parameters
+  adaptive_parameters: true # Adapt parameters to hardware
+
+# ============================================================================
+# VALIDATION
+# ============================================================================
+validation:
+  strict_validation: true # Strict config validation
+  check_gpu_availability: true # Check GPU at startup
+  check_memory_requirements: true # Check memory requirements
+
+# ============================================================================
+# HARDWARE
+# ============================================================================
+hardware:
+  auto_detect: true # Auto-detect hardware capabilities
+  prefer_gpu: true # Prefer GPU if available
+  fallback_cpu: true # Fallback to CPU if GPU unavailable
+
+# ============================================================================
+# HYDRA
+# ============================================================================
+hydra:
+  run:
+    dir: outputs/${config_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    name: ${config_name}
+# ============================================================================
+# USAGE EXAMPLES
+# ============================================================================
+# 1. Zero-config (auto-detect hardware, smart defaults):
+#    ign-lidar-hd process input_dir=/data/tiles output_dir=/data/output
+#
+# 2. GPU with overrides:
+#    ign-lidar-hd process --config-name base_complete \
+#      input_dir=/data/tiles output_dir=/data/output \
+#      processor.gpu_batch_size=8_000_000
+#
+# 3. CPU only:
+#    ign-lidar-hd process --config-name base_complete \
+#      input_dir=/data/tiles output_dir=/data/output \
+#      processor.use_gpu=false processor.num_workers=8
+#
+# 4. Enable all data sources:
+#    ign-lidar-hd process --config-name base_complete \
+#      input_dir=/data/tiles output_dir=/data/output \
+#      data_sources.cadastre.enabled=true \
+#      data_sources.osm.enabled=true \
+#      data_sources.rge_alti.enabled=true
+#
+# 5. High quality features:
+#    ign-lidar-hd process --config-name base_complete \
+#      input_dir=/data/tiles output_dir=/data/output \
+#      features.k_neighbors=60 \
+#      features.compute_architectural=true
+# ============================================================================

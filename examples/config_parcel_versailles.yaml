@@ -224,6 +224,22 @@ output:
   export_parcel_stats: true
   parcel_stats_format: "csv"
 
+# ============================================================================
+# PREPROCESS
+# ============================================================================
+preprocess:
+  enabled: false
+  remove_duplicates: true
+  remove_outliers: true
+  outlier_std_multiplier: 3.0
+
+
+stitching:
+  enabled: false
+  buffer_size: 10.0
+  blend_overlap: true
+
+
 # Hydra output directory
 hydra:
   run:

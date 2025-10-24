@@ -1,0 +1,100 @@
+# ============================================================================
+# Hardware Profile: Standard CPU (No GPU)
+# ============================================================================
+# Optimized for: Standard workstations and laptops without GPU
+#
+# Recommended Specifications:
+# - CPU: 8-16 cores (Intel Core i7/i9, AMD Ryzen 7/9)
+# - RAM: 32GB DDR4/DDR5
+# - Storage: SSD (for reasonable I/O)
+#
+# Performance (20M point tile):
+# - Feature computation: ~40-60 minutes
+# - Total processing: ~60-90 minutes
+#
+# Usage:
+#   ign-lidar-hd process --config-name profiles/cpu_standard \
+#     input_dir=/data output_dir=/output
+# ============================================================================
+
+defaults:
+  - /base_complete
+
+config_name: "cpu_standard"
+config_description: "Standard CPU Profile (8-16 cores, 32GB RAM)"
+
+# ============================================================================
+# CPU SETTINGS - Standard Performance
+# ============================================================================
+processor:
+  use_gpu: false
+  num_workers: 4 # 4 parallel workers (conservative)
+  chunk_size: 1_000_000 # 1M points per chunk
+  ground_truth_chunk_size: 1_500_000
+  ground_truth_method: "strtree"
+
+  reclassification:
+    acceleration_mode: "cpu"
+    chunk_size: 1_000_000
+
+# ============================================================================
+# FEATURES - CPU Optimized
+# ============================================================================
+features:
+  use_gpu: false
+  k_neighbors: 20 # Standard quality
+  search_radius: 1.0
+
+  # Disable GPU-specific settings
+  gpu_batch_size: null
+  neighbor_query_batch_size: null
+  feature_batch_size: null
+
+# ============================================================================
+# GROUND TRUTH
+# ============================================================================
+ground_truth:
+  method: "strtree"
+  use_gpu: false
+  chunk_size: 1_500_000
+  max_parallel_requests: 8 # Fewer parallel requests
+
+# ============================================================================
+# OPTIMIZATIONS
+# ============================================================================
+optimizations:
+  enable_parallel_processing: true
+  max_workers: 4
+  cache_max_size_mb: 128 # Smaller cache for limited RAM
+
+# ============================================================================
+# DATA SOURCES - Aggressive caching
+# ============================================================================
+data_sources:
+  bd_topo:
+    cache_enabled: true
+  cadastre:
+    cache_enabled: true
+  osm:
+    cache_enabled: true
+# ============================================================================
+# EXPECTED PERFORMANCE
+# ============================================================================
+# Processing 20M point tile (8-core CPU):
+# - Feature computation: ~40-60 min
+# - Ground truth: ~12-18 min
+# - Classification: ~5-8 min
+# - I/O: ~3-5 min
+# - Total: ~60-90 min
+#
+# Memory usage:
+# - System RAM: 24-32GB
+#
+# Throughput: ~8-15M points/min
+#
+# Notes:
+# - Suitable for occasional processing
+# - Not recommended for production workloads
+# - Consider processing overnight
+# - Upgrade to GPU for better performance
+# ============================================================================

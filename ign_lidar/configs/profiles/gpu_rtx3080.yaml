@@ -1,0 +1,87 @@
+# ============================================================================
+# Hardware Profile: NVIDIA RTX 3080 (12GB VRAM)
+# ============================================================================
+# Optimized for: RTX 3080 12GB, RTX 3080 Ti (12GB Ampere)
+#
+# Specifications:
+# - VRAM: 12GB GDDR6X
+# - CUDA Cores: 8,704-10,240
+# - Tensor Cores: 272-320 (3rd gen)
+# - Memory Bandwidth: 912 GB/s
+# - Architecture: Ampere (SM 8.6)
+#
+# Performance (20M point tile):
+# - Feature computation: ~3-4 minutes
+# - Total processing: ~12-18 minutes
+#
+# Usage:
+#   ign-lidar-hd process --config-name profiles/gpu_rtx3080 \
+#     input_dir=/data output_dir=/output
+# ============================================================================
+
+defaults:
+  - /base_complete
+
+config_name: "gpu_rtx3080"
+config_description: "NVIDIA RTX 3080 12GB Profile"
+
+# ============================================================================
+# GPU SETTINGS - Conservative (12GB VRAM)
+# ============================================================================
+processor:
+  use_gpu: true
+  gpu_batch_size: 6_000_000 # 6M points per batch
+  gpu_memory_target: 0.80 # Use 80% of VRAM (conservative)
+  gpu_streams: 4 # 4 CUDA streams
+  vram_limit_gb: 10 # Leave 2GB headroom
+
+  # FAISS configuration
+  faiss_gpu_threshold: 20_000_000
+  faiss_allow_large_gpu: true
+  faiss_estimated_temp_memory_gb: 3.0
+
+  num_workers: 1
+  chunk_size: 6_000_000
+  ground_truth_chunk_size: 6_000_000
+  cleanup_frequency: 2 # More frequent cleanup
+
+  reclassification:
+    chunk_size: 5_000_000
+
+# ============================================================================
+# FEATURES
+# ============================================================================
+features:
+  gpu_batch_size: 6_000_000
+  neighbor_query_batch_size: 6_000_000
+  feature_batch_size: 5_000_000
+
+# ============================================================================
+# GROUND TRUTH
+# ============================================================================
+ground_truth:
+  method: "gpu"
+  chunk_size: 6_000_000
+
+# ============================================================================
+# OPTIMIZATIONS
+# ============================================================================
+optimizations:
+  max_workers: 1
+  enable_parallel_processing: false
+# ============================================================================
+# EXPECTED PERFORMANCE
+# ============================================================================
+# Processing 20M point tile:
+# - Feature computation: ~3-4 min
+# - Ground truth: ~2-3 min
+# - Classification: ~1-1.5 min
+# - I/O: ~2-3 min
+# - Total: ~12-18 min
+#
+# Memory usage:
+# - System RAM: 16-22GB
+# - VRAM: 8-10GB
+#
+# Throughput: ~60-80M points/min
+# ============================================================================

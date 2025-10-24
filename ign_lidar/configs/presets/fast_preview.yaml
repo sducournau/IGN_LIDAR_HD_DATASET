@@ -1,0 +1,134 @@
+# ============================================================================
+# Preset: Fast Preview
+# ============================================================================
+# Purpose: Quick preview processing with minimal features
+#
+# Use Cases:
+# - Quick quality check
+# - Testing new data
+# - Rapid prototyping
+# - Initial exploration
+#
+# Trade-offs:
+# - Lower accuracy (but fast!)
+# - Minimal external data
+# - Basic features only
+#
+# Hardware: Any (GPU or CPU)
+# Performance: ~2-4 min per 20M point tile (GPU)
+#
+# Usage:
+#   ign-lidar-hd process --config-name presets/fast_preview \
+#     input_dir=/data output_dir=/output
+# ============================================================================
+
+defaults:
+  - /base_complete
+
+config_name: "fast_preview"
+config_description: "Fast Preview (minimal features, quick results)"
+
+# ============================================================================
+# PROCESSOR - Fast Settings
+# ============================================================================
+processor:
+  lod_level: "ASPRS"
+  processing_mode: "enriched_only"
+
+  # Use smaller batches for responsiveness
+  gpu_batch_size: 2_000_000
+  chunk_size: 2_000_000
+
+  # Disable reclassification for speed
+  reclassification:
+    enabled: false
+
+# ============================================================================
+# FEATURES - Minimal
+# ============================================================================
+features:
+  mode: "minimal" # Minimal feature set
+  k_neighbors: 10 # Fewer neighbors
+
+  # Essential features only
+  compute_normals: true
+  compute_height: true
+  compute_planarity: true
+  compute_verticality: true
+
+  # Disable expensive features
+  compute_curvature: false
+  compute_geometric: false
+  compute_eigenfeatures: false
+  compute_architectural: false
+  compute_boundaries: false
+
+  # No spectral
+  use_rgb: false
+  use_nir: false
+  compute_ndvi: false
+
+  # No DTM
+  use_rge_alti_for_height: false
+
+# ============================================================================
+# DATA SOURCES - Minimal (BD TOPO only)
+# ============================================================================
+data_sources:
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true
+      roads: false # Disable for speed
+      water: false
+      vegetation: false
+    bd_topo_bridges: false
+    bd_topo_power_lines: false
+
+  cadastre:
+    enabled: false
+
+  osm:
+    enabled: false
+
+  rge_alti:
+    enabled: false
+
+# ============================================================================
+# GROUND TRUTH - Fast
+# ============================================================================
+ground_truth:
+  enabled: true
+  fuzzy_boundary_enabled: false # Disable for speed
+
+# ============================================================================
+# VARIABLE OBJECT FILTERING - Disabled
+# ============================================================================
+variable_object_filtering:
+  enabled: false
+
+# ============================================================================
+# OUTPUT
+# ============================================================================
+output:
+  save_enriched: true
+  save_metadata: false # Skip for speed
+  save_stats: false
+  validate_output: false
+# ============================================================================
+# EXPECTED RESULTS
+# ============================================================================
+# Classification Quality:
+# - Overall accuracy: 70-80% (lower but acceptable for preview)
+# - Building detection: 75-85%
+# - Basic class separation working
+#
+# Performance (GPU, 20M points):
+# - Total time: ~2-4 minutes
+# - Throughput: ~200-400M points/min
+#
+# Notes:
+# - NOT for production use
+# - Good for quick checks
+# - Use full presets for actual work
+# ============================================================================

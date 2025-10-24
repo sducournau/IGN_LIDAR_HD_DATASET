@@ -1,0 +1,98 @@
+# ============================================================================
+# Hardware Profile: High-End CPU (No GPU)
+# ============================================================================
+# Optimized for: High-end workstations and servers without GPU
+#
+# Recommended Specifications:
+# - CPU: 32+ cores (AMD Threadripper, Intel Xeon, EPYC)
+# - RAM: 64GB+ DDR4/DDR5
+# - Storage: NVMe SSD (for fast I/O)
+#
+# Performance (20M point tile):
+# - Feature computation: ~25-35 minutes
+# - Total processing: ~45-60 minutes
+#
+# Usage:
+#   ign-lidar-hd process --config-name profiles/cpu_high_end \
+#     input_dir=/data output_dir=/output
+# ============================================================================
+
+defaults:
+  - /base_complete
+
+config_name: "cpu_high_end"
+config_description: "High-End CPU Profile (32+ cores, 64GB+ RAM)"
+
+# ============================================================================
+# CPU SETTINGS - High Performance
+# ============================================================================
+processor:
+  use_gpu: false
+  num_workers: 8 # 8 parallel workers
+  chunk_size: 1_000_000 # 1M points per chunk (CPU optimal)
+  ground_truth_chunk_size: 2_000_000
+  ground_truth_method: "strtree" # STRtree faster for CPU
+
+  reclassification:
+    acceleration_mode: "cpu"
+    chunk_size: 1_000_000
+
+# ============================================================================
+# FEATURES - CPU Optimized
+# ============================================================================
+features:
+  use_gpu: false
+  k_neighbors: 30 # More neighbors for better quality on CPU
+  search_radius: 1.5
+
+  # Disable GPU-specific settings
+  gpu_batch_size: null
+  neighbor_query_batch_size: null
+  feature_batch_size: null
+
+# ============================================================================
+# GROUND TRUTH
+# ============================================================================
+ground_truth:
+  method: "strtree" # STRtree optimal for CPU
+  use_gpu: false
+  chunk_size: 2_000_000
+
+# ============================================================================
+# OPTIMIZATIONS
+# ============================================================================
+optimizations:
+  enable_parallel_processing: true
+  max_workers: 8
+
+# ============================================================================
+# DATA SOURCES - More aggressive caching for CPU
+# ============================================================================
+data_sources:
+  bd_topo:
+    cache_enabled: true
+  cadastre:
+    cache_enabled: true
+  osm:
+    cache_enabled: true
+# ============================================================================
+# EXPECTED PERFORMANCE
+# ============================================================================
+# Processing 20M point tile (32-core CPU):
+# - Feature computation: ~25-35 min
+# - Ground truth: ~8-12 min
+# - Classification: ~3-5 min
+# - I/O: ~3-4 min
+# - Total: ~45-60 min
+#
+# Memory usage:
+# - System RAM: 40-55GB
+#
+# Throughput: ~15-25M points/min
+#
+# Notes:
+# - CPU processing is 3-5× slower than GPU
+# - But works without GPU dependencies
+# - Good for batch processing overnight
+# - Scales well with more cores
+# ============================================================================

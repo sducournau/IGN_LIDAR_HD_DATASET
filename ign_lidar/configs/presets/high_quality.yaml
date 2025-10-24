@@ -1,0 +1,188 @@
+# ============================================================================
+# Preset: High Quality (All Features)
+# ============================================================================
+# Purpose: Maximum quality processing with all available features
+#
+# Use Cases:
+# - Production datasets
+# - Research applications
+# - Detailed analysis
+# - LOD3 preparation
+#
+# Features:
+# - All geometric features
+# - All spectral features
+# - DTM augmentation with RGE ALTI
+# - Multi-source building fusion
+# - Architectural features
+#
+# Hardware: GPU with 16GB+ VRAM recommended
+# Performance: ~20-30 min per 20M point tile
+#
+# Usage:
+#   ign-lidar-hd process --config-name presets/high_quality \
+#     input_dir=/data output_dir=/output
+# ============================================================================
+
+defaults:
+  - /base_complete
+  - /profiles/gpu_rtx4080 # Needs good GPU
+
+config_name: "high_quality"
+config_description: "Maximum Quality (all features enabled)"
+
+# ============================================================================
+# PROCESSOR
+# ============================================================================
+processor:
+  lod_level: "LOD3" # LOD3 for highest quality
+  processing_mode: "enriched_only"
+
+# ============================================================================
+# FEATURES - Maximum Quality
+# ============================================================================
+features:
+  mode: "full" # All features
+  k_neighbors: 80 # High neighbor count for quality
+
+  # All geometric features
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: true
+  compute_planarity: true
+  compute_verticality: true
+  compute_linearity: true
+  compute_sphericity: true
+  compute_eigenfeatures: true
+
+  # Architectural features (LOD3)
+  compute_architectural: true
+  compute_boundaries: true
+  compute_multiscale: true
+
+  # Spectral features
+  use_rgb: true
+  use_nir: true
+  compute_ndvi: true
+
+  # DTM with RGE ALTI
+  use_rge_alti_for_height: true
+  height_method: "hybrid"
+  compute_height_above_ground: true
+  compute_height_local: true
+  compute_z_from_dtm: true
+
+# ============================================================================
+# DATA SOURCES - All Enabled
+# ============================================================================
+data_sources:
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true
+      roads: true
+      water: true
+      vegetation: true
+    bd_topo_bridges: true
+    bd_topo_power_lines: true
+    bd_topo_sports: true
+    bd_topo_cemeteries: true
+    bd_topo_parking: true
+
+  cadastre:
+    enabled: true
+    use_as_building_proxy: true
+
+  osm:
+    enabled: true
+
+  # RGE ALTI with DTM augmentation
+  rge_alti:
+    enabled: true
+    augment_ground_points: true
+    augmentation_spacing: 1.5 # High quality (1.5m spacing)
+    augmentation_areas:
+      - "vegetation"
+      - "gaps"
+      - "buildings"
+      - "water"
+    compute_height_from_dtm: true
+    dtm_height_priority: "high"
+
+# ============================================================================
+# GROUND TRUTH - High Quality
+# ============================================================================
+ground_truth:
+  enabled: true
+  adaptive_mode: true
+  fuzzy_boundary_enabled: true
+  fuzzy_boundary_outer: 3.0
+
+  # RGE ALTI augmentation
+  rge_alti:
+    enabled: true
+    augment_ground: true
+    augmentation_strategy: "intelligent"
+    augmentation_spacing: 1.5
+    validate_against_neighbors: true
+
+# ============================================================================
+# VARIABLE OBJECT FILTERING
+# ============================================================================
+variable_object_filtering:
+  enabled: true
+  filter_vehicles: true
+  filter_urban_furniture: true
+
+  # Building fusion (multi-source)
+  building_fusion:
+    enabled: true
+    fusion_mode: "weighted_merge"
+    source_priority: ["bd_topo", "cadastre", "osm"]
+    enable_multi_source_fusion: true
+
+  # Adaptive building classification
+  adaptive_building_classification:
+    enabled: true
+    enable_adaptive_expansion: true
+    enable_intelligent_rejection: true
+
+# ============================================================================
+# OUTPUT - Save Everything
+# ============================================================================
+output:
+  save_enriched: true
+  save_patches: true # Save patches for LOD3
+  save_metadata: true
+  save_stats: true
+  validate_output: true
+  save_fusion_report: true
+  save_dtm_augmentation_report: true
+  include_dtm_height: true
+  include_synthetic_flag: true
+# ============================================================================
+# EXPECTED RESULTS
+# ============================================================================
+# Classification Quality:
+# - Overall accuracy: 92-98%
+# - Building detection: 95-99%
+# - Road detection: 88-95%
+# - Vegetation: 90-96%
+# - Ground: 92-97%
+# - Architectural features: High detail
+#
+# Performance (RTX 4080, 20M points):
+# - Total time: ~20-30 minutes
+# - Throughput: ~30-50M points/min
+#
+# Output Size:
+# - Enriched cloud: ~3-5× larger (many features)
+# - Additional reports and metadata
+#
+# Notes:
+# - Maximum quality, slower processing
+# - Requires RGE ALTI API access
+# - Produces LOD3-ready data
+# - Best for final production runs
+# ============================================================================

@@ -48,6 +48,22 @@ output:
   save_stats: true # Save style distribution statistics
   save_metadata: true # Save patch metadata
 
+# ============================================================================
+# PREPROCESS
+# ============================================================================
+preprocess:
+  enabled: false
+  remove_duplicates: true
+  remove_outliers: true
+  outlier_std_multiplier: 3.0
+
+
+stitching:
+  enabled: false
+  buffer_size: 10.0
+  blend_overlap: true
+
+
 # Hydra output directory
 hydra:
   run:

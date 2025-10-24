@@ -1,0 +1,107 @@
+# ============================================================================
+# Preset: ASPRS Classification (CPU)
+# ============================================================================
+# Purpose: Standard ASPRS point cloud classification for CPU-only systems
+#
+# Features:
+# - ASPRS standard classes
+# - Balanced quality (k=30)
+# - BD TOPO + Cadastre integration
+# - Optimized for CPU processing
+#
+# Hardware: 8+ cores, 32GB+ RAM recommended
+# Performance: ~45-60 min per 20M point tile (8+ cores)
+#
+# Usage:
+#   ign-lidar-hd process --config-name presets/asprs_classification_cpu \
+#     input_dir=/data output_dir=/output
+# ============================================================================
+
+defaults:
+  - /base_complete
+  - /profiles/cpu_high_end # Default to high-end CPU profile
+
+config_name: "asprs_classification_cpu"
+config_description: "ASPRS Classification for CPU"
+
+# ============================================================================
+# PROCESSOR
+# ============================================================================
+processor:
+  lod_level: "ASPRS"
+  processing_mode: "enriched_only"
+
+# ============================================================================
+# FEATURES - Balanced Quality
+# ============================================================================
+features:
+  mode: "asprs_classes"
+  k_neighbors: 30 # Balanced for CPU
+
+  # Enable spectral if available
+  use_rgb: true
+  use_nir: false # Disable NDVI for speed
+  compute_ndvi: false
+
+  # Height computation
+  use_rge_alti_for_height: false
+
+# ============================================================================
+# DATA SOURCES - Essential Only
+# ============================================================================
+data_sources:
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true
+      roads: true
+      water: true
+      vegetation: false # Disable for speed
+    bd_topo_bridges: false
+    bd_topo_power_lines: false
+
+  cadastre:
+    enabled: true
+    use_as_building_proxy: true
+
+  osm:
+    enabled: false # Disable for speed
+
+# ============================================================================
+# GROUND TRUTH
+# ============================================================================
+ground_truth:
+  enabled: true
+  fuzzy_boundary_enabled: true
+  fuzzy_boundary_outer: 2.0
+
+# ============================================================================
+# VARIABLE OBJECT FILTERING
+# ============================================================================
+variable_object_filtering:
+  enabled: true
+  filter_vehicles: true
+  filter_urban_furniture: false # Disable for speed
+
+# ============================================================================
+# OUTPUT
+# ============================================================================
+output:
+  save_enriched: true
+  save_metadata: true
+  save_stats: true
+  validate_output: true
+# ============================================================================
+# EXPECTED RESULTS
+# ============================================================================
+# Classification Quality:
+# - Overall accuracy: 85-92%
+# - Building detection: 88-94%
+# - Road detection: 78-88%
+# - Vegetation: 82-90%
+# - Ground: 85-92%
+#
+# Performance (8-core CPU, 20M points):
+# - Total time: ~45-60 minutes
+# - Throughput: ~15-25M points/min
+# ============================================================================
