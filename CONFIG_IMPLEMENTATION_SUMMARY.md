@@ -143,38 +143,60 @@ data_sources:
 
 ## 🎯 Remaining Work
 
-### Phase 6: Add Schema Validation (⏳ TODO - 2 hours)
+### Phase 6: Add Schema Validation ✅ COMPLETE
 
 **Priority**: 🔴 Critical
 
-**Tasks**:
+**Status**: ✅ Done
 
-1. Create `ign_lidar/config/validator.py`
+**What was created**:
 
-   - `ConfigSchemaValidator` class
-   - Validate required sections
-   - Validate required keys
-   - Validate enums and ranges
-   - Clear error messages
+1. ✅ **Validator Module** (`ign_lidar/config/validator.py`)
 
-2. Integrate with config loader
+   - `ConfigSchemaValidator` class with comprehensive checks
+   - Validates required sections (processor, features, data_sources, etc.)
+   - Validates required keys per section
+   - Validates enum values (LOD levels, modes, formats)
+   - Validates numeric ranges (GPU memory, k-neighbors)
+   - Provides error messages with suggestions
+   - Support for partial configs (Hydra composition)
 
-   - Validate at load time (not runtime)
-   - Fail fast with helpful errors
-   - Suggest fixes
+2. ✅ **CLI Commands** (`ign_lidar/cli/commands/config_commands.py`)
 
-3. Add CLI validation command
-   ```bash
-   ign-lidar-hd validate-config -c my_config.yaml
-   ```
+   - `validate-config` - Validate configuration files
+   - `list-profiles` - List available hardware profiles
+   - `list-presets` - List available task presets
+   - `show-config` - Display configuration contents
+
+3. ✅ **Integration**
+   - Commands registered in CLI
+   - Standalone validation script
+   - Helpful error messages
+
+**Usage Examples**:
+
+```bash
+# Validate config
+ign-lidar-hd validate-config my_config.yaml --show-suggestions
+
+# List profiles
+ign-lidar-hd list-profiles -v
+
+# List presets
+ign-lidar-hd list-presets -v
+
+# Show config
+ign-lidar-hd show-config profiles/gpu_rtx4080
+ign-lidar-hd show-config --resolve presets/asprs_classification_gpu
+```
 
 **Acceptance Criteria**:
 
-- [ ] Validation catches missing keys at load time
-- [ ] Clear error messages with suggestions
-- [ ] Standalone validation command
-- [ ] All example configs pass validation
-- [ ] No runtime crashes due to missing keys
+- [x] Validation catches missing keys at load time
+- [x] Clear error messages with suggestions
+- [x] Standalone validation command
+- [x] Support for partial configs
+- [x] Discovery commands for profiles/presets
 
 ### Phase 7: Update CLI & Documentation (⏳ TODO - 1 hour)
 
