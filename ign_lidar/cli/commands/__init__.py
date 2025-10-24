@@ -22,6 +22,12 @@ from .ground_truth import ground_truth_command
 from .update_classification import update_classification_command
 from .auto_config import auto_config
 from .presets import presets_command
+from .config_commands import (
+    validate_config_command,
+    list_profiles_command,
+    list_presets_command,
+    show_config_command
+)
 
 __all__ = [
     'process_command',
@@ -32,5 +38,9 @@ __all__ = [
     'ground_truth_command',
     'update_classification_command',
     'auto_config',
-    'presets_command'
+    'presets_command',
+    'validate_config_command',
+    'list_profiles_command',
+    'list_presets_command',
+    'show_config_command'
 ]
