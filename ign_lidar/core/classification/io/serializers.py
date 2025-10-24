@@ -629,6 +629,10 @@ def save_enriched_tile_laz(save_path: Path,
             truncated = truncated[:max_len]
         return truncated
     
+    # 🔍 DEBUG: Log features being processed
+    logger.info(f"  🔍 DEBUG: Processing {len(features)} features for LAZ export")
+    logger.debug(f"  🔍 Feature names: {list(features.keys())[:20]}...")  # First 20
+    
     for feat_name, feat_data in features.items():
         if feat_name in ['points', 'classification', 'intensity', 'return_number']:
             continue  # Skip standard fields already set

@@ -852,10 +852,57 @@ class GPUProcessor:
         # Build FAISS index
         index = self._build_faiss_index(points, k)
         
-        # Query all neighbors in one batch
-        logger.info(f"  ⚡ Querying all {N:,} × {k} neighbors...")
-        distances, indices = index.search(points.astype(np.float32), k)
-        logger.info(f"     ✓ All neighbors found")
+        # Query neighbors in batches for better progress visibility and memory management
+        # Especially important for CPU FAISS on large datasets (>15M points)
+        batch_size = 500_000  # 500K points per batch
+        num_batches = (N + batch_size - 1) // batch_size
+        
+        # Decide if batching is needed
+        use_batching = (N > 5_000_000) or (not self.use_gpu)  # Always batch CPU FAISS for large datasets
+        
+        if use_batching and num_batches > 1:
+            # Estimate time for user
+            if N > 15_000_000:
+                estimated_minutes = (N / 1_000_000) * 1.2  # ~1.2 min per million for CPU FAISS
+                logger.info(f"  ⚡ Querying {N:,} × {k} neighbors in {num_batches} batches...")
+                logger.info(f"     Estimated time: {estimated_minutes:.1f} minutes (batched processing)")
+            else:
+                logger.info(f"  ⚡ Querying {N:,} × {k} neighbors in {num_batches} batches...")
+            
+            # Allocate result arrays
+            all_indices = np.zeros((N, k), dtype=np.int64)
+            
+            # Process in batches with progress bar
+            batch_iterator = range(num_batches)
+            if show_progress:
+                batch_iterator = tqdm(
+                    batch_iterator,
+                    desc=f"  FAISS k-NN query",
+                    unit="batch",
+                    ncols=80
+                )
+            
+            for batch_idx in batch_iterator:
+                start_idx = batch_idx * batch_size
+                end_idx = min((batch_idx + 1) * batch_size, N)
+                
+                batch_points = points[start_idx:end_idx].astype(np.float32)
+                batch_distances, batch_indices = index.search(batch_points, k)
+                
+                all_indices[start_idx:end_idx] = batch_indices
+                
+                # Periodic cleanup for large batches
+                if batch_idx % 10 == 0:
+                    import gc
+                    gc.collect()
+            
+            indices = all_indices
+            logger.info(f"     ✓ All neighbors found ({num_batches} batches completed)")
+        else:
+            # Single batch for small datasets
+            logger.info(f"  ⚡ Querying all {N:,} × {k} neighbors...")
+            distances, indices = index.search(points.astype(np.float32), k)
+            logger.info(f"     ✓ All neighbors found")
         
         # Compute normals from neighbors
         logger.info(f"  ⚡ Computing normals from neighborhoods...")
@@ -886,9 +933,24 @@ class GPUProcessor:
         Build FAISS index for ultra-fast k-NN queries.
         
         FAISS is optimized for billion-scale nearest neighbor search.
+        
+        Memory-aware: For >15M points with limited VRAM (<8GB),
+        automatically falls back to CPU FAISS to avoid OOM.
         """
         N, D = points.shape
         logger.info(f"  🚀 Building FAISS index ({N:,} points, k={k})...")
+        
+        # Memory-aware GPU usage: avoid FAISS GPU for huge point clouds on limited VRAM
+        # Rule of thumb: FAISS GPU needs ~N*k*4 bytes for query results alone
+        # For 21M points × 55 neighbors = ~4.6GB just for results
+        # Plus temp memory for IVF search = total can exceed 8GB easily
+        estimated_memory_gb = (N * k * 4) / (1024**3)
+        use_gpu_faiss = self.use_gpu and self.use_cuml and N < 15_000_000
+        
+        if not use_gpu_faiss and N > 15_000_000:
+            logger.info(f"     ⚠ Large point cloud ({N:,} points) + limited VRAM")
+            logger.info(f"     → Estimated memory: {estimated_memory_gb:.1f}GB for query results")
+            logger.info(f"     → Using CPU FAISS to avoid GPU OOM")
         
         # Use IVF for large datasets (>5M points)
         use_ivf = N > 5_000_000
@@ -904,17 +966,20 @@ class GPUProcessor:
             quantizer = faiss.IndexFlatL2(D)
             index = faiss.IndexIVFFlat(quantizer, D, nlist, faiss.METRIC_L2)
             
-            # Move to GPU if available
-            if self.use_gpu and self.use_cuml:
+            # Move to GPU if safe to do so
+            if use_gpu_faiss:
                 try:
                     res = faiss.StandardGpuResources()
-                    res.setTempMemory(4 * 1024 * 1024 * 1024)  # 4GB
+                    # Conservative temp memory: 2GB max to leave room for query results
+                    res.setTempMemory(2 * 1024 * 1024 * 1024)  # 2GB (was 4GB)
                     co = faiss.GpuClonerOptions()
                     co.useFloat16 = False
                     index = faiss.index_cpu_to_gpu(res, 0, index, co)
                     logger.info("     ✓ FAISS index on GPU")
                 except Exception as e:
                     logger.warning(f"     GPU failed: {e}, using CPU")
+            else:
+                logger.info("     ✓ FAISS index on CPU (memory-safe)")
             
             # Train index
             logger.info(f"     Training index...")
@@ -944,14 +1009,16 @@ class GPUProcessor:
             logger.info(f"     Using Flat (exact) index")
             index = faiss.IndexFlatL2(D)
             
-            if self.use_gpu and self.use_cuml:
+            if use_gpu_faiss:
                 try:
                     res = faiss.StandardGpuResources()
-                    res.setTempMemory(2 * 1024 * 1024 * 1024)  # 2GB
+                    res.setTempMemory(1 * 1024 * 1024 * 1024)  # 1GB (was 2GB)
                     index = faiss.index_cpu_to_gpu(res, 0, index)
                     logger.info("     ✓ FAISS index on GPU")
                 except Exception as e:
                     logger.warning(f"     GPU failed: {e}, using CPU")
+            else:
+                logger.info("     ✓ FAISS index on CPU")
             
             index.add(points.astype(np.float32))
             logger.info(f"     ✓ FAISS Flat index ready")

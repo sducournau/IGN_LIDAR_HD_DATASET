@@ -1,0 +1,611 @@
+# ============================================================================
+# IGN LiDAR HD - ASPRS CPU-Optimized Configuration (FIXED for Building Detection)
+# ============================================================================
+# Purpose: Memory-efficient ASPRS classification with IMPROVED building detection
+#
+# ⚠️ This is a FIXED version of config_asprs_bdtopo_cadastre_cpu_optimized.yaml
+#
+# FIXES APPLIED (2025-10-24):
+# 1. Building Fusion - Increased polygon adaptation tolerance
+#    - max_translation: 6.0m → 12.0m (handle misaligned polygons)
+#    - enable_rotation: false → true (allow rotated buildings)
+#    - max_scale_factor: 1.8 → 2.5 (handle size variations)
+#
+# 2. Adaptive Classification - Relaxed thresholds
+#    - fuzzy_boundary_outer: 2.5m → 5.0m (wider fuzzy zone)
+#    - max_expansion_distance: 3.5m → 6.0m (more expansion)
+#    - min_classification_confidence: 0.55 → 0.45 (less strict)
+#    - expansion_confidence_threshold: 0.65 → 0.55 (more expansion)
+#
+# 3. Building Signature - Accept more roof types
+#    - roof_planarity_min: 0.70 → 0.65 (complex roofs)
+#    - roof_curvature_max: 0.10 → 0.15 (curved roofs)
+#    - roof_normal_z_range: [0.25, 1.0] → [0.15, 1.0] (steep roofs)
+#
+# 4. Feature Weights - Better balance
+#    - height: 0.22 → 0.25 (more important)
+#    - geometry: 0.35 → 0.30 (less dominant)
+#    - spectral: 0.18 → 0.15 (slight reduction)
+#    - ground_truth: 0.10 → 0.15 (trust polygons more)
+#
+# 5. DTM Augmentation - Denser grid for accurate building heights
+#    - augmentation_spacing: 3.0m → 2.0m (denser grid)
+#    - augmentation_strategy: "gaps" → "intelligent" (better placement)
+#    - augmentation_areas: +buildings (ADDED for building HAG)
+#    - min_spacing_to_existing: 2.0m → 1.5m (more points)
+#
+# Expected Improvement:
+# - Building detection rate: ~30-50% → >80%
+# - Buildings appear RED (Class 6) instead of pink/magenta in visualization
+# - Fewer elevated points remain unclassified
+#
+# See docs/CLASSIFICATION_QUALITY_AUDIT_2025.md for full analysis
+#
+# Hardware Requirements:
+# - RAM: 32GB system memory
+# - CPU: Multi-core recommended
+# - No GPU required
+#
+# Expected Performance (32GB RAM, CPU only):
+# - Processing speed: ~10-20M points/minute
+# - Memory usage: Kept under 80% (~25GB)
+# - Total time per tile: ~15-25 min for 20M point tiles
+#
+# Usage:
+#   ign-lidar-hd process \
+#     -c examples/config_asprs_bdtopo_cadastre_cpu_fixed.yaml \
+#     input_dir="/path/to/tiles" \
+#     output_dir="/path/to/output"
+# ============================================================================
+
+defaults:
+  - base/processor
+  - base/features
+  - base/data_sources
+  - base/output
+  - base/monitoring
+  - _self_
+
+# Configuration metadata
+config_version: "5.3.1"
+config_name: "asprs_bdtopo_cadastre_cpu_optimized"
+config_description: "Memory-Efficient ASPRS for CPU-Only Systems (32GB RAM)"
+
+# ============================================================================
+# PROCESSOR - CPU-Optimized Settings
+# ============================================================================
+processor:
+  lod_level: "ASPRS"
+  processing_mode: "enriched_only"
+
+  # ============================================================================
+  # CPU OPTIMIZATION - 32GB RAM
+  # ============================================================================
+  use_gpu: false
+  num_workers: 1 # Single worker to control memory usage
+
+  # Chunking for large tiles (prevent OOM)
+  chunk_size: 5_000_000 # Process 5M points at a time
+
+  # Ground truth processing
+  ground_truth_method: "strtree" # CPU-optimized spatial index
+  ground_truth_chunk_size: 5_000_000 # Match chunk size
+
+  # Strategy pattern
+  use_strategy_pattern: true
+
+  # Disable GPU-specific optimizations
+  use_cuda_streams: false
+  enable_memory_pooling: false
+  enable_pipeline_optimization: false
+  enable_async_transfers: false
+  adaptive_chunk_sizing: true
+  auto_optimize: false
+
+  # Processing settings
+  skip_existing: false
+  output_format: "laz"
+  use_stitching: false
+
+  # Patch extraction (disabled)
+  patch_size: 50.0
+  patch_overlap: 0.1
+  num_points: 24576
+  architecture: "direct"
+  augment: false
+  num_augmentations: 0 # No augmentation when augment=false
+
+  # ============================================================================
+  # RECLASSIFICATION - Simplified for CPU
+  # ============================================================================
+  reclassification:
+    enabled: true
+    acceleration_mode: "cpu"
+    chunk_size: 2_000_000 # Smaller chunks for classification
+    min_confidence: 0.50 # V2: Reduced from 0.75 to capture more points
+    use_geometric_rules: true
+    use_ndvi_classification: true
+    show_progress: true
+    ndvi_vegetation_threshold: 0.3
+    ndvi_road_threshold: 0.15
+    use_spectral_rules: true
+    nir_vegetation_threshold: 0.35
+    nir_building_threshold: 0.25
+    use_clustering: true
+    spatial_cluster_eps: 0.5 # V2: Increased from 0.4 for larger clusters
+    min_cluster_size: 5 # V2: Reduced from 8 to allow smaller clusters
+    building_buffer_distance: 5.0 # V2: Increased from 3.5m for wider expansion
+    verticality_threshold: 0.55 # V2: Reduced from 0.65 for less strict walls
+
+  # Building clustering
+  building_clustering:
+    enabled: true
+    use_centroid_attraction: true
+    attraction_radius: 5.0
+    min_points_per_building: 10
+    adjust_polygons: true
+    polygon_buffer: 0.5
+    wall_buffer: 0.3
+    detect_near_vertical_walls: true
+
+# ============================================================================
+# FEATURES - CPU-Optimized Settings
+# ============================================================================
+features:
+  mode: "asprs_classes"
+  include_extra: true
+
+  # Reduced parameters for memory efficiency
+  k_neighbors: 50 # Reduced from 75 to save memory
+  search_radius: 1.5
+
+  # ============================================================================
+  # CPU SETTINGS - Memory Efficient
+  # ============================================================================
+  use_gpu: false
+  use_gpu_chunked: false
+
+  # Smaller batch sizes for CPU processing
+  neighbor_query_batch_size: 2_000_000 # 2M points per batch
+  feature_batch_size: 2_000_000 # 2M points per batch
+
+  # Essential features only
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: true
+
+  # Additional geometric features (lightweight)
+  compute_planarity: true
+  compute_verticality: true
+  compute_linearity: true
+  compute_sphericity: true
+  compute_eigenfeatures: true
+
+  # Height computation - SIMPLIFIED for CPU
+  height_method: "hybrid"
+  use_rge_alti_for_height: true
+  dtm_interpolation: "bilinear" # Faster than cubic
+  compute_height_above_ground: true
+  compute_height_local: true
+  compute_z_from_dtm: true
+
+  # Spectral features
+  use_rgb: true
+  use_nir: true
+  use_infrared: true
+  compute_ndvi: true
+
+  # Disable expensive features
+  compute_architectural: false
+  architectural_styles: false
+  compute_boundaries: false
+  compute_multiscale: false
+
+  # Caching (helps with memory)
+  enable_caching: true
+  cache_max_size: 50
+  enable_auto_tuning: false
+  validate_features: true
+  handle_nan_values: true
+
+# ============================================================================
+# VARIABLE OBJECT FILTERING
+# ============================================================================
+variable_object_filtering:
+  enabled: true
+  filter_vehicles: true
+  vehicle_height_range: [0.8, 4.0]
+  filter_urban_furniture: true
+  furniture_height_range: [0.5, 4.0]
+  furniture_max_cluster_size: 50
+  filter_walls: false
+  wall_height_range: [0.5, 2.5]
+  wall_min_verticality: 0.8
+  reclassify_to: 1
+  create_vehicle_class: true
+  vehicle_class_code: 18
+  verbose: true
+
+  # ============================================================================
+  # BUILDING FUSION - FIXED for Better Building Detection
+  # ============================================================================
+  building_fusion:
+    enabled: true
+    source_priority:
+      - "bd_topo"
+      - "cadastre"
+      - "osm"
+    min_quality_score: 0.50
+    quality_difference_threshold: 0.10
+    fusion_mode: "best"
+    enable_multi_source_fusion: true
+    enable_translation: true
+    max_translation: 12.0 # ⬆️ FIXED: Increased from 6.0m for misaligned polygons
+    enable_scaling: true
+    max_scale_factor: 2.5 # ⬆️ FIXED: Increased from 1.8 for size variations
+    enable_rotation: true # ⬆️ FIXED: ENABLED (was false) for rotated polygons
+    max_rotation: 45.0
+    enable_buffering: true
+    adaptive_buffer_range: [0.8, 2.0]
+    min_points_per_building: 12
+    wall_detection_threshold: 0.60
+    overlap_threshold: 0.28
+    merge_nearby_buildings: true
+    merge_distance_threshold: 2.0
+
+  building_clustering:
+    enabled: true
+    use_centroid_attraction: true
+    attraction_radius: 6.0
+    min_points_per_building: 8
+    adjust_polygons: false
+    polygon_buffer: 0.0
+    wall_buffer: 0.0
+    detect_near_vertical_walls: true
+
+  # ============================================================================
+  # ADAPTIVE BUILDING CLASSIFICATION
+  # ============================================================================
+  adaptive_building_classification:
+    enabled: true
+    signature:
+      min_height: 1.2
+      typical_height_range: [2.0, 60.0]
+      wall_verticality_min: 0.55 # ⬇️ FIXED v2: Reduced from 0.60 for more permissive walls
+      wall_planarity_max: 0.65
+      roof_planarity_min: 0.60 # ⬇️ FIXED v2: Reduced from 0.65 for lower quality roofs
+      roof_curvature_max: 0.20 # ⬆️ FIXED v2: Increased from 0.15 for curved roofs
+      roof_normal_z_range: [0.15, 1.0] # ⬇️ FIXED: Lowered from [0.25, 1.0] for steep roofs
+      ndvi_max: 0.28
+      ndvi_wall_max: 0.22
+      min_cluster_size: 5 # ⬇️ FIXED v2: Reduced from 8 for smaller clusters
+      max_isolation_distance: 6.0
+    fuzzy_boundary_inner: 0.0
+    fuzzy_boundary_outer: 5.0 # ⬆️ FIXED: Increased from 2.5m for wider fuzzy zone
+    fuzzy_decay_function: "gaussian"
+    enable_adaptive_expansion: true
+    max_expansion_distance: 6.0 # ⬆️ FIXED: Increased from 3.5m for more expansion
+    expansion_confidence_threshold: 0.50 # ⬇️ FIXED v2: Reduced from 0.55 for MORE expansion
+    enable_intelligent_rejection: true
+    rejection_confidence_threshold: 0.35 # ⬇️ FIXED v2: Reduced from 0.45 for LESS rejection
+    enable_spatial_clustering: true
+    spatial_radius: 2.5
+    min_neighbor_ratio: 0.25
+    min_classification_confidence: 0.40 # ⬇️ FIXED v2: Reduced from 0.45 for VERY permissive
+    feature_weights:
+      height: 0.25 # ⬆️ FIXED: Increased from 0.22 (more important)
+      geometry: 0.30 # ⬇️ FIXED: Reduced from 0.35 (less dominant)
+      spectral: 0.15 # ⬇️ FIXED: Reduced from 0.18
+      spatial: 0.15
+      ground_truth: 0.15 # ⬆️ FIXED: Increased from 0.10 (trust polygons more)
+
+  # ============================================================================
+  # PLANE DETECTION
+  # ============================================================================
+  plane_detection:
+    enabled: true
+    horizontal_angle_max: 15.0
+    horizontal_planarity_min: 0.68
+    vertical_angle_min: 70.0
+    vertical_planarity_min: 0.58
+    inclined_angle_min: 15.0
+    inclined_angle_max: 70.0
+    inclined_planarity_min: 0.62
+    min_points_per_plane: 35
+    max_plane_distance: 0.20
+    use_spatial_coherence: true
+    classify_roof_types: true
+    detect_architectural_elements: false
+
+# ============================================================================
+# DATA SOURCES
+# ============================================================================
+data_sources:
+  bd_topo:
+    enabled: true
+    features:
+      buildings: true
+      roads: true
+      water: true
+      vegetation: false
+    wfs_url: "https://data.geopf.fr/wfs"
+    max_features: 10000
+    timeout: 30
+    cache_enabled: true
+    cache_dir: null
+    use_global_cache: false
+    use_gpu: false # CPU only
+    road_buffer: 2.5
+    building_priority: 1
+    road_priority: 2
+    water_priority: 3
+    vegetation_priority: 4
+
+  bd_topo_bridges: true
+  bd_topo_power_lines: true
+  bd_topo_sports: true
+  bd_topo_cemeteries: true
+  bd_topo_parking: false
+
+  cadastre:
+    enabled: true
+    wfs_url: "https://data.geopf.fr/wfs"
+    typename: "CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle"
+    use_as_building_proxy: true
+    cache_dir: null
+
+  cadastre_enabled: true
+  cadastre_cache_dir: null
+
+  osm:
+    enabled: true
+    overpass_url: "https://overpass-api.de/api/interpreter"
+    timeout: 180
+    building_tags:
+      - "building=yes"
+      - "building=house"
+      - "building=residential"
+      - "building=apartments"
+      - "building=commercial"
+      - "building=industrial"
+      - "building=retail"
+      - "building=office"
+      - "building=school"
+      - "building=church"
+      - "building=hospital"
+    min_building_area: 8.0
+    max_building_area: 15000.0
+    cache_enabled: true
+    cache_dir: null
+    cache_ttl_days: 30
+
+  # ============================================================================
+  # RGE ALTI - IMPROVED AUGMENTATION for Better Building Heights
+  # ============================================================================
+  rge_alti:
+    enabled: true
+    use_wcs: true
+    use_local: false
+    wcs_url: "https://wxs.ign.fr/altimetrie/geoportail/r/wcs"
+    coverage_id: "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES"
+    api_key: "pratique"
+    resolution: 1.0
+    local_dtm_dir: null
+    cache_enabled: true
+    cache_dir: null
+    cache_ttl_days: 90
+
+    # IMPROVED augmentation - denser grid for better HAG
+    augment_ground_points: true
+    augmentation_spacing: 2.0 # ⬇️ FIXED: Reduced from 3.0m for denser DTM grid
+    augmentation_areas:
+      - "vegetation"
+      - "gaps"
+      - "buildings" # ⬆️ FIXED: ADDED for accurate building height
+
+    compute_height_from_dtm: true
+    dtm_height_priority: "medium"
+
+  bd_foret_enabled: false
+  rpg_enabled: false
+  orthophoto_rgb: true
+  orthophoto_nir: true
+  orthophoto_cache_dir: null
+
+# ============================================================================
+# GROUND TRUTH - CPU-Optimized
+# ============================================================================
+ground_truth:
+  enabled: true
+  method: "strtree" # CPU-optimized spatial index
+  chunk_size: 5_000_000 # Match processor chunk size
+  cache_dir: null
+  cache_ttl_days: 30
+  cache_compression: true
+  preclassify: true
+  show_progress: true
+  use_gpu: false # CPU only
+
+  # Adaptive ground truth
+  adaptive_mode: true
+  fuzzy_boundary_enabled: true
+  fuzzy_boundary_inner: 0.0
+  fuzzy_boundary_outer: 2.5
+  fuzzy_decay_function: "gaussian"
+  adaptive_expansion_enabled: true
+  max_expansion_distance: 3.5
+  expansion_confidence_threshold: 0.65
+  intelligent_rejection_enabled: true
+  rejection_confidence_threshold: 0.45
+  reject_vegetation_in_polygons: true
+  reject_outliers_in_polygons: true
+
+  # RGE ALTI settings - IMPROVED for better building heights
+  rge_alti:
+    enabled: true
+    augment_ground: true
+    augmentation_strategy: "intelligent" # ⬆️ FIXED: Changed from "gaps" to "intelligent"
+    augmentation_spacing: 2.0 # ⬇️ FIXED: Reduced from 3.0m for denser grid
+    min_spacing_to_existing: 1.5 # ⬇️ FIXED: Reduced from 2.0m for more points
+    augmentation_priority:
+      vegetation: true
+      buildings: true # ⬆️ FIXED: ENABLED (was false) for building HAG
+      water: false
+      roads: false
+      gaps: true
+    max_height_difference: 3.0
+    validate_against_neighbors: true
+    synthetic_ground_class: 2
+    mark_as_synthetic: true
+
+  bd_topo:
+    enabled: true
+    classification_mapping:
+      buildings: 6
+      roads: 11
+      railways: 10
+      water: 9
+      low_vegetation: 3
+      medium_vegetation: 4
+      high_vegetation: 5
+      bridges: 17
+      parking: 11
+      cemeteries: 2
+      sports: 11
+      power_lines: 14
+    road_buffer: 3.0
+    railway_buffer: 2.5
+    power_line_buffer: 6.0
+    building_buffer: 1.2
+    water_buffer: 1.5
+    road_width_fallback: 5.0
+    railway_width_fallback: 4.0
+    road_min_width: 1.5
+    road_max_width: 60.0
+
+  cadastre:
+    enabled: true
+    min_parcel_area: 8.0
+    min_parcel_points: 15
+    group_by_parcel: true
+    export_parcel_stats: true
+
+  integration:
+    method: "priority_based"
+    priority:
+      bd_topo: 1
+      cadastre: 2
+      orthophoto: 4
+      geometric_rules: 5
+    confidence_threshold: 0.65
+
+  quality_control:
+    enabled: true
+    validate_geometries: true
+    check_coverage: true
+    min_coverage_ratio: 0.15
+
+  parallel_fetch: true
+  max_parallel_requests: 8 # Reduced from 12
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  format: "laz"
+  save_enriched: true
+  save_patches: false
+  save_metadata: true
+  save_stats: true
+  compression: null
+  validate_output: true
+  save_fusion_report: true
+  save_quality_scores: true
+  save_adapted_polygons: true
+  save_dtm_augmentation_report: true
+  save_dtm_grid: false
+  save_height_comparison: true
+  include_dtm_height: true
+  include_local_height: true
+  include_dtm_elevation: true
+  include_synthetic_flag: true
+  save_adaptive_report: true
+  include_confidence_scores: true
+  extra_dims:
+    - name: "BuildingConfidence"
+      type: "float32"
+      description: "Building classification confidence (0-1)"
+    - name: "IsWall"
+      type: "uint8"
+      description: "1 if point is likely a wall"
+    - name: "IsRoof"
+      type: "uint8"
+      description: "1 if point is likely a roof"
+    - name: "DistanceToPolygon"
+      type: "float32"
+      description: "Signed distance to nearest building polygon (m)"
+    - name: "AdaptiveExpanded"
+      type: "uint8"
+      description: "1 if classified via adaptive expansion"
+    - name: "IntelligentRejected"
+      type: "uint8"
+      description: "1 if rejected despite being in polygon"
+  export_parcel_stats: true
+  parcel_stats_format: "csv,geojson,html"
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  level: INFO
+  show_progress: true
+  detailed_timing: true
+  enable_performance_metrics: true
+  enable_profiling: false
+
+# ============================================================================
+# PREPROCESSING & STITCHING
+# ============================================================================
+preprocess:
+  enabled: false
+  remove_duplicates: true
+  remove_outliers: true
+  outlier_std_multiplier: 3.0
+
+stitching:
+  enabled: false
+  buffer_size: 10.0
+  blend_overlap: true
+
+# ============================================================================
+# OPTIMIZATIONS - CPU-Specific
+# ============================================================================
+optimizations:
+  enable_caching: true
+  cache_max_size_mb: 100
+  enable_parallel_processing: false # Single-threaded for memory control
+  max_workers: 1
+  enable_auto_tuning: false
+  adaptive_parameters: true
+  enable_performance_metrics: true
+  enable_profiling: false
+
+validation:
+  strict_validation: true
+  check_gpu_availability: false
+  check_memory_requirements: true
+
+hardware:
+  auto_detect: true
+  prefer_gpu: false
+  fallback_cpu: true
+
+# ============================================================================
+# HYDRA CONFIGURATION
+# ============================================================================
+hydra:
+  run:
+    dir: outputs/asprs_bdtopo_cadastre_cpu/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    name: asprs_bdtopo_cadastre_cpu_optimized

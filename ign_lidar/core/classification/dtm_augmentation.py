@@ -328,6 +328,11 @@ class DTMAugmenter:
                 spacing=self.config.spacing,
                 crs=crs
             )
+            
+            # No hard limit needed for 64GB systems
+            # 1M points @ 24 bytes = ~24MB (trivial for 64GB)
+            # Allow natural generation from spacing parameter
+            
             return synthetic_points
         except Exception as e:
             logger.error(f"Failed to generate synthetic points: {e}")
@@ -385,7 +390,13 @@ class DTMAugmenter:
         real_points: np.ndarray,
         labels: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Filter to only add points in coverage gaps."""
+        """
+        Filter to only add points in coverage gaps.
+        
+        OPTIMIZED VERSION:
+        - Uses chunked processing to avoid memory overflow
+        - Reduces memory footprint for large point clouds
+        """
         if not HAS_SCIPY:
             logger.warning("SciPy not available - cannot filter gaps")
             return synthetic_points, np.full(len(synthetic_points), AugmentationArea.GAPS.value)
@@ -401,15 +412,30 @@ class DTMAugmenter:
         # Build KD-tree of existing ground
         tree = cKDTree(ground_points[:, :2])  # Use XY only
         
-        # Query nearest ground point for each synthetic point
-        distances, _ = tree.query(synthetic_points[:, :2])
+        # MEMORY OPTIMIZATION: Process synthetic points in chunks
+        chunk_size = 100000  # 100k points at a time
+        n_synthetic = len(synthetic_points)
+        gap_mask = np.zeros(n_synthetic, dtype=bool)
         
-        # Keep only points far from existing ground
-        gap_mask = distances > self.config.min_spacing_to_existing
+        logger.debug(f"  Filtering gaps for {n_synthetic:,} points in chunks of {chunk_size:,}...")
+        
+        for start_idx in range(0, n_synthetic, chunk_size):
+            end_idx = min(start_idx + chunk_size, n_synthetic)
+            chunk = synthetic_points[start_idx:end_idx, :2]
+            
+            # Query nearest ground point for each synthetic point in chunk
+            distances, _ = tree.query(chunk)
+            
+            # Keep only points far from existing ground
+            chunk_gap_mask = distances > self.config.min_spacing_to_existing
+            gap_mask[start_idx:end_idx] = chunk_gap_mask
+            
+            rejected_in_chunk = np.sum(~chunk_gap_mask)
+            if rejected_in_chunk > 0:
+                self.stats.rejected_spacing += rejected_in_chunk
+        
         filtered = synthetic_points[gap_mask]
         area_labels = np.full(len(filtered), AugmentationArea.GAPS.value)
-        
-        self.stats.rejected_spacing = np.sum(~gap_mask)
         
         return filtered, area_labels
     
@@ -623,6 +649,12 @@ class DTMAugmenter:
         Validate synthetic points against nearby real ground points.
         
         Rejects points that are too different from nearby ground elevation.
+        
+        OPTIMIZED VERSION FOR 64GB SYSTEMS:
+        - Processes in chunks to avoid memory overflow
+        - Larger chunks (50k) suitable for high-memory systems
+        - Uses vectorized operations where possible
+        - Handles large point clouds (21M+ points) efficiently
         """
         if not HAS_SCIPY:
             logger.warning("SciPy not available - skipping neighbor validation")
@@ -636,38 +668,71 @@ class DTMAugmenter:
         
         ground_points = real_points[ground_mask]
         
-        # Build KD-tree
+        # Build KD-tree (this is fast and memory-efficient)
         tree = cKDTree(ground_points[:, :2])
         
-        # For each synthetic point, find nearby ground points
-        valid_mask = np.ones(len(synthetic_points), dtype=bool)
+        # Process in chunks to avoid memory issues
+        # 64GB system can handle larger chunks
+        chunk_size = 50000  # Balanced for 64GB systems
+        n_synthetic = len(synthetic_points)
+        valid_mask = np.ones(n_synthetic, dtype=bool)
         
-        for i, syn_pt in enumerate(synthetic_points):
-            # Query neighbors within radius
-            neighbors = tree.query_ball_point(
-                syn_pt[:2],
-                self.config.neighbor_search_radius
+        logger.debug(f"  Validating {n_synthetic:,} synthetic points in chunks of {chunk_size:,}...")
+        
+        for start_idx in range(0, n_synthetic, chunk_size):
+            end_idx = min(start_idx + chunk_size, n_synthetic)
+            chunk = synthetic_points[start_idx:end_idx]
+            
+            # Vectorized neighbor count query (much faster than query_ball_point in loop)
+            # First, do a quick k-nearest neighbor search to estimate neighbor count
+            distances, indices = tree.query(
+                chunk[:, :2],
+                k=min(self.config.min_neighbors_for_validation + 5, len(ground_points)),
+                distance_upper_bound=self.config.neighbor_search_radius
             )
             
-            if len(neighbors) < self.config.min_neighbors_for_validation:
-                # Not enough neighbors for validation - reject
-                valid_mask[i] = False
-                self.stats.rejected_no_neighbors += 1
-                continue
+            # Process each point in chunk
+            for i, syn_pt in enumerate(chunk):
+                global_idx = start_idx + i
+                
+                # Count valid neighbors (within radius)
+                if distances.ndim == 2:
+                    valid_neighbors = distances[i] <= self.config.neighbor_search_radius
+                    neighbor_indices = indices[i][valid_neighbors]
+                    n_neighbors = np.sum(valid_neighbors & (distances[i] < np.inf))
+                else:
+                    # Single neighbor case
+                    valid_neighbors = distances[i] <= self.config.neighbor_search_radius
+                    neighbor_indices = [indices[i]] if valid_neighbors else []
+                    n_neighbors = 1 if valid_neighbors else 0
+                
+                # Check minimum neighbor requirement
+                if n_neighbors < self.config.min_neighbors_for_validation:
+                    valid_mask[global_idx] = False
+                    self.stats.rejected_no_neighbors += 1
+                    continue
+                
+                # Check height consistency with neighbors
+                if len(neighbor_indices) > 0:
+                    neighbor_elevations = ground_points[neighbor_indices, 2]
+                    mean_elevation = np.mean(neighbor_elevations)
+                    height_diff = abs(syn_pt[2] - mean_elevation)
+                    
+                    if height_diff > self.config.max_height_difference:
+                        valid_mask[global_idx] = False
+                        self.stats.rejected_height_diff += 1
+                        continue
             
-            # Check height consistency
-            neighbor_elevations = ground_points[neighbors, 2]
-            mean_elevation = np.mean(neighbor_elevations)
-            height_diff = abs(syn_pt[2] - mean_elevation)
-            
-            if height_diff > self.config.max_height_difference:
-                # Too different from nearby ground - reject
-                valid_mask[i] = False
-                self.stats.rejected_height_diff += 1
-                continue
+            # MEMORY SAFETY: Explicit cleanup after each chunk
+            del distances, indices
         
         validated_points = synthetic_points[valid_mask]
         validated_areas = area_labels[valid_mask]
+        
+        # MEMORY SAFETY: Final cleanup
+        del valid_mask, tree, ground_points
+        import gc
+        gc.collect()
         
         return validated_points, validated_areas
 

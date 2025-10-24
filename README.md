@@ -347,12 +347,50 @@ pip install ign-lidar-hd
 ./install_cuml.sh  # or follow GPU_SETUP.md
 ```
 
-### Basic Usage
+### Zero-Config Quick Start (v5.5+)
+
+The **simplest way** to get started - no configuration file needed!
 
 ```bash
 # Download sample data
 ign-lidar-hd download --bbox 2.3,48.8,2.4,48.9 --output data/ --max-tiles 5
 
+# Process with automatic hardware detection (GPU or CPU)
+ign-lidar-hd process input_dir=data/ output_dir=results/
+
+# That's it! The system automatically:
+# ✅ Detects GPU/CPU and optimizes accordingly
+# ✅ Uses optimal settings for your hardware
+# ✅ Selects appropriate feature set
+# ✅ Configures memory and batch sizes
+```
+
+### Configuration-Based Processing (v5.5+)
+
+For advanced workflows, use the **3-tier configuration system** (97% smaller configs!):
+
+```bash
+# Use hardware profile + task preset
+ign-lidar-hd process \
+  --config-name my_config \
+  defaults=[hardware/gpu_rtx4080,task/asprs_classification]
+
+# Or use one of our example configs
+ign-lidar-hd process --config-path examples --config-name config_asprs_bdtopo_cadastre_gpu_v5.5
+
+# List available profiles and presets
+ign-lidar-hd list-profiles   # Shows: gpu_rtx4080, gpu_rtx3080, cpu_high, etc.
+ign-lidar-hd list-presets    # Shows: asprs_classification, lod2_buildings, etc.
+
+# Validate your configuration
+ign-lidar-hd validate-config examples/my_config.yaml
+```
+
+### Legacy CLI (v5.4 and earlier)
+
+The traditional command-based CLI still works for backward compatibility:
+
+```bash
 # Enrich with features (GPU accelerated if available)
 ign-lidar-hd enrich --input-dir data/ --output enriched/ --use-gpu
 
@@ -365,10 +403,267 @@ ign-lidar-hd patch --input-dir enriched/ --output patches/ --lod-level LOD2
 ```python
 from ign_lidar import LiDARProcessor
 
-# Initialize and process
-processor = LiDARProcessor(lod_level="LOD2")
+# Option 1: Zero-config with automatic hardware detection
+processor = LiDARProcessor()  # Uses intelligent defaults
+patches = processor.process_tile("data.laz", "output/")
+
+# Option 2: With configuration file (recommended for production)
+processor = LiDARProcessor(config_path="examples/config_asprs_bdtopo_cadastre_gpu_v5.5.yaml")
+patches = processor.process_directory("input_dir/", "output_dir/")
+
+# Option 3: Traditional explicit parameters (legacy)
+processor = LiDARProcessor(lod_level="LOD2", patch_size=150.0, use_gpu=True)
 patches = processor.process_tile("data.laz", "output/")
 ```
+
+---
+
+## ⚙️ Configuration System v5.5 (NEW!)
+
+**Zero-config by default, powerful when you need it!**
+
+Version 5.5 introduces a **revolutionary 3-tier configuration architecture** that reduces config complexity by 97% while adding powerful new capabilities:
+
+### 🎯 Design Principles
+
+- **Zero-config by default** - Works out of the box with intelligent defaults
+- **Progressive complexity** - Add configuration only when you need it
+- **Hardware-aware** - Automatic GPU/CPU detection and optimization
+- **Composable** - Mix and match hardware profiles and task presets
+- **Validated** - Catch errors early with comprehensive validation
+
+### 📊 Before & After Comparison
+
+```yaml
+# ❌ v5.4 Configuration (430 lines, manually specified everything)
+input_dir: /data/tiles
+output_dir: /data/output
+preprocess:
+  buffer_size: 50.0
+  normalize_intensity: true
+  handle_overlap: true
+processor:
+  use_gpu: true
+  use_gpu_chunked: true
+  gpu_batch_size: 5000000
+  lod_level: LOD2
+  num_neighbors: 30
+  search_radius: 3.0
+features:
+  mode: lod2
+  k_neighbors: 10
+  compute_normals: true
+  compute_curvature: true
+  compute_eigenvalues: true
+  # ... 400+ more lines ...
+
+# ✅ v5.5 Configuration (15 lines, inherits intelligent defaults)
+defaults:
+  - hardware/gpu_rtx4080     # Hardware optimization
+  - task/asprs_classification # Task-specific settings
+  - _self_
+
+input_dir: /data/tiles
+output_dir: /data/output
+
+# That's it! Everything else is inherited
+```
+
+**Result:** 97% size reduction (430 lines → 15 lines) while gaining more capabilities!
+
+### 🏗️ 3-Tier Architecture
+
+```
+Layer 1: base_complete.yaml (430 lines)
+    ↓ [All defaults defined]
+    ├─ Layer 2: Hardware Profiles (30-50 lines each)
+    │   ├─ gpu_rtx4080.yaml     - RTX 4080: 16GB VRAM, 5M batch
+    │   ├─ gpu_rtx3080.yaml     - RTX 3080: 10GB VRAM, 3M batch
+    │   ├─ cpu_high.yaml        - 64GB RAM, 8 workers
+    │   └─ cpu_standard.yaml    - 32GB RAM, 4 workers
+    │
+    └─ Layer 3: Task Presets (20-40 lines each)
+        ├─ asprs_classification.yaml  - Full ASPRS with BD TOPO®
+        ├─ lod2_buildings.yaml        - Fast building classification
+        ├─ lod3_architecture.yaml     - Detailed architectural features
+        └─ quick_enrich.yaml          - Minimal features, maximum speed
+```
+
+**How it works:**
+
+1. **base_complete.yaml** - Complete default configuration (you never edit this)
+2. **Hardware profiles** - Override only hardware-specific settings (GPU/CPU, memory, workers)
+3. **Task presets** - Override only task-specific settings (features, classification, output)
+4. **Your config** - Override only project-specific settings (paths, tile list)
+
+### 🚀 Common Usage Patterns
+
+#### Pattern 1: Zero-Config (Automatic Everything)
+
+```bash
+# Just specify input/output - everything else is automatic!
+ign-lidar-hd process input_dir=data/ output_dir=results/
+```
+
+#### Pattern 2: Hardware Profile Only
+
+```bash
+# Optimize for your GPU
+ign-lidar-hd process \
+  defaults=[hardware/gpu_rtx4080] \
+  input_dir=data/ \
+  output_dir=results/
+```
+
+#### Pattern 3: Hardware + Task Preset
+
+```bash
+# Complete workflow with both optimizations
+ign-lidar-hd process \
+  defaults=[hardware/gpu_rtx4080,task/asprs_classification] \
+  input_dir=data/ \
+  output_dir=results/
+```
+
+#### Pattern 4: Custom Configuration File
+
+```yaml
+# my_config.yaml (minimal!)
+defaults:
+  - hardware/gpu_rtx4080
+  - task/lod2_buildings
+  - _self_
+
+input_dir: /data/versailles
+output_dir: /data/results
+processor:
+  tile_list: ["tile_001", "tile_002"] # Only override what's different!
+```
+
+```bash
+ign-lidar-hd process --config-name my_config
+```
+
+### 🔍 Configuration Discovery
+
+**New CLI commands** help you explore available options:
+
+```bash
+# List available hardware profiles
+ign-lidar-hd list-profiles
+# Output:
+#   gpu_rtx4080    - RTX 4080 optimized (16GB VRAM)
+#   gpu_rtx3080    - RTX 3080 optimized (10GB VRAM)
+#   cpu_high       - High-end CPU (64GB RAM, 8 workers)
+#   cpu_standard   - Standard CPU (32GB RAM, 4 workers)
+
+# List available task presets
+ign-lidar-hd list-presets
+# Output:
+#   asprs_classification - Full ASPRS with BD TOPO® ground truth
+#   lod2_buildings       - Fast building classification (12 features)
+#   lod3_architecture    - Detailed architectural features (38 features)
+#   quick_enrich         - Minimal features for fast processing
+
+# Show complete resolved configuration
+ign-lidar-hd show-config --config-name my_config
+
+# Validate configuration before running
+ign-lidar-hd validate-config my_config.yaml
+# Output: ✓ Configuration validated successfully
+#         - Processor settings: OK
+#         - Feature configuration: OK
+#         - Data sources: OK
+#         - Output settings: OK
+```
+
+### ✅ Configuration Validation
+
+v5.5 includes **comprehensive validation** that catches errors before processing:
+
+```bash
+# Validate any configuration file
+ign-lidar-hd validate-config examples/my_config.yaml
+
+# Example validation output:
+# ✓ Configuration validated: examples/my_config.yaml
+#
+# Validation Results:
+# ✓ Processor configuration: OK
+#   - LOD level: LOD2 (valid)
+#   - GPU batch size: 5000000 (valid range)
+#   - Num neighbors: 30 (valid range)
+#
+# ✓ Feature configuration: OK
+#   - Mode: lod2 (valid)
+#   - K-neighbors: 10 (valid range)
+#
+# ✓ Data sources: OK
+#   - 3 sources configured
+#
+# ✓ Output configuration: OK
+#   - Format: npz (valid)
+```
+
+**Validation checks:**
+
+- ✅ Required sections present (processor, features, data_sources, output)
+- ✅ Required keys in each section
+- ✅ Enum values (LOD level, feature mode, output format, etc.)
+- ✅ Numeric ranges (batch size, k-neighbors, search radius, etc.)
+- ✅ GPU settings compatibility
+- ✅ Path validity and accessibility
+
+**Benefits:**
+
+- 🎯 **Catch errors early** - Before long processing runs
+- 💡 **Helpful suggestions** - "Did you mean 'LOD2'?" for typos
+- 📊 **Clear reporting** - See exactly what's wrong and where
+- 🔧 **Pre-flight checks** - Validate before submitting to cluster
+
+### 📦 Available Profiles & Presets
+
+**Hardware Profiles** (`ign_lidar/configs/hardware/`):
+
+| Profile        | VRAM/RAM | Batch Size | Workers | Best For                 |
+| -------------- | -------- | ---------- | ------- | ------------------------ |
+| `gpu_rtx4080`  | 16GB     | 5M points  | 8       | High-end GPU processing  |
+| `gpu_rtx3080`  | 10GB     | 3M points  | 6       | Mid-range GPU processing |
+| `cpu_high`     | 64GB     | 2M points  | 8       | Server without GPU       |
+| `cpu_standard` | 32GB     | 1M points  | 4       | Standard workstation     |
+
+**Task Presets** (`ign_lidar/configs/task/`):
+
+| Preset                 | Features    | Ground Truth        | Use Case                        |
+| ---------------------- | ----------- | ------------------- | ------------------------------- |
+| `asprs_classification` | 38 features | BD TOPO® + Cadastre | Complete ASPRS classification   |
+| `lod2_buildings`       | 12 features | BD TOPO buildings   | Fast building detection         |
+| `lod3_architecture`    | 38 features | BD TOPO® full       | Detailed architectural analysis |
+| `quick_enrich`         | 4 features  | None                | Minimal processing for testing  |
+
+### 🔗 Migration from v5.4
+
+**Good news:** v5.4 configs still work! No breaking changes.
+
+**To upgrade to v5.5:**
+
+```bash
+# Option 1: Keep using your old config (works unchanged)
+ign-lidar-hd process --config-path . --config-name old_config_v5.4
+
+# Option 2: Simplify to v5.5 style (recommended)
+# See docs/MIGRATION_GUIDE_V5.5.md for detailed examples
+```
+
+**Why upgrade?**
+
+- ✅ 97% smaller configuration files
+- ✅ Automatic hardware optimization
+- ✅ Early error detection with validation
+- ✅ Easier to maintain and share
+- ✅ Access to hardware profiles and task presets
+
+📖 See [Migration Guide](docs/MIGRATION_GUIDE_V5.5.md) for step-by-step instructions
 
 ---
 

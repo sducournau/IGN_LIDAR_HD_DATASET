@@ -298,15 +298,19 @@ class RGEALTIFetcher:
         self,
         bbox: Tuple[float, float, float, float],
         spacing: float = 1.0,
-        crs: str = "EPSG:2154"
+        crs: str = "EPSG:2154",
+        max_points: int = 1000000  # MEMORY SAFETY: Cap at 1M points
     ) -> Optional[np.ndarray]:
         """
         Generate synthetic ground points from DTM at regular grid spacing.
+        
+        MEMORY OPTIMIZED: Automatically adjusts spacing if needed to stay under max_points.
         
         Args:
             bbox: Bounding box (minx, miny, maxx, maxy)
             spacing: Grid spacing in meters (default: 1m matching DTM resolution)
             crs: Coordinate reference system
+            max_points: Maximum number of points to generate (for memory safety)
             
         Returns:
             Ground points [N, 3] (X, Y, Z) or None if failed
@@ -320,14 +324,36 @@ class RGEALTIFetcher:
         transform = metadata['transform']
         nodata = metadata.get('nodata', -9999.0)
         
-        # Create regular grid of XY coordinates
+        # Calculate expected number of points
         minx, miny, maxx, maxy = bbox
+        area = (maxx - minx) * (maxy - miny)
+        expected_points = int(area / (spacing * spacing))
+        
+        # MEMORY SAFETY: Auto-adjust spacing if needed
+        if expected_points > max_points:
+            # Calculate required spacing to stay under limit
+            adjusted_spacing = np.sqrt(area / max_points)
+            logger.warning(
+                f"  ⚠️  Would generate {expected_points:,} points (exceeds limit of {max_points:,})"
+            )
+            logger.warning(
+                f"  ⚠️  Auto-adjusting spacing: {spacing:.1f}m → {adjusted_spacing:.1f}m"
+            )
+            spacing = adjusted_spacing
+        
+        # Create regular grid of XY coordinates
         x_coords = np.arange(minx, maxx, spacing)
         y_coords = np.arange(miny, maxy, spacing)
         xx, yy = np.meshgrid(x_coords, y_coords)
         
         # Flatten to point array
         xy_points = np.column_stack([xx.ravel(), yy.ravel()])
+        
+        # MEMORY SAFETY: If still too many points, subsample
+        if len(xy_points) > max_points:
+            logger.warning(f"  ⚠️  Subsampling {len(xy_points):,} → {max_points:,} points")
+            indices = np.random.choice(len(xy_points), max_points, replace=False)
+            xy_points = xy_points[indices]
         
         # Sample elevations from DTM
         z_values = self.sample_elevation_at_points(xy_points, dtm_data)

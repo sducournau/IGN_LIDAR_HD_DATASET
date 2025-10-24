@@ -125,9 +125,10 @@ def _compute_all_features_jit(
     Parameters
     ----------
     points : np.ndarray
-        Point cloud, shape (N, 3)
+        Point cloud, shape (N, 3) - FULL point cloud for indexing
     neighbor_indices : np.ndarray
-        Neighbor indices from KNN, shape (N, k)
+        Neighbor indices from KNN, shape (M, k) where M is the number of 
+        query points (may be a chunk of the full point cloud)
     k_neighbors : int
         Number of neighbors
     epsilon : float
@@ -135,25 +136,32 @@ def _compute_all_features_jit(
         
     Returns
     -------
-    normals : np.ndarray (N, 3)
-    eigenvalues : np.ndarray (N, 3) - sorted descending
-    curvature : np.ndarray (N,)
-    planarity : np.ndarray (N,)
-    linearity : np.ndarray (N,)
-    sphericity : np.ndarray (N,)
+    normals : np.ndarray (M, 3) - same size as neighbor_indices
+    eigenvalues : np.ndarray (M, 3) - sorted descending
+    curvature : np.ndarray (M,)
+    planarity : np.ndarray (M,)
+    linearity : np.ndarray (M,)
+    sphericity : np.ndarray (M,)
+    
+    Note:
+        The output arrays are sized based on neighbor_indices (M points),
+        NOT the full points array (N points). This allows chunked processing.
     """
-    n_points = points.shape[0]
+    # CRITICAL FIX: Use neighbor_indices size, NOT points size!
+    # This allows chunked processing where we query a subset of points
+    # but index into the full points array using the returned indices.
+    n_query_points = neighbor_indices.shape[0]
     
-    # Output arrays
-    normals = np.zeros((n_points, 3), dtype=np.float32)
-    eigenvalues = np.zeros((n_points, 3), dtype=np.float32)
-    curvature = np.zeros(n_points, dtype=np.float32)
-    planarity = np.zeros(n_points, dtype=np.float32)
-    linearity = np.zeros(n_points, dtype=np.float32)
-    sphericity = np.zeros(n_points, dtype=np.float32)
+    # Output arrays sized for the queried points (chunk size)
+    normals = np.zeros((n_query_points, 3), dtype=np.float32)
+    eigenvalues = np.zeros((n_query_points, 3), dtype=np.float32)
+    curvature = np.zeros(n_query_points, dtype=np.float32)
+    planarity = np.zeros(n_query_points, dtype=np.float32)
+    linearity = np.zeros(n_query_points, dtype=np.float32)
+    sphericity = np.zeros(n_query_points, dtype=np.float32)
     
-    # Process points in parallel
-    for i in prange(n_points):
+    # Process queried points in parallel
+    for i in prange(n_query_points):
         neighbors = points[neighbor_indices[i]]
         
         # Compute centroid
@@ -297,16 +305,21 @@ def compute_all_features(
     points: np.ndarray,
     k_neighbors: int = 20,
     compute_advanced: bool = True,
+    chunk_size: int = 2_000_000,  # Optimized for 64GB systems
 ) -> Dict[str, np.ndarray]:
     """
     Compute all geometric features in a single optimized pass.
     
     This is 5-8x faster than calling individual feature functions because:
     1. KD-tree built only once
-    2. Neighbor search done only once
+    2. Neighbor search done only once (chunked for large datasets)
     3. Covariance/eigenvalues computed only once
     4. All features derived from shared eigenvalues
     5. JIT compilation with parallel execution
+    
+    MEMORY OPTIMIZED: For large point clouds (>2M points), processes in chunks
+    to avoid memory overflow. KD-tree is built once, but neighbor queries
+    are batched for efficiency.
     
     Parameters
     ----------
@@ -316,6 +329,9 @@ def compute_all_features(
         Number of nearest neighbors (default: 20)
     compute_advanced : bool
         Whether to compute advanced features (anisotropy, roughness, etc.)
+    chunk_size : int
+        Points per chunk for neighbor queries (default: 2M for 64GB systems)
+        Adjust based on available RAM
         
     Returns
     -------
@@ -353,18 +369,74 @@ def compute_all_features(
     if points.shape[0] < k_neighbors:
         raise ValueError(f"Not enough points ({points.shape[0]}) for k_neighbors={k_neighbors}")
     
+    n_points = points.shape[0]
+    
     # Ensure float32 for performance
     points = points.astype(np.float32, copy=False)
     
-    # Build KD-tree and find neighbors (only once!)
+    # Build KD-tree ONCE (fast and memory-efficient)
     from sklearn.neighbors import NearestNeighbors
     nbrs = NearestNeighbors(n_neighbors=k_neighbors, algorithm='kd_tree', n_jobs=-1)
     nbrs.fit(points)
-    distances, indices = nbrs.kneighbors(points)
     
-    # Compute all features in one JIT-compiled pass
-    normals, eigenvalues, curvature, planarity, linearity, sphericity = \
-        _compute_all_features_jit(points, indices, k_neighbors)
+    # MEMORY SAFETY: Query neighbors in chunks for large point clouds
+    if n_points > chunk_size:
+        logger.debug(f"  Processing {n_points:,} points in chunks of {chunk_size:,} for memory safety")
+        
+        # Pre-allocate output arrays
+        normals = np.zeros((n_points, 3), dtype=np.float32)
+        eigenvalues = np.zeros((n_points, 3), dtype=np.float32)
+        curvature = np.zeros(n_points, dtype=np.float32)
+        planarity = np.zeros(n_points, dtype=np.float32)
+        linearity = np.zeros(n_points, dtype=np.float32)
+        sphericity = np.zeros(n_points, dtype=np.float32)
+        
+        # Store median distances for density computation (if compute_advanced=True)
+        all_median_dists = None
+        if compute_advanced:
+            all_median_dists = np.zeros(n_points, dtype=np.float32)
+        
+        # Process in chunks
+        for start_idx in range(0, n_points, chunk_size):
+            end_idx = min(start_idx + chunk_size, n_points)
+            chunk_points = points[start_idx:end_idx]
+            
+            # Query neighbors for chunk
+            distances, indices = nbrs.kneighbors(chunk_points)
+            
+            # Store median distances for this chunk (before computing features)
+            if compute_advanced:
+                all_median_dists[start_idx:end_idx] = np.median(distances, axis=1)
+            
+            # CRITICAL FIX: Pass full 'points' array to JIT function because 'indices'
+            # contains global indices into the full array, NOT local chunk indices.
+            # The JIT function uses: points[neighbor_indices[i]] which requires the full array.
+            chunk_normals, chunk_eigenvalues, chunk_curvature, chunk_planarity, \
+                chunk_linearity, chunk_sphericity = _compute_all_features_jit(
+                    points, indices, k_neighbors  # Correctly pass full points array
+                )
+            
+            # Store chunk results
+            normals[start_idx:end_idx] = chunk_normals
+            eigenvalues[start_idx:end_idx] = chunk_eigenvalues
+            curvature[start_idx:end_idx] = chunk_curvature
+            planarity[start_idx:end_idx] = chunk_planarity
+            linearity[start_idx:end_idx] = chunk_linearity
+            sphericity[start_idx:end_idx] = chunk_sphericity
+            
+            # Explicit cleanup
+            del distances, indices, chunk_normals, chunk_eigenvalues
+            del chunk_curvature, chunk_planarity, chunk_linearity, chunk_sphericity
+    else:
+        # Small point cloud: process all at once (original fast path)
+        distances, indices = nbrs.kneighbors(points)
+        
+        # Store median distances for density computation
+        all_median_dists = np.median(distances, axis=1) if compute_advanced else None
+        
+        normals, eigenvalues, curvature, planarity, linearity, sphericity = \
+            _compute_all_features_jit(points, indices, k_neighbors)
+        del distances, indices
     
     # Build feature dictionary
     features = {
@@ -399,8 +471,12 @@ def compute_all_features(
         features['verticality'] = 1.0 - np.abs(normals[:, 2])
         
         # Density (local point density from neighbor distances)
-        median_dist = np.median(distances, axis=1)
-        features['density'] = 1.0 / (median_dist**3 + 1e-10)
+        # Use pre-computed median distances from chunked/non-chunked processing
+        if all_median_dists is not None:
+            features['density'] = 1.0 / (all_median_dists**3 + 1e-10)
+        else:
+            # Fallback: estimate from eigenvalues (less accurate but functional)
+            features['density'] = 1.0 / (eigenvalues[:, 0] + 1e-10)
     
     return features
 

@@ -84,9 +84,11 @@ FEATURE_DESCRIPTIONS = {
     'sum_eigenvalues': 'Sum of eigenvalues (Σλ)',
     'eigenentropy': 'Shannon entropy of eigenvalues',
     
-    # Height Features (2 features)
+    # Height Features (3 features)
+    'height': 'Normalized height (Z - Z_min) for relative elevation',
     'height_above_ground': 'Height above ground level (meters)',
     'vertical_std': 'Standard deviation of Z in neighborhood',
+    'height_extent_ratio': 'Ratio of vertical std to spatial extent (3D structure indicator)',
     
     # Building-Specific Scores (legacy)
     'verticality': 'Verticality score [0,1] - 1 for vertical surfaces',
@@ -103,13 +105,18 @@ FEATURE_DESCRIPTIONS = {
     'density': 'Local point density (points per unit volume)',
     'num_points_2m': 'Number of points within 2m radius',
     'neighborhood_extent': 'Maximum distance to k-th neighbor',
-    'height_extent_ratio': 'Ratio of vertical std to spatial extent',
     
     # Advanced Architectural Features (4 features)
     'edge_strength': 'Edge detection strength (high eigenvalue variance)',
     'corner_likelihood': 'Corner probability (3D structure measure)',
     'overhang_indicator': 'Overhang/protrusion detection',
     'surface_roughness': 'Fine-scale surface texture',
+    
+    # Legacy Architectural Features (4 features - backward compatibility)
+    'legacy_edge_strength': 'Legacy edge detection (replaced by edge_strength)',
+    'legacy_corner_likelihood': 'Legacy corner detection (replaced by corner_likelihood)',
+    'legacy_overhang_indicator': 'Legacy overhang detection (replaced by overhang_indicator)',
+    'legacy_surface_roughness': 'Legacy surface texture (replaced by surface_roughness)',
     
     # NEW: Enhanced Building Classification Features (8 features)
     'horizontality': 'Horizontality score [0,1] - 1 for horizontal surfaces (roofs)',
@@ -240,34 +247,36 @@ LOD3_FEATURES = {
     'ndvi',
 }  # Total: ~43 features (was 35, added 8 new building features)
 
-# ASPRS_CLASSES: Features optimized for ASPRS classification (~15 features - LÉGER)
-# Simplified and lightweight for fast processing and smaller output files
+# ASPRS_CLASSES: Features optimized for ASPRS classification (~20 features)
+# Optimized for ASPRS LAS 1.4 classification with enriched LAZ output
 ASPRS_FEATURES = {
     # Coordinates
     'xyz',                # 3 features
     
-    # Essential normals for surface orientation (most important)
-    'normal_z',           # Critical for ground/vegetation/building separation
+    # Complete normals for surface orientation (important for visualization)
+    'normal_x', 'normal_y', 'normal_z',  # Full normal vectors for CloudCompare/QGIS
     
-    # Core shape descriptors (essential only)
+    # Core shape descriptors (essential for classification)
     'planarity',          # Flat surfaces (ground, roads, roofs)
     'sphericity',         # Vegetation detection
+    'curvature',          # Surface curvature (roofs vs ground)
     
     # Height features (critical for multi-class separation)
     'height_above_ground',# Essential for vegetation height classes
+    'height',             # Raw height for compatibility
     
-    # Building detection (simplified - canonical only)
+    # Building detection (comprehensive)
     'verticality',        # Walls vs ground
     'horizontality',      # Ground and flat roofs
     
-    # Density feature (single most useful)
+    # Density feature
     'density',            # Point density varies by class
     
-    # Spectral features (if available - most important for classification)
-    'red', 'green', 'blue',  # RGB for better classification
-    'nir',                   # NIR for vegetation
-    'ndvi',                  # Vegetation index (ground truth does the heavy lifting)
-}  # Total: ~15 features (ultra-optimized, léger, ground truth handles roads/railways)
+    # Spectral features (if available - critical for vegetation/building separation)
+    'red', 'green', 'blue',  # RGB for visual classification
+    'nir',                   # NIR for vegetation (NDVI computation)
+    'ndvi',                  # Vegetation index (primary vegetation classifier)
+}  # Total: ~20 features (comprehensive set for ASPRS + enriched LAZ visualization)
 
 
 @dataclass

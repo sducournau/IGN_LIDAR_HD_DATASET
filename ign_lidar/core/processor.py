@@ -556,12 +556,12 @@ class LiDARProcessor:
     @property
     def augment(self):
         """Check if augmentation is enabled (backward compatibility)."""
-        return self.config.processor.augment
+        return self.config.processor.get('augment', False)
     
     @property
     def num_augmentations(self):
         """Get number of augmentations (backward compatibility)."""
-        return self.config.processor.num_augmentations
+        return self.config.processor.get('num_augmentations', 0)
     
     @property
     def bbox(self):
@@ -572,7 +572,7 @@ class LiDARProcessor:
     @property
     def patch_overlap(self):
         """Get patch overlap (backward compatibility)."""
-        return self.config.processor.patch_overlap
+        return self.config.processor.get('patch_overlap', 0.0)
     
     @property
     def use_gpu_chunked(self):
