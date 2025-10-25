@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.3] - 2025-10-25
+
+### Added
+
+- **Gap Detection Enhancement**: Automatic gap/void detection in building perimeters
+  - Angular sector analysis (36 sectors = 10° each)
+  - Gap-based adaptive buffer adjustment for improved building detection
+  - Quality metrics for building detection accuracy
+  - Directional gap identification (N, NE, E, SE, S, SW, W, NW)
+  - Export of problematic buildings for manual review and quality control
+
+### Fixed
+
+- Version consistency across package files (aligned to 3.3.3)
+
 ## [3.2.1] - 2025-10-25
 
 ### Added

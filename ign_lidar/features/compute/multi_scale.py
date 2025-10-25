@@ -158,14 +158,19 @@ class MultiScaleFeatureComputer:
         points: np.ndarray,
         features_to_compute: List[str],
         kdtree: Optional[cKDTree] = None,
+        chunk_size: Optional[int] = None,
     ) -> Dict[str, np.ndarray]:
         """
         Compute features at all scales and aggregate.
+
+        For large point clouds, automatically uses chunked processing
+        to avoid memory exhaustion.
 
         Args:
             points: Point cloud [N, 3] XYZ coordinates
             features_to_compute: List of feature names to compute
             kdtree: Optional pre-built KD-tree (for reuse)
+            chunk_size: Process in chunks of this size (None = auto)
 
         Returns:
             Dictionary with aggregated feature arrays
@@ -181,6 +186,158 @@ class MultiScaleFeatureComputer:
             f"Computing {len(features_to_compute)} features at "
             f"{len(self.scales)} scales for {n_points:,} points"
         )
+
+        # Auto-determine if chunking is needed (AGGRESSIVE for v6.3.2)
+        if chunk_size is None:
+            # 🔥 MORE AGGRESSIVE: Estimate memory requirement per point (bytes)
+            # Each scale needs: eigenvalues(12) + normals(12) + features(~40) = ~64 bytes
+            # PLUS: Intermediate arrays, KD-tree overhead, numpy overhead = ~150 bytes total
+            bytes_per_point_per_scale = 150  # INCREASED from 64 to 150 for safety
+            total_memory_mb = (
+                n_points * bytes_per_point_per_scale * len(self.scales)
+            ) / (1024**2)
+
+            # Check available memory
+            try:
+                import psutil
+
+                mem = psutil.virtual_memory()
+                available_mb = mem.available / (1024**2)
+
+                # 🔥 MORE AGGRESSIVE: Use chunking if estimated memory > 30% of available (was 50%)
+                if total_memory_mb > 0.3 * available_mb:
+                    # Target chunks that use ~15% of available memory (was 20%)
+                    target_chunk_mb = 0.15 * available_mb
+                    chunk_size = int(
+                        (target_chunk_mb * 1024**2)
+                        / (bytes_per_point_per_scale * len(self.scales))
+                    )
+                    # 🔥 MORE CONSERVATIVE: Lower max chunk size
+                    chunk_size = max(
+                        100_000, min(chunk_size, 3_000_000, n_points)
+                    )  # Cap at 3M points
+                    logger.info(
+                        f"🔄 Auto-enabling chunked processing: "
+                        f"chunk_size={chunk_size:,} "
+                        f"(estimated {total_memory_mb:.0f}MB / "
+                        f"{available_mb:.0f}MB available)"
+                    )
+            except ImportError:
+                # psutil not available, very conservative chunking
+                if n_points > 5_000_000:  # LOWERED from 10M to 5M
+                    chunk_size = 2_000_000  # REDUCED from 5M to 2M
+                    logger.info(
+                        f"🔄 Using chunked processing: " f"chunk_size={chunk_size:,}"
+                    )
+
+        # Use chunked processing if needed
+        if chunk_size is not None and chunk_size < n_points:
+            return self._compute_features_chunked(
+                points=points,
+                features_to_compute=features_to_compute,
+                kdtree=kdtree,
+                chunk_size=chunk_size,
+            )
+
+        # Original non-chunked processing
+        return self._compute_features_full(
+            points=points, features_to_compute=features_to_compute, kdtree=kdtree
+        )
+
+    def _compute_features_chunked(
+        self,
+        points: np.ndarray,
+        features_to_compute: List[str],
+        kdtree: Optional[cKDTree],
+        chunk_size: int,
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute features in chunks to avoid memory exhaustion.
+
+        Strategy:
+        1. Process points in chunks
+        2. For each chunk, compute all scales (cheap vs points)
+        3. Aggregate within each chunk
+        4. Concatenate chunk results
+
+        Args:
+            points: Point cloud [N, 3]
+            features_to_compute: List of feature names
+            kdtree: Optional KD-tree (built if not provided)
+            chunk_size: Points per chunk
+
+        Returns:
+            Dictionary with aggregated feature arrays
+        """
+        import gc
+
+        n_points = len(points)
+        n_chunks = (n_points + chunk_size - 1) // chunk_size
+
+        logger.info(f"📦 Processing in {n_chunks} chunks " f"of ~{chunk_size:,} points")
+
+        # Build KD-tree once for all chunks if needed
+        if self.reuse_kdtrees and kdtree is None:
+            logger.debug("Building global KD-tree")
+            kdtree = cKDTree(points)
+
+        # Initialize result arrays
+        result = {
+            fname: np.zeros(n_points, dtype=np.float32) for fname in features_to_compute
+        }
+
+        # Process each chunk
+        for chunk_idx in range(n_chunks):
+            start_idx = chunk_idx * chunk_size
+            end_idx = min(start_idx + chunk_size, n_points)
+            chunk_points = points[start_idx:end_idx]
+
+            if (chunk_idx + 1) % max(1, n_chunks // 10) == 0 or chunk_idx == 0:
+                logger.info(
+                    f"  📦 Chunk {chunk_idx + 1}/{n_chunks} "
+                    f"({100 * (chunk_idx + 1) / n_chunks:.0f}%) - "
+                    f"{len(chunk_points):,} points"
+                )
+
+            # Compute features for this chunk (all scales)
+            chunk_result = self._compute_features_full(
+                points=chunk_points,
+                features_to_compute=features_to_compute,
+                kdtree=None,  # Build local KD-tree for chunk
+            )
+
+            # Copy chunk results to output arrays
+            for fname, values in chunk_result.items():
+                result[fname][start_idx:end_idx] = values
+
+            # Aggressive cleanup after each chunk
+            del chunk_result, chunk_points
+            gc.collect()
+
+        logger.info("✓ Chunked multi-scale computation complete")
+        return result
+
+    def _compute_features_full(
+        self,
+        points: np.ndarray,
+        features_to_compute: List[str],
+        kdtree: Optional[cKDTree] = None,
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute features at all scales and aggregate (non-chunked).
+
+        This is the original implementation, now used as a subroutine
+        by the chunked version.
+
+        Args:
+            points: Point cloud [N, 3] XYZ coordinates
+            features_to_compute: List of feature names to compute
+            kdtree: Optional pre-built KD-tree (for reuse)
+
+        Returns:
+            Dictionary with aggregated feature arrays
+        """
+        n_points = points.shape[0]
 
         # Build KD-tree once if reusing
         if self.reuse_kdtrees and kdtree is None:

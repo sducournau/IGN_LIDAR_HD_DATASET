@@ -6,7 +6,7 @@ import type * as Preset from "@docusaurus/preset-classic";
 
 const config: Config = {
   title: "IGN LiDAR HD Processing Library",
-  tagline: "Process IGN LiDAR data into ML-ready datasets",
+  tagline: "Transform IGN LiDAR data into ML-ready datasets with v3.3.3",
   favicon: "img/favicon.ico",
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future

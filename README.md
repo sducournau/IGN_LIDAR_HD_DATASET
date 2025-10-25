@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 3.0.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
+**Version 3.3.3** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -33,7 +33,9 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 - 🏗️ **Building Classification**: LOD2/LOD3 schemas with 15-30+ classes
 - 📦 **Flexible Output**: NPZ, HDF5, PyTorch, LAZ formats
 - ⚙️ **YAML Configuration**: Reproducible workflows with example configs
-- 🎲 **Rules Framework**: Extensible rule-based classification system (NEW in v3.2.0)
+- 🎲 **Rules Framework**: Extensible rule-based classification system
+- 🔍 **Gap Detection**: Automatic building perimeter gap analysis (NEW in v3.3.3)
+- 🗺️ **Spatial Indexing**: Efficient DTM file lookup with rtree (NEW in v3.3.3)
 
 ---
 
