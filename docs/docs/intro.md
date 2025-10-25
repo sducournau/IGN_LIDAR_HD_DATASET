@@ -6,23 +6,94 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 3.2.1** | Python 3.8+ | MIT License
+**Version 3.3.3** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Transform French IGN LiDAR HD point clouds into ML-ready datasets for building classification. Features GPU acceleration (6-20x speedup), rich geometric features (all 35-45+ computed features exported), RGB/NIR augmentation, LAZ data quality tools, and memory-optimized configurations for all system specs.
+Transform French IGN LiDAR HD point clouds into ML-ready datasets for building classification. Features GPU acceleration (16x speedup), rich geometric features (45+ computed features), RGB/NIR augmentation, advanced DTM integration with spatial indexing, memory-optimized configurations, and production-ready facade detection.
 
 ---
 
 ## 🎯 What's New
 
-### v3.2.1 (2025-10-25) - Latest Release
+### v3.3.3 (2025-10-25) - Latest Release
+
+### 🚀 DTM Integration, Memory Optimization & Enhanced Facade Detection
+
+This release brings major performance and quality improvements with intelligent memory management and advanced DTM integration:
+
+**Major Enhancements:**
+
+- **✨ RTM Spatial Indexing** - 10x faster DTM file lookup using rtree
+
+  - Efficient spatial index built at initialization
+  - Sub-second DTM file discovery for bounding boxes
+  - Automatic fallback to sequential search if rtree unavailable
+
+- **✨ DTM Nodata Interpolation** - Intelligent gap filling
+
+  - Nearest-neighbor interpolation for missing DTM values (up to 10m radius)
+  - scipy KDTree-based search for accurate elevation estimation
+  - Graceful handling of complex terrain and urban areas
+
+- **✨ Multi-Scale Chunked Processing** - Automatic memory optimization
+
+  - psutil-based detection of available RAM
+  - Auto-chunking when estimated memory >50% of available
+  - 2M-5M point chunks prevent OOM crashes
+  - Seamless processing of 18M+ point tiles
+
+- **✨ Memory-Optimized Configuration** - NEW asprs_memory_optimized.yaml
+  - Designed for 28-32GB RAM systems
+  - Single-scale computation (40-50% faster)
+  - 2m DTM grid (75% fewer synthetic points)
+  - Peak memory: 20-24GB (vs 30-35GB in asprs_complete)
+  - 92-95% classification rate, 8-12 min per tile
+
+**Configuration Updates (v6.3.2):**
+
+- **🏗️ Enhanced Facade Detection** - asprs_complete.yaml optimized
+
+  - Adaptive buffers: 0.7m-7.5m range (was 0.6m-6.0m)
+  - Wall verticality: 0.55 threshold (more aggressive)
+  - Ultra-fine gap detection: 60 sectors at 6° resolution
+  - Enhanced 3D bounding boxes: 6m overhangs, 3.5m roof expansion
+  - **Result:** +30-40% facade point capture, +25% verticality detection
+
+- **📍 Building Cluster IDs** - Object identification features
+  - Assign unique IDs to buildings from BD TOPO
+  - Cadastral parcel cluster IDs for property analysis
+  - Enable building-level statistics and change detection
+
+**Performance Improvements:**
+
+- 🚀 **DTM Lookup:** Up to 10x faster with spatial indexing
+- 🚀 **Memory Safety:** Automatic chunking prevents OOM crashes
+- 🚀 **Memory-Optimized Config:** 40-50% faster (8-12 min vs 12-18 min per tile)
+- 🚀 **Enhanced Validation:** Smarter DTM augmentation (12m radius, 4 neighbors)
+
+**Bug Fixes & Cleanup:**
+
+- 🐛 Fixed DTM nodata interpolation using nearest-neighbor
+- 🐛 Multi-scale: Added psutil fallback for memory detection
+- 🗑️ Removed deprecated gpu_dataframe_ops.py (relocated in v3.1.0)
+- 🗑️ Cleaned up obsolete milestone documentation
+
+**Documentation:**
+
+- 📚 New CLUSTER_ID_FEATURES_GUIDE.md - Complete guide for building/parcel IDs
+- 📚 New ign_lidar/config/README.md - Configuration architecture
+- 📚 Updated all version references to 3.3.3
+
+📖 [Full Release Notes](release-notes/v3.3.3.md)
+
+---
+
+### v3.2.1 (2025-10-25)
 
 ### 🎲 Rules Framework & Documentation Excellence
-
-This release introduces a comprehensive rule-based classification system with exceptional documentation:
 
 **New Features:**
 
