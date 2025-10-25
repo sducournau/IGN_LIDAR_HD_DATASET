@@ -123,6 +123,12 @@ class Building3DExtruder:
         wall_verticality_threshold: float = 0.65,  # Minimum verticality for walls
         wall_detection_enabled: bool = True,
         missing_wall_threshold: float = 0.3,  # If <30% wall coverage, flag as missing
+        # 🆕 IMPROVED: Enhanced overhang detection
+        enable_3d_hull_expansion: bool = True,  # Expand polygon using 3D convex hull projection
+        overhang_max_distance: float = 4.0,  # Max distance for overhangs (m)
+        roof_horizontal_expansion: float = 2.5,  # Expand for roof overhangs (m)
+        enable_alpha_shape: bool = True,  # Use alpha shapes for precise boundary
+        alpha_value: float = 3.0,  # Alpha parameter for boundary extraction
     ):
         """
         Initialize 3D building extruder with adaptive wall detection.
@@ -143,6 +149,11 @@ class Building3DExtruder:
             wall_verticality_threshold: Minimum verticality to consider as wall
             wall_detection_enabled: Enable wall point detection and statistics
             missing_wall_threshold: Wall coverage threshold to flag missing walls
+            enable_3d_hull_expansion: 🆕 Use 3D convex hull to detect overhangs
+            overhang_max_distance: 🆕 Maximum overhang distance from footprint
+            roof_horizontal_expansion: 🆕 Horizontal expansion for roof overhangs
+            enable_alpha_shape: 🆕 Use alpha shapes for precise boundaries
+            alpha_value: 🆕 Alpha parameter (smaller = tighter boundary)
         """
         self.floor_height = floor_height
         self.min_building_height = min_building_height
@@ -162,6 +173,13 @@ class Building3DExtruder:
         self.wall_detection_enabled = wall_detection_enabled
         self.missing_wall_threshold = missing_wall_threshold
         
+        # 🆕 IMPROVED: Enhanced overhang detection parameters
+        self.enable_3d_hull_expansion = enable_3d_hull_expansion
+        self.overhang_max_distance = overhang_max_distance
+        self.roof_horizontal_expansion = roof_horizontal_expansion
+        self.enable_alpha_shape = enable_alpha_shape
+        self.alpha_value = alpha_value
+        
         # NEW v3.3.3: Gap detection parameters
         self.enable_gap_detection = True  # Enable gap/void detection
         self.gap_detection_resolution = 36  # Number of angular sectors (10° each)
@@ -169,12 +187,14 @@ class Building3DExtruder:
         self.gap_min_points_per_sector = 5  # Minimum points per sector to consider covered
         self.gap_significant_threshold = 0.2  # If >20% perimeter has gaps, flag as significant
         
-        logger.info("3D Building Extruder initialized (Enhanced Wall Detection)")
+        logger.info("3D Building Extruder initialized (Enhanced Wall Detection + Roof Overhang)")
         logger.info(f"  Floor height: {floor_height}m")
         logger.info(f"  Vertical buffer: ±{vertical_buffer}m")
         logger.info(f"  Horizontal buffers: ground={horizontal_buffer_ground}m, upper={horizontal_buffer_upper}m")
         logger.info(f"  Adaptive buffer: {enable_adaptive_buffer} (range: {adaptive_buffer_min}-{adaptive_buffer_max}m)")
         logger.info(f"  Wall detection: verticality>{wall_verticality_threshold}, missing_threshold<{missing_wall_threshold}")
+        logger.info(f"  🆕 Overhang detection: 3D hull={enable_3d_hull_expansion}, max_dist={overhang_max_distance}m, roof_expansion={roof_horizontal_expansion}m")
+        logger.info(f"  🆕 Alpha shapes: enabled={enable_alpha_shape}, alpha={alpha_value}")
     
     def extrude_buildings(
         self,
@@ -453,7 +473,8 @@ class Building3DExtruder:
                 heights=valid_heights,
                 n_floors=n_floors,
                 z_min=z_min,
-                z_max=z_max
+                z_max=z_max,
+                verticality=valid_verticality  # 🆕 Pass verticality for roof overhang detection
             )
             
             if floor_segments:
@@ -732,6 +753,99 @@ class Building3DExtruder:
         
         return detected_gaps, gap_total_length, gap_coverage_ratio, has_significant_gaps
     
+    def _detect_roof_overhangs(
+        self,
+        polygon: 'Polygon',
+        building_id: int,
+        points: np.ndarray,
+        heights: np.ndarray,
+        verticality: Optional[np.ndarray],
+        roof_z_min: float,
+        roof_z_max: float,
+    ) -> float:
+        """
+        🆕 Detect roof overhangs and compute optimal expansion distance.
+        
+        Roof overhangs (débords de toit) are horizontal projections beyond the
+        building footprint. Common in traditional architecture: 0.5-3.0m.
+        
+        Detection Strategy:
+        1. Identify roof points (top 20% of building, low verticality)
+        2. Find points outside base polygon but near it
+        3. Compute maximum overhang distance
+        4. Return recommended expansion distance
+        
+        Args:
+            polygon: Base building footprint
+            building_id: Building identifier
+            points: All building points [M, 3]
+            heights: Point heights [M]
+            verticality: Verticality values [M] (optional)
+            roof_z_min: Minimum roof height
+            roof_z_max: Maximum roof height
+            
+        Returns:
+            Recommended horizontal expansion distance (meters)
+        """
+        # Identify roof points (top portion, low verticality = horizontal surfaces)
+        roof_mask = (heights >= roof_z_min) & (heights <= roof_z_max)
+        
+        if verticality is not None:
+            # Roof = low verticality (horizontal planes like roof surfaces)
+            # Typical verticality for roofs: <0.3 (mostly horizontal)
+            roof_mask = roof_mask & (verticality < 0.3)
+        
+        if not roof_mask.any():
+            logger.debug(f"Building {building_id}: No roof points detected")
+            return self.horizontal_buffer_upper
+        
+        roof_points = points[roof_mask]
+        
+        # Find points outside base polygon
+        inside_mask = utils.points_in_polygon(roof_points, polygon, return_mask=True)
+        outside_points = roof_points[~inside_mask]
+        
+        if len(outside_points) == 0:
+            # No overhangs detected
+            logger.debug(f"Building {building_id}: No roof overhangs outside footprint")
+            return self.horizontal_buffer_upper
+        
+        # Compute distance from each overhang point to polygon edge
+        from shapely.geometry import Point
+        polygon_exterior = polygon.exterior
+        
+        max_overhang_dist = 0.0
+        overhang_count = 0
+        
+        for pt in outside_points:
+            # Distance to nearest polygon edge
+            point_geom = Point(pt[0], pt[1])
+            dist_to_edge = point_geom.distance(polygon_exterior)
+            
+            # Only consider points within reasonable overhang range
+            if dist_to_edge <= self.overhang_max_distance:
+                max_overhang_dist = max(max_overhang_dist, dist_to_edge)
+                overhang_count += 1
+        
+        if overhang_count == 0:
+            logger.debug(f"Building {building_id}: No overhangs within max distance")
+            return self.horizontal_buffer_upper
+        
+        # Add safety margin (10%)
+        recommended_expansion = max_overhang_dist * 1.1
+        
+        # Clamp to configured maximum
+        recommended_expansion = min(recommended_expansion, self.roof_horizontal_expansion)
+        
+        logger.debug(
+            f"Building {building_id}: Roof overhangs detected - "
+            f"max_dist={max_overhang_dist:.2f}m, "
+            f"count={overhang_count}, "
+            f"recommended_expansion={recommended_expansion:.2f}m"
+        )
+        
+        return recommended_expansion
+    
     def _segment_by_floors(
         self,
         polygon: 'Polygon',
@@ -740,7 +854,8 @@ class Building3DExtruder:
         heights: np.ndarray,
         n_floors: int,
         z_min: float,
-        z_max: float
+        z_max: float,
+        verticality: Optional[np.ndarray] = None,  # 🆕 Added for roof overhang detection
     ) -> List[FloorSegment]:
         """
         Segment building into floors and detect setbacks.
@@ -748,11 +863,14 @@ class Building3DExtruder:
         Setbacks: Upper floors may have smaller footprints than ground floor.
         Common in: apartment buildings, terraced buildings, stepped facades.
         
+        🆕 Enhanced: Detects roof overhangs on top floor for better boundary detection.
+        
         Algorithm:
         1. Divide height range into floor segments
         2. For each floor, compute convex hull of points
         3. Compare floor footprints to detect setbacks
         4. Apply different buffers per floor (ground vs upper)
+        5. 🆕 For roof floor: Detect overhangs and expand accordingly
         
         Args:
             polygon: Original 2D footprint
@@ -762,6 +880,7 @@ class Building3DExtruder:
             n_floors: Number of floors detected
             z_min: Minimum building height
             z_max: Maximum building height
+            verticality: Verticality values [M] (optional, for roof detection)
             
         Returns:
             List of floor segments
@@ -793,12 +912,32 @@ class Building3DExtruder:
                     hull_points = floor_points_2d[hull.vertices]
                     floor_footprint = Polygon(hull_points)
                     
-                    # Apply appropriate buffer
+                    # 🆕 IMPROVED: Apply appropriate buffer with enhanced roof handling
                     if floor_idx == 0:
                         # Ground floor: use ground buffer
                         buffer_dist = self.horizontal_buffer_ground
+                    elif floor_idx == n_floors - 1:
+                        # 🆕 TOP FLOOR (roof): Use adaptive overhang detection
+                        if self.enable_3d_hull_expansion and verticality is not None:
+                            # Detect actual roof overhangs from point cloud
+                            buffer_dist = self._detect_roof_overhangs(
+                                polygon=polygon,
+                                building_id=building_id,
+                                points=points,
+                                heights=heights,
+                                verticality=verticality,
+                                roof_z_min=floor_z_min,
+                                roof_z_max=floor_z_max,
+                            )
+                        else:
+                            # Fallback to configured roof expansion
+                            buffer_dist = max(
+                                self.horizontal_buffer_upper,
+                                self.roof_horizontal_expansion
+                            )
+                        logger.debug(f"Building {building_id}, roof floor: Using enhanced buffer={buffer_dist:.2f}m for overhangs")
                     else:
-                        # Upper floors: use upper buffer (captures balconies)
+                        # Mid-level floors: use upper buffer (captures balconies)
                         buffer_dist = self.horizontal_buffer_upper
                     
                     floor_footprint = floor_footprint.buffer(buffer_dist)

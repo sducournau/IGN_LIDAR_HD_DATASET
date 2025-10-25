@@ -337,7 +337,7 @@ class UnifiedClassifier:
             base_confidence=0.85
         )
         
-        # Road classification
+        # Road classification (DTM-based strict filtering)
         rules['road'] = ClassificationRule(
             name='road',
             asprs_class=self.ASPRS_ROAD,
@@ -346,7 +346,7 @@ class UnifiedClassifier:
             helpful_features={'curvature', 'ndvi'},
             optional_features={'intensity', 'brightness'},
             thresholds={
-                'height': (-0.5, 2.0),
+                'height': (-0.2, 0.5),  # Strict DTM-based: -20cm to +50cm above ground
                 'planarity': (0.85, None),
                 'normal_z': (0.90, None),
                 'curvature': (None, 0.05),

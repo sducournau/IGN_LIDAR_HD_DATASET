@@ -46,8 +46,9 @@ class FeatureMode(Enum):
     """Predefined feature computation modes."""
     MINIMAL = "minimal"              # Ultra-fast: ~8 features
     LOD2_SIMPLIFIED = "lod2"        # Essential: ~11 features for LOD2
-    LOD3_FULL = "lod3"              # Complete: ~35 features for LOD3
+    LOD3_FULL = "lod3"              # Complete: ~51 features for LOD3 (includes planes)
     ASPRS_CLASSES = "asprs_classes" # ASPRS classification: ~25 features
+    PLANES = "planes"               # Plane-based features only: ~8 features
     FULL = "full"                   # All available features
     CUSTOM = "custom"               # User-defined selection
 
@@ -134,6 +135,25 @@ FEATURE_DESCRIPTIONS = {
     'blue': 'Blue channel [0-255]',
     'nir': 'Near-infrared channel [0-255]',
     'ndvi': 'Normalized Difference Vegetation Index [-1,1]',
+    
+    # NEW: Plane-Based Features (8 features)
+    'plane_id': 'ID of nearest plane (-1 if not assigned)',
+    'plane_type': 'Type of plane (0=horizontal, 1=vertical, 2=inclined, -1=none)',
+    'distance_to_plane': 'Distance to plane surface (meters)',
+    'plane_area': 'Area of containing plane (m²)',
+    'plane_orientation': 'Angle of plane normal from horizontal (degrees)',
+    'plane_planarity': 'Planarity score of plane [0,1]',
+    'position_on_plane_u': 'Normalized U coordinate on plane [0,1]',
+    'position_on_plane_v': 'Normalized V coordinate on plane [0,1]',
+    
+    # Building-Plane Features (Phase 2 - Hierarchical Clustering)
+    'building_id': 'Building ID from ground truth footprint (-1 if not in building)',
+    'plane_id_local': 'Local plane ID within building (0, 1, 2, ... within each building)',
+    'facade_id': 'Facade ID for vertical planes (0=N, 1=E, 2=S, 3=W, -1=non-facade)',
+    'distance_to_building_center': 'Distance from building centroid (meters)',
+    'relative_height_in_building': 'Normalized height within building [0=bottom, 1=top]',
+    'n_planes_in_building': 'Number of planes detected in building',
+    'plane_area_ratio': 'Plane area / total building surface area',
 }
 
 
@@ -245,7 +265,26 @@ LOD3_FEATURES = {
     'red', 'green', 'blue',
     'nir',
     'ndvi',
-}  # Total: ~43 features (was 35, added 8 new building features)
+    
+    # Plane-Based Features (8 features) - NEW for v3.x
+    'plane_id',
+    'plane_type',
+    'distance_to_plane',
+    'plane_area',
+    'plane_orientation',
+    'plane_planarity',
+    'position_on_plane_u',
+    'position_on_plane_v',
+    
+    # Building-Plane Features (7 features) - Phase 2 for v3.x
+    'building_id',
+    'plane_id_local',
+    'facade_id',
+    'distance_to_building_center',
+    'relative_height_in_building',
+    'n_planes_in_building',
+    'plane_area_ratio',
+}  # Total: ~58 features (was 51, added 7 building-plane features)
 
 # ASPRS_CLASSES: Features optimized for ASPRS classification (~20 features)
 # Optimized for ASPRS LAS 1.4 classification with enriched LAZ output
@@ -277,6 +316,20 @@ ASPRS_FEATURES = {
     'nir',                   # NIR for vegetation (NDVI computation)
     'ndvi',                  # Vegetation index (primary vegetation classifier)
 }  # Total: ~20 features (comprehensive set for ASPRS + enriched LAZ visualization)
+
+
+# PLANES: Plane-based features only (~8 features) - NEW for v3.x
+# For extracting plane geometry features from detected planes
+PLANES_FEATURES = {
+    'plane_id',
+    'plane_type',
+    'distance_to_plane',
+    'plane_area',
+    'plane_orientation',
+    'plane_planarity',
+    'position_on_plane_u',
+    'position_on_plane_v',
+}  # Total: 8 features (pure plane geometry)
 
 
 @dataclass
@@ -332,21 +385,38 @@ class FeatureSet:
             'sum_eigenvalues', 'eigenentropy',
             'height_above_ground', 'vertical_std',
             'verticality', 'wall_score', 'roof_score',
+            'horizontality', 'wall_likelihood', 'roof_likelihood', 'facade_score',
             'density', 'num_points_2m', 'neighborhood_extent',
             'height_extent_ratio',
+            'legacy_edge_strength', 'legacy_corner_likelihood',
+            'legacy_overhang_indicator', 'legacy_surface_roughness',
+            'flat_roof_score', 'sloped_roof_score', 'steep_roof_score', 'opening_likelihood',
             'edge_strength', 'corner_likelihood',
             'overhang_indicator', 'surface_roughness',
             'red', 'green', 'blue', 'nir', 'ndvi',
+            # Plane-based features (v3.x)
+            'plane_id', 'plane_type', 'distance_to_plane', 'plane_area',
+            'plane_orientation', 'plane_planarity', 
+            'position_on_plane_u', 'position_on_plane_v',
+            # Building-plane features (Phase 2)
+            'building_id', 'plane_id_local', 'facade_id',
+            'distance_to_building_center', 'relative_height_in_building',
+            'n_planes_in_building', 'plane_area_ratio',
         ]
-        return [f for f in order if f in self.features]
+        # Include all features that are in the set (not just those in order)
+        ordered = [f for f in order if f in self.features]
+        # Add any additional features not in the order list
+        remaining = [f for f in sorted(self.features) if f not in order]
+        return ordered + remaining
     
     def get_description(self) -> str:
         """Get human-readable description of this feature set."""
         mode_descriptions = {
             FeatureMode.MINIMAL: "Minimal features for fast processing",
             FeatureMode.LOD2_SIMPLIFIED: "Essential features for LOD2 building classification",
-            FeatureMode.LOD3_FULL: "Complete features for LOD3 architectural modeling",
+            FeatureMode.LOD3_FULL: "Complete features for LOD3 architectural modeling (includes plane features)",
             FeatureMode.ASPRS_CLASSES: "Optimized features for ASPRS classification",
+            FeatureMode.PLANES: "Plane-based geometric features only",
             FeatureMode.FULL: "All available features",
             FeatureMode.CUSTOM: "Custom user-defined features",
         }
@@ -413,6 +483,8 @@ def get_feature_config(
         features = LOD3_FEATURES.copy()
     elif mode_enum == FeatureMode.ASPRS_CLASSES:
         features = ASPRS_FEATURES.copy()
+    elif mode_enum == FeatureMode.PLANES:
+        features = PLANES_FEATURES.copy()
     elif mode_enum == FeatureMode.FULL:
         features = set(FEATURE_DESCRIPTIONS.keys())
     elif mode_enum == FeatureMode.CUSTOM:

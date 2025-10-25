@@ -71,6 +71,7 @@ const sidebars: SidebarsConfig = {
         "features/adaptive-classification",
         "features/building-analysis",
         "features/road-classification",
+        "features/rules-framework", // NEW: Rules Framework
         "features/smart-skip",
         "features/format-preferences",
         "features/enriched-laz-only",
@@ -203,6 +204,7 @@ const sidebars: SidebarsConfig = {
         "api/configuration",
         "api/core-module",
         "api/features",
+        "api/rules", // NEW: Rules API
         "api/gpu-api",
         "api/rgb-augmentation",
         "api/architectural-style-api",
@@ -225,6 +227,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "📝 Release Notes",
       items: [
+        "release-notes/v3.2.1", // NEW: Latest release
         "release-notes/v3.0.0",
         "release-notes/v1.7.2",
         "release-notes/v1.7.1",

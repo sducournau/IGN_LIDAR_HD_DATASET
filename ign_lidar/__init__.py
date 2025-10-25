@@ -4,6 +4,14 @@ IGN LiDAR HD Dataset Processing Library
 A Python library for processing IGN LiDAR HD data into machine learning-ready datasets
 with building LOD (Level of Detail) classification support.
 
+Version 3.3.3 - Gap Detection Enhancement:
+- Automatic gap/void detection in building perimeters
+- Angular sector analysis (36 sectors = 10° each)
+- Gap-based adaptive buffer adjustment
+- Quality metrics for building detection
+- Directional gap identification (N, NE, E, SE, S, SW, W, NW)
+- Export of problematic buildings for manual review
+
 Version 3.0.0 - Major Release:
 - Complete configuration system overhaul with unified v4.0 schema
 - Enhanced GPU optimization with significantly improved utilization
@@ -14,7 +22,7 @@ Version 3.0.0 - Major Release:
 All features now work with the new unified configuration architecture.
 """
 
-__version__ = "3.1.0"
+__version__ = "3.3.3"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 

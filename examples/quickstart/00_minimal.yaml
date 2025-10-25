@@ -1,0 +1,90 @@
+# ============================================================================
+# IGN LiDAR HD - Minimal Quickstart Configuration
+# ============================================================================
+# FASTEST way to get started with IGN LiDAR HD processing.
+# Perfect for: First-time users, testing, small datasets (<5 tiles)
+#
+# What this does:
+# - Processes LiDAR tiles into ML-ready patches
+# - Uses CPU (no GPU required)
+# - Minimal feature set (essential geometric features only)
+# - No external data sources (BD TOPO, DTM, etc.)
+# - Fastest processing time
+#
+# Expected performance: ~5-10 min per 18M point tile (CPU)
+# ============================================================================
+
+# Input/Output paths (REQUIRED - modify these)
+input_dir: "/path/to/your/laz/tiles"
+output_dir: "/path/to/output"
+
+# ============================================================================
+# PROCESSOR SETTINGS
+# ============================================================================
+processor:
+  # Processing level
+  lod_level: "LOD2" # Simplified building classification
+
+  # What to generate
+  processing_mode: "patches_only" # Only create training patches
+
+  # Hardware
+  use_gpu: false # CPU processing (no GPU required)
+  num_workers: 4 # Parallel workers (adjust for your CPU)
+
+  # Patch settings
+  patch_size: 50.0 # 50m × 50m patches
+  num_points: 8192 # 8k points per patch (smaller = faster)
+  overlap: 0.0 # No overlap (faster)
+
+# ============================================================================
+# PREPROCESSING (DISABLED FOR SPEED)
+# ============================================================================
+preprocess:
+  enabled: false # Skip outlier removal (LiDAR HD is clean)
+
+# ============================================================================
+# FEATURES (MINIMAL SET)
+# ============================================================================
+features:
+  # Feature mode
+  mode: "minimal" # ~8 essential features only
+
+  # Geometric computation
+  k_neighbors: 30 # Neighborhood size
+  search_radius: 3.0 # 3m search radius
+
+  # What to compute (minimal)
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: false # Disabled for speed
+
+  # Disable everything else
+  multi_scale_computation: false
+  compute_cluster_id: false
+  spectral_features: false
+
+# ============================================================================
+# DATA SOURCES (ALL DISABLED)
+# ============================================================================
+data_sources:
+  bd_topo:
+    enabled: false # No BD TOPO (external data)
+
+  dtm:
+    enabled: false # No DTM augmentation
+
+  orthophoto:
+    enabled: false # No RGB/NIR spectral data
+
+# ============================================================================
+# USAGE
+# ============================================================================
+# ign-lidar-hd process -c examples/quickstart/00_minimal.yaml
+#
+# Or override paths:
+# ign-lidar-hd process -c examples/quickstart/00_minimal.yaml \
+#   input_dir="/data/tiles" \
+#   output_dir="/data/output"
+# ============================================================================

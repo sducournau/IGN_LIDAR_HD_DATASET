@@ -1,0 +1,79 @@
+# Multi-Scale Feature Computation - Minimal Configuration
+# IGN LiDAR HD Processing v6.2
+#
+# This configuration uses 2 scales for minimal computational overhead
+# while still benefiting from artifact suppression.
+#
+# Use case: Quick processing, testing, or when computational resources are limited
+# Expected artifact reduction: 20-30% → 10-15%
+# Performance: ~2x single-scale computation
+
+processor:
+  lod_level: LOD2
+  processing_mode: patches_only
+  use_gpu: false
+  patch_size: 150.0
+  num_points: 16384
+
+preprocess:
+  enabled: false
+  sor_k: 12
+  sor_std: 2.0
+  ror_radius: 1.0
+  ror_neighbors: 4
+  voxel_enabled: false
+  voxel_size: 0.1
+
+stitching:
+  enabled: false
+  buffer_size: 10.0
+  auto_detect_neighbors: true
+  auto_download_neighbors: false
+  cache_enabled: true
+
+features:
+  mode: lod2
+  k_neighbors: 30
+  search_radius: 3.0
+
+  # Enable multi-scale computation
+  multi_scale_computation: true
+
+  # Define 2 scales: fine and coarse
+  scales:
+    - name: fine
+      k_neighbors: 30
+      search_radius: 2.0
+      weight: 0.6 # Emphasize fine details
+
+    - name: coarse
+      k_neighbors: 80
+      search_radius: 4.0
+      weight: 0.4 # Moderate weight on broader context
+
+  # Aggregation settings
+  aggregation_method: variance_weighted
+  variance_penalty_factor: 2.0
+
+  # Artifact detection (optional)
+  detect_artifacts: false
+
+  # Performance settings
+  parallel_scale_computation: false
+  cache_kdtrees: true
+
+  # RGB/NIR augmentation (optional)
+  use_rgb: false
+  use_nir: false
+
+data_sources:
+  bd_topo:
+    buildings: true
+    roads: true
+    vegetation: false
+    water: false
+
+output:
+  enriched_laz: false
+  patches: true
+  classification_stats: true

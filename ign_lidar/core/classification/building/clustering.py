@@ -538,8 +538,313 @@ def cluster_buildings_multi_source(
     )
 
 
+# =============================================================================
+# BUILDING-LEVEL PLANE CLUSTERING (Phase 2 - Plane Features Integration)
+# =============================================================================
+
+@dataclass
+class BuildingPlaneCluster:
+    """
+    Represents a cluster of points belonging to a single plane within a building.
+    
+    Hierarchical clustering: Building → Facade → Plane
+    
+    Attributes:
+        building_id: ID of parent building
+        plane_id: Global plane ID (from PlaneFeatureExtractor)
+        plane_id_local: Local plane ID within this building (0, 1, 2, ...)
+        facade_id: Facade ID within building (-1 if not facade)
+        point_indices: Indices into original point cloud
+        centroid: [3] XYZ centroid of plane
+        n_points: Number of points in plane
+        plane_type: 0=horizontal, 1=vertical, 2=inclined
+        plane_area: Area of plane surface (m²)
+        plane_normal: [3] Unit normal vector of plane
+        distance_to_building_center: Distance from building centroid (m)
+        relative_height: Normalized height within building [0, 1]
+    """
+    building_id: int
+    plane_id: int
+    plane_id_local: int
+    facade_id: int
+    point_indices: np.ndarray
+    centroid: np.ndarray
+    n_points: int
+    plane_type: int
+    plane_area: float
+    plane_normal: np.ndarray
+    distance_to_building_center: float
+    relative_height: float
+
+
+class BuildingPlaneClusterer:
+    """
+    Hierarchical clustering of points by Building → Plane.
+    
+    This class extends BuildingClusterer to add plane-level clustering
+    within each building, enabling building-aware ML training with
+    architectural plane context.
+    
+    Features extracted per point:
+    - building_id: Which building
+    - plane_id_local: Which plane within building
+    - facade_id: Which facade (for vertical planes)
+    - distance_to_building_center: Distance from building centroid
+    - relative_height_in_building: Normalized height [0, 1]
+    - n_planes_in_building: Total planes in building
+    - plane_area_ratio: Plane area / total building surface area
+    
+    Use Cases:
+    - Building-aware ML training with plane context
+    - Facade-level classification (windows, doors, balconies)
+    - LOD3 reconstruction with architectural elements
+    - Multi-building scene understanding
+    """
+    
+    def __init__(
+        self,
+        building_clusterer: Optional[BuildingClusterer] = None,
+        min_points_per_plane: int = 30,
+        facade_angle_threshold: float = 80.0,
+        compute_facade_ids: bool = True
+    ):
+        """
+        Initialize building-plane clusterer.
+        
+        Args:
+            building_clusterer: BuildingClusterer instance (creates default if None)
+            min_points_per_plane: Minimum points to form valid plane cluster
+            facade_angle_threshold: Minimum angle from horizontal for facade (degrees)
+            compute_facade_ids: Compute facade IDs for vertical planes
+        """
+        self.building_clusterer = building_clusterer or BuildingClusterer()
+        self.min_points_per_plane = min_points_per_plane
+        self.facade_angle_threshold = facade_angle_threshold
+        self.compute_facade_ids = compute_facade_ids
+        
+        logger.info("Building-Plane Clusterer initialized")
+        logger.info(f"  Min points per plane: {min_points_per_plane}")
+        logger.info(f"  Facade detection: {compute_facade_ids} (angle threshold: {facade_angle_threshold}°)")
+    
+    def cluster_points_by_building_planes(
+        self,
+        points: np.ndarray,
+        plane_features: Dict[str, np.ndarray],
+        buildings_gdf: 'gpd.GeoDataFrame',
+        labels: Optional[np.ndarray] = None,
+        building_classes: Optional[List[int]] = None
+    ) -> Tuple[Dict[str, np.ndarray], List[BuildingPlaneCluster]]:
+        """
+        Cluster points hierarchically by building and plane.
+        
+        Args:
+            points: Point coordinates [N, 3] (X, Y, Z)
+            plane_features: Dict with plane features from PlaneFeatureExtractor:
+                - plane_id: Global plane IDs [N]
+                - plane_type: Plane types [N] (0=horiz, 1=vert, 2=inclined)
+                - plane_area: Plane areas [N]
+                - normals: Surface normals [N, 3]
+            buildings_gdf: GeoDataFrame of building footprints
+            labels: Optional classification labels [N]
+            building_classes: ASPRS codes for buildings
+            
+        Returns:
+            Tuple of (features_dict, clusters_list)
+            - features_dict: Dict with building-plane features:
+                - building_id [N]: Building ID per point
+                - plane_id_local [N]: Local plane ID within building
+                - facade_id [N]: Facade ID (-1 if not facade)
+                - distance_to_building_center [N]: Distance from building centroid
+                - relative_height_in_building [N]: Normalized height [0, 1]
+                - n_planes_in_building [N]: Number of planes in building
+                - plane_area_ratio [N]: Plane area / total building surface area
+            - clusters_list: List of BuildingPlaneCluster objects
+        """
+        logger.info("🏢 Clustering points by building and plane...")
+        
+        n_points = len(points)
+        
+        # Step 1: Cluster by buildings
+        building_ids, building_clusters = self.building_clusterer.cluster_points_by_buildings(
+            points, buildings_gdf, labels, building_classes
+        )
+        
+        logger.info(f"  Buildings: {len(building_clusters)} clusters")
+        
+        # Extract plane features
+        plane_ids = plane_features.get('plane_id')
+        plane_types = plane_features.get('plane_type')
+        plane_areas = plane_features.get('plane_area')
+        normals = plane_features.get('normals')
+        
+        if plane_ids is None:
+            logger.warning("No plane_id in plane_features - cannot cluster by planes")
+            return {}, []
+        
+        # Initialize output features
+        plane_id_local = np.full(n_points, -1, dtype=np.int32)
+        facade_ids = np.full(n_points, -1, dtype=np.int32)
+        distance_to_building_center = np.zeros(n_points, dtype=np.float32)
+        relative_height_in_building = np.zeros(n_points, dtype=np.float32)
+        n_planes_in_building = np.zeros(n_points, dtype=np.int32)
+        plane_area_ratio = np.zeros(n_points, dtype=np.float32)
+        
+        # Step 2: For each building, cluster planes
+        building_plane_clusters = []
+        
+        for building_cluster in building_clusters:
+            building_id = building_cluster.building_id
+            point_indices = building_cluster.point_indices
+            
+            if len(point_indices) == 0:
+                continue
+            
+            # Get plane IDs within this building
+            building_plane_ids = plane_ids[point_indices]
+            unique_planes = np.unique(building_plane_ids[building_plane_ids >= 0])
+            
+            if len(unique_planes) == 0:
+                logger.debug(f"  Building {building_id}: No planes detected")
+                continue
+            
+            # Compute building-level features
+            building_points = points[point_indices]
+            building_centroid = building_cluster.centroid
+            building_height_min = building_points[:, 2].min()
+            building_height_max = building_points[:, 2].max()
+            building_height_range = building_height_max - building_height_min
+            
+            # Total surface area of all planes in building
+            building_plane_areas = plane_areas[point_indices] if plane_areas is not None else None
+            total_plane_area = np.sum(building_plane_areas[building_plane_areas > 0]) if building_plane_areas is not None else 0.0
+            
+            # Assign local plane IDs
+            plane_id_map = {global_id: local_id for local_id, global_id in enumerate(unique_planes)}
+            
+            # Create plane clusters
+            for local_id, global_plane_id in enumerate(unique_planes):
+                # Points in this plane within this building
+                plane_mask = building_plane_ids == global_plane_id
+                plane_point_indices = point_indices[plane_mask]
+                
+                if len(plane_point_indices) < self.min_points_per_plane:
+                    continue
+                
+                # Plane properties
+                plane_type = plane_types[plane_point_indices[0]] if plane_types is not None else -1
+                plane_area = plane_areas[plane_point_indices[0]] if plane_areas is not None else 0.0
+                plane_normal = normals[plane_point_indices].mean(axis=0) if normals is not None else np.array([0, 0, 1])
+                plane_normal = plane_normal / (np.linalg.norm(plane_normal) + 1e-8)
+                
+                # Plane centroid
+                plane_centroid = points[plane_point_indices].mean(axis=0)
+                
+                # Distance to building center
+                dist_to_center = np.linalg.norm(plane_centroid[:2] - building_centroid[:2])
+                
+                # Relative height in building
+                plane_height = plane_centroid[2]
+                rel_height = ((plane_height - building_height_min) / building_height_range) if building_height_range > 0 else 0.5
+                rel_height = np.clip(rel_height, 0.0, 1.0)
+                
+                # Facade ID (for vertical planes)
+                facade_id = -1
+                if self.compute_facade_ids and plane_type == 1:  # Vertical plane
+                    # Compute facade ID based on plane orientation
+                    facade_id = self._compute_facade_id(plane_normal, building_centroid[:2])
+                
+                # Create cluster
+                cluster = BuildingPlaneCluster(
+                    building_id=building_id,
+                    plane_id=int(global_plane_id),
+                    plane_id_local=local_id,
+                    facade_id=facade_id,
+                    point_indices=plane_point_indices,
+                    centroid=plane_centroid,
+                    n_points=len(plane_point_indices),
+                    plane_type=int(plane_type),
+                    plane_area=float(plane_area),
+                    plane_normal=plane_normal,
+                    distance_to_building_center=float(dist_to_center),
+                    relative_height=float(rel_height)
+                )
+                
+                building_plane_clusters.append(cluster)
+                
+                # Assign features to points
+                plane_id_local[plane_point_indices] = local_id
+                facade_ids[plane_point_indices] = facade_id
+                distance_to_building_center[plane_point_indices] = dist_to_center
+                relative_height_in_building[plane_point_indices] = rel_height
+                n_planes_in_building[plane_point_indices] = len(unique_planes)
+                if total_plane_area > 0:
+                    plane_area_ratio[plane_point_indices] = plane_area / total_plane_area
+            
+            logger.debug(f"  Building {building_id}: {len(unique_planes)} planes, {len(point_indices)} points")
+        
+        # Create output features dict
+        features_dict = {
+            'building_id': building_ids,
+            'plane_id_local': plane_id_local,
+            'facade_id': facade_ids,
+            'distance_to_building_center': distance_to_building_center,
+            'relative_height_in_building': relative_height_in_building,
+            'n_planes_in_building': n_planes_in_building,
+            'plane_area_ratio': plane_area_ratio,
+        }
+        
+        logger.info(f"  ✓ Created {len(building_plane_clusters)} building-plane clusters")
+        logger.info(f"     Average planes per building: {len(building_plane_clusters) / max(len(building_clusters), 1):.1f}")
+        
+        return features_dict, building_plane_clusters
+    
+    def _compute_facade_id(self, plane_normal: np.ndarray, building_center: np.ndarray) -> int:
+        """
+        Compute facade ID based on plane orientation relative to building.
+        
+        Facade IDs (cardinal directions):
+        - 0: North (normal points north, +Y)
+        - 1: East (normal points east, +X)
+        - 2: South (normal points south, -Y)
+        - 3: West (normal points west, -X)
+        
+        Args:
+            plane_normal: [3] Unit normal vector
+            building_center: [2] Building centroid (X, Y)
+            
+        Returns:
+            Facade ID (0-3) or -1 if not facade
+        """
+        # Use XY components of normal to determine orientation
+        nx, ny = plane_normal[0], plane_normal[1]
+        
+        # Compute angle from north (+Y axis)
+        angle = np.arctan2(nx, ny)  # radians, [-π, π]
+        angle_deg = np.degrees(angle)  # [-180, 180]
+        
+        # Normalize to [0, 360)
+        if angle_deg < 0:
+            angle_deg += 360
+        
+        # Assign to quadrant (0=N, 1=E, 2=S, 3=W)
+        # North: [315, 360) and [0, 45)
+        # East: [45, 135)
+        # South: [135, 225)
+        # West: [225, 315)
+        if angle_deg >= 315 or angle_deg < 45:
+            return 0  # North
+        elif angle_deg < 135:
+            return 1  # East
+        elif angle_deg < 225:
+            return 2  # South
+        else:
+            return 3  # West
+
+
 __all__ = [
     'BuildingCluster',
     'BuildingClusterer',
+    'BuildingPlaneCluster',
+    'BuildingPlaneClusterer',
     'cluster_buildings_multi_source'
 ]

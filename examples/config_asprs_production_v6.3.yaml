@@ -1,0 +1,529 @@
+# ============================================================================
+# IGN LiDAR HD - ASPRS Production Configuration v6.3
+# ============================================================================
+# LAST UPDATED: October 25, 2025
+#
+# Complete production-ready ASPRS classification with:
+# - DTM augmentation (1m² resolution for accurate ground reference)
+# - Multi-scale computation with adaptive aggregation (artifact suppression)
+# - GPU optimization
+# - Full BD TOPO integration
+# - Spectral features (RGB + NIR + NDVI)
+# ============================================================================
+
+config_version: "6.3.0"
+preset_name: "asprs_production_comprehensive"
+
+# ============================================================================
+# PROCESSOR CONFIGURATION
+# ============================================================================
+processor:
+  # Processing mode
+  lod_level: "ASPRS"
+  processing_mode: "both" # patches_only | enriched_only | both
+  output_format: "laz" # Output format: laz | las
+  use_stitching: false # Tile stitching disabled
+
+  # Performance
+  use_gpu: true # Set false if no GPU available
+  gpu_device: 0
+  gpu_batch_size: 30_000_000 # 30M points (adjust for your VRAM)
+  gpu_memory_target: 0.90 # 90% VRAM utilization
+  vram_limit_gb: 14 # Adjust for your GPU
+
+  # Chunking for large tiles
+  chunk_size: 5_000_000 # 5M points per chunk
+
+  # Parallel processing
+  num_workers: 0 # 0 = use GPU without multiprocessing (recommended)
+
+  # Patch generation
+  patch_size: 50.0 # 50m × 50m patches
+  num_points: 24576 # 24k points per patch
+  overlap: 0.1 # 10% overlap
+
+# ============================================================================
+# PREPROCESSING CONFIGURATION
+# ============================================================================
+preprocess:
+  # Outlier removal (disabled for production - LiDAR HD is clean)
+  enabled: true
+
+  # Statistical Outlier Removal (SOR)
+  sor_k: 12 # Number of neighbors for SOR
+  sor_std: 2.0 # Standard deviation threshold
+
+  # Radius Outlier Removal (ROR)
+  ror_radius: 1.0 # Search radius (meters)
+  ror_neighbors: 4 # Min neighbors required
+
+  # Voxel downsampling (not needed for production)
+  voxel_enabled: false
+  voxel_size: 0.1 # Voxel size (meters)
+
+# ============================================================================
+# STITCHING CONFIGURATION (TILE BOUNDARY HANDLING)
+# ============================================================================
+stitching:
+  # Tile stitching for boundary-aware processing
+  enabled: false # Disabled for production (not needed for patch-based)
+
+  # Buffer zone size (meters)
+  buffer_size: 10.0 # 10m buffer zone for neighbor context
+
+  # Auto-detection
+  auto_detect_neighbors: true # Automatically detect neighbor tiles
+  auto_download_neighbors: false # Don't auto-download (use local only)
+
+  # Caching
+  cache_enabled: true # Cache loaded tiles
+
+# ============================================================================
+# FEATURES CONFIGURATION - WITH MULTI-SCALE ARTIFACT SUPPRESSION
+# ============================================================================
+features:
+  # Feature mode
+  mode: "asprs_classes" # ASPRS-optimized feature set
+
+  # Geometric computation
+  k_neighbors: 30 # Base neighborhood size
+  search_radius: 3.0 # Base search radius (meters)
+
+  # Core features (REQUIRED for ASPRS)
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: true # planarity, sphericity, verticality
+  compute_density: true
+
+  # Cluster ID features (building and parcel identification)
+  compute_cluster_id: true # Spatial clustering for object identification
+  compute_building_cluster_id: true # Building-specific cluster IDs from BD TOPO
+  compute_parcel_cluster_id: true # Cadastral parcel cluster IDs
+
+  # Spectral features (OPTIONAL - requires RGB + NIR)
+  compute_ndvi: true # Vegetation index
+  use_rgb: true # RGB from orthophotos
+  use_infrared: true # NIR from IRC
+  use_nir: true # Alias for use_infrared
+
+  # Height computation method
+  height_method: "dtm" # Use DTM for accurate height above ground
+  use_rge_alti_for_height: true
+  compute_height_above_ground: true
+  compute_height_local: true # Also compute local height for comparison
+
+  # ========================================================================
+  # MULTI-SCALE COMPUTATION (v6.3) - ADAPTIVE ARTIFACT SUPPRESSION
+  # ========================================================================
+  # Reduces scan line artifacts by 50-75%
+  # New in v6.3: Adaptive aggregation for geometry-aware scale selection
+  # Performance: ~3x slower but much cleaner features
+  multi_scale_computation: true
+
+  # Define 3 scales: fine, medium, coarse
+  scales:
+    - name: fine
+      k_neighbors: 20
+      search_radius: 1.0
+      weight: 0.3 # Lower weight (artifact-prone)
+
+    - name: medium
+      k_neighbors: 50
+      search_radius: 2.5
+      weight: 0.5 # Highest weight (best balance)
+
+    - name: coarse
+      k_neighbors: 100
+      search_radius: 5.0
+      weight: 0.2 # Stable but less detail
+
+  # Aggregation method
+  # Options:
+  #   - "weighted_average": Simple weighted average (fastest, baseline)
+  #   - "variance_weighted": Down-weights high-variance scales (recommended)
+  #   - "adaptive": Geometry-aware per-point scale selection (best quality)
+  aggregation_method: "variance_weighted" # Production default
+  variance_penalty_factor: 2.0 # Penalty for high-variance features (1.0-5.0)
+
+  # NOTE: Use "adaptive" for best results on complex geometry (edges, corners)
+  # but expect ~10-20% slower performance vs variance_weighted
+
+  # Artifact detection
+  artifact_detection: true # Flag artifact-prone points
+  artifact_variance_threshold: 0.15 # Variance threshold for detection
+  artifact_gradient_threshold: 0.10 # Gradient threshold
+  auto_suppress_artifacts: true # Auto-reduce artifact scale weights
+
+  # Multi-scale performance
+  reuse_kdtrees_across_scales: true # Reuse KD-trees (faster)
+  parallel_scale_computation: false # Don't parallelize (more memory)
+  cache_scale_results: true # Cache intermediate results
+
+  # RGB/NIR augmentation
+  rgb_augmentation:
+    enabled: true
+    method: "orthophoto" # Use IGN orthophotos
+    resolution: 0.2 # 20cm resolution
+    cache_enabled: true
+
+  nir_augmentation:
+    enabled: true
+    method: "irc" # Use IGN IRC (infrared)
+    resolution: 0.5 # 50cm resolution
+    cache_enabled: true
+
+# ============================================================================
+# DTM AUGMENTATION - 1m² RESOLUTION GROUND ENRICHMENT
+# ============================================================================
+# Adds synthetic ground points from IGN RGE ALTI 1m DTM
+# Critical for accurate height computation and ground classification
+data_sources:
+  rge_alti:
+    enabled: true
+    use_wcs: true # Enable WMS download with caching
+    resolution: 1.0 # 1m resolution (matches DTM native resolution)
+    cache_enabled: true # STRONGLY RECOMMENDED
+    cache_dir: null # Auto: {input_dir}/cache/rge_alti
+    cache_ttl_days: 90 # Cache for 90 days (DTM rarely changes)
+    prefer_lidar_hd: true # Use LiDAR HD MNT (best quality)
+    api_key: "pratique" # IGN Géoplateforme key
+
+ground_truth:
+  # Master enable/disable for ground truth classification
+  enabled: true
+
+  # Processing method
+  method: "auto" # Auto-select optimal method (GPU/CPU)
+  chunk_size: 5_000_000 # 5M points per chunk
+
+  # Caching
+  cache_dir: null # null = auto-set to {input_dir}/cache/ground_truth
+  cache_ttl_days: 30 # Cache validity period
+  cache_compression: true # Compress cached files
+
+  # Processing options
+  preclassify: true # Pre-classify before geometric analysis
+  show_progress: true # Show progress bars
+
+  # DTM augmentation configuration
+  rge_alti:
+    # Enable ground augmentation
+    augment_ground: true
+
+    # Augmentation strategy
+    augmentation_strategy: "intelligent" # gaps|intelligent|full
+    # - gaps: Only fill areas with no ground points
+    # - intelligent: Priority under buildings + vegetation (RECOMMENDED)
+    # - full: Add points everywhere (slow)
+
+    # Augmentation parameters
+    augmentation_spacing: 1.0 # 1m grid spacing (1m² resolution)
+    min_distance_to_existing: 0.5 # Min 0.5m from existing ground
+    max_elevation_difference: 5.0 # Max 5m elevation diff from nearby ground
+
+    # Priority areas (for intelligent strategy)
+    augmentation_priority:
+      vegetation: true # CRITICAL - under trees for accurate height
+      buildings: true # Under buildings where LiDAR can't penetrate
+      gaps: true # Fill coverage gaps
+      water: false # Water usually not needed
+      roads: true # Roads have good LiDAR coverage
+
+    # Validation
+    validate_against_neighbors: true
+    min_neighbors_for_validation: 3
+    neighbor_search_radius: 10.0 # 10m search for validation
+
+    # Classification
+    synthetic_ground_class: 2 # ASPRS Ground class
+    mark_as_synthetic: true # Add flag to distinguish from real LiDAR
+
+  # ========================================================================
+  # BD TOPO INTEGRATION - GROUND TRUTH CLASSIFICATION
+  # ========================================================================
+  bd_topo:
+    enabled: true
+    path: "./data/ground_truth/BDTOPO/"
+
+    # Cluster ID assignment
+    assign_building_cluster_ids: true # Assign unique ID per building polygon
+    assign_parcel_cluster_ids: true # Assign unique ID per cadastral parcel
+
+    # Cadastre integration
+    cadastre:
+      enabled: true
+      path: "./data/ground_truth/cadastre/"
+      parcel_file: "PARCELLE.shp" # Cadastral parcel shapefile
+
+    # Feature layers
+    features:
+      # Buildings (Class 6 + extended 32-34)
+      buildings:
+        enabled: true
+        file: "BATIMENT.shp"
+        buffer_distance: 0.5 # 0.5m buffer for alignment
+        use_extended_classes: true # Use LOD2 building classes
+
+      # Roads (Class 11 + extended 40-42)
+      roads:
+        enabled: true
+        file: "TRONCON_DE_ROUTE.shp"
+        buffer_distance: 1.0 # 1m buffer
+        classification_method: "surface_type" # Classify by surface
+
+      # Vegetation (Class 3/4/5 + extended 50-51)
+      vegetation:
+        enabled: true
+        files: ["ZONE_DE_VEGETATION.shp", "HAIE.shp"]
+        height_based_classification: true # Use height for low/med/high
+
+      # Water (Class 9 + extended 60-61)
+      water:
+        enabled: true
+        files: ["SURFACE_HYDROGRAPHIQUE.shp", "COURS_D_EAU.shp"]
+        buffer_distance: 2.0 # 2m buffer for banks
+
+      # Railways (Class 10)
+      railways:
+        enabled: true
+        file: "TRONCON_DE_VOIE_FERREE.shp"
+
+      # Bridges (Class 17)
+      bridges:
+        enabled: true
+        file: "PONT.shp"
+
+    # Extended ASPRS classes
+    use_extended_classes: true # Enable LOD2 classes (32-99)
+
+    # Performance
+    cache_enabled: true
+    use_spatial_index: true # STRtree for fast queries
+
+# ============================================================================
+# CLASSIFICATION CONFIGURATION
+# ============================================================================
+classification:
+  # Classification mode
+  mode: "asprs" # ASPRS LAS 1.4 standard
+
+  # Class normalization
+  normalize_classes: true # Fix non-standard classes (e.g., 67 → 6)
+  strict_normalization: false # Only fix known issues
+
+  # Height-based classification (using DTM height_above_ground)
+  height_classification:
+    enabled: true
+    low_vegetation_max: 0.5 # < 0.5m = Class 3
+    medium_vegetation_max: 2.0 # 0.5-2m = Class 4
+    high_vegetation_min: 2.0 # > 2m = Class 5
+
+  # NDVI-based vegetation classification
+  ndvi_classification:
+    enabled: true
+    vegetation_threshold: 0.3 # NDVI > 0.3 = vegetation
+    strong_vegetation_threshold: 0.5 # NDVI > 0.5 = dense vegetation
+
+  # Geometric thresholds (with DTM height)
+  thresholds:
+    ground:
+      max_height_above_ground: 0.3 # < 0.3m above DTM
+      min_planarity: 0.85
+      min_horizontality: 0.8
+
+    roads:
+      max_height_above_ground: 0.5 # < 0.5m above DTM (excludes trees)
+      min_planarity: 0.75
+      max_roughness: 0.05
+
+    buildings:
+      min_height: 1.5 # > 1.5m tall
+      min_verticality: 0.55 # Walls (relaxed for rough surfaces)
+      min_roof_planarity: 0.68 # Roofs (relaxed for tiled roofs)
+      max_roof_curvature: 0.12
+
+    vegetation:
+      min_ndvi: 0.3
+      max_planarity: 0.6 # Irregular
+      max_verticality: 0.4 # Not too vertical
+
+    water:
+      min_height_above_ground: -0.5 # Can be below DTM
+      max_height_above_ground: 0.3
+      min_planarity: 0.80
+      max_ndvi: 0.2 # Low vegetation index
+
+# ============================================================================
+# RECLASSIFICATION - ASPRS RULES
+# ============================================================================
+reclassification:
+  enabled: true
+
+  # Geometric rules
+  use_geometric_rules: true # Height, planarity, verticality
+  use_ndvi_classification: true # NDVI-based vegetation
+  use_spectral_rules: true # NIR-based material classification
+  use_clustering: true # Spatial clustering (fast)
+
+  # Thresholds
+  ndvi_vegetation_threshold: 0.3
+  ndvi_road_threshold: 0.15
+  nir_vegetation_threshold: 0.4
+  nir_building_threshold: 0.3
+
+  # Clustering parameters
+  spatial_cluster_eps: 0.5 # 50cm clustering radius
+  min_cluster_size: 10 # Min 10 points per cluster
+
+  # Confidence-based reclassification
+  min_classification_confidence: 0.35 # Min confidence to accept
+  rejection_confidence_threshold: 0.25 # Below this = reject
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  # Output format
+  format: "laz" # LAZ (compressed) | las (uncompressed)
+
+  # Extra dimensions to save
+  extra_dims:
+    # Features
+    - planarity
+    - linearity
+    - sphericity
+    - verticality
+    - horizontality
+    - curvature
+    - density
+
+    # Height
+    - height
+    - height_above_ground # From DTM
+    - height_local # From local minimum
+
+    # Spectral
+    - ndvi
+    - nir_intensity
+
+    # Cluster IDs (object identification)
+    - cluster_id # General spatial cluster ID
+    - building_cluster_id # Building-specific ID from BD TOPO
+    - parcel_cluster_id # Cadastral parcel ID
+
+    # Multi-scale (optional)
+    # - artifact_mask  # Uncomment to save artifact detection
+    # - scale_variance  # Uncomment to save variance metrics
+
+    # DTM augmentation flags
+    - is_synthetic # Flag synthetic ground points
+
+  # Classification output
+  save_classification: true # Save ASPRS classes to classification field
+  save_confidence_scores: false # Don't save confidence (saves space)
+
+  # Metadata
+  include_metadata: true
+  metadata_format: "json"
+
+# ============================================================================
+# MONITORING & LOGGING
+# ============================================================================
+monitoring:
+  enabled: true
+  log_level: "INFO" # DEBUG | INFO | WARNING | ERROR
+
+  # Performance monitoring
+  track_memory: true
+  track_gpu_usage: true
+  track_processing_time: true
+
+  # Progress reporting
+  progress_interval: 10 # Log every 10 tiles
+
+  # Statistics
+  compute_statistics: true
+  save_statistics: true
+  statistics_output: "processing_stats.json"
+
+# ============================================================================
+# CACHE CONFIGURATION
+# ============================================================================
+cache:
+  enabled: true
+  cache_dir: "./cache"
+
+  # Cache policies
+  cache_features: false # Don't cache features (large)
+  cache_ground_truth: true # Cache BD TOPO (fast queries)
+  cache_rgb: true # Cache orthophotos
+  cache_nir: true # Cache IRC
+  cache_dtm: true # Cache RGE ALTI (critical)
+
+  # Expiration
+  ground_truth_ttl_days: 180 # 6 months
+  rgb_ttl_days: 365 # 1 year
+  nir_ttl_days: 365 # 1 year
+  dtm_ttl_days: 365 # 1 year (DTM rarely changes)
+
+# ============================================================================
+# VALIDATION & QUALITY CONTROL
+# ============================================================================
+validation:
+  enabled: true
+
+  # Input validation
+  check_point_density: true
+  min_points_per_tile: 100_000 # Min 100k points
+
+  # Feature validation
+  check_feature_range: true
+  flag_invalid_features: true
+
+  # Classification validation
+  check_class_distribution: true
+  warn_on_high_unclassified: true
+  max_unclassified_percentage: 15 # Warn if >15% unclassified
+
+  # Output validation
+  check_output_completeness: true
+  verify_extra_dims: true
+# ============================================================================
+# NOTES & USAGE
+# ============================================================================
+#
+# USAGE:
+#   ign-lidar-hd process \
+#     -c examples/config_asprs_production_v6.3.yaml \
+#     input_dir="/data/lidar/tiles" \
+#     output_dir="/data/output_v6.3"
+#
+# EXPECTED RESULTS:
+#   - ASPRS LAS 1.4 classification (classes 1-17 + extended)
+#   - DTM-accurate height_above_ground
+#   - Multi-scale artifact-resistant features
+#   - 90-95% point classification rate
+#   - 5-10% artifact rate (vs 20-40% without multi-scale)
+#
+# PERFORMANCE (RTX 4080, 18M point tile):
+#   - Feature computation: ~3-5 min (multi-scale overhead)
+#   - DTM augmentation: ~1-2 min (cached: <30s)
+#   - Ground truth: ~2-4 min
+#   - Classification: ~1-2 min
+#   - Total: ~10-15 min per tile
+#
+# REQUIREMENTS:
+#   - GPU: 14GB+ VRAM (RTX 3090, RTX 4080, A5000, etc.)
+#   - RAM: 32GB+ recommended
+#   - Disk: 10GB+ free for cache
+#   - Network: Stable connection for DTM/orthophoto fetch
+#
+# ADJUSTMENTS FOR YOUR SYSTEM:
+#   - No GPU: Set processor.use_gpu = false, increase num_workers
+#   - Low VRAM: Reduce gpu_batch_size, increase chunk_size
+#   - Slow DTM fetch: Pre-download RGE ALTI tiles, set local_dtm_dir
+#   - No BD TOPO: Disable data_sources.bd_topo (less accurate)
+#   - No RGB/NIR: Disable spectral features (still works)
+#
+# ============================================================================

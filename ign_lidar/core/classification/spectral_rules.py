@@ -147,13 +147,29 @@ class SpectralRulesEngine:
         
         initial_mask_count = np.sum(mask)
         
-        # Rule 1: High NDVI + High NIR + High NIR/Red Ratio = Vegetation
-        # This captures healthy vegetation with strong chlorophyll absorption
+        # ✅ AMÉLIORÉ - Règle 1: Végétation avec critères assouplis
+        # Au lieu de 3 conditions strictes, utiliser des alternatives
         veg_mask = (
             mask &
-            (ndvi > 0.3) &
-            (nir > self.nir_vegetation_threshold) &
-            (nir_red_ratio > self.nir_red_ratio_veg_threshold)
+            (
+                # Option A: NDVI élevé + NIR élevé (végétation dense)
+                (
+                    (ndvi > 0.3) &
+                    (nir > self.nir_vegetation_threshold)
+                ) |
+                # Option B: NDVI modéré + ratio NIR/Red élevé (végétation moyenne)
+                (
+                    (ndvi > 0.2) &
+                    (nir_red_ratio > self.nir_red_ratio_veg_threshold)
+                ) |
+                # Option C: NDVI modéré + NIR élevé + vert dominant (végétation claire)
+                (
+                    (ndvi > 0.15) &
+                    (nir > 0.35) &
+                    (green > red) &
+                    (green > blue)
+                )
+            )
         )
         labels[veg_mask] = self.ASPRS_MEDIUM_VEGETATION
         stats['vegetation_spectral'] = np.sum(veg_mask)
@@ -227,6 +243,151 @@ class SpectralRulesEngine:
                 logger.info(f"     Building/Metal (spectral): {stats['building_metal_spectral']:,}")
             if stats['road_asphalt_spectral'] > 0:
                 logger.info(f"     Road/Asphalt (spectral): {stats['road_asphalt_spectral']:,}")
+        
+        return labels, stats
+
+    def classify_unclassified_relaxed(
+        self,
+        rgb: np.ndarray,
+        nir: np.ndarray,
+        current_labels: np.ndarray,
+        ndvi: Optional[np.ndarray] = None,
+        verticality: Optional[np.ndarray] = None,
+        heights: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, Dict[str, int]]:
+        """
+        Classification finale avec critères assouplis pour points non classifiés.
+        
+        Cette méthode applique des règles plus permissives pour classifier les
+        points restants non classifiés, en utilisant des combinaisons de features
+        spectrales et géométriques.
+        
+        Args:
+            rgb: RGB values [N, 3] normalized to [0, 1]
+            nir: NIR values [N] normalized to [0, 1]
+            current_labels: Current classification labels [N]
+            ndvi: Pre-computed NDVI values [N]
+            verticality: Verticality values [N] (0=horizontal, 1=vertical)
+            heights: Heights above ground [N]
+        
+        Returns:
+            Tuple of (updated labels, statistics dict)
+        """
+        labels = current_labels.copy()
+        stats = {
+            'vegetation_relaxed': 0,
+            'building_vertical_relaxed': 0,
+            'building_elevated_relaxed': 0,
+            'total_relaxed': 0
+        }
+        
+        # Ne traiter que les points non classifiés
+        unclassified_mask = (labels == self.ASPRS_UNCLASSIFIED)
+        n_unclassified_initial = np.sum(unclassified_mask)
+        
+        if n_unclassified_initial == 0:
+            return labels, stats
+        
+        logger.info(f"🔍 Applying relaxed classification rules to {n_unclassified_initial:,} unclassified points")
+        
+        # Extract channels
+        red = rgb[:, 0]
+        green = rgb[:, 1]
+        blue = rgb[:, 2]
+        
+        # Compute derived features
+        if ndvi is None:
+            ndvi = (nir - red) / (nir + red + 1e-8)
+        
+        brightness = np.mean(rgb, axis=1)
+        nir_red_ratio = nir / (red + 1e-8)
+        
+        # Règle 1: Végétation avec critères assouplis
+        # ✅ NDVI > 0.15 (au lieu de 0.3) OU NIR élevé + ratio NIR/Red élevé
+        veg_mask_relaxed = (
+            unclassified_mask &
+            (
+                # Option A: NDVI modéré seul
+                (ndvi > 0.15) |
+                # Option B: NIR élevé + ratio favorable (sans exiger NDVI élevé)
+                (
+                    (nir > 0.35) &
+                    (nir_red_ratio > 1.5) &
+                    (ndvi > 0.0)  # Juste positif
+                ) |
+                # Option C: Signature verte forte
+                (
+                    (green > red) &
+                    (green > blue) &
+                    (ndvi > 0.1) &
+                    (nir > 0.3)
+                )
+            )
+        )
+        labels[veg_mask_relaxed] = self.ASPRS_MEDIUM_VEGETATION
+        stats['vegetation_relaxed'] = np.sum(veg_mask_relaxed)
+        unclassified_mask[veg_mask_relaxed] = False
+        
+        # Règle 2: Bâtiments avec critères géométriques (verticalité)
+        # ✅ Points verticaux au-dessus du sol = façades/murs
+        if verticality is not None and heights is not None:
+            building_vertical_mask = (
+                unclassified_mask &
+                (verticality > 0.65) &  # Assez vertical
+                (heights > 0.5) &  # Au-dessus du sol
+                (ndvi < 0.25)  # Pas de végétation
+            )
+            labels[building_vertical_mask] = self.ASPRS_BUILDING
+            stats['building_vertical_relaxed'] = np.sum(building_vertical_mask)
+            unclassified_mask[building_vertical_mask] = False
+        
+        # Règle 3: Bâtiments élevés avec signature spectrale bâtiment
+        # ✅ Points élevés + signature matériau construction
+        if heights is not None:
+            building_elevated_mask = (
+                unclassified_mask &
+                (heights > 2.0) &  # Nettement au-dessus du sol
+                (ndvi < 0.2) &  # Pas de végétation
+                (
+                    # Signature béton/ciment
+                    (
+                        (brightness >= 0.35) &
+                        (brightness <= 0.75) &
+                        (nir > 0.25) &
+                        (nir < 0.45)
+                    ) |
+                    # Signature tuile/ardoise (sombre)
+                    (
+                        (brightness < 0.35) &
+                        (nir > 0.2) &
+                        (nir < 0.4)
+                    ) |
+                    # Signature métal (très réfléchissant)
+                    (
+                        (brightness > 0.6) &
+                        (nir > 0.3)
+                    )
+                )
+            )
+            labels[building_elevated_mask] = self.ASPRS_BUILDING
+            stats['building_elevated_relaxed'] = np.sum(building_elevated_mask)
+            unclassified_mask[building_elevated_mask] = False
+        
+        # Calcul total
+        stats['total_relaxed'] = n_unclassified_initial - np.sum(unclassified_mask)
+        
+        # Log results
+        if stats['total_relaxed'] > 0:
+            logger.info(f"  ✅ Relaxed rules classified {stats['total_relaxed']:,} additional points:")
+            if stats['vegetation_relaxed'] > 0:
+                logger.info(f"     Vegetation (relaxed NDVI): {stats['vegetation_relaxed']:,}")
+            if stats['building_vertical_relaxed'] > 0:
+                logger.info(f"     Building (vertical facades): {stats['building_vertical_relaxed']:,}")
+            if stats['building_elevated_relaxed'] > 0:
+                logger.info(f"     Building (elevated + material): {stats['building_elevated_relaxed']:,}")
+            
+            remaining = np.sum(labels == self.ASPRS_UNCLASSIFIED)
+            logger.info(f"     Remaining unclassified: {remaining:,} ({remaining/len(labels)*100:.1f}%)")
         
         return labels, stats
     

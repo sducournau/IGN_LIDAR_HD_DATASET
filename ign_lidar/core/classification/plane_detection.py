@@ -15,7 +15,7 @@ Date: October 19, 2025
 """
 
 import logging
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Any
 import numpy as np
 from dataclasses import dataclass
 from enum import Enum
@@ -47,6 +47,7 @@ class PlaneSegment:
     height_mean: float = 0.0
     height_std: float = 0.0
     n_points: int = 0
+    id: int = -1  # Plane ID for feature extraction
 
 
 class PlaneDetector:
@@ -540,9 +541,307 @@ def detect_architectural_elements(
     return elements
 
 
+class PlaneFeatureExtractor:
+    """
+    Extract plane-based features for each point in the point cloud.
+    
+    This class assigns plane-based features to individual points, enabling
+    ML models to learn from plane geometry and spatial relationships.
+    
+    Features extracted:
+    - plane_id: ID of nearest plane (-1 if no plane assigned)
+    - plane_type: Type of plane (horizontal=0, vertical=1, inclined=2, none=-1)
+    - distance_to_plane: Perpendicular distance to plane surface (meters)
+    - plane_area: Area of containing plane (m²)
+    - plane_orientation: Angle of plane normal from horizontal (degrees)
+    - plane_planarity: Planarity score of plane [0,1]
+    - position_on_plane_u: Normalized U coordinate on plane [0,1]
+    - position_on_plane_v: Normalized V coordinate on plane [0,1]
+    
+    Usage:
+        >>> detector = PlaneDetector()
+        >>> extractor = PlaneFeatureExtractor(detector)
+        >>> features = extractor.detect_and_assign_planes(
+        ...     points, normals, planarity, height
+        ... )
+        >>> print(features['plane_id'])  # Array of plane IDs per point
+    """
+    
+    def __init__(self, plane_detector: PlaneDetector):
+        """
+        Initialize plane feature extractor.
+        
+        Args:
+            plane_detector: Configured PlaneDetector instance
+        """
+        self.plane_detector = plane_detector
+        self.planes = []
+        self.plane_type_map = {
+            PlaneType.HORIZONTAL: 0,
+            PlaneType.NEAR_HORIZONTAL: 0,
+            PlaneType.VERTICAL: 1,
+            PlaneType.NEAR_VERTICAL: 1,
+            PlaneType.INCLINED: 2,
+        }
+    
+    def detect_and_assign_planes(
+        self,
+        points: np.ndarray,
+        normals: np.ndarray,
+        planarity: np.ndarray,
+        height: Optional[np.ndarray] = None,
+        max_assignment_distance: float = 0.5
+    ) -> Dict[str, np.ndarray]:
+        """
+        Detect planes and assign plane-based features to each point.
+        
+        Args:
+            points: Point coordinates [N, 3] (X, Y, Z)
+            normals: Surface normals [N, 3]
+            planarity: Planarity values [N] in [0, 1]
+            height: Height above ground [N] (optional)
+            max_assignment_distance: Maximum distance to assign point to plane (meters)
+            
+        Returns:
+            Dictionary with plane-based feature arrays:
+            - plane_id [N]: Plane ID (-1 if not assigned)
+            - plane_type [N]: Plane type (0=horizontal, 1=vertical, 2=inclined, -1=none)
+            - distance_to_plane [N]: Distance to plane (meters, inf if not assigned)
+            - plane_area [N]: Area of plane (m², 0 if not assigned)
+            - plane_orientation [N]: Plane angle from horizontal (degrees, 0 if not assigned)
+            - plane_planarity [N]: Planarity of plane [0,1] (0 if not assigned)
+            - position_on_plane_u [N]: U coordinate on plane [0,1]
+            - position_on_plane_v [N]: V coordinate on plane [0,1]
+        """
+        logger.info("🔷 Extracting plane-based features...")
+        
+        # 1. Detect all planes
+        planes_dict = self.plane_detector.detect_all_planes(
+            points, normals, planarity, height
+        )
+        
+        # Flatten planes into single list with IDs
+        all_planes = []
+        plane_id = 0
+        for plane_type, plane_list in planes_dict.items():
+            for plane in plane_list:
+                # Add ID to plane segment
+                plane.id = plane_id
+                all_planes.append(plane)
+                plane_id += 1
+        
+        self.planes = all_planes
+        n_points = len(points)
+        
+        logger.info(f"   Detected {len(all_planes)} planes total")
+        
+        # Initialize feature arrays
+        features = {
+            'plane_id': np.full(n_points, -1, dtype=np.int32),
+            'plane_type': np.full(n_points, -1, dtype=np.int8),
+            'distance_to_plane': np.full(n_points, np.inf, dtype=np.float32),
+            'plane_area': np.zeros(n_points, dtype=np.float32),
+            'plane_orientation': np.zeros(n_points, dtype=np.float32),
+            'plane_planarity': np.zeros(n_points, dtype=np.float32),
+            'position_on_plane_u': np.zeros(n_points, dtype=np.float32),
+            'position_on_plane_v': np.zeros(n_points, dtype=np.float32),
+        }
+        
+        if len(all_planes) == 0:
+            logger.warning("   No planes detected - all features set to default values")
+            return features
+        
+        # 2. For each plane, compute distance of all points to plane
+        for plane in all_planes:
+            # Plane equation: ax + by + cz + d = 0
+            # where (a, b, c) = normal vector, d = -normal · centroid
+            a, b, c = plane.normal
+            d = -np.dot(plane.normal, plane.centroid)
+            
+            # Signed distance from each point to plane
+            # Distance = |ax + by + cz + d| / sqrt(a² + b² + c²)
+            # Since normal is unit vector, denominator = 1
+            signed_distances = (
+                a * points[:, 0] + 
+                b * points[:, 1] + 
+                c * points[:, 2] + 
+                d
+            )
+            distances = np.abs(signed_distances)
+            
+            # Find points closer to this plane than previously assigned planes
+            closer_mask = distances < features['distance_to_plane']
+            
+            # Also apply maximum distance threshold
+            within_threshold = distances <= max_assignment_distance
+            update_mask = closer_mask & within_threshold
+            
+            if not np.any(update_mask):
+                continue
+            
+            # Update features for points closer to this plane
+            features['plane_id'][update_mask] = plane.id
+            features['plane_type'][update_mask] = self.plane_type_map.get(
+                plane.plane_type, -1
+            )
+            features['distance_to_plane'][update_mask] = distances[update_mask]
+            features['plane_area'][update_mask] = plane.area
+            features['plane_orientation'][update_mask] = plane.orientation_angle
+            features['plane_planarity'][update_mask] = plane.planarity
+        
+        # 3. Compute normalized position on plane (UV coordinates)
+        for plane in all_planes:
+            plane_mask = (features['plane_id'] == plane.id)
+            if not np.any(plane_mask):
+                continue
+            
+            plane_points = points[plane_mask]
+            
+            # Project points onto plane coordinate system
+            u_coords, v_coords = self._project_to_plane_coords(
+                plane_points, plane.centroid, plane.normal
+            )
+            
+            features['position_on_plane_u'][plane_mask] = u_coords
+            features['position_on_plane_v'][plane_mask] = v_coords
+        
+        # Statistics
+        n_assigned = (features['plane_id'] >= 0).sum()
+        pct_assigned = 100.0 * n_assigned / n_points if n_points > 0 else 0.0
+        
+        logger.info(f"   Assigned {n_assigned:,} / {n_points:,} points to planes ({pct_assigned:.1f}%)")
+        
+        # Per-type statistics
+        for plane_type_name, plane_type_val in [
+            ('horizontal', 0), ('vertical', 1), ('inclined', 2)
+        ]:
+            n_type = (features['plane_type'] == plane_type_val).sum()
+            if n_type > 0:
+                logger.info(f"      {plane_type_name}: {n_type:,} points")
+        
+        return features
+    
+    def _project_to_plane_coords(
+        self,
+        points: np.ndarray,
+        plane_centroid: np.ndarray,
+        plane_normal: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Project points onto plane local coordinate system (U, V).
+        
+        Creates a 2D coordinate system on the plane where:
+        - U axis: perpendicular to normal in XY plane (or X axis if normal is vertical)
+        - V axis: perpendicular to both normal and U
+        
+        Coordinates are normalized to [0, 1] within plane bounds.
+        
+        Args:
+            points: Point coordinates [M, 3]
+            plane_centroid: Plane center [3]
+            plane_normal: Plane normal vector [3]
+            
+        Returns:
+            Tuple of (u_coords, v_coords), each [M] in range [0, 1]
+        """
+        # Translate points to plane centroid
+        centered = points - plane_centroid
+        
+        # Create plane coordinate system (U, V axes)
+        # V axis: perpendicular to normal in XY plane
+        if abs(plane_normal[2]) > 0.9:  # Near-horizontal plane
+            # Use X axis as reference
+            v_axis = np.array([1.0, 0.0, 0.0])
+        else:
+            # Cross product with Z axis gives horizontal direction
+            v_axis = np.array([-plane_normal[1], plane_normal[0], 0.0])
+            v_norm = np.linalg.norm(v_axis)
+            if v_norm > 1e-6:
+                v_axis = v_axis / v_norm
+            else:
+                v_axis = np.array([1.0, 0.0, 0.0])
+        
+        # U axis: perpendicular to both normal and V
+        u_axis = np.cross(plane_normal, v_axis)
+        u_norm = np.linalg.norm(u_axis)
+        if u_norm > 1e-6:
+            u_axis = u_axis / u_norm
+        else:
+            u_axis = np.array([0.0, 1.0, 0.0])
+        
+        # Project onto axes
+        u_coords = centered @ u_axis
+        v_coords = centered @ v_axis
+        
+        # Normalize to [0, 1]
+        u_min, u_max = u_coords.min(), u_coords.max()
+        v_min, v_max = v_coords.min(), v_coords.max()
+        
+        if u_max > u_min:
+            u_coords = (u_coords - u_min) / (u_max - u_min)
+        else:
+            u_coords = np.full_like(u_coords, 0.5)
+        
+        if v_max > v_min:
+            v_coords = (v_coords - v_min) / (v_max - v_min)
+        else:
+            v_coords = np.full_like(v_coords, 0.5)
+        
+        return u_coords, v_coords
+    
+    def get_plane_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics about detected planes.
+        
+        Returns:
+            Dictionary with plane statistics:
+            - n_planes: Total number of planes
+            - n_horizontal: Number of horizontal planes
+            - n_vertical: Number of vertical planes
+            - n_inclined: Number of inclined planes
+            - total_area: Total area of all planes (m²)
+            - avg_planarity: Average planarity of planes
+        """
+        if not self.planes:
+            return {
+                'n_planes': 0,
+                'n_horizontal': 0,
+                'n_vertical': 0,
+                'n_inclined': 0,
+                'total_area': 0.0,
+                'avg_planarity': 0.0,
+            }
+        
+        n_horizontal = sum(
+            1 for p in self.planes 
+            if p.plane_type in [PlaneType.HORIZONTAL, PlaneType.NEAR_HORIZONTAL]
+        )
+        n_vertical = sum(
+            1 for p in self.planes 
+            if p.plane_type in [PlaneType.VERTICAL, PlaneType.NEAR_VERTICAL]
+        )
+        n_inclined = sum(
+            1 for p in self.planes 
+            if p.plane_type == PlaneType.INCLINED
+        )
+        
+        total_area = sum(p.area for p in self.planes)
+        avg_planarity = np.mean([p.planarity for p in self.planes])
+        
+        return {
+            'n_planes': len(self.planes),
+            'n_horizontal': n_horizontal,
+            'n_vertical': n_vertical,
+            'n_inclined': n_inclined,
+            'total_area': total_area,
+            'avg_planarity': avg_planarity,
+        }
+
+
 __all__ = [
     'PlaneType',
     'PlaneSegment',
     'PlaneDetector',
+    'PlaneFeatureExtractor',
     'detect_architectural_elements'
 ]
