@@ -89,7 +89,7 @@ class FacadeSegment:
     # Paramètres de traitement adaptatifs
     buffer_distance: float = 2.0  # Buffer pour capturer les points
     search_radius: float = 3.0  # Rayon de recherche de voisins
-    verticality_threshold: float = 0.60  # Seuil pour mur
+    verticality_threshold: float = 0.70  # Seuil pour mur (improved)
 
     # Points assignés à cette façade
     point_indices: Optional[np.ndarray] = None
@@ -568,7 +568,7 @@ class BuildingFacadeClassifier:
         self,
         # Paramètres de traitement
         initial_buffer: float = 2.0,
-        verticality_threshold: float = 0.60,
+        verticality_threshold: float = 0.70,  # Improved from 0.60 to 0.70 for better facade detection
         min_point_density: float = 50.0,
         gap_detection_resolution: float = 0.5,
         adaptive_buffer_range: Tuple[float, float] = (0.5, 8.0),
@@ -587,10 +587,11 @@ class BuildingFacadeClassifier:
         Args:
             initial_buffer: Buffer initial pour chaque façade
             verticality_threshold: Seuil de verticalité pour murs
+                (0.70 = improved from 0.60 for better facade detection)
             min_point_density: Densité minimale attendue (pts/m²)
             gap_detection_resolution: Résolution pour détecter gaps
             adaptive_buffer_range: (min, max) pour buffers adaptatifs
-            enable_facade_adaptation: Activer adaptation géométrique des façades
+            enable_facade_adaptation: Activer adaptation géométrique
             max_translation: Translation maximale perpendiculaire (m)
             max_lateral_expansion: Extension latérale maximale (m)
             building_class: Code de classification pour bâtiments

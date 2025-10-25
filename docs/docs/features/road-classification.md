@@ -197,8 +197,8 @@ if verticality is not None:
 **Implementation:**
 
 ```python
-# Points above 1.5m are not road surfaces
-elevated_mask = height > config.ROAD_HEIGHT_MAX  # 1.5m
+# Points above 0.3m are not road surfaces
+elevated_mask = height > config.ROAD_HEIGHT_MAX  # 0.3m
 filtered_road_mask = filtered_road_mask & ~elevated_mask
 ```
 
@@ -206,15 +206,15 @@ filtered_road_mask = filtered_road_mask & ~elevated_mask
 
 | Parameter         | Old Value | **New Value** | Justification                      |
 | ----------------- | --------- | ------------- | ---------------------------------- |
-| `ROAD_HEIGHT_MAX` | 2.0m      | **1.5m**      | Exclude trees and buildings        |
+| `ROAD_HEIGHT_MAX` | 1.5m      | **0.3m**      | Strict ground-level classification |
 | `ROAD_HEIGHT_MIN` | N/A       | **-0.5m**     | Allow depressions, exclude tunnels |
 
 **Justification:**
 
-- Ground-level roads: height < 0.5m typically
+- Ground-level roads: height < 0.3m (strict ground-level)
 - Tree canopy: height > 3.0m
 - Low buildings: height > 2.5m
-- Threshold at 1.5m filters most false positives
+- Threshold at 0.3m ensures only true ground surfaces
 
 **Examples:**
 
@@ -316,7 +316,7 @@ is_tunnel = (height_above_ground < -0.5) & in_road_polygon
 ```yaml
 classification:
   road_height_min: -0.5 # Allow depressions
-  road_height_max: 1.5 # Ground level only
+  road_height_max: 0.3 # Ground level only (strict)
   bridge_height_min: 2.0 # Bridge detection threshold
   tunnel_height_max: -0.5 # Tunnel detection threshold
 
@@ -469,7 +469,7 @@ print(f"Refined {n_refined:,} road points")
 classification:
   # Road thresholds
   road_height_min: -0.5 # Allow slight depression
-  road_height_max: 1.5 # Ground level only (reduced from 2.0)
+  road_height_max: 0.3 # Ground level only (strict)
   road_planarity_min: 0.7 # Very planar (increased from 0.6)
   road_roughness_max: 0.05 # Smooth surface
   road_ndvi_max: 0.20 # Exclude vegetation (NEW)
@@ -614,7 +614,7 @@ classification:
 
 ```yaml
 classification:
-  road_height_max: 1.5
+  road_height_max: 0.3
   road_planarity_min: 0.80 # Very smooth
   bridge_height_min: 2.0 # Detect overpasses
   enable_bridge_detection: true
@@ -688,7 +688,7 @@ input:
 # Relax thresholds slightly
 classification:
   road_planarity_min: 0.65 # Lower (was 0.70)
-  road_height_max: 1.8 # Higher (was 1.5)
+  road_height_max: 0.5 # Higher (was 0.3, but still ground-level)
   road_ndvi_max: 0.22 # Higher (was 0.20)
 ```
 
@@ -775,7 +775,7 @@ ign-lidar-hd process \
   input_dir="/data/input/" \
   output_dir="/data/output/" \
   classification.road_ndvi_max=0.20 \
-  classification.road_height_max=1.5
+  classification.road_height_max=0.3
 ```
 
 ---

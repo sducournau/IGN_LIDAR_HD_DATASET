@@ -1797,21 +1797,23 @@ class FeatureOrchestrator:
             GeoDataFrame with buffered building polygons
 
         Config Parameters Used:
-            data_sources.bd_topo.features.buildings.buffer_distance: Base buffer (m)
-            data_sources.bd_topo.features.buildings.enable_adaptive_buffer: Enable adaptive buffering
-            data_sources.bd_topo.features.buildings.adaptive_buffer_min: Minimum adaptive buffer (m)
-            data_sources.bd_topo.features.buildings.adaptive_buffer_max: Maximum adaptive buffer (m)
+            ground_truth.bd_topo.features.buildings.buffer_distance: Base buffer (m)
+            ground_truth.bd_topo.features.buildings.enable_adaptive_buffer: Enable adaptive buffering
+            ground_truth.bd_topo.features.buildings.adaptive_buffer_min: Minimum adaptive buffer (m)
+            ground_truth.bd_topo.features.buildings.adaptive_buffer_max: Maximum adaptive buffer (m)
         """
         if buildings_gdf is None or len(buildings_gdf) == 0:
             return buildings_gdf
 
-        # Get building configuration
-        bd_topo_cfg = self.config.get("data_sources", {}).get("bd_topo", {})
-        buildings_cfg = bd_topo_cfg.get("features", {}).get("buildings", {})
+        # Get building configuration from ground_truth section (not data_sources)
+        ground_truth_cfg = self.config.get("ground_truth", {})
+        bd_topo_cfg = ground_truth_cfg.get("bd_topo", {})
+        features_cfg = bd_topo_cfg.get("features", {})
+        buildings_cfg = features_cfg.get("buildings", {})
 
         # Base buffer distance
         base_buffer = buildings_cfg.get("buffer_distance", 1.0)
-        
+
         # Adaptive buffer settings
         enable_adaptive = buildings_cfg.get("enable_adaptive_buffer", False)
         adaptive_min = buildings_cfg.get("adaptive_buffer_min", 1.0)
@@ -1834,50 +1836,59 @@ class FeatureOrchestrator:
 
                 # Compute buffer for each building
                 buffer_distances = []
-                
+
                 for idx, building in buildings_gdf.iterrows():
                     geom = building.geometry
                     bounds = geom.bounds  # (minx, miny, maxx, maxy)
-                    
+
                     # Get building dimensions
                     width = bounds[2] - bounds[0]
                     height = bounds[3] - bounds[1]
                     perimeter = geom.length
                     area = geom.area
-                    
+
                     # Compute adaptive buffer based on building size
                     # Larger/more complex buildings get larger buffers for facades
-                    size_factor = min(max(perimeter / 100.0, 0.0), 1.0)  # 0-1 based on perimeter
-                    complexity_factor = min(max(perimeter**2 / (4 * np.pi * area) - 1.0, 0.0), 1.0)  # Shape complexity
-                    
+                    size_factor = min(
+                        max(perimeter / 100.0, 0.0), 1.0
+                    )  # 0-1 based on perimeter
+                    complexity_factor = min(
+                        max(perimeter**2 / (4 * np.pi * area) - 1.0, 0.0), 1.0
+                    )  # Shape complexity
+
                     # Interpolate buffer distance
                     adaptive_buffer = adaptive_min + (adaptive_max - adaptive_min) * (
                         0.5 * size_factor + 0.5 * complexity_factor
                     )
-                    
+
                     # Use max of base buffer and adaptive buffer
                     final_buffer = max(base_buffer, adaptive_buffer)
                     buffer_distances.append(final_buffer)
-                
+
                 # Apply buffers
-                buffered_gdf['geometry'] = buildings_gdf.geometry.buffer(
-                    buffer_distances, 
-                    cap_style=2  # Flat caps for building corners
+                buffered_gdf["geometry"] = buildings_gdf.geometry.buffer(
+                    buffer_distances, cap_style=2  # Flat caps for building corners
                 )
-                
+
                 avg_buffer = np.mean(buffer_distances)
                 logger.info(
                     f"    ✓ Applied adaptive buffers: "
                     f"avg={avg_buffer:.2f}m, range=[{min(buffer_distances):.2f}, {max(buffer_distances):.2f}]m"
                 )
-                
+
             except Exception as e:
-                logger.warning(f"    ⚠️  Adaptive buffering failed, using base buffer: {e}")
+                logger.warning(
+                    f"    ⚠️  Adaptive buffering failed, using base buffer: {e}"
+                )
                 # Fallback to base buffer
-                buffered_gdf['geometry'] = buildings_gdf.geometry.buffer(base_buffer, cap_style=2)
+                buffered_gdf["geometry"] = buildings_gdf.geometry.buffer(
+                    base_buffer, cap_style=2
+                )
         else:
             # Simple base buffer
-            buffered_gdf['geometry'] = buildings_gdf.geometry.buffer(base_buffer, cap_style=2)
+            buffered_gdf["geometry"] = buildings_gdf.geometry.buffer(
+                base_buffer, cap_style=2
+            )
             logger.info(f"    ✓ Applied uniform buffer: {base_buffer}m")
 
         return buffered_gdf
@@ -1926,15 +1937,21 @@ class FeatureOrchestrator:
                 buildings = ground_truth_features.get("buildings")
                 if buildings is not None and len(buildings) > 0:
                     # 🔥 CRITICAL FIX: Apply adaptive buffers to buildings for better facade capture
-                    logger.info(f"  🏢 Computing building cluster IDs for {len(buildings)} buildings...")
+                    logger.info(
+                        f"  🏢 Computing building cluster IDs for {len(buildings)} buildings..."
+                    )
                     buffered_buildings = self._apply_building_buffers(buildings, points)
-                    
-                    building_ids = compute_building_cluster_ids(points, buffered_buildings)
+
+                    building_ids = compute_building_cluster_ids(
+                        points, buffered_buildings
+                    )
                     all_features["building_cluster_id"] = building_ids
 
                     n_buildings = np.max(building_ids)
                     n_assigned = np.sum(building_ids > 0)
-                    pct_assigned = (n_assigned / len(points) * 100) if len(points) > 0 else 0
+                    pct_assigned = (
+                        (n_assigned / len(points) * 100) if len(points) > 0 else 0
+                    )
                     logger.info(
                         f"  ✓ Building cluster IDs: {n_buildings} buildings, "
                         f"{n_assigned:,} points assigned ({pct_assigned:.1f}%)"

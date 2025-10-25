@@ -255,28 +255,28 @@ ground_truth:
         adaptive_buffer_max: 12.0 # 🔥 INCREASED: Much larger max for deep facades/courtyards (was 8.5)
 
         # 🧱 WALL/FACADE DETECTION - ENHANCED FOR MISSING FACADES
-        wall_verticality_threshold: 0.50 # 🔥 LOWERED: Catch semi-vertical facades (was 0.60)
-        missing_wall_threshold: 0.12 # 🔥 LOWERED: More aggressive expansion (was 0.15)
-        vertical_buffer: 1.2 # 🔥 INCREASED: Larger vertical tolerance (was 0.8)
-        horizontal_buffer_ground: 2.5 # 🔥 INCREASED: Much larger ground buffer for missing walls (was 1.5)
-        horizontal_buffer_upper: 3.5 # 🔥 INCREASED: Much larger upper buffer for balconies/overhangs (was 2.0)
+        wall_verticality_threshold: 0.40 # 🔥 LOWERED: Catch semi-vertical facades (was 0.50)
+        missing_wall_threshold: 0.08 # 🔥 LOWERED: More aggressive expansion (was 0.12)
+        vertical_buffer: 1.5 # 🔥 INCREASED: Larger vertical tolerance (was 1.2)
+        horizontal_buffer_ground: 3.5 # 🔥 INCREASED: Much larger ground buffer for missing walls (was 2.5)
+        horizontal_buffer_upper: 4.5 # 🔥 INCREASED: Much larger upper buffer for balconies/overhangs (was 3.5)
 
         # 🏗️ ADVANCED FACADE DETECTION
         detect_setbacks: true
         detect_overhangs: true
         enable_3d_hull_expansion: true
-        overhang_max_distance: 9.0 # 🔥 INCREASED: Even larger overhang detection (was 7.0)
-        roof_horizontal_expansion: 5.0 # 🔥 INCREASED: Larger roof expansion for facades (was 4.0)
+        overhang_max_distance: 12.0 # 🔥 INCREASED: Even larger overhang detection (was 9.0)
+        roof_horizontal_expansion: 6.5 # 🔥 INCREASED: Larger roof expansion for facades (was 5.0)
 
         # 🔺 ALPHA SHAPE for complex facades
         enable_alpha_shape: true
-        alpha_value: 3.5 # 🔥 INCREASED: More aggressive shape detection for missing facades (was 2.5)
+        alpha_value: 4.5 # 🔥 INCREASED: More aggressive shape detection for missing facades (was 3.5)
 
         # 🧱 WALL-SPECIFIC DETECTION - CRITICAL FOR FACADES
         wall_detection_enabled: true
-        min_wall_height: 1.5 # 🔥 LOWERED: Catch low walls/annexes (was 2.0)
-        max_wall_thickness: 1.5 # 🔥 INCREASED: Thicker walls for better capture (was 1.0)
-        wall_normal_tolerance: 0.30 # 🔥 RELAXED: Allow more variation in wall normals (was 0.20)
+        min_wall_height: 1.2 # 🔥 LOWERED: Catch low walls/annexes (was 1.5)
+        max_wall_thickness: 2.0 # 🔥 INCREASED: Thicker walls for better capture (was 1.5)
+        wall_normal_tolerance: 0.40 # 🔥 RELAXED: Allow more variation in wall normals (was 0.30)
 
         # 🏢 FLOOR SEGMENTATION
         enable_floor_segmentation: true
@@ -285,10 +285,10 @@ ground_truth:
 
         # 🔍 GAP DETECTION (for facades) - ENHANCED
         enable_gap_detection: true
-        gap_detection_resolution: 96 # 🔥 INCREASED: Even higher resolution for missing facades (was 72)
-        gap_detection_band_width: 4.0 # 🔥 INCREASED: Much wider band to search further (was 2.5)
-        gap_min_points_per_sector: 8 # 🔥 LOWERED: More sensitive to sparse facades (was 10)
-        gap_significant_threshold: 0.08 # 🔥 LOWERED: More aggressive gap detection (was 0.12)
+        gap_detection_resolution: 120 # 🔥 INCREASED: Even higher resolution for missing facades (was 96)
+        gap_detection_band_width: 5.5 # 🔥 INCREASED: Much wider band to search further (was 4.0)
+        gap_min_points_per_sector: 5 # 🔥 LOWERED: More sensitive to sparse facades (was 8)
+        gap_significant_threshold: 0.05 # 🔥 LOWERED: More aggressive gap detection (was 0.08)
 
       roads:
         enabled: true
@@ -378,7 +378,7 @@ classification:
     roads:
       # Height: STRICT filtering to avoid elevated points (trees, buildings, bridges)
       min_height_above_ground: -0.5 # Allow slight depressions
-      max_height_above_ground: 0.5 # STRICT: Only near-ground points (was 0.5, but now enforced)
+      max_height_above_ground: 0.3 # STRICT: Only near-ground points (was 0.5, but now enforced)
       max_height_above_ground_strict: 0.3 # Extra strict mode for urban areas
 
       # Geometric: Roads are very planar and smooth
@@ -397,17 +397,17 @@ classification:
     # 🏢 BUILDING THRESHOLDS - ENHANCED FACADE DETECTION
     buildings:
       # Height requirements
-      min_height: 1.5 # 🔥 LOWERED: Catch low walls/annexes/facades (was 2.0)
+      min_height: 0.5 # 🔥 LOWERED: Catch low walls/annexes/facades (was 2.0)
       min_height_strict: 2.5 # Extra strict for urban buildings
       max_height: 150.0 # Reasonable maximum building height
 
       # Wall/facade detection - CRITICAL FOR FACADES
-      min_verticality: 0.45 # 🔥 LOWERED: Catch semi-vertical facades (was 0.55)
-      min_verticality_strict: 0.60 # 🔥 LOWERED: Less strict for textured walls (was 0.70)
-      min_wall_verticality: 0.65 # 🔥 LOWERED: Walls can be less vertical (was 0.75)
-      max_wall_planarity: 0.50 # 🔥 INCREASED: Allow less planar textured walls (was 0.40)
-      min_wall_points: 50 # 🔥 LOWERED: Require fewer points for sparse facades (was 75)
-      wall_to_roof_ratio: 0.25 # 🔥 LOWERED: Adjust balance for missing facades (was 0.35)
+      min_verticality: 0.35 # 🔥 LOWERED: Catch semi-vertical facades (was 0.45)
+      min_verticality_strict: 0.50 # 🔥 LOWERED: Less strict for textured walls (was 0.60)
+      min_wall_verticality: 0.55 # 🔥 LOWERED: Walls can be less vertical (was 0.65)
+      max_wall_planarity: 0.60 # 🔥 INCREASED: Allow less planar textured walls (was 0.50)
+      min_wall_points: 35 # 🔥 LOWERED: Require fewer points for sparse facades (was 50)
+      wall_to_roof_ratio: 0.20 # 🔥 LOWERED: Adjust balance for missing facades (was 0.25)
 
       # Roof detection
       min_roof_planarity: 0.70 # IMPROVED: Higher planarity (was 0.65)
@@ -417,14 +417,14 @@ classification:
 
       # Facade-specific thresholds - CRITICAL IMPROVEMENTS
       facade_detection_enabled: true # NEW: Enable dedicated facade detection
-      min_facade_height: 1.5 # 🔥 LOWERED: Catch low facades (was 2.5)
-      min_facade_verticality: 0.50 # 🔥 LOWERED: More permissive for textured facades (was 0.65)
-      facade_thickness_max: 1.2 # 🔥 INCREASED: Allow thicker walls (was 0.8)
-      facade_continuity_min: 0.5 # 🔥 LOWERED: Less strict for broken facades (was 0.7)
+      min_facade_height: 1.2 # 🔥 LOWERED: Catch low facades (was 1.5)
+      min_facade_verticality: 0.40 # 🔥 LOWERED: More permissive for textured facades (was 0.50)
+      facade_thickness_max: 1.5 # 🔥 INCREASED: Allow thicker walls (was 1.2)
+      facade_continuity_min: 0.4 # 🔥 LOWERED: Less strict for broken facades (was 0.5)
 
       # Building context - NDVI FILTERING
-      max_ndvi: 0.20 # 🔥 LOWERED: Stricter vegetation exclusion (was 0.25)
-      building_buffer_expansion: 1.5 # 🔥 INCREASED: Expand polygons more (was 1.2)
+      max_ndvi: 0.22 # 🔥 SLIGHTLY INCREASED: Less strict vegetation filter (was 0.20)
+      building_buffer_expansion: 6 # 🔥 INCREASED: Expand polygons more (was 5)
 
     vegetation:
       min_ndvi: 0.3
@@ -469,8 +469,8 @@ reclassification:
   min_cluster_size: 10
 
   # Confidence thresholds
-  min_classification_confidence: 0.35 # 🔥 LOWERED: Accept more uncertain facades (was 0.40)
-  rejection_confidence_threshold: 0.25 # 🔥 INCREASED: Be less aggressive in rejection (was 0.20)
+  min_classification_confidence: 0.25 # 🔥 LOWERED: Accept more uncertain facades (was 0.35)
+  rejection_confidence_threshold: 0.30 # 🔥 INCREASED: Be less aggressive in rejection (was 0.25)
 
   # 🔥 NEW: Height-based reclassification rules
   height_based_refinement:
@@ -479,23 +479,23 @@ reclassification:
     # Elevated points cannot be roads (except bridges)
     reclassify_elevated_roads:
       enabled: true
-      max_road_height: 0.5 # Points above this cannot be roads
+      max_road_height: 0.3 # Points above this cannot be roads
       min_bridge_height: 2.0 # Points above this are bridges
       check_bridge_alignment: true
 
     # High points with NDVI are vegetation
     reclassify_high_ndvi_to_vegetation:
       enabled: true
-      min_height: 1.5 # Above this height
+      min_height: 0.5 # Above this height
       min_ndvi: 0.30 # With this NDVI = vegetation
 
     # Vertical points near buildings are facades - ENHANCED
     reclassify_vertical_to_building:
       enabled: true
-      min_verticality: 0.50 # 🔥 LOWERED: Catch semi-vertical facades (was 0.65)
-      max_distance_to_building: 3.5 # 🔥 INCREASED: Search further from polygons (was 2.0)
-      min_height: 1.5 # 🔥 LOWERED: Catch low facades (was 2.0)
-      max_ndvi: 0.20 # 🔥 NEW: Exclude vegetation from building classification
+      min_verticality: 0.25 # 🔥 LOWERED: Catch semi-vertical facades (was 0.30)
+      max_distance_to_building: 4.5 # 🔥 INCREASED: Search further from polygons (was 3.5)
+      min_height: 1.2 # 🔥 LOWERED: Catch low facades (was 1.5)
+      max_ndvi: 0.22 # 🔥 SLIGHTLY INCREASED: Less strict vegetation filter (was 0.20)
 
   # 🔥 NEW: Conflict resolution priorities
   class_priority_order:

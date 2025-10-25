@@ -114,7 +114,7 @@ classification:
   planarity_building: 0.75 # Moderate planarity for buildings
 
   # Road-specific improvements
-  road_height_max: 2.5 # Allow slightly elevated road sections
+  road_height_max: 0.3 # Ground-level only (strict classification)
   road_buffer_tolerance: 1.0 # Increase buffer around BD TOPO roads
   use_lenient_road_filtering: true # Enable more permissive road detection
 
