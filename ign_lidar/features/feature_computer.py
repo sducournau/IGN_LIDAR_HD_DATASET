@@ -245,29 +245,15 @@ class FeatureComputer:
         try:
             if selected_mode == ComputationMode.CPU:
                 cpu_features = self._get_cpu_computer()
-                # Check if this is a real implementation or a mock
-                try:
-                    if normals is None:
-                        result = cpu_features.compute_normals(points, k_neighbors=k)
-                        if isinstance(result, tuple):
-                            normals, eigenvalues = result
-                            curvature = cpu_features.compute_curvature(eigenvalues)
-                        else:
-                            # Mock - it doesn't return tuple
-                            # Try calling compute_curvature with expected args
-                            curvature = cpu_features.compute_curvature(points, normals, k=k)
-                    else:
-                        # Need to compute eigenvalues for curvature
-                        result = cpu_features.compute_normals(points, k_neighbors=k)
-                        if isinstance(result, tuple):
-                            _, eigenvalues = result
-                            curvature = cpu_features.compute_curvature(eigenvalues)
-                        else:
-                            # Mock
-                            curvature = cpu_features.compute_curvature(points, normals, k=k)
-                except (TypeError, ValueError):
-                    # Fallback for mocks with different signatures
-                    curvature = cpu_features.compute_curvature(points, normals, k=k)
+                
+                if normals is None:
+                    # Compute normals and eigenvalues
+                    normals, eigenvalues = cpu_features.compute_normals(points, k_neighbors=k)
+                    curvature = cpu_features.compute_curvature(eigenvalues)
+                else:
+                    # Need to compute eigenvalues for curvature
+                    _, eigenvalues = cpu_features.compute_normals(points, k_neighbors=k)
+                    curvature = cpu_features.compute_curvature(eigenvalues)
             
             elif selected_mode == ComputationMode.GPU:
                 strategy = self._get_gpu_computer()
@@ -329,22 +315,15 @@ class FeatureComputer:
         try:
             if selected_mode == ComputationMode.CPU:
                 cpu_features = self._get_cpu_computer()
-                # Check if real implementation or mock
-                try:
-                    result = cpu_features.compute_normals(points, k_neighbors=k)
-                    if isinstance(result, tuple):
-                        normals, _ = result
-                    else:
-                        normals = result
-                    features = cpu_features.extract_geometric_features(
-                        points, normals, k_neighbors=k
-                    )
-                except (TypeError, ValueError):
-                    # Mock with different signature
-                    normals = cpu_features.compute_normals(points, k=k)
-                    features = cpu_features.extract_geometric_features(
-                        points, normals, k=k
-                    )
+                
+                # Compute normals
+                normals, _ = cpu_features.compute_normals(points, k_neighbors=k)
+                
+                # Extract geometric features
+                features = cpu_features.extract_geometric_features(
+                    points, normals, k_neighbors=k
+                )
+                
                 # Filter to only required features
                 features = {
                     name: features[name]

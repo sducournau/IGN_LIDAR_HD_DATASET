@@ -21,13 +21,9 @@ Use cases:
 3. Terrain analysis: Slope, aspect, roughness from high-quality DTM
 4. Classification improvement: Better ground/non-ground separation
 
-Migration Note (October 2025):
-- Old WCS service (wxs.ign.fr) is deprecated and non-functional
-- New WMS service (data.geopf.fr) is used for online DTM fetching
-- WMS caching ensures efficient repeated access
-
 Author: MNT Integration Enhancement
 Date: October 19, 2025
+Updated: October 25, 2025 - Removed deprecated WCS code
 """
 
 import logging
@@ -80,18 +76,15 @@ class RGEALTIFetcher:
     Fallback: RGE ALTI (1m-5m resolution, broader coverage)
     """
 
-    # IGN Géoplateforme WMS endpoint (replaces deprecated WCS)
+    # IGN Géoplateforme WMS endpoint
     WMS_ENDPOINT = "https://data.geopf.fr/wms-r/wms"
     WMS_VERSION = "1.3.0"
 
     # Layer names for different DTM sources
-    LAYER_LIDAR_HD_MNT = "IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW"  # LiDAR HD MNT (preferred)
-    LAYER_RGE_ALTI = "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES"  # RGE ALTI (fallback)
-
-    # Legacy WCS endpoint (no longer functional)
-    WCS_ENDPOINT = "https://wxs.ign.fr/altimetrie/geoportail/r/wcs"  # DEPRECATED
-    WCS_VERSION = "2.0.1"
-    COVERAGE_ID = "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES"
+    # LiDAR HD MNT (preferred) - 1m resolution, best quality
+    LAYER_LIDAR_HD_MNT = "IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW"
+    # RGE ALTI (fallback) - broader coverage
+    LAYER_RGE_ALTI = "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES"
 
     # Grid resolution
     RESOLUTION_1M = 1.0  # 1 meter resolution
@@ -101,7 +94,7 @@ class RGEALTIFetcher:
         self,
         cache_dir: Optional[str] = None,
         resolution: float = RESOLUTION_1M,
-        use_wcs: bool = True,
+        use_wms: bool = True,
         local_dtm_dir: Optional[str] = None,
         api_key: Optional[str] = None,
         prefer_lidar_hd: bool = True,
@@ -112,7 +105,7 @@ class RGEALTIFetcher:
         Args:
             cache_dir: Directory for caching downloaded tiles
             resolution: Grid resolution in meters (1.0 or 5.0)
-            use_wcs: Enable WMS download (parameter name kept for compatibility)
+            use_wms: Enable WMS download
             local_dtm_dir: Directory containing local DTM files
             api_key: Legacy parameter (no longer needed for WMS)
             prefer_lidar_hd: Use LiDAR HD MNT layer (default: True, best quality)
@@ -132,10 +125,8 @@ class RGEALTIFetcher:
             self.wms_layer = self.LAYER_RGE_ALTI
             dtm_source = "RGE ALTI (broader coverage)"
 
-        # Use WMS instead of deprecated WCS (October 2025 migration)
-        # WMS provides elevation data via GetMap requests with automatic caching
-        self.use_wms = use_wcs and HAS_REQUESTS and HAS_RASTERIO
-        self.use_wcs = False  # WCS is deprecated
+        # WMS provides elevation data via GetMap requests with caching
+        self.use_wms = use_wms and HAS_REQUESTS and HAS_RASTERIO
 
         if not HAS_RASTERIO:
             logger.warning("rasterio not available - DTM fetching disabled")

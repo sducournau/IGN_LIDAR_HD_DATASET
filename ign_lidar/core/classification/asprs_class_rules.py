@@ -12,7 +12,7 @@ Version: 6.0.0
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy.spatial import cKDTree
@@ -143,6 +143,99 @@ class ASPRSClassRulesEngine:
 
         logger.info("ASPRS Class Rules Engine initialized")
 
+    def _check_spatial_containment(
+        self,
+        points: np.ndarray,
+        mask: np.ndarray,
+        polygons: Any,
+        buffer_m: float = 0.0,
+        use_strtree: bool = True,
+    ) -> np.ndarray:
+        """
+        Check if points are within polygons (with optional buffer).
+
+        Uses STRtree spatial indexing for efficient querying when
+        available.
+
+        Args:
+            points: [N, 3] point coordinates (XYZ)
+            mask: [N] boolean mask of candidate points to check
+            polygons: GeoDataFrame or list of shapely geometries
+            buffer_m: Buffer distance in meters
+                (positive=expand, negative=inset)
+            use_strtree: Whether to use STRtree spatial index (faster)
+
+        Returns:
+            [N] refined boolean mask (subset of input mask)
+        """
+        try:
+            import geopandas as gpd
+            from shapely.geometry import Point
+            from shapely.strtree import STRtree
+        except ImportError:
+            logger.warning(
+                "shapely/geopandas not available, " "skipping spatial containment"
+            )
+            return mask
+
+        if polygons is None or len(polygons) == 0:
+            return mask
+
+        # Convert to GeoDataFrame if needed
+        if not isinstance(polygons, gpd.GeoDataFrame):
+            polygons = gpd.GeoDataFrame(
+                geometry=list(polygons),
+                crs="EPSG:2154",  # Lambert 93 (French projection)
+            )
+
+        # Apply buffer if specified
+        if buffer_m != 0.0:
+            geoms = polygons.geometry.buffer(buffer_m)
+        else:
+            geoms = polygons.geometry
+
+        # Build spatial index if requested and beneficial
+        if use_strtree and len(geoms) > 10:
+            tree = STRtree(geoms)
+            use_index = True
+        else:
+            use_index = False
+            tree = None
+
+        # Check each candidate point
+        refined_mask = mask.copy()
+        candidate_indices = np.where(mask)[0]
+
+        n_checked = 0
+        n_contained = 0
+
+        for idx in candidate_indices:
+            point = Point(points[idx, 0], points[idx, 1])  # XY only
+
+            # Query spatial index or check all geometries
+            if use_index:
+                # STRtree query returns indices of potential matches
+                potential_matches = tree.query(point)
+                contained = any(
+                    geoms.iloc[i].contains(point) for i in potential_matches
+                )
+            else:
+                # Check all geometries
+                contained = any(geom.contains(point) for geom in geoms)
+
+            if not contained:
+                refined_mask[idx] = False
+            else:
+                n_contained += 1
+
+            n_checked += 1
+
+        logger.debug(
+            f"Spatial containment: {n_contained}/{n_checked} " f"points contained"
+        )
+
+        return refined_mask
+
     def apply_all_rules(
         self,
         points: np.ndarray,
@@ -245,10 +338,13 @@ class ASPRSClassRulesEngine:
         if cfg.use_bd_topo_water and ground_truth is not None:
             water_polygons = ground_truth.get("water", None)
             if water_polygons is not None:
-                # Refine mask to points within water polygons
-                # This would require spatial containment check
                 logger.info("Refining water detection with BD TOPO polygons")
-                # TODO: Implement spatial containment
+                water_mask = self._check_spatial_containment(
+                    points,
+                    water_mask,
+                    water_polygons,
+                    buffer_m=2.0,  # Small buffer for edge tolerance
+                )
 
         # Cluster water points to filter isolated detections
         if water_mask.sum() > 0:
@@ -319,16 +415,27 @@ class ASPRSClassRulesEngine:
             roads = ground_truth.get("roads", None)
             if roads is not None:
                 logger.info("Refining bridge detection with road proximity")
-                # TODO: Implement proximity check to road network
-                # This would check if elevated points are near/aligned with roads
+                # Check if elevated points are near/aligned with roads
+                bridge_mask = self._check_spatial_containment(
+                    points,
+                    bridge_mask,
+                    roads,
+                    buffer_m=10.0,  # 10m buffer for road alignment
+                )
 
         # Check proximity to water if available
         if ground_truth is not None:
             water = ground_truth.get("water", None)
             if water is not None:
                 logger.info("Checking bridge proximity to water")
-                # TODO: Implement water proximity check
                 # Bridges often cross water bodies
+                # Expand mask to points near water (not just over it)
+                bridge_mask = self._check_spatial_containment(
+                    points,
+                    bridge_mask,
+                    water,
+                    buffer_m=25.0,  # 25m buffer for water proximity
+                )
 
         # Cluster to identify bridge-like structures
         if bridge_mask.sum() > 0:
@@ -410,8 +517,13 @@ class ASPRSClassRulesEngine:
             railways = ground_truth.get("railways", None)
             if railways is not None:
                 logger.info("Refining railway detection with BD TOPO data")
-                # TODO: Implement spatial containment/buffer check
                 # Assign points within buffer of railway lines
+                railway_mask = self._check_spatial_containment(
+                    points,
+                    railway_mask,
+                    railways,
+                    buffer_m=5.0,  # 5m buffer for railway alignment
+                )
 
         # Detect parallel tracks if enabled
         if cfg.parallel_track_detection and railway_mask.sum() > 0:

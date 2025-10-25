@@ -5,21 +5,21 @@ This package provides unified feature computation with Strategy pattern (Week 2 
 
 Strategy Pattern API (NEW - Week 2):
     from ign_lidar.features import BaseFeatureStrategy, CPUStrategy, GPUStrategy
-    
+
     # Automatic strategy selection
     strategy = BaseFeatureStrategy.auto_select(n_points=1_000_000, mode='auto')
     features = strategy.compute(points, intensities, rgb, nir)
-    
+
     # Manual strategy selection
     strategy = GPUChunkedStrategy(chunk_size=5_000_000, batch_size=250_000)
     features = strategy.compute(points)
 
 Unified API (recommended):
     from ign_lidar.features import compute_verticality, extract_geometric_features
-    
+
     # Mode-based selection
     verticality = compute_verticality(normals, mode='cpu')
-    verticality = compute_verticality(normals, mode='gpu') 
+    verticality = compute_verticality(normals, mode='gpu')
     features = extract_geometric_features(points, normals, mode='auto')
 
 Legacy notes:
@@ -34,6 +34,7 @@ from .strategies import (
     estimate_optimal_batch_size,
 )
 from .strategy_cpu import CPUStrategy
+
 try:
     from .strategy_gpu import GPUStrategy
     from .strategy_gpu_chunked import GPUChunkedStrategy
@@ -41,35 +42,36 @@ except ImportError:
     # GPU strategies not available without CuPy
     GPUStrategy = None
     GPUChunkedStrategy = None
-from .strategy_boundary import BoundaryAwareStrategy
-
 # Core implementations (V5 consolidated)
 # Note: Moved from .core to .compute in v3.1.0
+from .compute import ComputeMode
+from .compute import compute_all_features
+from .compute import compute_all_features as core_compute_all_features
 from .compute import (
+    compute_curvature,
+    compute_normals,
     compute_verticality,
     extract_geometric_features,
-    compute_all_features,
-    compute_normals,
-    compute_curvature,
-    compute_all_features as core_compute_all_features,
-    ComputeMode,
 )
+from .strategy_boundary import BoundaryAwareStrategy
 
 # Import optimized feature computation (preferred implementation)
 try:
-    from .compute.features import compute_all_features as compute_all_features_optimized
+    from .compute.features import compute_all_features_optimized
 except ImportError:
     # Fallback if Numba not available
     compute_all_features_optimized = None
-    
-# Additional core features
-from .compute.eigenvalues import compute_eigenvalue_features
+
 from .compute.architectural import (
     compute_architectural_features,
-    compute_horizontality,
     compute_facade_score,
+    compute_horizontality,
 )
 from .compute.density import compute_density_features
+
+# Additional core features
+from .compute.eigenvalues import compute_eigenvalue_features
+from .orchestrator import FeatureOrchestrator
 
 # Note: Deprecated functions removed during Phase 2+ cleanup:
 # - compute_all_features_with_gpu -> Use GPUStrategy or GPUProcessor
@@ -77,16 +79,11 @@ from .compute.density import compute_density_features
 # - Legacy GPU modules (features_gpu.py, features_gpu_chunked.py) -> Use gpu_processor.py
 # - Factory Pattern -> Use Strategy Pattern (strategies.py, strategy_*.py)
 
-from .orchestrator import (
-    FeatureOrchestrator,
-)
 
 # FeatureComputer (Phase 4 - automatic mode selection)
 try:
-    from .feature_computer import (
-        FeatureComputer,
-        get_feature_computer,
-    )
+    from .feature_computer import FeatureComputer, get_feature_computer
+
     FEATURE_COMPUTER_AVAILABLE = True
 except ImportError:
     FeatureComputer = None
@@ -95,31 +92,34 @@ except ImportError:
 
 from .architectural_styles import (
     ARCHITECTURAL_STYLES,
-    STYLE_NAME_TO_ID,
     CHARACTERISTIC_TO_STYLE,
-    get_tile_architectural_style,
-    get_patch_architectural_style,
+    STYLE_NAME_TO_ID,
     compute_architectural_style_features,
     get_architectural_style_id,
+    get_patch_architectural_style,
     get_style_name,
+    get_tile_architectural_style,
     infer_multi_styles_from_characteristics,
 )
 from .feature_modes import (
+    FEATURE_DESCRIPTIONS,
+    LOD2_FEATURES,
+    LOD3_FEATURES,
     FeatureMode,
     FeatureSet,
     get_feature_config,
-    LOD2_FEATURES,
-    LOD3_FEATURES,
-    FEATURE_DESCRIPTIONS,
 )
 
 # Backward compatibility aliases (v3.x only - will be removed in v4.0)
 # These allow old code to continue working with deprecation warnings
 try:
     from .gpu_processor import GPUProcessor
+
     # Aliases for deprecated classes
     GPUFeatureComputer = GPUProcessor  # Alias for features_gpu.GPUFeatureComputer
-    GPUFeatureComputerChunked = GPUProcessor  # Alias for features_gpu_chunked.GPUChunkedFeatureComputer
+    GPUFeatureComputerChunked = (
+        GPUProcessor  # Alias for features_gpu_chunked.GPUChunkedFeatureComputer
+    )
     GPUChunkedFeatureComputer = GPUProcessor  # Alternative alias
 except ImportError:
     GPUProcessor = None
@@ -129,62 +129,57 @@ except ImportError:
 
 __all__ = [
     # FeatureComputer (Phase 4 - automatic mode selection)
-    'FeatureComputer',
-    'get_feature_computer',
-    
+    "FeatureComputer",
+    "get_feature_computer",
     # Strategy Pattern (NEW - Week 2)
-    'BaseFeatureStrategy',
-    'FeatureComputeMode',
-    'CPUStrategy',
-    'GPUStrategy',
-    'GPUChunkedStrategy',
-    'BoundaryAwareStrategy',
-    'estimate_optimal_batch_size',
-    
+    "BaseFeatureStrategy",
+    "FeatureComputeMode",
+    "CPUStrategy",
+    "GPUStrategy",
+    "GPUChunkedStrategy",
+    "BoundaryAwareStrategy",
+    "estimate_optimal_batch_size",
     # Backward compatibility aliases (v3.x - deprecated, remove in v4.0)
-    'GPUProcessor',
-    'GPUFeatureComputer',  # Deprecated alias for GPUProcessor
-    'GPUFeatureComputerChunked',  # Deprecated alias for GPUProcessor
-    'GPUChunkedFeatureComputer',  # Deprecated alias for GPUProcessor
-    
+    "GPUProcessor",
+    "GPUFeatureComputer",  # Deprecated alias for GPUProcessor
+    "GPUFeatureComputerChunked",  # Deprecated alias for GPUProcessor
+    "GPUChunkedFeatureComputer",  # Deprecated alias for GPUProcessor
     # Unified API (recommended)
-    'FeatureMode',
-    'compute_verticality',
-    'extract_geometric_features', 
-    'compute_all_features',
-    'compute_normals',
-    'compute_curvature',
-    
+    "FeatureMode",
+    "compute_verticality",
+    "extract_geometric_features",
+    "compute_all_features",
+    "compute_normals",
+    "compute_curvature",
     # Core implementations
-    'core_compute_all_features',
-    'ComputeMode',
-    
+    "core_compute_all_features",
+    "ComputeMode",
     # Additional core features (available)
-    'compute_all_features_optimized',
-    'compute_eigenvalue_features',
-    'compute_architectural_features',
-    'compute_density_features',
-    'compute_horizontality',
-    'compute_facade_score',
+    "compute_all_features_optimized",
+    "compute_eigenvalue_features",
+    "compute_architectural_features",
+    "compute_density_features",
+    "compute_horizontality",
+    "compute_facade_score",
     # Orchestrator (Phase 4)
-    'FeatureOrchestrator',
+    "FeatureOrchestrator",
     # Architectural styles
-    'ARCHITECTURAL_STYLES',
-    'STYLE_NAME_TO_ID',
-    'CHARACTERISTIC_TO_STYLE',
-    'get_tile_architectural_style',
-    'get_patch_architectural_style',
-    'compute_architectural_style_features',
-    'get_architectural_style_id',
-    'get_style_name',
-    'infer_multi_styles_from_characteristics',
+    "ARCHITECTURAL_STYLES",
+    "STYLE_NAME_TO_ID",
+    "CHARACTERISTIC_TO_STYLE",
+    "get_tile_architectural_style",
+    "get_patch_architectural_style",
+    "compute_architectural_style_features",
+    "get_architectural_style_id",
+    "get_style_name",
+    "infer_multi_styles_from_characteristics",
     # Feature modes
-    'FeatureMode',
-    'FeatureSet',
-    'get_feature_config',
-    'LOD2_FEATURES',
-    'LOD3_FEATURES',
-    'FEATURE_DESCRIPTIONS',
+    "FeatureMode",
+    "FeatureSet",
+    "get_feature_config",
+    "LOD2_FEATURES",
+    "LOD3_FEATURES",
+    "FEATURE_DESCRIPTIONS",
 ]
 
 # Backward compatibility: features.core moved to features.compute in v3.1.0
@@ -197,22 +192,30 @@ from types import ModuleType
 class _CoreCompatibilityModule(ModuleType):
     """
     Compatibility shim for features.core → features.compute rename.
-    
+
     This allows code using the old path to continue working:
         from ign_lidar.features.core.eigenvalues import compute_eigenvalues
-    
+
     While showing a deprecation warning guiding users to the new path:
         from ign_lidar.features.compute.eigenvalues import compute_eigenvalues
     """
-    
+
     def __getattr__(self, name):
         # Handle special module attributes without deprecation warnings
-        if name in ('__path__', '__file__', '__package__', '__spec__', '__loader__', '__cached__'):
+        if name in (
+            "__path__",
+            "__file__",
+            "__package__",
+            "__spec__",
+            "__loader__",
+            "__cached__",
+        ):
             # Get the actual compute module to access its attributes
             import importlib
-            compute_module = importlib.import_module('ign_lidar.features.compute')
+
+            compute_module = importlib.import_module("ign_lidar.features.compute")
             return getattr(compute_module, name, None)
-        
+
         # For all other attributes, show deprecation warning
         warnings.warn(
             f"Importing from 'ign_lidar.features.core' is deprecated. "
@@ -221,11 +224,12 @@ class _CoreCompatibilityModule(ModuleType):
             f"  OLD: from ign_lidar.features.core.{name} import ...\n"
             f"  NEW: from ign_lidar.features.compute.{name} import ...",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         # Import the actual module from new location
         import importlib
-        module_path = f'ign_lidar.features.compute.{name}'
+
+        module_path = f"ign_lidar.features.compute.{name}"
         try:
             return importlib.import_module(module_path)
         except ImportError as e:
@@ -236,4 +240,6 @@ class _CoreCompatibilityModule(ModuleType):
 
 
 # Register the compatibility module
-sys.modules['ign_lidar.features.core'] = _CoreCompatibilityModule('ign_lidar.features.core')
+sys.modules["ign_lidar.features.core"] = _CoreCompatibilityModule(
+    "ign_lidar.features.core"
+)

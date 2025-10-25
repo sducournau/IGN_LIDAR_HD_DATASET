@@ -4,6 +4,16 @@ Classification modules for LiDAR point cloud classification.
 This package contains classification components for ASPRS/BD TOPO point cloud labeling,
 ground truth refinement, and advanced classification strategies.
 
+v3.2+ Changes:
+    - New unified BaseClassifier interface for all classifiers
+    - ClassificationResult standardized return type
+    - Single Classifier facade for easy access
+
+Quick Start (v3.2+):
+    >>> from ign_lidar.core.classification import Classifier
+    >>> classifier = Classifier(mode='lod2', strategy='adaptive')
+    >>> result = classifier.classify(points, features)
+
 📍 **Note**: Relocated from `core.modules` to `core.classification` in v3.1.0 for better
 semantic clarity. The old import path is deprecated but still works in v3.x.
 
@@ -15,17 +25,17 @@ Key Modules:
         - adaptive_classifier: Adaptive classification with ground truth
         - hierarchical_classifier: Hierarchical classification strategies
         - reclassifier: Optimized reclassification with GPU acceleration
-        
+
     Ground Truth:
         - ground_truth_refinement: BD TOPO/cadastre ground truth integration
         - ground_truth_artifact_checker: Artifact detection and validation
         - parcel_classifier: Cadastral parcel-based classification
-        
+
     Rule Engines:
         - geometric_rules: Geometric rules engine for classification
         - spectral_rules: Spectral rules engine (NIR, NDVI, etc.)
         - grammar_3d: 3D grammar rules for urban structures
-        
+
     Support:
         - feature_validator: Feature validation and quality checks
         - memory: Memory management and cleanup utilities
@@ -37,72 +47,81 @@ Key Modules:
 Migration:
     # Old (deprecated in v3.1.0)
     from ign_lidar.core.modules.classification_thresholds import ClassificationThresholds
-    
+
     # New (recommended)
     from ign_lidar.core.classification.classification_thresholds import ClassificationThresholds
 
-Note: FeatureManager and FeatureComputer have been consolidated into 
+Note: FeatureManager and FeatureComputer have been consolidated into
       FeatureOrchestrator in ign_lidar.features.orchestrator (Phase 4.3)
 """
 
-from .memory import aggressive_memory_cleanup, clear_gpu_cache
+from .base import BaseClassifier, ClassificationResult
+
 # Note: FeatureManager and FeatureComputer have been consolidated into FeatureOrchestrator
 # in ign_lidar.features.orchestrator (Phase 4.3)
 from .config_validator import ConfigValidator, ProcessingMode
-from .io import TileLoader
-from .io import (
-    save_patch_npz,
-    save_patch_hdf5,
-    save_patch_torch,
-    save_patch_laz,
-    save_patch_multi_format,
-    validate_format_support
-)
-from .io import (
-    LiDARData,
-    LiDARLoadError,
-    LiDARCorruptionError,
-    load_laz_file,
-    validate_lidar_data,
-    map_classification,
-    get_tile_info
-)
 from .enrichment import (
     EnrichmentConfig,
     EnrichmentResult,
-    fetch_rgb_colors,
-    fetch_infrared,
-    compute_ndvi,
-    compute_geometric_features_standard,
     compute_geometric_features_boundary_aware,
+    compute_geometric_features_standard,
+    compute_ndvi,
     enrich_point_cloud,
+    fetch_infrared,
+    fetch_rgb_colors,
 )
+from .io import (
+    LiDARCorruptionError,
+    LiDARData,
+    LiDARLoadError,
+    TileLoader,
+    get_tile_info,
+    load_laz_file,
+    map_classification,
+    save_patch_hdf5,
+    save_patch_laz,
+    save_patch_multi_format,
+    save_patch_npz,
+    save_patch_torch,
+    validate_format_support,
+    validate_lidar_data,
+)
+from .memory import aggressive_memory_cleanup, clear_gpu_cache
 from .patch_extractor import (
-    PatchConfig,
     AugmentationConfig,
-    extract_patches,
-    resample_patch,
-    augment_raw_points,
+    PatchConfig,
     augment_patch,
+    augment_raw_points,
     create_patch_versions,
-    format_patch_for_architecture,
     extract_and_augment_patches,
+    extract_patches,
+    format_patch_for_architecture,
+    resample_patch,
 )
 from .stitching import (
-    TileStitcher,
     StitchingConfig,
-    create_stitcher,
+    TileStitcher,
     check_neighbors_available,
     compute_boundary_aware_features,
+    create_stitcher,
     extract_and_normalize_features,
-    should_use_stitching,
     get_stitching_stats,
+    should_use_stitching,
 )
+
+# ============================================================================
+# New Unified Interface (v3.2+)
+# ============================================================================
+
+# Main classifier facade - use this for simple access
+Classifier = None  # Will be set below after UnifiedClassifier is imported
+
 
 # Reclassification modules (optional - may not be available)
 try:
-    from .reclassifier import OptimizedReclassifier, reclassify_tile_optimized
     from .geometric_rules import GeometricRulesEngine
+    from .reclassifier import OptimizedReclassifier, reclassify_tile_optimized
+
     _HAS_RECLASSIFIER = True
 except ImportError:
     _HAS_RECLASSIFIER = False
@@ -112,7 +131,8 @@ except ImportError:
 
 # Ground truth refinement module (new in v5.2)
 try:
-    from .ground_truth_refinement import GroundTruthRefiner, GroundTruthRefinementConfig
+    from .ground_truth_refinement import GroundTruthRefinementConfig, GroundTruthRefiner
+
     _HAS_GT_REFINEMENT = True
 except ImportError:
     _HAS_GT_REFINEMENT = False
@@ -122,11 +142,12 @@ except ImportError:
 # Ground truth artifact detection module (new in v5.0)
 try:
     from .ground_truth_artifact_checker import (
+        ArtifactReport,
         GroundTruthArtifactChecker,
-        validate_features_before_classification,
         get_artifact_free_features,
-        ArtifactReport
+        validate_features_before_classification,
     )
+
     _HAS_ARTIFACT_CHECKER = True
 except ImportError:
     _HAS_ARTIFACT_CHECKER = False
@@ -138,14 +159,15 @@ except ImportError:
 # Unified classifier module (new in v3.1.0 - consolidation)
 try:
     from .unified_classifier import (
-        UnifiedClassifier,
-        ClassificationStrategy,
         ClassificationRule,
+        ClassificationStrategy,
         FeatureImportance,
+        UnifiedClassifier,
         UnifiedClassifierConfig,
         classify_points_unified,
-        refine_classification_unified
+        refine_classification_unified,
     )
+
     _HAS_UNIFIED_CLASSIFIER = True
 except ImportError:
     _HAS_UNIFIED_CLASSIFIER = False
@@ -165,14 +187,40 @@ except ImportError:
 
 _HAS_ADAPTIVE_CLASSIFIER = _HAS_UNIFIED_CLASSIFIER
 
+# Set Classifier facade to UnifiedClassifier if available
+if _HAS_UNIFIED_CLASSIFIER:
+    Classifier = UnifiedClassifier
+
+    # Also create convenience aliases for common strategies
+    def create_classifier(strategy="comprehensive", use_gpu=False, **kwargs):
+        """
+        Convenience function to create a classifier with common settings.
+
+        Args:
+            strategy: 'basic', 'adaptive', or 'comprehensive'
+            use_gpu: Enable GPU acceleration (requires CuPy)
+            **kwargs: Additional UnifiedClassifier parameters
+
+        Returns:
+            UnifiedClassifier instance
+
+        Example:
+            >>> from ign_lidar.core.classification import create_classifier
+            >>> classifier = create_classifier('adaptive', use_gpu=True)
+            >>> result = classifier.classify(points, features)
+        """
+        return UnifiedClassifier(strategy=strategy, use_gpu=use_gpu, **kwargs)
+
+
 # Adaptive building classifier module (new in v5.2.2 - Enhanced building classification)
 try:
     from .adaptive_building_classifier import (
         AdaptiveBuildingClassifier,
         BuildingFeatureSignature,
+        ClassificationConfidence,
         PointBuildingScore,
-        ClassificationConfidence
     )
+
     _HAS_ADAPTIVE_BUILDING = True
 except ImportError:
     _HAS_ADAPTIVE_BUILDING = False
@@ -182,94 +230,105 @@ except ImportError:
     ClassificationConfidence = None
 
 __all__ = [
+    # ========================================================================
+    # New Unified Interface (v3.2+) - Use these!
+    # ========================================================================
+    "Classifier",  # ← Main entry point (alias for UnifiedClassifier)
+    "BaseClassifier",
+    "ClassificationResult",
+    "create_classifier",  # ← Convenience function
+    # ========================================================================
+    # Memory & Core Utilities
+    # ========================================================================
     # Memory management
-    'aggressive_memory_cleanup',
-    'clear_gpu_cache',
+    "aggressive_memory_cleanup",
+    "clear_gpu_cache",
     # Configuration and management (Phase 3.3)
-    'ConfigValidator',
-    'ProcessingMode',
+    "ConfigValidator",
+    "ProcessingMode",
     # Tile loading (Phase 3.4)
-    'TileLoader',
+    "TileLoader",
     # Serialization
-    'save_patch_npz',
-    'save_patch_hdf5',
-    'save_patch_torch',
-    'save_patch_laz',
-    'save_patch_multi_format',
-    'validate_format_support',
+    "save_patch_npz",
+    "save_patch_hdf5",
+    "save_patch_torch",
+    "save_patch_laz",
+    "save_patch_multi_format",
+    "validate_format_support",
     # Loader
-    'LiDARData',
-    'LiDARLoadError',
-    'LiDARCorruptionError',
-    'load_laz_file',
-    'validate_lidar_data',
-    'map_classification',
-    'get_tile_info',
+    "LiDARData",
+    "LiDARLoadError",
+    "LiDARCorruptionError",
+    "load_laz_file",
+    "validate_lidar_data",
+    "map_classification",
+    "get_tile_info",
     # Enrichment
-    'EnrichmentConfig',
-    'EnrichmentResult',
-    'fetch_rgb_colors',
-    'fetch_infrared',
-    'compute_ndvi',
-    'compute_geometric_features_standard',
-    'compute_geometric_features_boundary_aware',
-    'enrich_point_cloud',
+    "EnrichmentConfig",
+    "EnrichmentResult",
+    "fetch_rgb_colors",
+    "fetch_infrared",
+    "compute_ndvi",
+    "compute_geometric_features_standard",
+    "compute_geometric_features_boundary_aware",
+    "enrich_point_cloud",
     # Patch extraction
-    'PatchConfig',
-    'AugmentationConfig',
-    'extract_patches',
-    'resample_patch',
-    'augment_raw_points',
-    'augment_patch',
-    'create_patch_versions',
-    'format_patch_for_architecture',
-    'extract_and_augment_patches',
+    "PatchConfig",
+    "AugmentationConfig",
+    "extract_patches",
+    "resample_patch",
+    "augment_raw_points",
+    "augment_patch",
+    "create_patch_versions",
+    "format_patch_for_architecture",
+    "extract_and_augment_patches",
     # Stitching
-    'TileStitcher',
-    'StitchingConfig',
-    'create_stitcher',
-    'check_neighbors_available',
-    'compute_boundary_aware_features',
-    'extract_and_normalize_features',
-    'should_use_stitching',
-    'get_stitching_stats',
+    "TileStitcher",
+    "StitchingConfig",
+    "create_stitcher",
+    "check_neighbors_available",
+    "compute_boundary_aware_features",
+    "extract_and_normalize_features",
+    "should_use_stitching",
+    "get_stitching_stats",
     # Reclassification (optional)
-    'OptimizedReclassifier',
-    'reclassify_tile_optimized',
-    'GeometricRulesEngine',
+    "OptimizedReclassifier",
+    "reclassify_tile_optimized",
+    "GeometricRulesEngine",
     # Ground truth refinement (optional, v5.2)
-    'GroundTruthRefiner',
-    'GroundTruthRefinementConfig',
+    "GroundTruthRefiner",
+    "GroundTruthRefinementConfig",
     # Ground truth artifact detection (optional, v5.0)
-    'GroundTruthArtifactChecker',
-    'validate_features_before_classification',
-    'get_artifact_free_features',
-    'ArtifactReport',
+    "GroundTruthArtifactChecker",
+    "validate_features_before_classification",
+    "get_artifact_free_features",
+    "ArtifactReport",
     # Unified classifier (v3.1.0 - new)
-    'UnifiedClassifier',
-    'ClassificationStrategy',
-    'UnifiedClassifierConfig',
-    'classify_points_unified',
-    'refine_classification_unified',
-    'ClassificationRule',
-    'FeatureImportance',
+    "UnifiedClassifier",
+    "ClassificationStrategy",
+    "UnifiedClassifierConfig",
+    "classify_points_unified",
+    "refine_classification_unified",
+    "ClassificationRule",
+    "FeatureImportance",
     # Adaptive building classifier (optional, v5.2.2)
-    'AdaptiveBuildingClassifier',
-    'BuildingFeatureSignature',
-    'PointBuildingScore',
-    'ClassificationConfidence',
+    "AdaptiveBuildingClassifier",
+    "BuildingFeatureSignature",
+    "PointBuildingScore",
+    "ClassificationConfidence",
 ]
 
 # DTM Augmentation module (new in v3.1.0 - Enhanced MNT integration)
 try:
     from .dtm_augmentation import (
-        DTMAugmenter,
+        AugmentationArea,
+        AugmentationStrategy,
         DTMAugmentationConfig,
         DTMAugmentationStats,
-        AugmentationStrategy,
-        AugmentationArea,
-        augment_with_dtm
+        DTMAugmenter,
+        augment_with_dtm,
     )
+
     _HAS_DTM_AUGMENTATION = True
 except ImportError:
     _HAS_DTM_AUGMENTATION = False
@@ -282,10 +341,10 @@ except ImportError:
 
 # Export DTM augmentation
 __all__ += [
-    'DTMAugmenter',
-    'DTMAugmentationConfig',
-    'DTMAugmentationStats',
-    'AugmentationStrategy',
-    'AugmentationArea',
-    'augment_with_dtm',
+    "DTMAugmenter",
+    "DTMAugmentationConfig",
+    "DTMAugmentationStats",
+    "AugmentationStrategy",
+    "AugmentationArea",
+    "augment_with_dtm",
 ]

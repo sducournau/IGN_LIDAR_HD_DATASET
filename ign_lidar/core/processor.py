@@ -943,17 +943,39 @@ class LiDARProcessor:
                 continue
 
             try:
-                # Add as float32 extra dimension (truncate description to 31 chars - needs null terminator)
+                # Determine appropriate data type
+                # Keep cluster IDs as integers for semantic meaning
+                if feat_name in [
+                    "cluster_id",
+                    "building_cluster_id",
+                    "parcel_cluster_id",
+                ]:
+                    dtype = np.int32
+                    feat_data_typed = feat_data.astype(np.int32)
+                elif feat_data.dtype in [np.float32, np.float64]:
+                    dtype = np.float32
+                    feat_data_typed = feat_data.astype(np.float32)
+                elif feat_data.dtype in [np.int32, np.uint32]:
+                    dtype = np.int32
+                    feat_data_typed = feat_data.astype(np.int32)
+                elif feat_data.dtype == np.uint8:
+                    dtype = np.uint8
+                    feat_data_typed = feat_data.astype(np.uint8)
+                else:
+                    dtype = np.float32
+                    feat_data_typed = feat_data.astype(np.float32)
+
+                # Add extra dimension (description max 31 chars)
                 desc = f"Feature: {feat_name}"[:31]
                 las.add_extra_dim(
-                    laspy.ExtraBytesParams(
-                        name=feat_name, type=np.float32, description=desc
-                    )
+                    laspy.ExtraBytesParams(name=feat_name, type=dtype, description=desc)
                 )
-                setattr(las, feat_name, feat_data.astype(np.float32))
+                setattr(las, feat_name, feat_data_typed)
                 added_dimensions.add(feat_name)
             except Exception as e:
-                logger.debug(f"  ⚠️  Could not add feature '{feat_name}' to LAZ: {e}")
+                logger.debug(
+                    f"  ⚠️  Could not add feature " f"'{feat_name}' to LAZ: {e}"
+                )
 
         # Normals (normal_x, normal_y, normal_z for consistency)
         if "normals" in original_patch:
@@ -1106,7 +1128,7 @@ class LiDARProcessor:
             fetcher = RGEALTIFetcher(
                 cache_dir=str(cache_dir) if cache_dir else None,
                 resolution=dtm_config.get("resolution", 1.0),
-                use_wcs=dtm_config.get("use_wcs", True),
+                use_wms=dtm_config.get("use_wcs", True),  # Map use_wcs to use_wms
                 api_key=dtm_config.get("api_key", "pratique"),
                 prefer_lidar_hd=dtm_config.get(
                     "prefer_lidar_hd", True
@@ -1877,6 +1899,68 @@ class LiDARProcessor:
                 logger.error(f"  ❌ Failed to augment ground points with DTM: {e}")
                 logger.debug(f"  Exception details:", exc_info=True)
 
+        # 1b. Pre-fetch ground truth data for cluster ID computation
+        # This must happen BEFORE feature computation so building/parcel
+        # geometries are available when computing cluster IDs
+        gt_data = None
+        if self.data_fetcher is not None:
+            try:
+                # Get tile bounding box
+                bbox = (
+                    float(points_v[:, 0].min()),
+                    float(points_v[:, 1].min()),
+                    float(points_v[:, 0].max()),
+                    float(points_v[:, 1].max()),
+                )
+
+                logger.info("  📍 Pre-fetching ground truth data for cluster IDs...")
+
+                # Fetch all ground truth data for this tile
+                use_cache = (
+                    self.config.get("data_sources", {})
+                    .get("bd_topo", {})
+                    .get("cache_enabled", True)
+                )
+                gt_data = self.data_fetcher.fetch_all(bbox=bbox, use_cache=use_cache)
+
+                # Add ground truth geometries to tile_data for cluster IDs
+                if gt_data is not None and "ground_truth" in gt_data:
+                    ground_truth_features = gt_data["ground_truth"]
+
+                    # Extract building and parcel geometries for cluster IDs
+                    tile_data["ground_truth_features"] = {}
+
+                    if (
+                        "buildings" in ground_truth_features
+                        and ground_truth_features["buildings"] is not None
+                        and len(ground_truth_features["buildings"]) > 0
+                    ):
+                        buildings = ground_truth_features["buildings"]
+                        tile_data["ground_truth_features"]["buildings"] = buildings
+                        n_bldgs = len(buildings)
+                        logger.debug(
+                            f"  ✓ {n_bldgs} building geometries "
+                            "available for cluster IDs"
+                        )
+
+                    # Check for parcel data in cadastre
+                    # Note: gt_data["cadastre"] is directly a GeoDataFrame, not a dict with "parcels" key
+                    if (
+                        "cadastre" in gt_data
+                        and gt_data["cadastre"] is not None
+                        and len(gt_data["cadastre"]) > 0
+                    ):
+                        parcels = gt_data["cadastre"]
+                        tile_data["ground_truth_features"]["parcels"] = parcels
+                        logger.debug(
+                            f"  ✓ {len(parcels)} parcel geometries "
+                            "available for cluster IDs"
+                        )
+
+            except Exception as e:
+                logger.warning(f"  ⚠️  Failed to pre-fetch ground truth data: {e}")
+                logger.debug("  Exception details:", exc_info=True)
+
         # 2. Compute all features using FeatureOrchestrator (Phase 4.3)
         # Store tile metadata in tile_data for orchestrator to use
         if tile_metadata:
@@ -1961,7 +2045,7 @@ class LiDARProcessor:
                 gt_data = self.data_fetcher.fetch_all(bbox=bbox, use_cache=use_cache)
 
                 # Apply ground truth classification if BD TOPO data is available
-                if gt_data and "ground_truth" in gt_data:
+                if gt_data is not None and "ground_truth" in gt_data:
                     # Check if we should use the new optimized ground truth classifier
                     use_optimized_gt = self.config.processor.get(
                         "use_optimized_ground_truth", True
@@ -2270,7 +2354,7 @@ class LiDARProcessor:
                 logger.debug(f"  Fetching ground truth (use_cache={use_cache})...")
                 gt_data = self.data_fetcher.fetch_all(bbox=bbox, use_cache=use_cache)
 
-                if gt_data and "ground_truth" in gt_data:
+                if gt_data is not None and "ground_truth" in gt_data:
                     logger.info(
                         f"  ✅ Ground truth data available for reclassification"
                     )
@@ -2553,8 +2637,17 @@ class LiDARProcessor:
             **(geo_features if isinstance(geo_features, dict) else {}),
         }
 
-        # Add RGB, NIR, NDVI, architectural_style if computed by FeatureComputer
-        for feat_name in ["rgb", "nir", "ndvi", "architectural_style"]:
+        # Add RGB, NIR, NDVI, architectural_style, and cluster IDs
+        # if computed by FeatureComputer
+        for feat_name in [
+            "rgb",
+            "nir",
+            "ndvi",
+            "architectural_style",
+            "cluster_id",
+            "building_cluster_id",
+            "parcel_cluster_id",
+        ]:
             if feat_name in all_features:
                 all_features_v[feat_name] = all_features[feat_name]
 

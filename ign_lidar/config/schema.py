@@ -1,12 +1,43 @@
 """
 Structured configuration schema for IGN LiDAR HD.
 
-Uses dataclasses with OmegaConf for type-safe, validated configuration.
-Compatible with Hydra for hierarchical composition and CLI overrides.
+DEPRECATED: This module is deprecated in v3.2+ in favor of ign_lidar.config.Config
+
+The old ProcessorConfig/FeaturesConfig approach has been replaced with a
+unified Config class that is much simpler to use.
+
+Migration Guide:
+    # Old (v3.1, deprecated)
+    from ign_lidar.config.schema import ProcessorConfig, FeaturesConfig
+    processor_config = ProcessorConfig(lod_level='LOD2')
+    features_config = FeaturesConfig(mode='lod2')
+
+    # New (v3.2+, recommended)
+    from ign_lidar.config import Config
+    config = Config.preset('lod2_buildings')
+    # Or: config = Config(mode='lod2', input_dir='...', output_dir='...')
+
+This module will be REMOVED in v4.0.0.
+
+For migration help:
+    ign-lidar migrate-config old_config.yaml
+
+See: https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/migration-v3.1-to-v3.2/
 """
 
+import warnings
+
+warnings.warn(
+    "ign_lidar.config.schema is deprecated and will be removed in v4.0.0. "
+    "Use ign_lidar.config.Config instead. "
+    "See migration guide: https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/migration-v3.1-to-v3.2/",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 from dataclasses import dataclass, field
-from typing import Optional, List, Literal, Union, Dict, Any
+from typing import Any, Dict, List, Literal, Optional, Union
+
 from omegaconf import MISSING
 
 

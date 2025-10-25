@@ -27,16 +27,17 @@ import logging
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict, Optional, Any, List
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 from omegaconf import DictConfig
+
+# Multi-scale computation (v6.2)
+from .compute.multi_scale import MultiScaleFeatureComputer, ScaleConfig
 
 # NEW: Strategy Pattern (Week 2 refactoring)
 from .strategies import BaseFeatureStrategy, FeatureComputeMode
 from .strategy_cpu import CPUStrategy
-
-# Multi-scale computation (v6.2)
-from .compute.multi_scale import MultiScaleFeatureComputer, ScaleConfig
 
 try:
     from .strategy_gpu import GPUStrategy
@@ -44,11 +45,11 @@ try:
 except ImportError:
     GPUStrategy = None
     GPUChunkedStrategy = None
+from .feature_modes import FeatureMode, get_feature_config
 from .strategy_boundary import BoundaryAwareStrategy
 
 # Strategy pattern is now the standard - factory pattern removed
 
-from .feature_modes import FeatureMode, get_feature_config
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,9 @@ class FeatureOrchestrator:
         >>> print(f"Mode: {orchestrator.feature_mode}")
     """
 
-    def __init__(self, config: DictConfig):
+    def __init__(
+        self, config: DictConfig, progress_callback: Optional[callable] = None
+    ):
         """
         Initialize feature orchestrator from configuration.
 
@@ -112,12 +115,15 @@ class FeatureOrchestrator:
             config: Hydra/OmegaConf configuration object with sections:
                 - processor: use_gpu, use_gpu_chunked, etc.
                 - features: mode, k_neighbors, use_rgb, use_infrared, etc.
+            progress_callback: Optional callback function(progress: float,
+                message: str) for progress updates during computation
 
         Raises:
             ValueError: If configuration is invalid
             ImportError: If required dependencies are missing
         """
         self.config = config
+        self.progress_callback = progress_callback
 
         # Initialize resources (RGB, NIR, GPU)
         self._init_resources()
@@ -434,7 +440,7 @@ class FeatureOrchestrator:
         self.computer = FeatureComputer(
             mode_selector=None,  # Use default mode selector
             force_mode=force_mode,
-            progress_callback=None,  # TODO: Add progress callback support
+            progress_callback=self.progress_callback,
             prefer_gpu=prefer_gpu,
         )
 
@@ -1290,6 +1296,9 @@ class FeatureOrchestrator:
         nir_added = self._add_nir_features(tile_data, all_features)
         self._add_ndvi_features(tile_data, all_features, rgb_added, nir_added)
 
+        # Add is_ground feature (with DTM augmentation support)
+        self._add_is_ground_feature(tile_data, all_features)
+
         # Add architectural style if requested
         self._add_architectural_style(tile_data, all_features)
 
@@ -1659,6 +1668,80 @@ class FeatureOrchestrator:
                 "  ⚠️  Cannot compute NDVI (need both RGB and NIR) - not adding to features"
             )
 
+    def _add_is_ground_feature(
+        self, tile_data: Dict[str, Any], all_features: Dict[str, np.ndarray]
+    ):
+        """
+        Add is_ground binary feature with DTM augmentation support.
+
+        Computes a binary indicator (0/1) for ground points, with optional
+        support for detecting DTM-augmented synthetic ground points.
+
+        Args:
+            tile_data: Tile data dict (must contain 'classification')
+            all_features: Features dict to update
+
+        Notes:
+            - Ground points are ASPRS class 2
+            - Synthetic points from DTM augmentation can be included/excluded
+            - Logs statistics about ground coverage and DTM contribution
+        """
+        features_cfg = self.config.get("features", {})
+        processor_cfg = self.config.get("processor", {})
+
+        # Check if is_ground feature is requested
+        compute_is_ground = features_cfg.get(
+            "compute_is_ground", processor_cfg.get("compute_is_ground", True)
+        )
+
+        if not compute_is_ground:
+            return
+
+        try:
+            from .compute.is_ground import compute_is_ground_with_stats
+
+            classification = tile_data["classification"]
+
+            # Check for synthetic flags from DTM augmentation
+            synthetic_flags = tile_data.get("synthetic_flags")
+
+            # Check whether to include synthetic ground points
+            include_synthetic = features_cfg.get(
+                "include_synthetic_ground",
+                processor_cfg.get("include_synthetic_ground", True),
+            )
+
+            # Compute is_ground feature with statistics
+            is_ground, stats = compute_is_ground_with_stats(
+                classification=classification,
+                synthetic_flags=synthetic_flags,
+                ground_class=2,  # ASPRS ground class
+                include_synthetic=include_synthetic,
+                verbose=False,  # Don't log here, we'll log summary below
+            )
+
+            # Add to features
+            all_features["is_ground"] = is_ground
+
+            # Log summary
+            if stats["synthetic_ground"] > 0:
+                logger.info(
+                    f"  ✓ is_ground feature: {stats['total_ground']:,} ground points "
+                    f"({stats['ground_percentage']:.1f}%) | "
+                    f"{stats['synthetic_ground']:,} from DTM "
+                    f"({stats['synthetic_percentage']:.1f}%)"
+                )
+            else:
+                logger.info(
+                    f"  ✓ is_ground feature: {stats['total_ground']:,} ground points "
+                    f"({stats['ground_percentage']:.1f}%)"
+                )
+
+        except ImportError:
+            logger.warning("  ⚠️  is_ground module not available")
+        except Exception as e:
+            logger.warning(f"  ⚠️  Failed to compute is_ground feature: {e}")
+
     def _add_architectural_style(
         self, tile_data: Dict[str, Any], all_features: Dict[str, np.ndarray]
     ):
@@ -1693,6 +1776,111 @@ class FeatureOrchestrator:
             logger.warning("  ⚠️  Architectural style module not available")
         except Exception as e:
             logger.error(f"  ❌ Failed to compute architectural style: {e}")
+
+    def _apply_building_buffers(
+        self, buildings_gdf: "gpd.GeoDataFrame", points: np.ndarray
+    ) -> "gpd.GeoDataFrame":
+        """
+        Apply adaptive buffers to building geometries for better facade/wall capture.
+
+        This function implements the adaptive buffering strategy specified in the config:
+        - Base buffer_distance
+        - Adaptive buffer range (min/max) based on building characteristics
+        - Vertical buffer for height tolerance
+        - Horizontal buffers for ground and upper levels
+
+        Args:
+            buildings_gdf: GeoDataFrame with building polygons
+            points: Point cloud for adaptive buffer computation
+
+        Returns:
+            GeoDataFrame with buffered building polygons
+
+        Config Parameters Used:
+            data_sources.bd_topo.features.buildings.buffer_distance: Base buffer (m)
+            data_sources.bd_topo.features.buildings.enable_adaptive_buffer: Enable adaptive buffering
+            data_sources.bd_topo.features.buildings.adaptive_buffer_min: Minimum adaptive buffer (m)
+            data_sources.bd_topo.features.buildings.adaptive_buffer_max: Maximum adaptive buffer (m)
+        """
+        if buildings_gdf is None or len(buildings_gdf) == 0:
+            return buildings_gdf
+
+        # Get building configuration
+        bd_topo_cfg = self.config.get("data_sources", {}).get("bd_topo", {})
+        buildings_cfg = bd_topo_cfg.get("features", {}).get("buildings", {})
+
+        # Base buffer distance
+        base_buffer = buildings_cfg.get("buffer_distance", 1.0)
+        
+        # Adaptive buffer settings
+        enable_adaptive = buildings_cfg.get("enable_adaptive_buffer", False)
+        adaptive_min = buildings_cfg.get("adaptive_buffer_min", 1.0)
+        adaptive_max = buildings_cfg.get("adaptive_buffer_max", 8.0)
+
+        logger.info(
+            f"  🏢 Applying building buffers: base={base_buffer}m, "
+            f"adaptive={enable_adaptive} ({adaptive_min}-{adaptive_max}m)"
+        )
+
+        # Create buffered copy
+        buffered_gdf = buildings_gdf.copy()
+
+        if enable_adaptive and len(points) > 0:
+            # Adaptive buffering based on point density and building characteristics
+            try:
+                import geopandas as gpd
+                from shapely.geometry import Point as ShapelyPoint
+                from shapely.strtree import STRtree
+
+                # Compute buffer for each building
+                buffer_distances = []
+                
+                for idx, building in buildings_gdf.iterrows():
+                    geom = building.geometry
+                    bounds = geom.bounds  # (minx, miny, maxx, maxy)
+                    
+                    # Get building dimensions
+                    width = bounds[2] - bounds[0]
+                    height = bounds[3] - bounds[1]
+                    perimeter = geom.length
+                    area = geom.area
+                    
+                    # Compute adaptive buffer based on building size
+                    # Larger/more complex buildings get larger buffers for facades
+                    size_factor = min(max(perimeter / 100.0, 0.0), 1.0)  # 0-1 based on perimeter
+                    complexity_factor = min(max(perimeter**2 / (4 * np.pi * area) - 1.0, 0.0), 1.0)  # Shape complexity
+                    
+                    # Interpolate buffer distance
+                    adaptive_buffer = adaptive_min + (adaptive_max - adaptive_min) * (
+                        0.5 * size_factor + 0.5 * complexity_factor
+                    )
+                    
+                    # Use max of base buffer and adaptive buffer
+                    final_buffer = max(base_buffer, adaptive_buffer)
+                    buffer_distances.append(final_buffer)
+                
+                # Apply buffers
+                buffered_gdf['geometry'] = buildings_gdf.geometry.buffer(
+                    buffer_distances, 
+                    cap_style=2  # Flat caps for building corners
+                )
+                
+                avg_buffer = np.mean(buffer_distances)
+                logger.info(
+                    f"    ✓ Applied adaptive buffers: "
+                    f"avg={avg_buffer:.2f}m, range=[{min(buffer_distances):.2f}, {max(buffer_distances):.2f}]m"
+                )
+                
+            except Exception as e:
+                logger.warning(f"    ⚠️  Adaptive buffering failed, using base buffer: {e}")
+                # Fallback to base buffer
+                buffered_gdf['geometry'] = buildings_gdf.geometry.buffer(base_buffer, cap_style=2)
+        else:
+            # Simple base buffer
+            buffered_gdf['geometry'] = buildings_gdf.geometry.buffer(base_buffer, cap_style=2)
+            logger.info(f"    ✓ Applied uniform buffer: {base_buffer}m")
+
+        return buffered_gdf
 
     def _add_cluster_id_features(
         self, tile_data: Dict[str, Any], all_features: Dict[str, np.ndarray]
@@ -1737,13 +1925,19 @@ class FeatureOrchestrator:
             if compute_building_clusters:
                 buildings = ground_truth_features.get("buildings")
                 if buildings is not None and len(buildings) > 0:
-                    building_ids = compute_building_cluster_ids(points, buildings)
+                    # 🔥 CRITICAL FIX: Apply adaptive buffers to buildings for better facade capture
+                    logger.info(f"  🏢 Computing building cluster IDs for {len(buildings)} buildings...")
+                    buffered_buildings = self._apply_building_buffers(buildings, points)
+                    
+                    building_ids = compute_building_cluster_ids(points, buffered_buildings)
                     all_features["building_cluster_id"] = building_ids
 
                     n_buildings = np.max(building_ids)
                     n_assigned = np.sum(building_ids > 0)
+                    pct_assigned = (n_assigned / len(points) * 100) if len(points) > 0 else 0
                     logger.info(
-                        f"  ✓ Building cluster IDs: {n_buildings} buildings, {n_assigned:,} points assigned"
+                        f"  ✓ Building cluster IDs: {n_buildings} buildings, "
+                        f"{n_assigned:,} points assigned ({pct_assigned:.1f}%)"
                     )
                 else:
                     logger.warning(
@@ -1774,6 +1968,7 @@ class FeatureOrchestrator:
             )
         except Exception as e:
             logger.warning(f"  ⚠️  Failed to compute cluster IDs: {e}")
+            logger.debug("  Exception details:", exc_info=True)
 
     def _add_plane_features(
         self, tile_data: Dict[str, Any], all_features: Dict[str, np.ndarray]
@@ -2093,3 +2288,36 @@ class FeatureOrchestrator:
                 self._feature_executor.shutdown(wait=False)
         except Exception:
             pass  # Ignore cleanup errors
+
+    def __getstate__(self):
+        """
+        Custom serialization for multiprocessing compatibility.
+
+        Excludes non-picklable thread pool executors.
+        """
+        state = self.__dict__.copy()
+        # Remove non-picklable thread pool executors
+        state["_rgb_nir_executor"] = None
+        state["_feature_executor"] = None
+        return state
+
+    def __setstate__(self, state):
+        """
+        Custom deserialization for multiprocessing compatibility.
+
+        Reinitializes thread pools after unpickling.
+        """
+        self.__dict__.update(state)
+        # Shutdown any existing executors (shouldn't exist but be safe)
+        if hasattr(self, "_rgb_nir_executor") and self._rgb_nir_executor is not None:
+            try:
+                self._rgb_nir_executor.shutdown(wait=False)
+            except Exception:
+                pass
+        if hasattr(self, "_feature_executor") and self._feature_executor is not None:
+            try:
+                self._feature_executor.shutdown(wait=False)
+            except Exception:
+                pass
+        # Reinitialize thread pools
+        self._init_parallel_processing()

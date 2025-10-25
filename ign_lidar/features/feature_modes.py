@@ -24,33 +24,34 @@ References:
 - ASPRS LAS 1.4 Specification - Classification codes
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional
-from enum import Enum
 import logging
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    'FeatureMode',
-    'FeatureSet',
-    'get_feature_config',
-    'FEATURE_DESCRIPTIONS',
-    'LOD2_FEATURES',
-    'LOD3_FEATURES',
-    'ASPRS_FEATURES',
+    "FeatureMode",
+    "FeatureSet",
+    "get_feature_config",
+    "FEATURE_DESCRIPTIONS",
+    "LOD2_FEATURES",
+    "LOD3_FEATURES",
+    "ASPRS_FEATURES",
 ]
 
 
 class FeatureMode(Enum):
     """Predefined feature computation modes."""
-    MINIMAL = "minimal"              # Ultra-fast: ~8 features
-    LOD2_SIMPLIFIED = "lod2"        # Essential: ~11 features for LOD2
-    LOD3_FULL = "lod3"              # Complete: ~51 features for LOD3 (includes planes)
-    ASPRS_CLASSES = "asprs_classes" # ASPRS classification: ~25 features
-    PLANES = "planes"               # Plane-based features only: ~8 features
-    FULL = "full"                   # All available features
-    CUSTOM = "custom"               # User-defined selection
+
+    MINIMAL = "minimal"  # Ultra-fast: ~8 features
+    LOD2_SIMPLIFIED = "lod2"  # Essential: ~11 features for LOD2
+    LOD3_FULL = "lod3"  # Complete: ~51 features for LOD3 (includes planes)
+    ASPRS_CLASSES = "asprs_classes"  # ASPRS classification: ~25 features
+    PLANES = "planes"  # Plane-based features only: ~8 features
+    FULL = "full"  # All available features
+    CUSTOM = "custom"  # User-defined selection
 
 
 # =============================================================================
@@ -59,101 +60,89 @@ class FeatureMode(Enum):
 
 FEATURE_DESCRIPTIONS = {
     # Core Coordinates
-    'xyz': 'Point coordinates (X, Y, Z)',
-    
+    "xyz": "Point coordinates (X, Y, Z)",
     # Surface Normals (3 features)
-    'normal_x': 'X component of surface normal',
-    'normal_y': 'Y component of surface normal', 
-    'normal_z': 'Z component of surface normal (verticality indicator)',
-    
+    "normal_x": "X component of surface normal",
+    "normal_y": "Y component of surface normal",
+    "normal_z": "Z component of surface normal (verticality indicator)",
     # Curvature Features (2 features)
-    'curvature': 'Local surface curvature',
-    'change_curvature': 'Rate of curvature change (using eigenvalue variance)',
-    
+    "curvature": "Local surface curvature",
+    "change_curvature": "Rate of curvature change (using eigenvalue variance)",
     # Shape Descriptors (6 features) - Weinmann et al.
-    'planarity': 'Planarity measure [0,1] - high for flat surfaces (roofs, walls)',
-    'linearity': 'Linearity measure [0,1] - high for edges, cables',
-    'sphericity': 'Sphericity measure [0,1] - high for vegetation, noise',
-    'roughness': 'Surface roughness [0,1] - texture measure',
-    'anisotropy': 'Anisotropy measure [0,1] - directional variation',
-    'omnivariance': 'Omnivariance - 3D dispersion measure',
-    
+    "planarity": "Planarity measure [0,1] - high for flat surfaces (roofs, walls)",
+    "linearity": "Linearity measure [0,1] - high for edges, cables",
+    "sphericity": "Sphericity measure [0,1] - high for vegetation, noise",
+    "roughness": "Surface roughness [0,1] - texture measure",
+    "anisotropy": "Anisotropy measure [0,1] - directional variation",
+    "omnivariance": "Omnivariance - 3D dispersion measure",
     # Eigenvalues (5 features)
-    'eigenvalue_1': 'Largest eigenvalue (λ₀)',
-    'eigenvalue_2': 'Medium eigenvalue (λ₁)',
-    'eigenvalue_3': 'Smallest eigenvalue (λ₂)',
-    'sum_eigenvalues': 'Sum of eigenvalues (Σλ)',
-    'eigenentropy': 'Shannon entropy of eigenvalues',
-    
+    "eigenvalue_1": "Largest eigenvalue (λ₀)",
+    "eigenvalue_2": "Medium eigenvalue (λ₁)",
+    "eigenvalue_3": "Smallest eigenvalue (λ₂)",
+    "sum_eigenvalues": "Sum of eigenvalues (Σλ)",
+    "eigenentropy": "Shannon entropy of eigenvalues",
     # Height Features (3 features)
-    'height': 'Normalized height (Z - Z_min) for relative elevation',
-    'height_above_ground': 'Height above ground level (meters)',
-    'vertical_std': 'Standard deviation of Z in neighborhood',
-    'height_extent_ratio': 'Ratio of vertical std to spatial extent (3D structure indicator)',
-    
+    "height": "Normalized height (Z - Z_min) for relative elevation",
+    "height_above_ground": "Height above ground level (meters)",
+    "vertical_std": "Standard deviation of Z in neighborhood",
+    "height_extent_ratio": "Ratio of vertical std to spatial extent (3D structure indicator)",
+    # Ground Classification Features (1 feature)
+    "is_ground": "Binary ground indicator [0,1] with DTM augmentation support",
     # Building-Specific Scores (legacy)
-    'verticality': 'Verticality score [0,1] - 1 for vertical surfaces',
-    'wall_score': 'Wall likelihood (planarity × verticality) - LEGACY',
-    'roof_score': 'Roof likelihood (planarity × horizontality) - LEGACY',
-    
+    "verticality": "Verticality score [0,1] - 1 for vertical surfaces",
+    "wall_score": "Wall likelihood (planarity × verticality) - LEGACY",
+    "roof_score": "Roof likelihood (planarity × horizontality) - LEGACY",
     # Canonical Architectural Features (from architectural.py)
-    'horizontality': 'Horizontality score [0,1] - 1 for horizontal surfaces',
-    'wall_likelihood': 'Wall probability (canonical from architectural.py)',
-    'roof_likelihood': 'Roof probability (canonical from architectural.py)',
-    'facade_score': 'Facade characteristic score (verticality + height + planarity)',
-    
+    "horizontality": "Horizontality score [0,1] - 1 for horizontal surfaces",
+    "wall_likelihood": "Wall probability (canonical from architectural.py)",
+    "roof_likelihood": "Roof probability (canonical from architectural.py)",
+    "facade_score": "Facade characteristic score (verticality + height + planarity)",
     # Density & Neighborhood (4 features)
-    'density': 'Local point density (points per unit volume)',
-    'num_points_2m': 'Number of points within 2m radius',
-    'neighborhood_extent': 'Maximum distance to k-th neighbor',
-    
+    "density": "Local point density (points per unit volume)",
+    "num_points_2m": "Number of points within 2m radius",
+    "neighborhood_extent": "Maximum distance to k-th neighbor",
     # Advanced Architectural Features (4 features)
-    'edge_strength': 'Edge detection strength (high eigenvalue variance)',
-    'corner_likelihood': 'Corner probability (3D structure measure)',
-    'overhang_indicator': 'Overhang/protrusion detection',
-    'surface_roughness': 'Fine-scale surface texture',
-    
+    "edge_strength": "Edge detection strength (high eigenvalue variance)",
+    "corner_likelihood": "Corner probability (3D structure measure)",
+    "overhang_indicator": "Overhang/protrusion detection",
+    "surface_roughness": "Fine-scale surface texture",
     # Legacy Architectural Features (4 features - backward compatibility)
-    'legacy_edge_strength': 'Legacy edge detection (replaced by edge_strength)',
-    'legacy_corner_likelihood': 'Legacy corner detection (replaced by corner_likelihood)',
-    'legacy_overhang_indicator': 'Legacy overhang detection (replaced by overhang_indicator)',
-    'legacy_surface_roughness': 'Legacy surface texture (replaced by surface_roughness)',
-    
+    "legacy_edge_strength": "Legacy edge detection (replaced by edge_strength)",
+    "legacy_corner_likelihood": "Legacy corner detection (replaced by corner_likelihood)",
+    "legacy_overhang_indicator": "Legacy overhang detection (replaced by overhang_indicator)",
+    "legacy_surface_roughness": "Legacy surface texture (replaced by surface_roughness)",
     # NEW: Enhanced Building Classification Features (8 features)
-    'horizontality': 'Horizontality score [0,1] - 1 for horizontal surfaces (roofs)',
-    'facade_score': 'Facade likelihood (combined vertical + planar + elevated)',
-    'flat_roof_score': 'Flat roof likelihood (horizontal + planar + elevated)',
-    'sloped_roof_score': 'Sloped roof likelihood (15-45° tilt)',
-    'steep_roof_score': 'Steep roof likelihood (45-70° tilt)',
-    'opening_likelihood': 'Window/door likelihood (low planarity + high linearity)',
-    'structural_element_score': 'Pillar/column likelihood (linear + vertical + organized)',
-    'edge_strength_enhanced': 'Enhanced edge strength from eigenvalues (λ1-λ2)/λ1',
-    
+    "horizontality": "Horizontality score [0,1] - 1 for horizontal surfaces (roofs)",
+    "facade_score": "Facade likelihood (combined vertical + planar + elevated)",
+    "flat_roof_score": "Flat roof likelihood (horizontal + planar + elevated)",
+    "sloped_roof_score": "Sloped roof likelihood (15-45° tilt)",
+    "steep_roof_score": "Steep roof likelihood (45-70° tilt)",
+    "opening_likelihood": "Window/door likelihood (low planarity + high linearity)",
+    "structural_element_score": "Pillar/column likelihood (linear + vertical + organized)",
+    "edge_strength_enhanced": "Enhanced edge strength from eigenvalues (λ1-λ2)/λ1",
     # Spectral Features (5 features)
-    'red': 'Red channel [0-255]',
-    'green': 'Green channel [0-255]',
-    'blue': 'Blue channel [0-255]',
-    'nir': 'Near-infrared channel [0-255]',
-    'ndvi': 'Normalized Difference Vegetation Index [-1,1]',
-    
+    "red": "Red channel [0-255]",
+    "green": "Green channel [0-255]",
+    "blue": "Blue channel [0-255]",
+    "nir": "Near-infrared channel [0-255]",
+    "ndvi": "Normalized Difference Vegetation Index [-1,1]",
     # NEW: Plane-Based Features (8 features)
-    'plane_id': 'ID of nearest plane (-1 if not assigned)',
-    'plane_type': 'Type of plane (0=horizontal, 1=vertical, 2=inclined, -1=none)',
-    'distance_to_plane': 'Distance to plane surface (meters)',
-    'plane_area': 'Area of containing plane (m²)',
-    'plane_orientation': 'Angle of plane normal from horizontal (degrees)',
-    'plane_planarity': 'Planarity score of plane [0,1]',
-    'position_on_plane_u': 'Normalized U coordinate on plane [0,1]',
-    'position_on_plane_v': 'Normalized V coordinate on plane [0,1]',
-    
+    "plane_id": "ID of nearest plane (-1 if not assigned)",
+    "plane_type": "Type of plane (0=horizontal, 1=vertical, 2=inclined, -1=none)",
+    "distance_to_plane": "Distance to plane surface (meters)",
+    "plane_area": "Area of containing plane (m²)",
+    "plane_orientation": "Angle of plane normal from horizontal (degrees)",
+    "plane_planarity": "Planarity score of plane [0,1]",
+    "position_on_plane_u": "Normalized U coordinate on plane [0,1]",
+    "position_on_plane_v": "Normalized V coordinate on plane [0,1]",
     # Building-Plane Features (Phase 2 - Hierarchical Clustering)
-    'building_id': 'Building ID from ground truth footprint (-1 if not in building)',
-    'plane_id_local': 'Local plane ID within building (0, 1, 2, ... within each building)',
-    'facade_id': 'Facade ID for vertical planes (0=N, 1=E, 2=S, 3=W, -1=non-facade)',
-    'distance_to_building_center': 'Distance from building centroid (meters)',
-    'relative_height_in_building': 'Normalized height within building [0=bottom, 1=top]',
-    'n_planes_in_building': 'Number of planes detected in building',
-    'plane_area_ratio': 'Plane area / total building surface area',
+    "building_id": "Building ID from ground truth footprint (-1 if not in building)",
+    "plane_id_local": "Local plane ID within building (0, 1, 2, ... within each building)",
+    "facade_id": "Facade ID for vertical planes (0=N, 1=E, 2=S, 3=W, -1=non-facade)",
+    "distance_to_building_center": "Distance from building centroid (meters)",
+    "relative_height_in_building": "Normalized height within building [0=bottom, 1=top]",
+    "n_planes_in_building": "Number of planes detected in building",
+    "plane_area_ratio": "Plane area / total building surface area",
 }
 
 
@@ -163,172 +152,160 @@ FEATURE_DESCRIPTIONS = {
 
 # MINIMAL: Ultra-fast processing (~8 features)
 MINIMAL_FEATURES = {
-    'normal_z',           # Verticality from normal
-    'planarity',          # Main shape descriptor
-    'height_above_ground',# Essential for building detection
-    'density',            # Local point density
+    "normal_z",  # Verticality from normal
+    "planarity",  # Main shape descriptor
+    "height_above_ground",  # Essential for building detection
+    "density",  # Local point density
 }
 
 # LOD2_SIMPLIFIED: Essential features for basic building classification (~17 features)
 LOD2_FEATURES = {
     # Coordinates
-    'xyz',                # 3 features (x, y, z)
-    
+    "xyz",  # 3 features (x, y, z)
     # Essential geometric
-    'normal_z',           # Verticality indicator
-    'planarity',          # Flat surface detection (from architectural.py)
-    'linearity',          # Edge detection
-    'anisotropy',         # Structure detection
-    
+    "normal_z",  # Verticality indicator
+    "planarity",  # Flat surface detection (from architectural.py)
+    "linearity",  # Edge detection
+    "anisotropy",  # Structure detection
     # Building-specific
-    'height_above_ground',# Height feature
-    'verticality',        # Wall detection (from architectural.py)
-    'horizontality',      # Roof detection (from architectural.py)
-    
+    "height_above_ground",  # Height feature
+    "verticality",  # Wall detection (from architectural.py)
+    "horizontality",  # Roof detection (from architectural.py)
     # Architectural features (from canonical architectural.py)
-    'wall_likelihood',    # Wall probability (from architectural.py)
-    'roof_likelihood',    # Roof probability (from architectural.py)
-    'facade_score',       # Facade detection (from architectural.py)
-    
+    "wall_likelihood",  # Wall probability (from architectural.py)
+    "roof_likelihood",  # Roof probability (from architectural.py)
+    "facade_score",  # Facade detection (from architectural.py)
     # Legacy building scores (for compatibility)
-    'wall_score',         # Legacy wall likelihood
-    'roof_score',         # Legacy roof likelihood
-    
+    "wall_score",  # Legacy wall likelihood
+    "roof_score",  # Legacy roof likelihood
     # Spectral
-    'red', 'green', 'blue',  # RGB colors (3 features)
-    'ndvi',               # Vegetation index
+    "red",
+    "green",
+    "blue",  # RGB colors (3 features)
+    "ndvi",  # Vegetation index
 }  # Total: 19 features (xyz=3, geometric=4, building=10, spectral=4)
 
 # LOD3_FULL: Complete feature set for detailed modeling (~43 features)
 LOD3_FEATURES = {
     # Coordinates
-    'xyz',                # 3 features
-    
+    "xyz",  # 3 features
     # Normals (3 features)
-    'normal_x',
-    'normal_y', 
-    'normal_z',
-    
+    "normal_x",
+    "normal_y",
+    "normal_z",
     # Curvature (2 features)
-    'curvature',
-    'change_curvature',
-    
+    "curvature",
+    "change_curvature",
     # Shape descriptors (6 features)
-    'planarity',
-    'linearity',
-    'sphericity',
-    'roughness',
-    'anisotropy',
-    'omnivariance',
-    
+    "planarity",
+    "linearity",
+    "sphericity",
+    "roughness",
+    "anisotropy",
+    "omnivariance",
     # Eigenvalues (5 features)
-    'eigenvalue_1',
-    'eigenvalue_2',
-    'eigenvalue_3',
-    'sum_eigenvalues',
-    'eigenentropy',
-    
+    "eigenvalue_1",
+    "eigenvalue_2",
+    "eigenvalue_3",
+    "sum_eigenvalues",
+    "eigenentropy",
     # Height features (2 features)
-    'height_above_ground',
-    'vertical_std',
-    
+    "height_above_ground",
+    "vertical_std",
+    # Ground classification (1 feature)
+    "is_ground",
     # Building scores (3 features - legacy)
-    'verticality',
-    'wall_score',
-    'roof_score',
-    
+    "verticality",
+    "wall_score",
+    "roof_score",
     # Canonical Architectural Features (from architectural.py)
-    'horizontality',        # Horizontal surface detection (from architectural.py)
-    'wall_likelihood',      # Wall probability (from architectural.py)
-    'roof_likelihood',      # Roof probability (from architectural.py)
-    'facade_score',         # Facade detection (from architectural.py)
-    
+    "horizontality",  # Horizontal surface detection (from architectural.py)
+    "wall_likelihood",  # Wall probability (from architectural.py)
+    "roof_likelihood",  # Roof probability (from architectural.py)
+    "facade_score",  # Facade detection (from architectural.py)
     # Density (4 features)
-    'density',
-    'num_points_2m',
-    'neighborhood_extent',
-    'height_extent_ratio',
-    
+    "density",
+    "num_points_2m",
+    "neighborhood_extent",
+    "height_extent_ratio",
     # Legacy Architectural (4 features - for backward compatibility)
-    'legacy_edge_strength',
-    'legacy_corner_likelihood',
-    'legacy_overhang_indicator',
-    'legacy_surface_roughness',
-    
+    "legacy_edge_strength",
+    "legacy_corner_likelihood",
+    "legacy_overhang_indicator",
+    "legacy_surface_roughness",
     # Additional Building Classification Features (4 features)
-    'flat_roof_score',           # Flat roof detection
-    'sloped_roof_score',         # Sloped roof detection
-    'steep_roof_score',          # Steep roof detection
-    'opening_likelihood',        # Window/door detection
-    
+    "flat_roof_score",  # Flat roof detection
+    "sloped_roof_score",  # Sloped roof detection
+    "steep_roof_score",  # Steep roof detection
+    "opening_likelihood",  # Window/door detection
     # Spectral (5 features)
-    'red', 'green', 'blue',
-    'nir',
-    'ndvi',
-    
+    "red",
+    "green",
+    "blue",
+    "nir",
+    "ndvi",
     # Plane-Based Features (8 features) - NEW for v3.x
-    'plane_id',
-    'plane_type',
-    'distance_to_plane',
-    'plane_area',
-    'plane_orientation',
-    'plane_planarity',
-    'position_on_plane_u',
-    'position_on_plane_v',
-    
+    "plane_id",
+    "plane_type",
+    "distance_to_plane",
+    "plane_area",
+    "plane_orientation",
+    "plane_planarity",
+    "position_on_plane_u",
+    "position_on_plane_v",
     # Building-Plane Features (7 features) - Phase 2 for v3.x
-    'building_id',
-    'plane_id_local',
-    'facade_id',
-    'distance_to_building_center',
-    'relative_height_in_building',
-    'n_planes_in_building',
-    'plane_area_ratio',
+    "building_id",
+    "plane_id_local",
+    "facade_id",
+    "distance_to_building_center",
+    "relative_height_in_building",
+    "n_planes_in_building",
+    "plane_area_ratio",
 }  # Total: ~58 features (was 51, added 7 building-plane features)
 
 # ASPRS_CLASSES: Features optimized for ASPRS classification (~20 features)
 # Optimized for ASPRS LAS 1.4 classification with enriched LAZ output
 ASPRS_FEATURES = {
     # Coordinates
-    'xyz',                # 3 features
-    
+    "xyz",  # 3 features
     # Complete normals for surface orientation (important for visualization)
-    'normal_x', 'normal_y', 'normal_z',  # Full normal vectors for CloudCompare/QGIS
-    
+    "normal_x",
+    "normal_y",
+    "normal_z",  # Full normal vectors for CloudCompare/QGIS
     # Core shape descriptors (essential for classification)
-    'planarity',          # Flat surfaces (ground, roads, roofs)
-    'sphericity',         # Vegetation detection
-    'curvature',          # Surface curvature (roofs vs ground)
-    
+    "planarity",  # Flat surfaces (ground, roads, roofs)
+    "sphericity",  # Vegetation detection
+    "curvature",  # Surface curvature (roofs vs ground)
     # Height features (critical for multi-class separation)
-    'height_above_ground',# Essential for vegetation height classes
-    'height',             # Raw height for compatibility
-    
+    "height_above_ground",  # Essential for vegetation height classes
+    "height",  # Raw height for compatibility
+    # Ground classification (1 feature)
+    "is_ground",  # Binary ground indicator with DTM support
     # Building detection (comprehensive)
-    'verticality',        # Walls vs ground
-    'horizontality',      # Ground and flat roofs
-    
+    "verticality",  # Walls vs ground
+    "horizontality",  # Ground and flat roofs
     # Density feature
-    'density',            # Point density varies by class
-    
+    "density",  # Point density varies by class
     # Spectral features (if available - critical for vegetation/building separation)
-    'red', 'green', 'blue',  # RGB for visual classification
-    'nir',                   # NIR for vegetation (NDVI computation)
-    'ndvi',                  # Vegetation index (primary vegetation classifier)
+    "red",
+    "green",
+    "blue",  # RGB for visual classification
+    "nir",  # NIR for vegetation (NDVI computation)
+    "ndvi",  # Vegetation index (primary vegetation classifier)
 }  # Total: ~20 features (comprehensive set for ASPRS + enriched LAZ visualization)
 
 
 # PLANES: Plane-based features only (~8 features) - NEW for v3.x
 # For extracting plane geometry features from detected planes
 PLANES_FEATURES = {
-    'plane_id',
-    'plane_type',
-    'distance_to_plane',
-    'plane_area',
-    'plane_orientation',
-    'plane_planarity',
-    'position_on_plane_u',
-    'position_on_plane_v',
+    "plane_id",
+    "plane_type",
+    "distance_to_plane",
+    "plane_area",
+    "plane_orientation",
+    "plane_planarity",
+    "position_on_plane_u",
+    "position_on_plane_v",
 }  # Total: 8 features (pure plane geometry)
 
 
@@ -336,7 +313,7 @@ PLANES_FEATURES = {
 class FeatureSet:
     """
     Configuration for a specific feature computation mode.
-    
+
     Attributes:
         mode: Feature mode identifier
         features: Set of feature names to compute
@@ -346,6 +323,7 @@ class FeatureSet:
         use_radius: Use radius-based search instead of k-NN
         radius: Search radius in meters (if use_radius=True)
     """
+
     mode: FeatureMode
     features: Set[str]
     requires_rgb: bool = False
@@ -353,62 +331,100 @@ class FeatureSet:
     k_neighbors: int = 20
     use_radius: bool = True
     radius: Optional[float] = None
-    
+
     def __post_init__(self):
         """Validate and compute derived properties."""
         # Check if RGB/NIR are required
-        rgb_features = {'red', 'green', 'blue'}
+        rgb_features = {"red", "green", "blue"}
         if rgb_features & self.features:
             self.requires_rgb = True
-        if 'nir' in self.features or 'ndvi' in self.features:
+        if "nir" in self.features or "ndvi" in self.features:
             self.requires_nir = True
-    
+
     @property
     def num_features(self) -> int:
         """Total number of features (counting xyz as 3)."""
         count = len(self.features)
-        if 'xyz' in self.features:
+        if "xyz" in self.features:
             count += 2  # xyz counts as 3 features
         return count
-    
+
     @property
     def feature_names(self) -> List[str]:
         """Ordered list of feature names."""
         # Standard ordering for consistent output
         order = [
-            'xyz',
-            'normal_x', 'normal_y', 'normal_z',
-            'curvature', 'change_curvature',
-            'planarity', 'linearity', 'sphericity',
-            'roughness', 'anisotropy', 'omnivariance',
-            'eigenvalue_1', 'eigenvalue_2', 'eigenvalue_3',
-            'sum_eigenvalues', 'eigenentropy',
-            'height_above_ground', 'vertical_std',
-            'verticality', 'wall_score', 'roof_score',
-            'horizontality', 'wall_likelihood', 'roof_likelihood', 'facade_score',
-            'density', 'num_points_2m', 'neighborhood_extent',
-            'height_extent_ratio',
-            'legacy_edge_strength', 'legacy_corner_likelihood',
-            'legacy_overhang_indicator', 'legacy_surface_roughness',
-            'flat_roof_score', 'sloped_roof_score', 'steep_roof_score', 'opening_likelihood',
-            'edge_strength', 'corner_likelihood',
-            'overhang_indicator', 'surface_roughness',
-            'red', 'green', 'blue', 'nir', 'ndvi',
+            "xyz",
+            "normal_x",
+            "normal_y",
+            "normal_z",
+            "curvature",
+            "change_curvature",
+            "planarity",
+            "linearity",
+            "sphericity",
+            "roughness",
+            "anisotropy",
+            "omnivariance",
+            "eigenvalue_1",
+            "eigenvalue_2",
+            "eigenvalue_3",
+            "sum_eigenvalues",
+            "eigenentropy",
+            "height_above_ground",
+            "vertical_std",
+            "verticality",
+            "wall_score",
+            "roof_score",
+            "horizontality",
+            "wall_likelihood",
+            "roof_likelihood",
+            "facade_score",
+            "density",
+            "num_points_2m",
+            "neighborhood_extent",
+            "height_extent_ratio",
+            "legacy_edge_strength",
+            "legacy_corner_likelihood",
+            "legacy_overhang_indicator",
+            "legacy_surface_roughness",
+            "flat_roof_score",
+            "sloped_roof_score",
+            "steep_roof_score",
+            "opening_likelihood",
+            "edge_strength",
+            "corner_likelihood",
+            "overhang_indicator",
+            "surface_roughness",
+            "red",
+            "green",
+            "blue",
+            "nir",
+            "ndvi",
             # Plane-based features (v3.x)
-            'plane_id', 'plane_type', 'distance_to_plane', 'plane_area',
-            'plane_orientation', 'plane_planarity', 
-            'position_on_plane_u', 'position_on_plane_v',
+            "plane_id",
+            "plane_type",
+            "distance_to_plane",
+            "plane_area",
+            "plane_orientation",
+            "plane_planarity",
+            "position_on_plane_u",
+            "position_on_plane_v",
             # Building-plane features (Phase 2)
-            'building_id', 'plane_id_local', 'facade_id',
-            'distance_to_building_center', 'relative_height_in_building',
-            'n_planes_in_building', 'plane_area_ratio',
+            "building_id",
+            "plane_id_local",
+            "facade_id",
+            "distance_to_building_center",
+            "relative_height_in_building",
+            "n_planes_in_building",
+            "plane_area_ratio",
         ]
         # Include all features that are in the set (not just those in order)
         ordered = [f for f in order if f in self.features]
         # Add any additional features not in the order list
         remaining = [f for f in sorted(self.features) if f not in order]
         return ordered + remaining
-    
+
     def get_description(self) -> str:
         """Get human-readable description of this feature set."""
         mode_descriptions = {
@@ -428,6 +444,7 @@ class FeatureSet:
 # FEATURE CONFIGURATION FACTORY
 # =============================================================================
 
+
 def get_feature_config(
     mode: str = "lod3",
     custom_features: Optional[Set[str]] = None,
@@ -440,7 +457,7 @@ def get_feature_config(
 ) -> FeatureSet:
     """
     Get feature configuration for a specific mode.
-    
+
     Args:
         mode: Feature mode ('minimal', 'lod2', 'lod3', 'full', 'custom')
         custom_features: Set of features for custom mode
@@ -450,19 +467,19 @@ def get_feature_config(
         has_rgb: Whether RGB data is available (None = unknown, don't log)
         has_nir: Whether NIR data is available (None = unknown, don't log)
         log_config: Whether to log the configuration (default True)
-    
+
     Returns:
         FeatureSet configuration
-        
+
     Examples:
         >>> # LOD3 training with full features
         >>> config = get_feature_config("lod3", k_neighbors=30)
         >>> print(config.num_features)  # ~35
-        
+
         >>> # LOD2 training with essential features
         >>> config = get_feature_config("lod2", k_neighbors=20)
         >>> print(config.num_features)  # ~11
-        
+
         >>> # Custom features
         >>> features = {'xyz', 'normal_z', 'planarity', 'height_above_ground'}
         >>> config = get_feature_config("custom", custom_features=features)
@@ -473,7 +490,7 @@ def get_feature_config(
     except ValueError:
         logger.warning(f"Unknown mode '{mode}', defaulting to LOD3_FULL")
         mode_enum = FeatureMode.LOD3_FULL
-    
+
     # Select feature set
     if mode_enum == FeatureMode.MINIMAL:
         features = MINIMAL_FEATURES.copy()
@@ -493,7 +510,7 @@ def get_feature_config(
         features = custom_features.copy()
     else:
         features = LOD3_FEATURES.copy()
-    
+
     # Create feature set
     feature_set = FeatureSet(
         mode=mode_enum,
@@ -502,12 +519,12 @@ def get_feature_config(
         use_radius=use_radius,
         radius=radius,
     )
-    
+
     # Log configuration if requested
     if log_config:
         logger.info(f"📊 Feature Configuration: {feature_set.get_description()}")
         logger.info(f"   Features: {', '.join(feature_set.feature_names)}")
-        
+
         # Log RGB/NIR requirements with data availability context
         if feature_set.requires_rgb:
             if has_rgb is None:
@@ -518,8 +535,10 @@ def get_feature_config(
                 logger.info("   ✓ RGB channels available")
             else:
                 # Data is NOT available - warning
-                logger.warning("   ⚠️  RGB channels required but not available in input data")
-        
+                logger.warning(
+                    "   ⚠️  RGB channels required but not available in input data"
+                )
+
         if feature_set.requires_nir:
             if has_nir is None:
                 # Unknown availability - just state the requirement
@@ -529,8 +548,10 @@ def get_feature_config(
                 logger.info("   ✓ NIR channel available for NDVI")
             else:
                 # Data is NOT available - warning
-                logger.warning("   ⚠️  NIR channel required for NDVI but not available in input data")
-    
+                logger.warning(
+                    "   ⚠️  NIR channel required for NDVI but not available in input data"
+                )
+
     return feature_set
 
 
@@ -540,31 +561,48 @@ def get_feature_config(
 
 # Features that should NOT be augmented (absolute geometric properties)
 AUGMENTATION_INVARIANT_FEATURES = {
-    'eigenvalue_1', 'eigenvalue_2', 'eigenvalue_3',
-    'sum_eigenvalues', 'eigenentropy',
-    'planarity', 'linearity', 'sphericity',
-    'anisotropy', 'roughness', 'omnivariance',
-    'curvature', 'density',
+    "eigenvalue_1",
+    "eigenvalue_2",
+    "eigenvalue_3",
+    "sum_eigenvalues",
+    "eigenentropy",
+    "planarity",
+    "linearity",
+    "sphericity",
+    "anisotropy",
+    "roughness",
+    "omnivariance",
+    "curvature",
+    "density",
 }
 
 # Features that CAN be safely augmented (relative/invariant properties)
 AUGMENTATION_SAFE_FEATURES = {
-    'xyz',  # Transformed by augmentation
-    'normal_x', 'normal_y', 'normal_z',  # Rotated with points
-    'height_above_ground',  # Relative height preserved
-    'vertical_std', 'neighborhood_extent',  # Local properties
-    'wall_score', 'roof_score', 'verticality',  # Rotation-invariant
-    'red', 'green', 'blue', 'nir', 'ndvi',  # Colors unchanged
+    "xyz",  # Transformed by augmentation
+    "normal_x",
+    "normal_y",
+    "normal_z",  # Rotated with points
+    "height_above_ground",  # Relative height preserved
+    "vertical_std",
+    "neighborhood_extent",  # Local properties
+    "wall_score",
+    "roof_score",
+    "verticality",  # Rotation-invariant
+    "red",
+    "green",
+    "blue",
+    "nir",
+    "ndvi",  # Colors unchanged
 }
 
 
 def get_augmentation_strategy(feature_set: FeatureSet) -> Dict[str, bool]:
     """
     Get augmentation strategy for each feature.
-    
+
     Returns:
         Dictionary mapping feature names to whether they should be augmented
-        
+
     Example:
         >>> config = get_feature_config("lod3")
         >>> strategy = get_augmentation_strategy(config)
@@ -582,5 +620,5 @@ def get_augmentation_strategy(feature_set: FeatureSet) -> Dict[str, bool]:
             # Unknown feature - be conservative
             strategy[feature] = False
             logger.warning(f"Unknown feature '{feature}' - not augmenting")
-    
+
     return strategy
