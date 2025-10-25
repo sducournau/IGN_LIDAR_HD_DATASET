@@ -82,6 +82,44 @@ except ImportError:
     PolygonQuality = None
     _HAS_FUSION = False
 
+try:
+    from .extrusion_3d import (
+        Building3DExtruder,
+        BoundingBox3D,
+        FloorSegment,
+        create_3d_bboxes_from_ground_truth
+    )
+    _HAS_EXTRUSION_3D = True
+except ImportError as e:
+    import logging
+    logging.getLogger(__name__).warning(f"Failed to import 3D extrusion module: {e}")
+    Building3DExtruder = None
+    BoundingBox3D = None
+    FloorSegment = None
+    create_3d_bboxes_from_ground_truth = None
+    _HAS_EXTRUSION_3D = False
+
+try:
+    from .adaptive_polygon_buffer import (
+        AdaptivePolygonBuffer,
+        AdaptiveBufferConfig,
+        BuildingBoundaryAnalysis
+    )
+    from .adaptive_integration import (
+        AdaptiveGroundTruthProcessor,
+        integrate_adaptive_buffering_with_wfs
+    )
+    _HAS_ADAPTIVE_BUFFERING = True
+except ImportError as e:
+    import logging
+    logging.getLogger(__name__).warning(f"Failed to import adaptive buffering module: {e}")
+    AdaptivePolygonBuffer = None
+    AdaptiveBufferConfig = None
+    BuildingBoundaryAnalysis = None
+    AdaptiveGroundTruthProcessor = None
+    integrate_adaptive_buffering_with_wfs = None
+    _HAS_ADAPTIVE_BUFFERING = False
+
 __all__ = [
     # Enumerations
     'BuildingMode',
@@ -96,7 +134,7 @@ __all__ = [
     'BuildingClustererBase',
     'BuildingFusionBase',
     
-    # Utilities module
+    # Utilities module (consolidated spatial operations, bbox utilities)
     'utils',
     
     # Adaptive building classifier
@@ -116,6 +154,19 @@ __all__ = [
     # Building fusion
     'BuildingFusion',
     'PolygonQuality',
+    
+    # 3D Extrusion (uses consolidated bbox utilities from utils)
+    'Building3DExtruder',
+    'BoundingBox3D',
+    'FloorSegment',
+    'create_3d_bboxes_from_ground_truth',
+    
+    # Adaptive Polygon Buffering (v3.3.0)
+    'AdaptivePolygonBuffer',
+    'AdaptiveBufferConfig',
+    'BuildingBoundaryAnalysis',
+    'AdaptiveGroundTruthProcessor',
+    'integrate_adaptive_buffering_with_wfs',
 ]
 
-__version__ = '3.1.0'
+__version__ = '3.3.1'  # Bumped for module consolidation

@@ -1740,6 +1740,45 @@ class LiDARProcessor:
                             logger.info(f"      ⚽ Sports (41): {'✅' if has_sports else '❌'}")
                             logger.info(f"      🪦 Cemetery (42): {'✅' if has_cemetery else '❌'}")
                             logger.info(f"      ⚡ Power Lines (43): {'✅' if has_power else '❌'}")
+                        
+                        # CRITICAL FIX: Recompute classification-dependent features
+                        # After ground truth classification changes labels_v, we need to recompute features
+                        # that depend on classification labels (primarily height_above_ground)
+                        if n_changed > 0:
+                            logger.info(f"  🔄 Recomputing classification-dependent features after ground truth update...")
+                            
+                            # Update tile_data with new classification
+                            tile_data['classification'] = labels_v
+                            classification_v = labels_v
+                            
+                            # CRITICAL: Recompute height_above_ground with updated ground classification
+                            # The height feature uses ground points (class == 2) to determine ground level
+                            # If ground truth changed ground classification, height must be recomputed
+                            ground_mask = labels_v == 2
+                            if ground_mask.any():
+                                ground_z = points_v[ground_mask, 2].min()
+                                height_updated = (points_v[:, 2] - ground_z).astype(np.float32)
+                                n_ground = np.sum(ground_mask)
+                                logger.info(f"      ✅ Height recomputed using {n_ground:,} ground points (ground_z={ground_z:.2f}m)")
+                            else:
+                                height_updated = (points_v[:, 2] - points_v[:, 2].min()).astype(np.float32)
+                                logger.info(f"      ⚠️  No ground points found after GT update, using min Z")
+                            
+                            # Update height in all feature dicts
+                            all_features['height'] = height_updated
+                            all_features['height_above_ground'] = height_updated
+                            height = height_updated
+                            height_above_ground = height_updated
+                            if 'height' in geo_features:
+                                geo_features['height'] = height_updated
+                            if 'height_above_ground' in geo_features:
+                                geo_features['height_above_ground'] = height_updated
+                            
+                            # Update original_data to ensure save operations use correct classification
+                            original_data['classification'] = labels_v
+                            
+                            logger.info(f"  ✅ Classification and height features updated")
+                
                 else:
                     logger.warning(f"  ⚠️  No ground truth data returned from data fetcher!")
                     
@@ -1967,6 +2006,10 @@ class LiDARProcessor:
                 )
         
         # 4. Combine features (FeatureComputer has already computed everything)
+        # 🔍 DEBUG: Log what's in all_features before combining
+        logger.info(f"  🔍 DEBUG: all_features keys from orchestrator: {sorted(all_features.keys())}")
+        logger.info(f"  🔍 DEBUG: geo_features keys: {sorted(geo_features.keys()) if isinstance(geo_features, dict) else 'Not a dict'}")
+        
         all_features_v = {
             'normals': normals,
             'curvature': curvature,
@@ -1980,6 +2023,14 @@ class LiDARProcessor:
         for feat_name in ['rgb', 'nir', 'ndvi', 'architectural_style']:
             if feat_name in all_features:
                 all_features_v[feat_name] = all_features[feat_name]
+        
+        # 🔍 DEBUG: Log what's in all_features_v after combining
+        logger.info(f"  🔍 DEBUG: all_features_v keys after combining: {sorted(all_features_v.keys())}")
+        for k, v in list(all_features_v.items())[:20]:  # First 20 for brevity
+            if hasattr(v, 'shape'):
+                logger.info(f"      - {k}: shape={v.shape}, dtype={v.dtype}")
+            else:
+                logger.info(f"      - {k}: type={type(v)}")
         
         # Preserve input spectral data if present
         if 'input_rgb' in all_features:
@@ -2190,6 +2241,15 @@ class LiDARProcessor:
                 # Remove RGB/NIR from features dict to avoid duplication
                 features_to_save = {k: v for k, v in all_features_v.items() 
                                    if k not in ['rgb', 'nir', 'input_rgb', 'input_nir', 'points']}
+                
+                # 🔍 DEBUG: Log features being sent to save function
+                logger.info(f"  🔍 DEBUG: Features in all_features_v: {sorted(all_features_v.keys())}")
+                logger.info(f"  🔍 DEBUG: Features to save (after RGB/NIR removal): {sorted(features_to_save.keys())}")
+                for k, v in features_to_save.items():
+                    if hasattr(v, 'shape'):
+                        logger.info(f"      - {k}: shape={v.shape}, dtype={v.dtype}, ndim={v.ndim}")
+                    else:
+                        logger.info(f"      - {k}: type={type(v)}")
                 
                 # Save the enriched tile with all computed features
                 save_enriched_tile_laz(

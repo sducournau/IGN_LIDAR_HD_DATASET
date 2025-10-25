@@ -589,14 +589,9 @@ def save_enriched_tile_laz(save_path: Path,
         las.nir = (input_nir * 65535.0).astype(np.uint16)
     
     # Add computed features as extra dimensions
-    # Initialize with existing extra dimensions to avoid duplicates
+    # 🔧 FIX: Start with empty set - we want to OVERWRITE old features with newly computed ones
+    # Don't initialize from original file to avoid skipping recomputed features
     added_dimensions = set()
-    if original_las is not None and hasattr(original_las.point_format, 'extra_dimension_names'):
-        # Get existing extra dimensions from original file
-        added_dimensions = set(original_las.point_format.extra_dimension_names)
-    elif header is not None and hasattr(header.point_format, 'extra_dimension_names'):
-        # Get existing extra dimensions from provided header
-        added_dimensions = set(header.point_format.extra_dimension_names)
     
     # Helper function to truncate feature names to 32 characters (LAS/LAZ limit)
     def truncate_name(name: str, max_len: int = 32) -> str:
@@ -632,12 +627,15 @@ def save_enriched_tile_laz(save_path: Path,
     # 🔍 DEBUG: Log features being processed
     logger.info(f"  🔍 DEBUG: Processing {len(features)} features for LAZ export")
     logger.debug(f"  🔍 Feature names: {list(features.keys())[:20]}...")  # First 20
+    logger.info(f"  🔍 DEBUG: Pre-existing extra dimensions: {sorted(added_dimensions)}")
     
     for feat_name, feat_data in features.items():
         if feat_name in ['points', 'classification', 'intensity', 'return_number']:
+            logger.debug(f"  🔍 Skipping standard field: {feat_name}")
             continue  # Skip standard fields already set
         
         if feat_name in added_dimensions:
+            logger.debug(f"  🔍 Skipping duplicate: {feat_name}")
             continue  # Skip duplicates
         
         try:

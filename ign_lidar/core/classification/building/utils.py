@@ -142,6 +142,105 @@ def compute_polygon_centroid(polygon: 'Polygon') -> np.ndarray:
     return np.array([centroid.x, centroid.y])
 
 
+def compute_convex_hull_polygon(points_2d: np.ndarray) -> Optional['Polygon']:
+    """
+    Compute 2D convex hull of points and return as Shapely polygon.
+    
+    Args:
+        points_2d: Point coordinates [N, 2] (XY)
+        
+    Returns:
+        Shapely Polygon representing convex hull, or None if computation fails
+    """
+    if not HAS_SPATIAL:
+        raise ImportError("Shapely required for convex hull")
+    
+    if len(points_2d) < 3:
+        logger.warning(f"Need at least 3 points for convex hull, got {len(points_2d)}")
+        return None
+    
+    try:
+        from scipy.spatial import ConvexHull
+        hull = ConvexHull(points_2d)
+        hull_points = points_2d[hull.vertices]
+        return Polygon(hull_points)
+    except Exception as e:
+        logger.warning(f"Failed to compute convex hull: {e}")
+        return None
+
+
+def query_points_in_polygons(
+    points: np.ndarray,
+    polygons: List['Polygon'],
+    use_spatial_index: bool = True
+) -> np.ndarray:
+    """
+    Efficiently query which polygon (if any) contains each point.
+    
+    Args:
+        points: Point coordinates [N, 2+] (XY...)
+        polygons: List of Shapely polygons
+        use_spatial_index: Use STRtree spatial index for faster queries
+        
+    Returns:
+        Array [N] with polygon index (0 to len(polygons)-1), or -1 if no match
+    """
+    if not HAS_SPATIAL:
+        raise ImportError("Shapely required for point queries")
+    
+    if len(polygons) == 0:
+        return np.full(len(points), -1, dtype=np.int32)
+    
+    xy = points[:, :2]
+    result = np.full(len(points), -1, dtype=np.int32)
+    
+    if use_spatial_index and len(polygons) > 10:
+        # Use spatial index for large polygon sets
+        tree = STRtree(polygons)
+        
+        for i, pt_coords in enumerate(xy):
+            pt = Point(pt_coords[0], pt_coords[1])
+            potential_matches_idx = tree.query(pt, predicate='intersects')
+            
+            # Check actual containment
+            for idx in potential_matches_idx:
+                if polygons[idx].contains(pt):
+                    result[i] = idx
+                    break
+    else:
+        # Brute force for small polygon sets
+        for i, pt_coords in enumerate(xy):
+            pt = Point(pt_coords[0], pt_coords[1])
+            for j, poly in enumerate(polygons):
+                if poly.contains(pt):
+                    result[i] = j
+                    break
+    
+    return result
+
+
+def create_building_mask_from_polygons(
+    points: np.ndarray,
+    polygons: List['Polygon'],
+    use_spatial_index: bool = True
+) -> np.ndarray:
+    """
+    Create boolean mask indicating which points are inside any polygon.
+    
+    This is a common operation across building classification modules.
+    
+    Args:
+        points: Point coordinates [N, 2+] (XY...)
+        polygons: List of Shapely polygons (building footprints)
+        use_spatial_index: Use STRtree spatial index for faster queries
+        
+    Returns:
+        Boolean mask [N] where True = point is inside a polygon
+    """
+    polygon_indices = query_points_in_polygons(points, polygons, use_spatial_index)
+    return polygon_indices >= 0
+
+
 # ============================================================================
 # Height Filtering
 # ============================================================================
@@ -422,6 +521,92 @@ def compute_nearest_centroid_indices(
     
     # Return index of minimum distance for each point
     return np.argmin(distances, axis=1)
+
+
+# ============================================================================
+# Bounding Box Utilities (for 3D Extrusion)
+# ============================================================================
+
+def compute_bounding_box_volume(points: np.ndarray) -> float:
+    """
+    Compute volume of axis-aligned 3D bounding box.
+    
+    This is the canonical implementation used by extrusion_3d.py and other
+    building classification modules. Consolidates logic previously in
+    features/compute/density.py.
+    
+    Args:
+        points: Point cloud array [N, 3] (XYZ coordinates)
+        
+    Returns:
+        Volume of bounding box in cubic units (typically cubic meters)
+        
+    Example:
+        >>> points = np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2]])
+        >>> volume = compute_bounding_box_volume(points)
+        >>> print(f"Volume: {volume:.2f} m³")
+    """
+    if len(points) == 0:
+        return 0.0
+    
+    # Compute min/max along each axis
+    min_coords = np.min(points[:, :3], axis=0)
+    max_coords = np.max(points[:, :3], axis=0)
+    
+    # Compute dimensions (length, width, height)
+    dimensions = max_coords - min_coords
+    
+    # Volume = length × width × height
+    volume = np.prod(dimensions)
+    
+    return float(volume)
+
+
+def compute_bounding_box_2d(points: np.ndarray) -> Tuple[float, float, float, float]:
+    """
+    Compute 2D axis-aligned bounding box (AABB) for point cloud.
+    
+    Args:
+        points: Point cloud array [N, 2+] (at least XY coordinates)
+        
+    Returns:
+        Tuple (xmin, ymin, xmax, ymax) in meters
+        
+    Example:
+        >>> points = np.array([[0, 0, 5], [10, 10, 5], [5, 5, 5]])
+        >>> bbox = compute_bounding_box_2d(points)
+        >>> print(f"BBox: {bbox}")  # (0.0, 0.0, 10.0, 10.0)
+    """
+    if len(points) == 0:
+        return (0.0, 0.0, 0.0, 0.0)
+    
+    xy = points[:, :2]
+    
+    xmin = float(np.min(xy[:, 0]))
+    ymin = float(np.min(xy[:, 1]))
+    xmax = float(np.max(xy[:, 0]))
+    ymax = float(np.max(xy[:, 1]))
+    
+    return (xmin, ymin, xmax, ymax)
+
+
+def create_bbox_polygon(bbox: Tuple[float, float, float, float]) -> Optional['Polygon']:
+    """
+    Create Shapely Polygon from 2D bounding box.
+    
+    Args:
+        bbox: Tuple (xmin, ymin, xmax, ymax)
+        
+    Returns:
+        Shapely Polygon representing bounding box
+    """
+    if not HAS_SPATIAL:
+        raise ImportError("Shapely required for bbox polygon creation")
+    
+    from shapely.geometry import box as shapely_box
+    
+    xmin, ymin, xmax, ymax = bbox
+    return shapely_box(xmin, ymin, xmax, ymax)
 
 
 # ============================================================================

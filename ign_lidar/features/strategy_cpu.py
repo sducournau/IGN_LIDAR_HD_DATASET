@@ -122,6 +122,7 @@ class CPUStrategy(BaseFeatureStrategy):
         )
         
         # Build result dictionary compatible with strategy interface
+        # 🔧 FIX: Return ALL computed features, not just a subset
         result = {
             'normals': features['normals'].astype(np.float32),
             'curvature': features['curvature'].astype(np.float32),
@@ -135,6 +136,12 @@ class CPUStrategy(BaseFeatureStrategy):
             result['anisotropy'] = features.get('anisotropy', features['sphericity']).astype(np.float32)
             result['roughness'] = features.get('roughness', features['curvature']).astype(np.float32)
             result['verticality'] = features.get('verticality', np.abs(features['normals'][:, 2])).astype(np.float32)
+            result['density'] = features.get('density', np.ones(n_points, dtype=np.float32)).astype(np.float32)
+            
+            # 🆕 Add ALL other computed features (eigenvalues, normal components, etc.)
+            for feat_name, feat_data in features.items():
+                if feat_name not in result and feat_name != 'normals':  # Avoid duplicating normals
+                    result[feat_name] = feat_data.astype(np.float32)
         
         # Add height if we have classification
         if classification is not None:

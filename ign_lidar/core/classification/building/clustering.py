@@ -11,6 +11,10 @@ Key Features:
 3. Multi-source fusion: Combines multiple BD TOPO layers (buildings, cadastre)
 4. Approximate polygon movement: Adjusts polygons to match point cloud reality
 
+Uses Consolidated Utilities:
+- building.utils: Spatial operations (points_in_polygon, buffer_polygon, etc.)
+- Avoids duplication of spatial/geometric functions
+
 Use Cases:
 - LOD2/LOD3 building reconstruction: Group wall/roof points by building
 - Building-level statistics: Count points, compute volumes per building
@@ -25,6 +29,9 @@ import logging
 from typing import Optional, Dict, List, Tuple, TYPE_CHECKING
 import numpy as np
 from dataclasses import dataclass
+
+# Import consolidated utilities
+from . import utils
 
 logger = logging.getLogger(__name__)
 
@@ -383,12 +390,12 @@ class BuildingClusterer:
             
             # Extended buffer for near-vertical wall detection
             if self.detect_near_vertical_walls:
-                # Use larger buffer to reach wall boundaries
+                # Use larger buffer to reach wall boundaries - use consolidated utility
                 total_buffer = base_buffer + self.wall_buffer
-                adjusted_poly = poly.buffer(total_buffer, cap_style='square')
+                adjusted_poly = utils.buffer_polygon(poly, total_buffer)
                 logger.debug(f"Applied wall buffer: {total_buffer:.2f}m (base: {base_buffer:.2f}m + wall: {self.wall_buffer:.2f}m)")
             else:
-                adjusted_poly = poly.buffer(base_buffer, cap_style='square')
+                adjusted_poly = utils.buffer_polygon(poly, base_buffer)
             
             # Attempt to optimize bbox translation to better match point cloud
             try:

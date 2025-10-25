@@ -19,6 +19,10 @@ Polygon Adaptation Strategies:
 - Buffering: Extend boundaries to capture wall points
 - Shape refinement: Adjust vertices to follow point clusters
 
+Uses Consolidated Utilities:
+- building.utils: Spatial operations (buffer_polygon, points_in_polygon, etc.)
+- Avoids duplication of spatial/geometric functions
+
 Author: Building Fusion Enhancement
 Date: October 19, 2025
 """
@@ -28,6 +32,9 @@ from typing import Optional, Dict, List, Tuple, TYPE_CHECKING
 import numpy as np
 from dataclasses import dataclass, field
 from enum import Enum
+
+# Import consolidated utilities
+from . import utils
 
 logger = logging.getLogger(__name__)
 
@@ -455,37 +462,38 @@ class BuildingFusion:
             bbox_points = points[bbox_mask]
             bbox_points_2d = bbox_points[:, :2]
             
-            # Check containment
-            from shapely.vectorized import contains
-            inside_mask = contains(polygon, bbox_points_2d[:, 0], bbox_points_2d[:, 1])
+            # Check containment - use consolidated utility
+            inside_mask = utils.points_in_polygon(bbox_points, polygon, return_mask=True)
             
             quality.points_inside = inside_mask.sum()
             
-            # Check nearby (buffered)
-            buffered = polygon.buffer(1.0)
-            nearby_mask = contains(buffered, bbox_points_2d[:, 0], bbox_points_2d[:, 1])
+            # Check nearby (buffered) - use consolidated utility
+            buffered = utils.buffer_polygon(polygon, 1.0)
+            nearby_mask = utils.points_in_polygon(bbox_points, buffered, return_mask=True)
             quality.points_nearby = nearby_mask.sum()
             
             # Coverage ratio
             total_building_points = bbox_mask.sum()
             quality.coverage_ratio = quality.points_inside / max(total_building_points, 1)
             
-            # Centroid offset
+            # Centroid offset - use consolidated utility
             if quality.points_inside > 0:
                 point_centroid_2d = bbox_points_2d[inside_mask].mean(axis=0)
-                poly_centroid = np.array([polygon.centroid.x, polygon.centroid.y])
+                poly_centroid = utils.compute_polygon_centroid(polygon)
                 quality.centroid_offset = np.linalg.norm(point_centroid_2d - poly_centroid)
             else:
                 quality.centroid_offset = 1000.0  # Large penalty
             
             # Area ratio
             if quality.points_inside > 0:
-                # Estimate point cloud area (convex hull or bounding box)
-                from scipy.spatial import ConvexHull
+                # Estimate point cloud area (convex hull) - use consolidated utility
                 try:
-                    hull = ConvexHull(bbox_points_2d[inside_mask])
-                    point_area = hull.volume  # 2D "volume" is area
-                    quality.area_ratio = polygon.area / max(point_area, 1.0)
+                    point_hull = utils.compute_convex_hull_polygon(bbox_points_2d[inside_mask])
+                    if point_hull is not None:
+                        point_area = point_hull.area
+                        quality.area_ratio = polygon.area / max(point_area, 1.0)
+                    else:
+                        quality.area_ratio = 1.0
                 except:
                     quality.area_ratio = 1.0
             else:
@@ -763,15 +771,15 @@ class BuildingFusion:
                                     (self.adaptive_buffer_range[1] - self.adaptive_buffer_range[0]) * wall_ratio
             
             if buffer_distance > 0.05:
-                adapted_poly = adapted_poly.buffer(buffer_distance, cap_style='square')
+                adapted_poly = utils.buffer_polygon(adapted_poly, buffer_distance)
                 fused_building.was_buffered = True
                 logger.debug(f"  Building {building_id}: buffered {buffer_distance:.2f}m")
         
         # Update polygon
         fused_building.polygon = adapted_poly
         
-        # Recount points in adapted polygon
-        inside_mask_adapted = contains(adapted_poly, points_2d[:, 0], points_2d[:, 1])
+        # Recount points in adapted polygon - use consolidated utility
+        inside_mask_adapted = utils.points_in_polygon(points, adapted_poly, return_mask=True)
         fused_building.n_points = inside_mask_adapted.sum()
         
         return fused_building
