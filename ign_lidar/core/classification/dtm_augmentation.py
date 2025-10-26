@@ -32,11 +32,17 @@ Version: 3.1.0
 """
 
 import numpy as np
+from ..constants import ASPRSClass
 import logging
+from ..constants import ASPRSClass
 from typing import Dict, Optional, Tuple, List
+from ..constants import ASPRSClass
 from pathlib import Path
+from ..constants import ASPRSClass
 from dataclasses import dataclass
+from ..constants import ASPRSClass
 from enum import Enum
+from ..constants import ASPRSClass
 
 logger = logging.getLogger(__name__)
 
@@ -177,13 +183,13 @@ class DTMAugmenter:
     """
     
     # ASPRS class codes
-    ASPRS_GROUND = 2
-    ASPRS_LOW_VEGETATION = 3
-    ASPRS_MEDIUM_VEGETATION = 4
-    ASPRS_HIGH_VEGETATION = 5
-    ASPRS_BUILDING = 6
-    ASPRS_WATER = 9
-    ASPRS_ROAD = 11
+    
+    
+    
+    
+    
+    
+    
     
     def __init__(self, config: Optional[DTMAugmentationConfig] = None):
         """
@@ -402,7 +408,7 @@ class DTMAugmenter:
             return synthetic_points, np.full(len(synthetic_points), AugmentationArea.GAPS.value)
         
         # Find existing ground points
-        ground_mask = labels == self.ASPRS_GROUND
+        ground_mask = labels == int(ASPRSClass.GROUND)
         ground_points = real_points[ground_mask]
         
         if len(ground_points) == 0:
@@ -516,9 +522,9 @@ class DTMAugmenter:
         
         # Find vegetation points
         veg_mask = np.isin(labels, [
-            self.ASPRS_LOW_VEGETATION,
-            self.ASPRS_MEDIUM_VEGETATION,
-            self.ASPRS_HIGH_VEGETATION
+            int(ASPRSClass.LOW_VEGETATION),
+            int(ASPRSClass.MEDIUM_VEGETATION),
+            int(ASPRSClass.HIGH_VEGETATION)
         ])
         
         if not np.any(veg_mask):
@@ -538,7 +544,7 @@ class DTMAugmenter:
         under_veg_mask = np.array([len(neighbors) > 0 for neighbors in neighbor_indices])
         
         # Also ensure not too close to existing ground points
-        ground_mask = labels == self.ASPRS_GROUND
+        ground_mask = labels == int(ASPRSClass.GROUND)
         if np.any(ground_mask):
             ground_points = real_points[ground_mask]
             ground_tree = cKDTree(ground_points[:, :2])
@@ -582,7 +588,7 @@ class DTMAugmenter:
         
         # Also ensure not too close to existing ground points
         if HAS_SCIPY:
-            ground_mask = labels == self.ASPRS_GROUND
+            ground_mask = labels == int(ASPRSClass.GROUND)
             if np.any(ground_mask):
                 ground_points = real_points[ground_mask]
                 ground_tree = cKDTree(ground_points[:, :2])
@@ -624,7 +630,7 @@ class DTMAugmenter:
             return np.array([]).reshape(0, 3), 0
         
         # Find ground points
-        ground_mask = labels == self.ASPRS_GROUND
+        ground_mask = labels == int(ASPRSClass.GROUND)
         if not np.any(ground_mask):
             # No existing ground - all remaining are gaps
             return remaining, len(remaining)
@@ -661,7 +667,7 @@ class DTMAugmenter:
             return synthetic_points, area_labels
         
         # Find real ground points
-        ground_mask = labels == self.ASPRS_GROUND
+        ground_mask = labels == int(ASPRSClass.GROUND)
         if not np.any(ground_mask):
             logger.warning("No real ground points for validation")
             return synthetic_points, area_labels

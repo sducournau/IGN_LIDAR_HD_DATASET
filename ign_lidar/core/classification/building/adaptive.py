@@ -21,6 +21,7 @@ Date: October 20, 2025 (Migrated: October 22, 2025)
 """
 
 import logging
+from ..constants import ASPRSClass
 from typing import Optional, Dict, List, Tuple, TYPE_CHECKING
 import numpy as np
 from dataclasses import dataclass
@@ -160,12 +161,12 @@ class AdaptiveBuildingClassifier:
     """
 
     # ASPRS class codes
-    ASPRS_UNCLASSIFIED = 1
-    ASPRS_GROUND = 2
-    ASPRS_LOW_VEGETATION = 3
-    ASPRS_MEDIUM_VEGETATION = 4
-    ASPRS_HIGH_VEGETATION = 5
-    ASPRS_BUILDING = 6
+    # Use ASPRSClass from constants module
+    
+    
+    
+    
+    
 
     def __init__(
         self,
@@ -300,7 +301,7 @@ class AdaptiveBuildingClassifier:
         n_points = len(points)
         building_scores = np.zeros(n_points, dtype=np.float32)
         confidences = np.zeros(n_points, dtype=np.float32)
-        new_labels = np.full(n_points, self.ASPRS_UNCLASSIFIED, dtype=np.int32)
+        new_labels = np.full(n_points, int(ASPRSClass.UNCLASSIFIED), dtype=np.int32)
 
         if labels is not None:
             new_labels = labels.copy()
@@ -389,7 +390,7 @@ class AdaptiveBuildingClassifier:
                 # Inside polygon: classify if confidence above threshold
                 # OR reject if intelligent rejection enabled and confidence too low
                 if confidences[i] >= self.min_classification_confidence:
-                    new_labels[i] = self.ASPRS_BUILDING
+                    new_labels[i] = int(ASPRSClass.BUILDING)
 
                     # Track confidence levels
                     if confidences[i] >= 0.7:
@@ -427,7 +428,7 @@ class AdaptiveBuildingClassifier:
                         and confidences[i] >= self.expansion_confidence_threshold
                     ):
 
-                        new_labels[i] = self.ASPRS_BUILDING
+                        new_labels[i] = int(ASPRSClass.BUILDING)
                         stats["expanded"] += 1
 
                         if confidences[i] >= 0.7:
@@ -441,7 +442,7 @@ class AdaptiveBuildingClassifier:
                             stats["roofs_detected"] += 1
 
         # Calculate final statistics
-        total_classified = np.sum(new_labels == self.ASPRS_BUILDING)
+        total_classified = np.sum(new_labels == int(ASPRSClass.BUILDING))
         stats["total_classified"] = total_classified
         stats["classification_rate"] = total_classified / n_points * 100
 

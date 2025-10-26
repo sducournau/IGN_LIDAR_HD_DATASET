@@ -333,9 +333,7 @@ class TileProcessor:
             "save_patches": self.save_patches,
             "has_tile_loader": self.tile_loader is not None,
             "components": {
-                "feature_orchestrator": (
-                    self.feature_orchestrator.__class__.__name__
-                ),
+                "feature_orchestrator": (self.feature_orchestrator.__class__.__name__),
                 "patch_extractor": self.patch_extractor.get_statistics(),
                 "classification_applier": (
                     self.classification_applier.get_statistics()

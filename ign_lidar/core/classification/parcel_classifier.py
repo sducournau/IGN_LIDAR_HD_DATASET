@@ -20,16 +20,24 @@ Version: 1.1
 """
 
 import logging
+from ..constants import ASPRSClass
 from collections import defaultdict
+from ..constants import ASPRSClass
 from dataclasses import dataclass
+from ..constants import ASPRSClass
 from enum import IntEnum
+from ..constants import ASPRSClass
 from typing import Any, Dict, List, Optional, Tuple, Union
+from ..constants import ASPRSClass
 
 import numpy as np
+from ..constants import ASPRSClass
 
 # Import BaseClassifier for v3.2+ unified interface
 from .base import BaseClassifier
+from ..constants import ASPRSClass
 from .base import ClassificationResult as BaseClassificationResult
+from ..constants import ASPRSClass
 
 logger = logging.getLogger(__name__)
 
@@ -191,16 +199,16 @@ class ParcelClassifier(BaseClassifier):
     """
 
     # ASPRS Classification codes
-    ASPRS_UNCLASSIFIED = 1
-    ASPRS_GROUND = 2
-    ASPRS_LOW_VEGETATION = 3
-    ASPRS_MEDIUM_VEGETATION = 4
-    ASPRS_HIGH_VEGETATION = 5
-    ASPRS_BUILDING = 6
-    ASPRS_WATER = 9
-    ASPRS_RAIL = 10
-    ASPRS_ROAD = 11
-    ASPRS_BRIDGE = 17
+    # Use ASPRSClass from constants module
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     def __init__(self, config: Optional[ParcelClassificationConfig] = None):
         """
@@ -368,7 +376,7 @@ class ParcelClassifier(BaseClassifier):
             ASPRS classification labels [N]
         """
         n_points = len(points)
-        labels = np.full(n_points, self.ASPRS_UNCLASSIFIED, dtype=np.uint8)
+        labels = np.full(n_points, int(ASPRSClass.UNCLASSIFIED), dtype=np.uint8)
 
         logger.info(f"🏘️  Starting parcel-based classification for {n_points:,} points")
         logger.info(f"   Cadastral parcels: {len(cadastre):,}")
@@ -651,7 +659,7 @@ class ParcelClassifier(BaseClassifier):
             labels = self._refine_road_parcel(parcel_features, parcel_stats)
 
         elif parcel_type == ParcelType.WATER:
-            labels[:] = self.ASPRS_WATER
+            labels[:] = int(ASPRSClass.WATER)
 
         else:  # MIXED or UNKNOWN
             # Fall back to feature-based classification
@@ -672,29 +680,29 @@ class ParcelClassifier(BaseClassifier):
         # Multi-level vegetation classification
         # Level 1: Dense forest (NDVI >= 0.6)
         mask = ndvi >= 0.60
-        labels[mask] = self.ASPRS_HIGH_VEGETATION
+        labels[mask] = int(ASPRSClass.HIGH_VEGETATION)
 
         # Level 2: Healthy trees (0.5 <= NDVI < 0.6)
         mask = (ndvi >= 0.50) & (ndvi < 0.60) & (labels == 0)
         high_mask = mask & (height > 2.0)
         med_mask = mask & (height <= 2.0)
-        labels[high_mask] = self.ASPRS_HIGH_VEGETATION
-        labels[med_mask] = self.ASPRS_MEDIUM_VEGETATION
+        labels[high_mask] = int(ASPRSClass.HIGH_VEGETATION)
+        labels[med_mask] = int(ASPRSClass.MEDIUM_VEGETATION)
 
         # Level 3: Moderate vegetation (0.4 <= NDVI < 0.5)
         mask = (ndvi >= 0.40) & (ndvi < 0.50) & (labels == 0)
         med_mask = mask & (height > 1.0)
         low_mask = mask & (height <= 1.0)
-        labels[med_mask] = self.ASPRS_MEDIUM_VEGETATION
-        labels[low_mask] = self.ASPRS_LOW_VEGETATION
+        labels[med_mask] = int(ASPRSClass.MEDIUM_VEGETATION)
+        labels[low_mask] = int(ASPRSClass.LOW_VEGETATION)
 
         # Level 4: Grass/understory (0.3 <= NDVI < 0.4)
         mask = (ndvi >= 0.30) & (ndvi < 0.40) & (labels == 0)
-        labels[mask] = self.ASPRS_LOW_VEGETATION
+        labels[mask] = int(ASPRSClass.LOW_VEGETATION)
 
         # Level 5: Forest floor/bare soil (NDVI < 0.3)
         mask = (ndvi < 0.30) & (labels == 0)
-        labels[mask] = self.ASPRS_GROUND
+        labels[mask] = int(ASPRSClass.GROUND)
 
         return labels
 
@@ -712,14 +720,14 @@ class ParcelClassifier(BaseClassifier):
         mask = ndvi >= 0.4
         high_mask = mask & (height > 0.5)
         low_mask = mask & (height <= 0.5)
-        labels[high_mask] = self.ASPRS_MEDIUM_VEGETATION  # Tall crops
-        labels[low_mask] = self.ASPRS_LOW_VEGETATION  # Short crops
+        labels[high_mask] = int(ASPRSClass.MEDIUM_VEGETATION)  # Tall crops
+        labels[low_mask] = int(ASPRSClass.LOW_VEGETATION)  # Short crops
 
         mask = (ndvi >= 0.2) & (ndvi < 0.4)
-        labels[mask] = self.ASPRS_LOW_VEGETATION  # Sparse crops
+        labels[mask] = int(ASPRSClass.LOW_VEGETATION)  # Sparse crops
 
         mask = ndvi < 0.2
-        labels[mask] = self.ASPRS_GROUND  # Bare soil
+        labels[mask] = int(ASPRSClass.GROUND)  # Bare soil
 
         return labels
 
@@ -728,7 +736,7 @@ class ParcelClassifier(BaseClassifier):
     ) -> np.ndarray:
         """Refine classification for building parcel using verticality."""
         n_points = len(features.get("verticality", []))
-        labels = np.full(n_points, self.ASPRS_BUILDING, dtype=np.uint8)
+        labels = np.full(n_points, int(ASPRSClass.BUILDING), dtype=np.uint8)
 
         verticality = features.get("verticality", np.zeros(n_points))
         planarity = features.get("planarity", np.zeros(n_points))
@@ -737,11 +745,11 @@ class ParcelClassifier(BaseClassifier):
 
         # Walls: high verticality + low normal_z
         wall_mask = (verticality > 0.7) & (np.abs(normal_z) < 0.3)
-        labels[wall_mask] = self.ASPRS_BUILDING
+        labels[wall_mask] = int(ASPRSClass.BUILDING)
 
         # Roofs: high planarity + high normal_z
         roof_mask = (planarity > 0.7) & (np.abs(normal_z) > 0.85)
-        labels[roof_mask] = self.ASPRS_BUILDING
+        labels[roof_mask] = int(ASPRSClass.BUILDING)
 
         return labels
 
@@ -760,16 +768,16 @@ class ParcelClassifier(BaseClassifier):
         canopy_mask = (ndvi > 0.3) & (height > 2.0)
         high_mask = canopy_mask & (height > 5.0)
         med_mask = canopy_mask & (height <= 5.0)
-        labels[high_mask] = self.ASPRS_HIGH_VEGETATION
-        labels[med_mask] = self.ASPRS_MEDIUM_VEGETATION
+        labels[high_mask] = int(ASPRSClass.HIGH_VEGETATION)
+        labels[med_mask] = int(ASPRSClass.MEDIUM_VEGETATION)
 
         # Road surface
         road_mask = (planarity > 0.8) & (ndvi < 0.15) & (~canopy_mask)
-        labels[road_mask] = self.ASPRS_ROAD
+        labels[road_mask] = int(ASPRSClass.ROAD_SURFACE)
 
         # Ground (unpaved shoulders)
         ground_mask = labels == 0
-        labels[ground_mask] = self.ASPRS_GROUND
+        labels[ground_mask] = int(ASPRSClass.GROUND)
 
         return labels
 
@@ -782,7 +790,7 @@ class ParcelClassifier(BaseClassifier):
         Uses multi-feature decision logic.
         """
         n_points = len(features.get("ndvi", []))
-        labels = np.full(n_points, self.ASPRS_UNCLASSIFIED, dtype=np.uint8)
+        labels = np.full(n_points, int(ASPRSClass.UNCLASSIFIED), dtype=np.uint8)
 
         ndvi = features.get("ndvi", np.zeros(n_points))
         height = features.get("height", np.zeros(n_points))
@@ -794,17 +802,17 @@ class ParcelClassifier(BaseClassifier):
         high_mask = veg_mask & (height > 2.0)
         med_mask = veg_mask & (height > 0.5) & (height <= 2.0)
         low_mask = veg_mask & (height <= 0.5)
-        labels[high_mask] = self.ASPRS_HIGH_VEGETATION
-        labels[med_mask] = self.ASPRS_MEDIUM_VEGETATION
-        labels[low_mask] = self.ASPRS_LOW_VEGETATION
+        labels[high_mask] = int(ASPRSClass.HIGH_VEGETATION)
+        labels[med_mask] = int(ASPRSClass.MEDIUM_VEGETATION)
+        labels[low_mask] = int(ASPRSClass.LOW_VEGETATION)
 
         # Buildings: low NDVI + high planarity + low curvature
         building_mask = (ndvi < 0.15) & (planarity > 0.7) & (curvature < 0.1)
-        labels[building_mask] = self.ASPRS_BUILDING
+        labels[building_mask] = int(ASPRSClass.BUILDING)
 
         # Ground: everything else with high planarity
-        ground_mask = (labels == self.ASPRS_UNCLASSIFIED) & (planarity > 0.75)
-        labels[ground_mask] = self.ASPRS_GROUND
+        ground_mask = (labels == int(ASPRSClass.UNCLASSIFIED)) & (planarity > 0.75)
+        labels[ground_mask] = int(ASPRSClass.GROUND)
 
         return labels
 
@@ -821,26 +829,26 @@ class ParcelClassifier(BaseClassifier):
             if height is not None:
                 labels = np.where(
                     height > 2.0,
-                    self.ASPRS_HIGH_VEGETATION,
-                    self.ASPRS_MEDIUM_VEGETATION,
+                    int(ASPRSClass.HIGH_VEGETATION),
+                    int(ASPRSClass.MEDIUM_VEGETATION),
                 )
             else:
-                labels = np.full(n_points, self.ASPRS_HIGH_VEGETATION, dtype=np.uint8)
+                labels = np.full(n_points, int(ASPRSClass.HIGH_VEGETATION), dtype=np.uint8)
 
         elif parcel_type == ParcelType.AGRICULTURE:
-            labels = np.full(n_points, self.ASPRS_LOW_VEGETATION, dtype=np.uint8)
+            labels = np.full(n_points, int(ASPRSClass.LOW_VEGETATION), dtype=np.uint8)
 
         elif parcel_type == ParcelType.BUILDING:
-            labels = np.full(n_points, self.ASPRS_BUILDING, dtype=np.uint8)
+            labels = np.full(n_points, int(ASPRSClass.BUILDING), dtype=np.uint8)
 
         elif parcel_type == ParcelType.ROAD:
-            labels = np.full(n_points, self.ASPRS_ROAD, dtype=np.uint8)
+            labels = np.full(n_points, int(ASPRSClass.ROAD_SURFACE), dtype=np.uint8)
 
         elif parcel_type == ParcelType.WATER:
-            labels = np.full(n_points, self.ASPRS_WATER, dtype=np.uint8)
+            labels = np.full(n_points, int(ASPRSClass.WATER), dtype=np.uint8)
 
         else:
-            labels = np.full(n_points, self.ASPRS_UNCLASSIFIED, dtype=np.uint8)
+            labels = np.full(n_points, int(ASPRSClass.UNCLASSIFIED), dtype=np.uint8)
 
         return labels
 

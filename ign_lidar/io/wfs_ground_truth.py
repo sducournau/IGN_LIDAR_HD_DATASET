@@ -7,35 +7,37 @@ WFS services for generating labeled training patches. It retrieves:
 - Road polygons generated from centerlines + width (largeur)
 - Other topographic features from BD TOPO®
 
-The ground truth data is used to label point clouds and generate training datasets.
+The ground truth data is used to label point clouds and generate training
+datasets.
 """
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, Tuple, Optional, Dict, Any, Union, TYPE_CHECKING
-import json
+from typing import List, Tuple, Optional, Dict, Any
 import requests
 from urllib.parse import urlencode
 from dataclasses import dataclass
 import numpy as np
 import pandas as pd
-import time
 
-if TYPE_CHECKING:
-    import geopandas as gpd
+from .wfs_fetch_result import (
+    fetch_with_retry,
+    RetryConfig,
+    validate_cache_file,
+)
 
 logger = logging.getLogger(__name__)
 
 try:
-    from shapely.geometry import shape, Point, Polygon, LineString, MultiPolygon, box
-    from shapely.ops import unary_union
+    from shapely.geometry import Point, Polygon, LineString, MultiPolygon
     import geopandas as gpd
 
     HAS_SPATIAL = True
 except ImportError:
     HAS_SPATIAL = False
+    gpd = None  # type: ignore
     logger.warning(
         "shapely/geopandas not available - WFS ground truth fetching disabled"
     )
@@ -1206,137 +1208,113 @@ class IGNGroundTruthFetcher:
         self, layer_name: str, bbox: Tuple[float, float, float, float]
     ) -> Optional[gpd.GeoDataFrame]:
         """
-        Fetch a WFS layer for a bounding box.
+        Fetch a WFS layer for a bounding box with robust error handling.
+
+        Uses the centralized fetch_with_retry() with exponential backoff
+        and structured error reporting via FetchResult.
 
         Args:
             layer_name: WFS layer name
             bbox: Bounding box (xmin, ymin, xmax, ymax)
 
         Returns:
-            GeoDataFrame with features
+            GeoDataFrame with features, or None on failure
         """
-        # Check if cache file exists and load it
+        # Check cache first using validate_cache_file
         if self.cache_dir:
             cache_file = (
                 self.cache_dir / f"{layer_name.replace(':', '_')}_{hash(bbox)}.geojson"
             )
-            if cache_file.exists():
+
+            # Use centralized cache validation
+            if validate_cache_file(cache_file):
                 try:
                     logger.info(f"Loading cached WFS data from {cache_file.name}")
                     gdf = gpd.read_file(cache_file)
                     logger.debug(
-                        f"Loaded {len(gdf)} features from cache (skipped WFS fetch)"
+                        f"Loaded {len(gdf)} features from cache " f"(skipped WFS fetch)"
                     )
                     return gdf
                 except Exception as e:
                     logger.warning(
-                        f"Failed to load cache file {cache_file}: {e}. Fetching from WFS..."
+                        f"Cache validation passed but read failed for "
+                        f"{cache_file}: {e}"
                     )
-                    # Continue to WFS fetch if cache load fails
+                    # Continue to WFS fetch
 
-        # Build WFS GetFeature request
-        params = {
-            "SERVICE": "WFS",
-            "VERSION": self.config.VERSION,
-            "REQUEST": "GetFeature",
-            "TYPENAME": layer_name,
-            "OUTPUTFORMAT": self.config.OUTPUT_FORMAT,
-            "SRSNAME": self.config.CRS,
-            "BBOX": f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]},{self.config.CRS}",
-            "COUNT": self.config.MAX_FEATURES,
-        }
+        # Define fetch function for retry wrapper
+        def fetch_fn() -> gpd.GeoDataFrame:
+            """Inner function that performs the actual WFS request."""
+            params = {
+                "SERVICE": "WFS",
+                "VERSION": self.config.VERSION,
+                "REQUEST": "GetFeature",
+                "TYPENAME": layer_name,
+                "OUTPUTFORMAT": self.config.OUTPUT_FORMAT,
+                "SRSNAME": self.config.CRS,
+                "BBOX": (
+                    f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}," f"{self.config.CRS}"
+                ),
+                "COUNT": self.config.MAX_FEATURES,
+            }
 
-        url = f"{self.config.WFS_URL}?{urlencode(params)}"
+            url = f"{self.config.WFS_URL}?{urlencode(params)}"
+            logger.debug(f"WFS request: {layer_name}")
 
-        # Retry logic with exponential backoff for rate limiting
-        max_retries = 5
-        base_delay = 2  # seconds
+            response = requests.get(url, timeout=60)
+            response.raise_for_status()
 
-        for attempt in range(max_retries):
-            try:
-                if attempt > 0:
-                    logger.debug(
-                        f"Retry attempt {attempt}/{max_retries-1} for {layer_name}"
-                    )
-                else:
-                    logger.debug(f"WFS request: {layer_name}")
+            # Parse GeoJSON response
+            data = response.json()
 
-                response = requests.get(url, timeout=60)
+            if "features" not in data or len(data["features"]) == 0:
+                logger.warning(f"No features found for {layer_name} in bbox {bbox}")
+                # Return empty GeoDataFrame instead of None
+                return gpd.GeoDataFrame(crs=self.config.CRS)
 
-                # Handle rate limiting (429 Too Many Requests)
-                if response.status_code == 429:
-                    if attempt < max_retries - 1:
-                        # Exponential backoff: 2s, 4s, 8s, 16s, 32s
-                        delay = base_delay * (2**attempt)
-                        # Add jitter to avoid thundering herd
-                        import random
+            # Convert to GeoDataFrame
+            gdf = gpd.GeoDataFrame.from_features(data["features"], crs=self.config.CRS)
 
-                        delay = delay + random.uniform(0, delay * 0.1)
-                        logger.warning(
-                            f"Rate limited (429) for {layer_name}. Waiting {delay:.1f}s..."
-                        )
-                        time.sleep(delay)
-                        continue
-                    else:
-                        logger.error(
-                            f"Rate limit exceeded for {layer_name} after {max_retries} attempts"
-                        )
-                        return None
-
-                response.raise_for_status()
-
-                # Parse GeoJSON response
-                data = response.json()
-
-                if "features" not in data or len(data["features"]) == 0:
-                    logger.warning(f"No features found for {layer_name} in bbox {bbox}")
-                    return None
-
-                # Convert to GeoDataFrame
-                gdf = gpd.GeoDataFrame.from_features(
-                    data["features"], crs=self.config.CRS
+            # Save to cache if enabled
+            if self.cache_dir:
+                cache_file = (
+                    self.cache_dir
+                    / f"{layer_name.replace(':', '_')}_{hash(bbox)}.geojson"
                 )
+                gdf.to_file(cache_file, driver="GeoJSON")
+                logger.debug(f"Cached to {cache_file}")
 
-                # Save to cache if enabled
-                if self.cache_dir:
-                    cache_file = (
-                        self.cache_dir
-                        / f"{layer_name.replace(':', '_')}_{hash(bbox)}.geojson"
-                    )
-                    gdf.to_file(cache_file, driver="GeoJSON")
-                    logger.debug(f"Cached to {cache_file}")
+            return gdf
 
-                return gdf
+        # Configure retry behavior
+        retry_config = RetryConfig(
+            max_retries=5,
+            initial_delay=2.0,
+            max_delay=32.0,
+            backoff_factor=2.0,  # Exponential backoff
+            retry_on_timeout=True,
+            retry_on_network_error=True,
+        )
 
-            except requests.RequestException as e:
-                if attempt < max_retries - 1:
-                    delay = base_delay * (2**attempt)
-                    logger.warning(
-                        f"Request failed for {layer_name}: {e}. Retrying in {delay}s..."
-                    )
-                    time.sleep(delay)
-                    continue
-                else:
-                    logger.error(
-                        f"WFS request failed for {layer_name} after {max_retries} attempts: {e}"
-                    )
-                    return None
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    delay = base_delay * (2**attempt)
-                    logger.warning(
-                        f"Parse error for {layer_name}: {e}. Retrying in {delay}s..."
-                    )
-                    time.sleep(delay)
-                    continue
-                else:
-                    logger.error(
-                        f"Failed to process WFS response for {layer_name} after {max_retries} attempts: {e}"
-                    )
-                    return None
+        # Use centralized retry wrapper
+        result = fetch_with_retry(
+            fetch_fn,
+            retry_config=retry_config,
+            operation_name=f"WFS fetch {layer_name}",
+        )
 
-        # Should never reach here
-        return None
+        # Handle result
+        if result.success:
+            return result.data
+        else:
+            # Log structured error information
+            logger.error(f"WFS fetch failed for {layer_name}: {result.error}")
+            if result.retry_count > 0:
+                logger.debug(
+                    f"Failed after {result.retry_count} retries "
+                    f"({result.elapsed_time:.2f}s total)"
+                )
+            return None
 
     def save_ground_truth(
         self,

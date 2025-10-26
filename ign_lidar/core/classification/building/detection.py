@@ -15,9 +15,13 @@ Date: October 15, 2025
 """
 
 import logging
+from ..constants import ASPRSClass
 from typing import Optional, Dict, Any, Tuple
+from ..constants import ASPRSClass
 from enum import Enum
+from ..constants import ASPRSClass
 import numpy as np
+from ..constants import ASPRSClass
 
 logger = logging.getLogger(__name__)
 
@@ -423,13 +427,13 @@ class BuildingDetector:
             "total": 0,
         }
 
-        ASPRS_BUILDING = 6
+        
 
         # Strategy 1: Ground truth (highest priority)
         if ground_truth_mask is not None and self.config.use_ground_truth:
             if self.config.ground_truth_priority:
-                building_points = ground_truth_mask & (refined != ASPRS_BUILDING)
-                refined[building_points] = ASPRS_BUILDING
+                building_points = ground_truth_mask & (refined != int(ASPRSClass.BUILDING))
+                refined[building_points] = int(ASPRSClass.BUILDING)
                 stats["ground_truth"] = building_points.sum()
 
         # Strategy 2: Wall detection
@@ -439,7 +443,7 @@ class BuildingDetector:
                 & (height < self.config.max_height)
                 & (verticality > self.config.wall_verticality_min)
                 & (planarity > self.config.wall_planarity_min)
-                & (refined != ASPRS_BUILDING)
+                & (refined != int(ASPRSClass.BUILDING))
             )
 
             if wall_score is not None:
@@ -447,7 +451,7 @@ class BuildingDetector:
                     wall_score > self.config.wall_score_min
                 )
 
-            refined[wall_candidates] = ASPRS_BUILDING
+            refined[wall_candidates] = int(ASPRSClass.BUILDING)
             stats["walls"] = wall_candidates.sum()
 
         # Strategy 3: Roof detection
@@ -459,7 +463,7 @@ class BuildingDetector:
                 & (height < self.config.max_height)
                 & (horizontality > self.config.roof_horizontality_min)
                 & (planarity > self.config.roof_planarity_min)
-                & (refined != ASPRS_BUILDING)
+                & (refined != int(ASPRSClass.BUILDING))
             )
 
             if roof_score is not None:
@@ -467,7 +471,7 @@ class BuildingDetector:
                     roof_score > self.config.roof_score_min
                 )
 
-            refined[roof_candidates] = ASPRS_BUILDING
+            refined[roof_candidates] = int(ASPRSClass.BUILDING)
             stats["roofs"] = roof_candidates.sum()
 
         # Strategy 4: Structure detection (anisotropy)
@@ -477,10 +481,10 @@ class BuildingDetector:
                 & (height < self.config.max_height)
                 & (anisotropy > self.config.anisotropy_min)
                 & (planarity > 0.3)
-                & (refined != ASPRS_BUILDING)
+                & (refined != int(ASPRSClass.BUILDING))
             )
 
-            refined[structured_candidates] = ASPRS_BUILDING
+            refined[structured_candidates] = int(ASPRSClass.BUILDING)
             stats["structured"] = structured_candidates.sum()
 
         # Strategy 5: Edge detection
@@ -489,7 +493,7 @@ class BuildingDetector:
                 (height > self.config.min_height)
                 & (height < self.config.max_height)
                 & (linearity > self.config.linearity_edge_min)
-                & (refined != ASPRS_BUILDING)
+                & (refined != int(ASPRSClass.BUILDING))
             )
 
             if verticality is not None:
@@ -498,7 +502,7 @@ class BuildingDetector:
                     (verticality > 0.7) | (verticality < 0.3)
                 )
 
-            refined[edge_candidates] = ASPRS_BUILDING
+            refined[edge_candidates] = int(ASPRSClass.BUILDING)
             stats["edges"] = edge_candidates.sum()
 
         # Strategy 6: Aggressive facade detection for rough/textured walls
@@ -510,7 +514,7 @@ class BuildingDetector:
                 & (height < self.config.max_height)
                 & (verticality > 0.40)  # Semi-vertical OK
                 & (planarity > 0.25)  # Very low for rough/windowed facades
-                & (refined != ASPRS_BUILDING)
+                & (refined != int(ASPRSClass.BUILDING))
             )
 
             # Additional check: prefer structured surfaces
@@ -522,7 +526,7 @@ class BuildingDetector:
                 )
 
             if facade_candidates.any():
-                refined[facade_candidates] = ASPRS_BUILDING
+                refined[facade_candidates] = int(ASPRSClass.BUILDING)
                 stats["rough_facades"] = facade_candidates.sum()
 
         # Strategy 7: Handle unclassified building-like points
@@ -551,10 +555,10 @@ class BuildingDetector:
 
             # Apply with slightly lower confidence
             if building_like.any():
-                refined[building_like] = ASPRS_BUILDING
+                refined[building_like] = int(ASPRSClass.BUILDING)
                 stats["unclassified_recovery"] = building_like.sum()
 
-        stats["total"] = (refined == ASPRS_BUILDING).sum()
+        stats["total"] = (refined == int(ASPRSClass.BUILDING)).sum()
 
         return refined, stats
 

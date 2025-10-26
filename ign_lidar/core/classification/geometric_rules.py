@@ -17,6 +17,8 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 from scipy.spatial import cKDTree
 
+from .constants import ASPRSClass
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -56,18 +58,6 @@ class GeometricRulesEngine:
     - Vertical separation analysis for overlapping geometries
     - Multi-level NDVI-based refinement for vegetation/non-vegetation
     """
-
-    # ASPRS Classification codes
-    ASPRS_UNCLASSIFIED = 1
-    ASPRS_GROUND = 2
-    ASPRS_LOW_VEGETATION = 3
-    ASPRS_MEDIUM_VEGETATION = 4
-    ASPRS_HIGH_VEGETATION = 5
-    ASPRS_BUILDING = 6
-    ASPRS_WATER = 9
-    ASPRS_RAIL = 10
-    ASPRS_ROAD = 11
-    ASPRS_BRIDGE = 17
 
     # Multi-level NDVI thresholds (aligned with advanced_classification.py)
     NDVI_DENSE_FOREST = 0.60  # Dense forest, high vegetation
@@ -212,7 +202,7 @@ class GeometricRulesEngine:
         # ✅ NEW: Create mask for points that can be modified
         if preserve_ground_truth:
             # Only unclassified points (code 1) can be modified
-            modifiable_mask = updated_labels == self.ASPRS_UNCLASSIFIED
+            modifiable_mask = updated_labels == int(ASPRSClass.UNCLASSIFIED)
             n_modifiable = np.sum(modifiable_mask)
             logger.info(
                 f"  GT preservation enabled: {n_modifiable:,} modifiable points"
@@ -226,7 +216,7 @@ class GeometricRulesEngine:
         if ndvi is not None:
             # Calculate height above ground for better vegetation sub-classification
             height = None
-            ground_mask = updated_labels == self.ASPRS_GROUND
+            ground_mask = updated_labels == int(ASPRSClass.GROUND)
             if np.any(ground_mask):
                 height = self.get_height_above_ground(
                     points=points, labels=updated_labels, search_radius=5.0
@@ -396,9 +386,9 @@ class GeometricRulesEngine:
         vegetation_mask = np.isin(
             labels,
             [
-                self.ASPRS_LOW_VEGETATION,
-                self.ASPRS_MEDIUM_VEGETATION,
-                self.ASPRS_HIGH_VEGETATION,
+                int(ASPRSClass.LOW_VEGETATION),
+                int(ASPRSClass.MEDIUM_VEGETATION),
+                int(ASPRSClass.HIGH_VEGETATION),
             ],
         )
         # ✅ NEW: Only process modifiable vegetation points
@@ -436,14 +426,14 @@ class GeometricRulesEngine:
 
                 if pt_ndvi <= self.ndvi_road_threshold:
                     # Low NDVI: definitely road, not vegetation
-                    labels[global_idx] = self.ASPRS_ROAD
+                    labels[global_idx] = int(ASPRSClass.ROAD_SURFACE)
                     n_fixed += 1
                     break
 
                 # For medium NDVI (ambiguous), we need height information
                 # Estimate ground height from nearby ground points
                 # Find ground points within 5m radius
-                ground_mask = labels == self.ASPRS_GROUND
+                ground_mask = labels == int(ASPRSClass.GROUND)
                 if np.any(ground_mask):
                     ground_points = points[ground_mask]
 
@@ -462,7 +452,7 @@ class GeometricRulesEngine:
                         # If vegetation is low (<2m) and on road, likely misclassified
                         if height_above_ground < self.road_vegetation_height_threshold:
                             # Low vegetation on road -> reclassify to road
-                            labels[global_idx] = self.ASPRS_ROAD
+                            labels[global_idx] = int(ASPRSClass.ROAD_SURFACE)
                             n_fixed += 1
                             break
                         # else: high vegetation (tree canopy) above road -> keep as vegetation
@@ -502,7 +492,7 @@ class GeometricRulesEngine:
         n_added = 0
 
         # Find unclassified points that are modifiable
-        unclassified_mask = (labels == self.ASPRS_UNCLASSIFIED) & modifiable_mask
+        unclassified_mask = (labels == int(ASPRSClass.UNCLASSIFIED)) & modifiable_mask
 
         if not np.any(unclassified_mask):
             return 0
@@ -511,7 +501,7 @@ class GeometricRulesEngine:
         unclassified_points = points[unclassified_mask]
 
         # Find existing building points (for height reference)
-        building_mask = labels == self.ASPRS_BUILDING
+        building_mask = labels == int(ASPRSClass.BUILDING)
         building_points = points[building_mask]
 
         if len(building_points) == 0:
@@ -558,7 +548,7 @@ class GeometricRulesEngine:
 
                 # If height is similar to nearby building points, classify as building
                 if height_diff < self.max_building_height_difference:
-                    labels[global_idx] = self.ASPRS_BUILDING
+                    labels[global_idx] = int(ASPRSClass.BUILDING)
                     n_added += 1
                     break
 
@@ -596,7 +586,7 @@ class GeometricRulesEngine:
             return 0
 
         # Find unclassified points that are modifiable
-        unclassified_mask = (labels == self.ASPRS_UNCLASSIFIED) & modifiable_mask
+        unclassified_mask = (labels == int(ASPRSClass.UNCLASSIFIED)) & modifiable_mask
         if not np.any(unclassified_mask):
             return 0
 
@@ -638,7 +628,7 @@ class GeometricRulesEngine:
 
         # Step 3: Classify each cluster
         n_added = 0
-        building_mask = labels == self.ASPRS_BUILDING
+        building_mask = labels == int(ASPRSClass.BUILDING)
 
         if not np.any(building_mask):
             return 0
@@ -676,7 +666,7 @@ class GeometricRulesEngine:
 
             if height_diff < self.max_building_height_difference:
                 # Classify entire cluster as building
-                labels[cluster_global_idx] = self.ASPRS_BUILDING
+                labels[cluster_global_idx] = int(ASPRSClass.BUILDING)
                 n_added += len(cluster_global_idx)
 
         return n_added
@@ -735,11 +725,11 @@ class GeometricRulesEngine:
             ~np.isin(
                 labels,
                 [
-                    self.ASPRS_LOW_VEGETATION,
-                    self.ASPRS_MEDIUM_VEGETATION,
-                    self.ASPRS_HIGH_VEGETATION,
-                    self.ASPRS_UNCLASSIFIED,
-                    self.ASPRS_GROUND,
+                    int(ASPRSClass.LOW_VEGETATION),
+                    int(ASPRSClass.MEDIUM_VEGETATION),
+                    int(ASPRSClass.HIGH_VEGETATION),
+                    int(ASPRSClass.UNCLASSIFIED),
+                    int(ASPRSClass.GROUND),
                 ],
             )
             & modifiable_mask
@@ -749,7 +739,7 @@ class GeometricRulesEngine:
         # Dense forest (NDVI ≥ 0.60) -> HIGH vegetation
         dense_forest = non_veg_mask & (ndvi >= self.NDVI_DENSE_FOREST)
         if np.any(dense_forest):
-            labels[dense_forest] = self.ASPRS_HIGH_VEGETATION
+            labels[dense_forest] = int(ASPRSClass.HIGH_VEGETATION)
             n_refined += np.sum(dense_forest)
 
         # Healthy trees (0.50 ≤ NDVI < 0.60) -> HIGH/MED vegetation
@@ -763,12 +753,12 @@ class GeometricRulesEngine:
                 # Use height to sub-classify
                 high_trees = healthy_trees & (height >= 3.0)
                 med_trees = healthy_trees & (height < 3.0)
-                labels[high_trees] = self.ASPRS_HIGH_VEGETATION
-                labels[med_trees] = self.ASPRS_MEDIUM_VEGETATION
+                labels[high_trees] = int(ASPRSClass.HIGH_VEGETATION)
+                labels[med_trees] = int(ASPRSClass.MEDIUM_VEGETATION)
                 n_refined += np.sum(healthy_trees)
             else:
                 # Default to high vegetation
-                labels[healthy_trees] = self.ASPRS_HIGH_VEGETATION
+                labels[healthy_trees] = int(ASPRSClass.HIGH_VEGETATION)
                 n_refined += np.sum(healthy_trees)
 
         # Moderate vegetation (0.40 ≤ NDVI < 0.50) -> MEDIUM vegetation
@@ -778,7 +768,7 @@ class GeometricRulesEngine:
             & (ndvi < self.NDVI_HEALTHY_TREES)
         )
         if np.any(moderate_veg):
-            labels[moderate_veg] = self.ASPRS_MEDIUM_VEGETATION
+            labels[moderate_veg] = int(ASPRSClass.MEDIUM_VEGETATION)
             n_refined += np.sum(moderate_veg)
 
         # Grass/shrubs (0.30 ≤ NDVI < 0.40) -> LOW/MED vegetation
@@ -790,12 +780,12 @@ class GeometricRulesEngine:
                 # Use height to sub-classify
                 tall_grass = grass & (height >= 1.0)
                 short_grass = grass & (height < 1.0)
-                labels[tall_grass] = self.ASPRS_MEDIUM_VEGETATION
-                labels[short_grass] = self.ASPRS_LOW_VEGETATION
+                labels[tall_grass] = int(ASPRSClass.MEDIUM_VEGETATION)
+                labels[short_grass] = int(ASPRSClass.LOW_VEGETATION)
                 n_refined += np.sum(grass)
             else:
                 # Default to low vegetation
-                labels[grass] = self.ASPRS_LOW_VEGETATION
+                labels[grass] = int(ASPRSClass.LOW_VEGETATION)
                 n_refined += np.sum(grass)
 
         # Sparse vegetation (0.20 ≤ NDVI < 0.30) -> LOW vegetation
@@ -803,7 +793,7 @@ class GeometricRulesEngine:
             non_veg_mask & (ndvi >= self.NDVI_SPARSE_VEG) & (ndvi < self.NDVI_GRASS)
         )
         if np.any(sparse_veg):
-            labels[sparse_veg] = self.ASPRS_LOW_VEGETATION
+            labels[sparse_veg] = int(ASPRSClass.LOW_VEGETATION)
             n_refined += np.sum(sparse_veg)
 
         # Rule 2: Vegetation with very low NDVI -> might be
@@ -814,9 +804,9 @@ class GeometricRulesEngine:
             np.isin(
                 labels,
                 [
-                    self.ASPRS_LOW_VEGETATION,
-                    self.ASPRS_MEDIUM_VEGETATION,
-                    self.ASPRS_HIGH_VEGETATION,
+                    int(ASPRSClass.LOW_VEGETATION),
+                    int(ASPRSClass.MEDIUM_VEGETATION),
+                    int(ASPRSClass.HIGH_VEGETATION),
                 ],
             )
             & modifiable_mask
@@ -825,17 +815,17 @@ class GeometricRulesEngine:
 
         if np.any(very_low_ndvi_veg):
             # Reclassify to unclassified (let other rules handle it)
-            labels[very_low_ndvi_veg] = self.ASPRS_UNCLASSIFIED
+            labels[very_low_ndvi_veg] = int(ASPRSClass.UNCLASSIFIED)
             n_refined += np.sum(very_low_ndvi_veg)
 
         # Rule 3: Unclassified with clear NDVI signal -> classify
         # (multi-level)
-        unclassified_mask = (labels == self.ASPRS_UNCLASSIFIED) & modifiable_mask
+        unclassified_mask = (labels == int(ASPRSClass.UNCLASSIFIED)) & modifiable_mask
 
         # Dense forest (NDVI ≥ 0.60) -> HIGH vegetation
         dense_forest_unc = unclassified_mask & (ndvi >= self.NDVI_DENSE_FOREST)
         if np.any(dense_forest_unc):
-            labels[dense_forest_unc] = self.ASPRS_HIGH_VEGETATION
+            labels[dense_forest_unc] = int(ASPRSClass.HIGH_VEGETATION)
             n_refined += np.sum(dense_forest_unc)
 
         # Healthy trees (0.50 ≤ NDVI < 0.60) -> HIGH/MED vegetation
@@ -848,11 +838,11 @@ class GeometricRulesEngine:
             if height is not None:
                 high_trees = healthy_trees_unc & (height >= 3.0)
                 med_trees = healthy_trees_unc & (height < 3.0)
-                labels[high_trees] = self.ASPRS_HIGH_VEGETATION
-                labels[med_trees] = self.ASPRS_MEDIUM_VEGETATION
+                labels[high_trees] = int(ASPRSClass.HIGH_VEGETATION)
+                labels[med_trees] = int(ASPRSClass.MEDIUM_VEGETATION)
                 n_refined += np.sum(healthy_trees_unc)
             else:
-                labels[healthy_trees_unc] = self.ASPRS_HIGH_VEGETATION
+                labels[healthy_trees_unc] = int(ASPRSClass.HIGH_VEGETATION)
                 n_refined += np.sum(healthy_trees_unc)
 
         # Moderate vegetation (0.40 ≤ NDVI < 0.50) -> MEDIUM vegetation
@@ -862,7 +852,7 @@ class GeometricRulesEngine:
             & (ndvi < self.NDVI_HEALTHY_TREES)
         )
         if np.any(moderate_veg_unc):
-            labels[moderate_veg_unc] = self.ASPRS_MEDIUM_VEGETATION
+            labels[moderate_veg_unc] = int(ASPRSClass.MEDIUM_VEGETATION)
             n_refined += np.sum(moderate_veg_unc)
 
         # Grass/shrubs (0.30 ≤ NDVI < 0.40) -> LOW/MED vegetation
@@ -875,11 +865,11 @@ class GeometricRulesEngine:
             if height is not None:
                 tall_grass = grass_unc & (height >= 1.0)
                 short_grass = grass_unc & (height < 1.0)
-                labels[tall_grass] = self.ASPRS_MEDIUM_VEGETATION
-                labels[short_grass] = self.ASPRS_LOW_VEGETATION
+                labels[tall_grass] = int(ASPRSClass.MEDIUM_VEGETATION)
+                labels[short_grass] = int(ASPRSClass.LOW_VEGETATION)
                 n_refined += np.sum(grass_unc)
             else:
-                labels[grass_unc] = self.ASPRS_LOW_VEGETATION
+                labels[grass_unc] = int(ASPRSClass.LOW_VEGETATION)
                 n_refined += np.sum(grass_unc)
 
         # Sparse vegetation (0.20 ≤ NDVI < 0.30) -> LOW vegetation
@@ -889,7 +879,7 @@ class GeometricRulesEngine:
             & (ndvi < self.NDVI_GRASS)
         )
         if np.any(sparse_veg_unc):
-            labels[sparse_veg_unc] = self.ASPRS_LOW_VEGETATION
+            labels[sparse_veg_unc] = int(ASPRSClass.LOW_VEGETATION)
             n_refined += np.sum(sparse_veg_unc)
 
         return n_refined
@@ -929,7 +919,7 @@ class GeometricRulesEngine:
         n_added = 0
 
         # Find unclassified points
-        unclassified_mask = labels == self.ASPRS_UNCLASSIFIED
+        unclassified_mask = labels == int(ASPRSClass.UNCLASSIFIED)
 
         # Apply modifiable mask if provided
         if modifiable_mask is not None:
@@ -972,7 +962,7 @@ class GeometricRulesEngine:
         candidate_points = unclassified_points[candidate_mask]
 
         # Check if there are nearby building points for validation
-        building_mask = labels == self.ASPRS_BUILDING
+        building_mask = labels == int(ASPRSClass.BUILDING)
 
         if np.any(building_mask):
             building_points = points[building_mask]
@@ -999,14 +989,14 @@ class GeometricRulesEngine:
                     if (
                         height_diff < self.max_building_height_difference * 2
                     ):  # More lenient
-                        labels[global_idx] = self.ASPRS_BUILDING
+                        labels[global_idx] = int(ASPRSClass.BUILDING)
                         n_added += 1
                 else:
                     # No nearby buildings, but high verticality suggests new building
                     # Be more conservative: require very high verticality
                     vert_score = verticality_scores[candidate_mask][i]
                     if vert_score >= 0.85:  # Very high verticality
-                        labels[global_idx] = self.ASPRS_BUILDING
+                        labels[global_idx] = int(ASPRSClass.BUILDING)
                         n_added += 1
         else:
             # No existing building points, classify based on verticality alone
@@ -1014,7 +1004,7 @@ class GeometricRulesEngine:
             very_high_vert = verticality_scores[candidate_mask] >= 0.85
             very_high_indices = candidate_indices[very_high_vert]
 
-            labels[very_high_indices] = self.ASPRS_BUILDING
+            labels[very_high_indices] = int(ASPRSClass.BUILDING)
             n_added = len(very_high_indices)
 
         return n_added
@@ -1114,7 +1104,7 @@ class GeometricRulesEngine:
         heights = np.zeros(len(points))
 
         # Find ground points
-        ground_mask = labels == self.ASPRS_GROUND
+        ground_mask = labels == int(ASPRSClass.GROUND)
 
         if not np.any(ground_mask):
             logger.warning("No ground points available for height calculation")

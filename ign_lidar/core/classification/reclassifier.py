@@ -25,7 +25,8 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-# ✅ Import centralized priority system
+# ✅ Import centralized constants and priority system
+from .constants import ASPRSClass
 from ign_lidar.core.classification.priorities import get_priority_order_for_iteration
 
 # Import CPU spatial libraries
@@ -93,23 +94,6 @@ class OptimizedReclassifier:
     - Use 'gpu+cuml' for >50M points with full RAPIDS stack
     - Use 'auto' to automatically select best available
     """
-
-    # ASPRS Classification codes
-    ASPRS_UNCLASSIFIED = 1
-    ASPRS_GROUND = 2
-    ASPRS_LOW_VEGETATION = 3
-    ASPRS_MEDIUM_VEGETATION = 4
-    ASPRS_HIGH_VEGETATION = 5
-    ASPRS_BUILDING = 6
-    ASPRS_WATER = 9
-    ASPRS_RAIL = 10
-    ASPRS_ROAD = 11
-    ASPRS_BRIDGE = 17
-    ASPRS_PARKING = 40
-    ASPRS_SPORTS = 41
-    ASPRS_CEMETERY = 42
-    ASPRS_POWER_LINE = 43
-    ASPRS_AGRICULTURE = 44
 
     def __init__(
         self,
@@ -221,17 +205,17 @@ class OptimizedReclassifier:
             ASPRS classification code
         """
         mapping = {
-            "buildings": self.ASPRS_BUILDING,
-            "roads": self.ASPRS_ROAD,
-            "water": self.ASPRS_WATER,
-            "vegetation": self.ASPRS_MEDIUM_VEGETATION,
-            "bridges": self.ASPRS_BRIDGE,
-            "railways": self.ASPRS_RAIL,
-            "sports": self.ASPRS_SPORTS,
-            "parking": self.ASPRS_PARKING,
-            "cemeteries": self.ASPRS_CEMETERY,
+            "buildings": int(ASPRSClass.BUILDING),
+            "roads": int(ASPRSClass.ROAD_SURFACE),
+            "water": int(ASPRSClass.WATER),
+            "vegetation": int(ASPRSClass.MEDIUM_VEGETATION),
+            "bridges": int(ASPRSClass.BRIDGE_DECK),
+            "railways": int(ASPRSClass.RAIL),
+            "sports": int(ASPRSClass.OVERHEAD_STRUCTURE),  # Sports = 19
+            "parking": int(ASPRSClass.ROAD_PARKING),  # Parking = 40
+            "cemeteries": int(ASPRSClass.OVERHEAD_STRUCTURE),  # Cemetery = 19
         }
-        return mapping.get(feature_name, self.ASPRS_UNCLASSIFIED)
+        return mapping.get(feature_name, int(ASPRSClass.UNCLASSIFIED))
 
     def reclassify(
         self,
@@ -368,10 +352,10 @@ class OptimizedReclassifier:
 
         # Feature types to check for overlying vegetation
         surface_types = {
-            "roads": self.ASPRS_ROAD,
-            "sports": self.ASPRS_SPORTS,
-            "cemeteries": self.ASPRS_GROUND,  # Cemeteries usually classified as ground
-            "parking": self.ASPRS_PARKING,
+            "roads": int(ASPRSClass.ROAD_SURFACE),
+            "sports": int(ASPRSClass.OVERHEAD_STRUCTURE),  # Sports = 19
+            "cemeteries": int(ASPRSClass.GROUND),  # Cemeteries usually as ground
+            "parking": int(ASPRSClass.ROAD_PARKING),  # Parking = 40
         }
 
         total_reclassified = 0
@@ -465,9 +449,9 @@ class OptimizedReclassifier:
             high_veg = veg_points[veg_heights > 10.0]
 
             # Update labels
-            updated_labels[low_veg] = self.ASPRS_LOW_VEGETATION
-            updated_labels[medium_veg] = self.ASPRS_MEDIUM_VEGETATION
-            updated_labels[high_veg] = self.ASPRS_HIGH_VEGETATION
+            updated_labels[low_veg] = int(ASPRSClass.LOW_VEGETATION)
+            updated_labels[medium_veg] = int(ASPRSClass.MEDIUM_VEGETATION)
+            updated_labels[high_veg] = int(ASPRSClass.HIGH_VEGETATION)
 
             n_reclassified = len(veg_points)
             total_reclassified += n_reclassified

@@ -11,12 +11,18 @@ Date: October 19, 2025
 """
 
 import logging
+from ..constants import ASPRSClass
 from typing import Dict, Optional, Tuple
+from ..constants import ASPRSClass
 
 import geopandas as gpd
+from ..constants import ASPRSClass
 import numpy as np
+from ..constants import ASPRSClass
 from shapely.geometry import MultiPolygon, Point, Polygon
+from ..constants import ASPRSClass
 from shapely.strtree import STRtree
+from ..constants import ASPRSClass
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +81,14 @@ class GroundTruthRefiner:
     """
 
     # ASPRS class definitions
-    ASPRS_UNCLASSIFIED = 1
-    ASPRS_GROUND = 2
-    ASPRS_LOW_VEGETATION = 3
-    ASPRS_MEDIUM_VEGETATION = 4
-    ASPRS_HIGH_VEGETATION = 5
-    ASPRS_BUILDING = 6
-    ASPRS_WATER = 9
-    ASPRS_ROAD = 11
+    # Use ASPRSClass from constants module
+    
+    
+    
+    
+    
+    
+    
 
     def __init__(self, config: Optional[GroundTruthRefinementConfig] = None):
         """Initialize refiner with configuration."""
@@ -194,7 +200,7 @@ class GroundTruthRefiner:
         validated_indices = water_candidates[valid_water]
         rejected_indices = water_candidates[~valid_water]
 
-        refined[validated_indices] = self.ASPRS_WATER
+        refined[validated_indices] = int(ASPRSClass.WATER)
         stats["water_validated"] = len(validated_indices)
         stats["water_rejected"] = len(rejected_indices)
 
@@ -274,8 +280,8 @@ class GroundTruthRefiner:
                     veg_indices = above_road_indices[vegetation_ndvi]
                     # Classify by height: >5m = HIGH, 2-5m = MEDIUM
                     high_veg_mask = height[veg_indices] > 5.0
-                    refined[veg_indices[high_veg_mask]] = self.ASPRS_HIGH_VEGETATION
-                    refined[veg_indices[~high_veg_mask]] = self.ASPRS_MEDIUM_VEGETATION
+                    refined[veg_indices[high_veg_mask]] = int(ASPRSClass.HIGH_VEGETATION)
+                    refined[veg_indices[~high_veg_mask]] = int(ASPRSClass.MEDIUM_VEGETATION)
                     n_reclassified = np.sum(vegetation_ndvi)
                     stats["elevated_roads_reclassified_vegetation"] = n_reclassified
                     logger.debug(
@@ -350,8 +356,8 @@ class GroundTruthRefiner:
                     canopy_indices = road_candidates[tree_canopy]
                     # Classify based on height
                     high_trees = height[canopy_indices] > 5.0
-                    refined[canopy_indices[high_trees]] = self.ASPRS_HIGH_VEGETATION
-                    refined[canopy_indices[~high_trees]] = self.ASPRS_MEDIUM_VEGETATION
+                    refined[canopy_indices[high_trees]] = int(ASPRSClass.HIGH_VEGETATION)
+                    refined[canopy_indices[~high_trees]] = int(ASPRSClass.MEDIUM_VEGETATION)
                     stats["road_vegetation_override"] = np.sum(tree_canopy)
 
             valid_road &= ndvi_valid
@@ -363,7 +369,7 @@ class GroundTruthRefiner:
         validated_indices = road_candidates[valid_road]
         rejected_indices = road_candidates[~valid_road]
 
-        refined[validated_indices] = self.ASPRS_ROAD
+        refined[validated_indices] = int(ASPRSClass.ROAD_SURFACE)
         stats["road_validated"] = len(validated_indices)
         stats["road_rejected"] = len(rejected_indices)
 
@@ -483,7 +489,7 @@ class GroundTruthRefiner:
         if height is not None:
             # Low vegetation (0-0.5m)
             low_veg_mask = is_vegetation & (height <= self.config.VEG_LOW_HEIGHT_MAX)
-            refined[low_veg_mask] = self.ASPRS_LOW_VEGETATION
+            refined[low_veg_mask] = int(ASPRSClass.LOW_VEGETATION)
             stats["low_veg"] = np.sum(low_veg_mask)
 
             # Medium vegetation (0.5-2m)
@@ -492,18 +498,18 @@ class GroundTruthRefiner:
                 & (height > self.config.VEG_LOW_HEIGHT_MAX)
                 & (height <= self.config.VEG_MEDIUM_HEIGHT_MAX)
             )
-            refined[med_veg_mask] = self.ASPRS_MEDIUM_VEGETATION
+            refined[med_veg_mask] = int(ASPRSClass.MEDIUM_VEGETATION)
             stats["medium_veg"] = np.sum(med_veg_mask)
 
             # High vegetation (>2m)
             high_veg_mask = is_vegetation & (height > self.config.VEG_MEDIUM_HEIGHT_MAX)
-            refined[high_veg_mask] = self.ASPRS_HIGH_VEGETATION
+            refined[high_veg_mask] = int(ASPRSClass.HIGH_VEGETATION)
             stats["high_veg"] = np.sum(high_veg_mask)
 
             stats["vegetation_added"] = np.sum(is_vegetation)
         else:
             # No height - classify as medium vegetation
-            refined[is_vegetation] = self.ASPRS_MEDIUM_VEGETATION
+            refined[is_vegetation] = int(ASPRSClass.MEDIUM_VEGETATION)
             stats["vegetation_added"] = np.sum(is_vegetation)
             stats["medium_veg"] = stats["vegetation_added"]
 
@@ -570,7 +576,7 @@ class GroundTruthRefiner:
         tree = STRtree(polygons_list)
 
         # Find unclassified or uncertain points
-        uncertain_mask = np.isin(labels, [self.ASPRS_UNCLASSIFIED, self.ASPRS_GROUND])
+        uncertain_mask = np.isin(labels, [int(ASPRSClass.UNCLASSIFIED), int(ASPRSClass.GROUND)])
         uncertain_indices = np.where(uncertain_mask)[0]
 
         if len(uncertain_indices) == 0:
@@ -657,12 +663,12 @@ class GroundTruthRefiner:
         validated_indices = building_candidates[valid_building]
         rejected_indices = building_candidates[~valid_building]
 
-        refined[validated_indices] = self.ASPRS_BUILDING
+        refined[validated_indices] = int(ASPRSClass.BUILDING)
         stats["building_validated"] = np.sum(
-            labels[validated_indices] == self.ASPRS_BUILDING
+            labels[validated_indices] == int(ASPRSClass.BUILDING)
         )
         stats["building_expanded"] = np.sum(
-            labels[validated_indices] != self.ASPRS_BUILDING
+            labels[validated_indices] != int(ASPRSClass.BUILDING)
         )
         stats["building_rejected"] = len(rejected_indices)
 
@@ -717,7 +723,7 @@ class GroundTruthRefiner:
         logger.info("  Resolving road/building conflicts...")
 
         # Find road points
-        road_mask = labels == self.ASPRS_ROAD
+        road_mask = labels == int(ASPRSClass.ROAD_SURFACE)
         road_indices = np.where(road_mask)[0]
 
         if len(road_indices) == 0:
@@ -754,7 +760,7 @@ class GroundTruthRefiner:
                 if building_geom.contains(pt):
                     # Point is inside building polygon and elevated
                     # -> reclassify as building
-                    refined[idx] = self.ASPRS_BUILDING
+                    refined[idx] = int(ASPRSClass.BUILDING)
                     n_reclassified += 1
                     break
 
@@ -806,7 +812,7 @@ class GroundTruthRefiner:
             water_gdf = ground_truth_features["water"]
             if water_gdf is not None and len(water_gdf) > 0:
                 # Create water mask
-                water_mask = labels == self.ASPRS_WATER
+                water_mask = labels == int(ASPRSClass.WATER)
                 refined, water_stats = self.refine_water_classification(
                     refined, points, water_mask, height, planarity, curvature, normals
                 )
@@ -817,7 +823,7 @@ class GroundTruthRefiner:
             roads_gdf = ground_truth_features["roads"]
             if roads_gdf is not None and len(roads_gdf) > 0:
                 # Create road mask
-                road_mask = labels == self.ASPRS_ROAD
+                road_mask = labels == int(ASPRSClass.ROAD_SURFACE)
                 refined, road_stats = self.refine_road_classification(
                     refined,
                     points,

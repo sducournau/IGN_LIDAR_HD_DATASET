@@ -11,9 +11,13 @@ Version: 5.0
 """
 
 from typing import Dict, Tuple, Optional, Any
+from ..constants import ASPRSClass
 import numpy as np
+from ..constants import ASPRSClass
 from dataclasses import dataclass
+from ..constants import ASPRSClass
 import logging
+from ..constants import ASPRSClass
 
 logger = logging.getLogger(__name__)
 
@@ -112,16 +116,16 @@ class FeatureValidator:
     """Validate classifications using multi-feature signatures."""
     
     # ASPRS class constants (matching asprs_classes.py)
-    ASPRS_UNCLASSIFIED = 1
-    ASPRS_GROUND = 2
-    ASPRS_LOW_VEGETATION = 3
-    ASPRS_MEDIUM_VEGETATION = 4
-    ASPRS_HIGH_VEGETATION = 5
-    ASPRS_BUILDING = 6
-    ASPRS_WATER = 9
-    ASPRS_RAIL = 10
-    ASPRS_ROAD = 11
-    ASPRS_BRIDGE = 17
+    # Use ASPRSClass from constants module
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
@@ -332,7 +336,7 @@ class FeatureValidator:
             
             if matches and conf >= self.min_confidence:
                 # Features confirm building
-                new_labels[i] = self.ASPRS_BUILDING
+                new_labels[i] = int(ASPRSClass.BUILDING)
                 confidences[i] = conf
                 valid[i] = True
             else:
@@ -351,7 +355,7 @@ class FeatureValidator:
                     logger.debug(f"Roof vegetation detected: building → vegetation")
                 else:
                     # Keep building label but with low confidence
-                    new_labels[i] = self.ASPRS_BUILDING
+                    new_labels[i] = int(ASPRSClass.BUILDING)
                     confidences[i] = 0.5
                     valid[i] = False
         
@@ -376,7 +380,7 @@ class FeatureValidator:
             
             if matches and conf >= self.min_confidence:
                 # Features confirm road
-                new_labels[i] = self.ASPRS_ROAD
+                new_labels[i] = int(ASPRSClass.ROAD_SURFACE)
                 confidences[i] = conf
                 valid[i] = True
             else:
@@ -395,7 +399,7 @@ class FeatureValidator:
                     logger.debug(f"Tree canopy over road detected: road → vegetation")
                 else:
                     # Keep road label with low confidence
-                    new_labels[i] = self.ASPRS_ROAD
+                    new_labels[i] = int(ASPRSClass.ROAD_SURFACE)
                     confidences[i] = 0.5
                     valid[i] = False
         
@@ -419,12 +423,12 @@ class FeatureValidator:
             matches, conf = self.water_signature.matches(point_features, self.strict_validation)
             
             if matches and conf >= self.min_confidence:
-                new_labels[i] = self.ASPRS_WATER
+                new_labels[i] = int(ASPRSClass.WATER)
                 confidences[i] = conf
                 valid[i] = True
             else:
                 # Water false positive - likely ground or vegetation
-                new_labels[i] = self.ASPRS_GROUND
+                new_labels[i] = int(ASPRSClass.GROUND)
                 confidences[i] = 0.4
                 valid[i] = False
         
@@ -458,7 +462,7 @@ class FeatureValidator:
                 valid[i] = True
             else:
                 # Not vegetation - likely ground or building
-                new_labels[i] = self.ASPRS_GROUND
+                new_labels[i] = int(ASPRSClass.GROUND)
                 confidences[i] = 0.4
                 valid[i] = False
         
@@ -467,11 +471,11 @@ class FeatureValidator:
     def _classify_vegetation_by_height(self, height: float) -> int:
         """Classify vegetation type based on height."""
         if height < 0.5:
-            return self.ASPRS_LOW_VEGETATION
+            return int(ASPRSClass.LOW_VEGETATION)
         elif height < 2.0:
-            return self.ASPRS_MEDIUM_VEGETATION
+            return int(ASPRSClass.MEDIUM_VEGETATION)
         else:
-            return self.ASPRS_HIGH_VEGETATION
+            return int(ASPRSClass.HIGH_VEGETATION)
     
     def check_vegetation_signature(
         self,

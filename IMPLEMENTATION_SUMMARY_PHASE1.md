@@ -15,6 +15,7 @@
 **Purpose:** Eliminate code duplication and ensure consistency across all classifiers
 
 **Features:**
+
 - `ASPRSClass`: Centralized class with all ASPRS classification codes
 - Standard codes (0-18) matching ASPRS LAS specification
 - Extended IGN-specific codes (19-23) for LOD2/LOD3
@@ -23,12 +24,14 @@
 - Comprehensive docstrings with examples
 
 **Impact:**
+
 - ✅ Eliminates duplicate constant definitions across 4+ classifier classes
 - ✅ Single source of truth for classification codes
 - ✅ Reduces maintenance burden
 - ✅ Prevents inconsistencies
 
 **Usage Example:**
+
 ```python
 from ign_lidar.core.classification.constants import ASPRSClass
 
@@ -49,34 +52,34 @@ if is_vegetation(label):
 **Purpose:** Robust error handling and retry logic for BD Topo WFS operations
 
 **Features:**
+
 - **`FetchResult` dataclass:** Structured results with explicit status
   - Success/failure indication
   - Error messages with context
   - Retry count tracking
   - Performance metrics (elapsed time)
-  
 - **`RetryConfig`:** Configurable retry behavior
   - Exponential backoff (default: 1s → 2s → 4s → 8s)
   - Selective retry (timeout vs network errors)
   - Maximum delay cap (prevents excessive waits)
-  
 - **`fetch_with_retry()`:** Automatic retry wrapper
   - Network error recovery
   - Timeout handling
   - Non-retryable error detection
-  
 - **`validate_cache_file()`:** Cache validation
   - File existence and corruption checks
   - Age validation
   - Size validation
 
 **Impact:**
+
 - ✅ Transient network failures automatically recovered
 - ✅ Explicit error handling (no more silent `None` returns)
 - ✅ Better debugging (detailed error messages)
 - ✅ Performance tracking built-in
 
 **Usage Example:**
+
 ```python
 from ign_lidar.io.wfs_fetch_result import fetch_with_retry, RetryConfig
 
@@ -103,9 +106,11 @@ else:
 **Evidence:**
 
 #### Bug #1: STRtree Priority Order ✅ FIXED
+
 **File:** `ign_lidar/io/ground_truth_optimizer.py` (lines 307-436)
 
 The code now properly:
+
 - Stores priority for each polygon
 - Checks ALL candidate polygons
 - Selects the one with **highest priority**
@@ -120,7 +125,7 @@ for candidate_idx in candidate_indices:
     if prepared_polygons[candidate_idx].covers(point_geom):
         label = polygon_labels[candidate_idx]
         priority = polygon_priorities[candidate_idx]
-        
+
         if priority > best_priority:
             best_label = label
             best_priority = priority
@@ -129,9 +134,11 @@ labels[start_idx + i] = best_label
 ```
 
 #### Bug #4: Unified Priorities ✅ FIXED
+
 **File:** `ign_lidar/core/classification/priorities.py`
 
 Centralized priority system exists and is used by:
+
 - `ground_truth_optimizer.py` - imports `PRIORITY_ORDER`, `get_priority_value()`
 - Single source of truth for all modules
 
@@ -150,9 +157,11 @@ PRIORITY_ORDER = [
 ```
 
 #### Bug #5: Preserve Ground Truth ✅ PARTIALLY FIXED
+
 **File:** `ign_lidar/core/classification/geometric_rules.py`
 
 The `preserve_ground_truth` parameter exists and is implemented:
+
 - Creates `modifiable_mask` to protect GT labels
 - Passes mask to all rule methods
 - NDVI-modified labels are also protected
@@ -166,6 +175,7 @@ The `preserve_ground_truth` parameter exists and is implemented:
 ### Test Suite 1: ASPRS Constants (`tests/test_asprs_constants.py`)
 
 **Coverage:**
+
 - ✅ Standard code values (0-18)
 - ✅ Extended code values (19-23)
 - ✅ Name-to-code bidirectional mapping
@@ -178,6 +188,7 @@ The `preserve_ground_truth` parameter exists and is implemented:
 ### Test Suite 2: WFS Fetch Result (`tests/test_wfs_fetch_result.py`)
 
 **Coverage:**
+
 - ✅ FetchResult dataclass (success, error, cache hit)
 - ✅ RetryConfig (exponential backoff, max delay)
 - ✅ fetch_with_retry (retry logic, error handling)
@@ -190,13 +201,13 @@ The `preserve_ground_truth` parameter exists and is implemented:
 
 ## 📊 Impact Summary
 
-| Area | Before | After | Improvement |
-|------|--------|-------|-------------|
-| **Code Duplication** | 4+ classes with ASPRS constants | 1 central module | 🟢 -75% |
-| **Error Handling** | Silent `None` returns | Structured `FetchResult` | 🟢 100% explicit |
-| **BD Topo Reliability** | No retry | 3 retries with backoff | 🟢 +90% success rate |
-| **Priority Bugs** | Bug #1 & #4 unknown | Verified fixed | 🟢 2 bugs resolved |
-| **Test Coverage** | No tests for constants | 45+ new tests | 🟢 +45 tests |
+| Area                    | Before                          | After                    | Improvement          |
+| ----------------------- | ------------------------------- | ------------------------ | -------------------- |
+| **Code Duplication**    | 4+ classes with ASPRS constants | 1 central module         | 🟢 -75%              |
+| **Error Handling**      | Silent `None` returns           | Structured `FetchResult` | 🟢 100% explicit     |
+| **BD Topo Reliability** | No retry                        | 3 retries with backoff   | 🟢 +90% success rate |
+| **Priority Bugs**       | Bug #1 & #4 unknown             | Verified fixed           | 🟢 2 bugs resolved   |
+| **Test Coverage**       | No tests for constants          | 45+ new tests            | 🟢 +45 tests         |
 
 ---
 
@@ -205,10 +216,12 @@ The `preserve_ground_truth` parameter exists and is implemented:
 ### Phase 2: Remaining Bug Fixes (Recommended Priority)
 
 1. **Bug #3:** NDVI Timing
+
    - **Status:** Partially fixed (NDVI applied first)
    - **Action:** Add protection for NDVI-modified labels ✅ (DONE in geometric_rules.py)
 
 2. **Bug #6:** Buffer Zone GT Check
+
    - **Location:** `geometric_rules.py::classify_building_buffer_zone()`
    - **Action:** Check GT features before classifying buffer points
 
@@ -219,6 +232,7 @@ The `preserve_ground_truth` parameter exists and is implemented:
 ### Phase 2: Integration (Estimated: 2-3 hours)
 
 4. **Migrate Classifiers to Use Constants Module**
+
    - Update `unified_classifier.py`
    - Update `reclassifier.py`
    - Update `ground_truth_refiner.py`
@@ -232,6 +246,7 @@ The `preserve_ground_truth` parameter exists and is implemented:
 ### Phase 3: Documentation & Validation (Estimated: 1-2 hours)
 
 6. **Update Documentation**
+
    - Add constants module to API docs
    - Document retry configuration
    - Update troubleshooting guide
@@ -262,6 +277,7 @@ The `preserve_ground_truth` parameter exists and is implemented:
 ## 📝 Files Changed
 
 ### New Files Created:
+
 1. `ign_lidar/core/classification/constants.py` (206 lines)
 2. `ign_lidar/io/wfs_fetch_result.py` (292 lines)
 3. `tests/test_asprs_constants.py` (220 lines)
@@ -270,6 +286,7 @@ The `preserve_ground_truth` parameter exists and is implemented:
 **Total:** 4 new files, ~1000 lines of production code + tests
 
 ### No Files Modified:
+
 - All changes are additive (no breaking changes)
 - Existing code continues to work
 - Migration can happen gradually
@@ -281,6 +298,7 @@ The `preserve_ground_truth` parameter exists and is implemented:
 **Phase 1 Implementation is COMPLETE!**
 
 We've successfully:
+
 - ✅ Created centralized ASPRS constants module (eliminates duplication)
 - ✅ Implemented robust BD Topo error handling (improves reliability)
 - ✅ Verified critical bugs are already fixed (Bug #1, #4)
@@ -291,6 +309,7 @@ We've successfully:
 
 ---
 
-**Questions?** 
+**Questions?**
+
 - See individual file docstrings for usage examples
 - Run tests: `pytest tests/test_asprs_constants.py tests/test_wfs_fetch_result.py -v`

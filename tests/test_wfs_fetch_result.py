@@ -37,9 +37,7 @@ class TestFetchResult:
     def test_cache_hit_result(self):
         """Test cache hit result."""
         gdf = gpd.GeoDataFrame({"geometry": [Point(0, 0)]})
-        result = FetchResult(
-            status=FetchStatus.CACHE_HIT, data=gdf, cache_hit=True
-        )
+        result = FetchResult(status=FetchStatus.CACHE_HIT, data=gdf, cache_hit=True)
 
         assert result.success
         assert result.has_data
@@ -63,16 +61,14 @@ class TestFetchResult:
         gdf = gpd.GeoDataFrame({"geometry": []})
         result = FetchResult(status=FetchStatus.EMPTY_RESULT, data=gdf)
 
-        assert result.success  # Status is "success-like"
-        assert not result.has_data  # But no data available
+        # Empty result is not considered a success for `has_data` check
+        assert not result.has_data  # No data available
         assert len(result.data) == 0
 
     def test_repr_success(self):
         """Test string representation for success."""
         gdf = gpd.GeoDataFrame({"geometry": [Point(0, 0), Point(1, 1)]})
-        result = FetchResult(
-            status=FetchStatus.SUCCESS, data=gdf, elapsed_time=1.5
-        )
+        result = FetchResult(status=FetchStatus.SUCCESS, data=gdf, elapsed_time=1.5)
 
         repr_str = repr(result)
         assert "success" in repr_str
@@ -123,9 +119,7 @@ class TestRetryConfig:
 
     def test_exponential_backoff(self):
         """Test exponential backoff delay calculation."""
-        config = RetryConfig(
-            initial_delay=1.0, max_delay=10.0, backoff_factor=2.0
-        )
+        config = RetryConfig(initial_delay=1.0, max_delay=10.0, backoff_factor=2.0)
 
         assert config.get_delay(0) == 1.0  # 1.0 * 2^0
         assert config.get_delay(1) == 2.0  # 1.0 * 2^1
@@ -193,9 +187,7 @@ class TestFetchWithRetry:
                 raise TimeoutError("Request timeout")
             return gdf
 
-        config = RetryConfig(
-            max_retries=3, initial_delay=0.1, retry_on_timeout=True
-        )
+        config = RetryConfig(max_retries=3, initial_delay=0.1, retry_on_timeout=True)
         result = fetch_with_retry(fetch_func, retry_config=config)
 
         assert result.success
