@@ -287,26 +287,11 @@ class LiDARProcessor:
 
         # Initialize data fetcher for ground truth (BD TOPO, BD Forêt, RPG, Cadastre)
         self.data_fetcher = None
-        logger.info(f"🔍 Checking data sources configuration...")
-        logger.info(f"🔍 Available config keys: {list(config.keys())}")
+        logger.debug("Checking data sources configuration...")
 
-        # Debug: Check if data_sources exists
-        logger.debug(f"🔍 DEBUG: 'data_sources' in config = {'data_sources' in config}")
-        if "data_sources" in config:
-            logger.info(f"🔍 data_sources keys: {list(config.data_sources.keys())}")
-            logger.debug(
-                f"🔍 DEBUG: config.data_sources keys = {list(config.data_sources.keys())}"
-            )
-            if "bd_topo" in config.data_sources:
-                logger.info(
-                    f"🔍 bd_topo.enabled = {config.data_sources.bd_topo.enabled}"
-                )
-                logger.debug(
-                    f"🔍 DEBUG: config.data_sources.bd_topo.enabled = {config.data_sources.bd_topo.enabled}"
-                )
-        else:
+        if "data_sources" not in config:
             logger.warning(
-                f"⚠️  'data_sources' not found in config! This means ground truth data won't be loaded."
+                "⚠️  'data_sources' not found in config! Ground truth data won't be loaded."
             )
 
         # Use OmegaConf.select() for compatibility with Hydra configs
@@ -346,13 +331,7 @@ class LiDARProcessor:
                 ),
             )
 
-            logger.info(f"🔍 DEBUG: Extracted from NESTED structure (V5):")
-            logger.info(
-                f"   buildings={bd_topo_buildings}, roads={bd_topo_roads}, water={bd_topo_water}"
-            )
-            logger.info(
-                f"   vegetation={bd_topo_vegetation}, bridges={bd_topo_bridges}, power_lines={bd_topo_power_lines}"
-            )
+            logger.debug("Extracted BD TOPO features from nested config (V5)")
         else:
             # Fall back to flat structure (V4)
             bd_topo_buildings = OmegaConf.select(
@@ -387,13 +366,7 @@ class LiDARProcessor:
             )
 
             if bd_topo_enabled:
-                logger.info(f"🔍 DEBUG: Extracted from FLAT structure (V4):")
-                logger.info(
-                    f"   buildings={bd_topo_buildings}, roads={bd_topo_roads}, water={bd_topo_water}"
-                )
-                logger.info(
-                    f"   vegetation={bd_topo_vegetation}, bridges={bd_topo_bridges}, power_lines={bd_topo_power_lines}"
-                )
+                logger.debug("Extracted BD TOPO features from flat config (V4)")
 
         bd_foret_enabled = OmegaConf.select(
             config, "data_sources.bd_foret_enabled", default=False
@@ -405,19 +378,7 @@ class LiDARProcessor:
             config, "data_sources.cadastre_enabled", default=False
         )
 
-        logger.debug(
-            f"🔍 DEBUG: bd_topo_enabled = {bd_topo_enabled} (type: {type(bd_topo_enabled)})"
-        )
-        logger.debug(
-            f"🔍 DEBUG: bd_foret_enabled = {bd_foret_enabled} (type: {type(bd_foret_enabled)})"
-        )
-        logger.debug(
-            f"🔍 DEBUG: rpg_enabled = {rpg_enabled} (type: {type(rpg_enabled)})"
-        )
-        logger.debug(
-            f"🔍 DEBUG: cadastre_enabled = {cadastre_enabled} (type: {type(cadastre_enabled)})"
-        )
-
+        # Log enabled data sources
         logger.info(
             f"   - BD TOPO®: {'✅ Enabled' if bd_topo_enabled else '❌ Disabled'}"
         )

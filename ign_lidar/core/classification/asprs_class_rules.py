@@ -564,12 +564,10 @@ class ASPRSClassRulesEngine:
 
         n_railway = railway_mask.sum()
         if n_railway > 0:
-            # Use extended BD TOPO code for railways (if available)
-            # Otherwise use generic "unclassified" with note
-            classification[railway_mask] = int(
-                ASPRSClass.UNCLASSIFIED
-            )  # TODO: Use proper railway code
-            logger.info(f"  Railways: {n_railway:,} points classified")
+            # Use ASPRS standard railway classification
+            # RAIL (10) for standard ASPRS, or RAILWAY_TRACK (90) for extended
+            classification[railway_mask] = int(ASPRSClass.RAIL)
+            logger.info(f"  Railways: {n_railway:,} points classified as RAIL (10)")
 
         return classification
 

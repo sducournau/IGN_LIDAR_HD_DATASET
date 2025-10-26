@@ -1,0 +1,480 @@
+"""
+Core processor initialization and configuration management.
+
+This module contains the ProcessorCore class which handles configuration
+validation, initialization, and component setup for the LiDAR processor.
+
+Extracted from LiDARProcessor as part of god class refactoring (v3.4.0).
+"""
+
+import logging
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
+
+from omegaconf import DictConfig, OmegaConf
+
+from ..classification_schema import ASPRS_TO_LOD2, ASPRS_TO_LOD3
+from ..datasets.dataset_manager import DatasetConfig
+from ..features.orchestrator import FeatureOrchestrator
+from .classification.config_validator import ConfigValidator
+from .classification.io import TileLoader
+from .optimization_factory import optimization_factory
+from .skip_checker import PatchSkipChecker
+from .tile_stitcher import TileStitcher
+
+logger = logging.getLogger(__name__)
+
+
+class ProcessorCore:
+    """
+    Core processor configuration and initialization.
+
+    Handles:
+    - Configuration validation and migration
+    - Auto-optimization
+    - Component initialization (orchestrator, stitcher, skip checker)
+    - Data source configuration
+
+    This class was extracted from LiDARProcessor to separate configuration
+    concerns from processing logic.
+    """
+
+    def __init__(self, config: Union[DictConfig, Dict, None] = None, **kwargs):
+        """
+        Initialize processor core with configuration.
+
+        Args:
+            config: Configuration object (DictConfig or dict). If None,
+                   builds config from kwargs for backward compatibility.
+            **kwargs: Individual parameters (deprecated, use config instead)
+
+        Raises:
+            TypeError: If config is not DictConfig, dict, or None
+            ValueError: If configuration is invalid
+        """
+        # Handle config initialization
+        if config is None:
+            config = self._build_config_from_kwargs(kwargs)
+            logger.debug(
+                "Built config from legacy kwargs "
+                "(consider migrating to config-based initialization)"
+            )
+        elif not isinstance(config, (DictConfig, dict)):
+            raise TypeError(
+                f"config must be DictConfig or dict, got {type(config).__name__}. "
+                f"Pass None and use kwargs for legacy initialization."
+            )
+
+        # Convert dict to DictConfig if needed
+        if isinstance(config, dict):
+            config = OmegaConf.create(config)
+
+        # Validate configuration
+        self._validate_config(config)
+
+        # Apply auto-optimization if enabled
+        if OmegaConf.select(config, "processing.auto_optimize", default=False):
+            config = self._apply_auto_optimization(config)
+
+        # Store config
+        self.config = config
+
+        # Initialize commonly accessed values
+        self._init_config_cache()
+
+        # Initialize components
+        self._init_feature_orchestrator()
+        self._init_stitcher()
+        self._init_skip_checker()
+        self._init_dataset_manager()
+        self._init_tile_loader()
+        self._init_data_fetcher()
+
+        logger.info(f"✨ Processing mode: {self.processing_mode}")
+        if not self.save_patches:
+            logger.info("   📦 Patch generation: DISABLED")
+        logger.info(f"Initialized ProcessorCore with {self.lod_level}")
+
+    def _validate_config(self, config: DictConfig) -> None:
+        """
+        Validate configuration structure and values.
+
+        Args:
+            config: Configuration to validate
+
+        Raises:
+            ValueError: If configuration is invalid
+        """
+        # Validate output format
+        validated_formats = ConfigValidator.validate_output_format(
+            config.processor.output_format
+        )
+        logger.debug(f"Validated output formats: {validated_formats}")
+
+        # Validate processing mode
+        ConfigValidator.validate_processing_mode(config.processor.processing_mode)
+
+    def _build_config_from_kwargs(self, kwargs: Dict[str, Any]) -> DictConfig:
+        """
+        Build configuration from legacy kwargs (V2.x compatibility).
+
+        Args:
+            kwargs: Keyword arguments from old-style initialization
+
+        Returns:
+            DictConfig object with proper structure
+
+        Note:
+            This method provides backward compatibility but is deprecated.
+            Users should migrate to config-based initialization.
+        """
+        # This would contain the logic from the original method
+        # For now, create a basic structure
+        config_dict = {
+            "processor": {
+                "lod_level": kwargs.get("lod_level", "LOD2"),
+                "processing_mode": kwargs.get("processing_mode", "patches_only"),
+                "patch_size": kwargs.get("patch_size", 150.0),
+                "num_points": kwargs.get("num_points", 16384),
+                "architecture": kwargs.get("architecture", "pointnet++"),
+                "output_format": kwargs.get("output_format", "npz"),
+                "use_gpu": kwargs.get("use_gpu", False),
+                "augment": kwargs.get("augment", False),
+                "num_augmentations": kwargs.get("num_augmentations", 3),
+            },
+            "features": {
+                "mode": kwargs.get("feature_mode", "lod2"),
+                "k_neighbors": kwargs.get("k_neighbors"),
+                "use_rgb": kwargs.get("use_rgb", False),
+                "use_infrared": kwargs.get("use_infrared", False),
+                "compute_ndvi": kwargs.get("compute_ndvi", False),
+            },
+            "data_sources": {},
+        }
+
+        return OmegaConf.create(config_dict)
+
+    def _apply_auto_optimization(self, config: DictConfig) -> DictConfig:
+        """
+        Apply automatic optimization based on system capabilities.
+
+        Args:
+            config: Input configuration
+
+        Returns:
+            Optimized configuration
+
+        Note:
+            Logs optimization strategy and expected improvements.
+        """
+        logger.info("🧠 Auto-optimization enabled - analyzing system capabilities...")
+
+        # Get optimization recommendations
+        recommendations = optimization_factory.recommend_optimization(
+            OmegaConf.to_object(config)
+        )
+
+        if recommendations.get("config_updates"):
+            logger.info(
+                f"📈 Applying optimization strategy: "
+                f"{recommendations['strategy'].value}"
+            )
+
+            # Apply recommended updates
+            for key, value in recommendations["config_updates"].items():
+                if key == "architecture":
+                    OmegaConf.update(config, "processing.architecture", value)
+                else:
+                    OmegaConf.update(config, f"processor.{key}", value)
+
+            # Log performance expectations
+            if recommendations.get("estimated_performance"):
+                logger.info(
+                    f"⚡ Expected improvement: "
+                    f"{recommendations['estimated_performance']}"
+                )
+
+            # Log any warnings
+            for warning in recommendations.get("warnings", []):
+                logger.warning(f"⚠️  {warning}")
+
+        return config
+
+    def _init_config_cache(self) -> None:
+        """Cache commonly accessed configuration values."""
+        self.lod_level = self.config.processor.lod_level
+        self.processing_mode = self.config.processor.processing_mode
+        self.patch_size = OmegaConf.select(
+            self.config, "processor.patch_size", default=150.0
+        )
+        self.num_points = OmegaConf.select(
+            self.config, "processor.num_points", default=16384
+        )
+        self.architecture = OmegaConf.select(
+            self.config, "processor.architecture", default="pointnet++"
+        )
+        self.output_format = self.config.processor.output_format
+        self.save_patches = OmegaConf.select(
+            self.config, "output.save_patches", default=False
+        )
+
+        # Derive save/only flags from processing mode
+        self.save_enriched_laz = self.processing_mode in [
+            "both",
+            "enriched_only",
+        ]
+        self.only_enriched_laz = self.processing_mode == "enriched_only"
+
+        # Set class mapping based on LOD level
+        if self.lod_level == "ASPRS":
+            self.class_mapping = None
+            self.default_class = 1  # ASPRS unclassified
+        elif self.lod_level == "LOD2":
+            self.class_mapping = ASPRS_TO_LOD2
+            self.default_class = 14
+        else:  # LOD3
+            self.class_mapping = ASPRS_TO_LOD3
+            self.default_class = 29
+
+    def _init_feature_orchestrator(self) -> None:
+        """Initialize feature orchestrator V5 with integrated optimizations."""
+        logger.info("🚀 Using FeatureOrchestrator V5 with integrated optimizations")
+        self.feature_orchestrator = FeatureOrchestrator(self.config)
+        self.feature_manager = self.feature_orchestrator  # Backward compat
+
+    def _init_stitcher(self) -> None:
+        """Initialize tile stitcher if enabled."""
+        # Handle both old and new config structures
+        if hasattr(self.config, "stitching") and hasattr(
+            self.config.stitching, "enabled"
+        ):
+            use_stitching = self.config.stitching.enabled
+            buffer_size = getattr(self.config.stitching, "buffer_size", 10.0)
+        else:
+            use_stitching = self.config.processor.get("use_stitching", False)
+            buffer_size = self.config.processor.get("buffer_size", 10.0)
+
+        stitching_config = ConfigValidator.setup_stitching_config(
+            use_stitching,
+            buffer_size,
+            self.config.processor.get("stitching_config", None),
+        )
+        self.stitcher = ConfigValidator.init_stitcher(stitching_config)
+
+    def _init_skip_checker(self) -> None:
+        """Initialize intelligent skip checker for incremental processing."""
+        self.skip_checker = PatchSkipChecker(
+            output_format=self.output_format,
+            architecture=self.architecture,
+            num_augmentations=self.config.processor.get("num_augmentations", 3),
+            augment=self.config.processor.get("augment", False),
+            validate_content=True,
+            min_file_size=1024,  # 1KB minimum
+            only_enriched_laz=self.only_enriched_laz,
+        )
+
+    def _init_dataset_manager(self) -> None:
+        """Initialize dataset manager if dataset mode is enabled."""
+        self.dataset_manager = None
+
+        if self.config.get("dataset", {}).get("enabled", False):
+            dataset_config = DatasetConfig(
+                train_ratio=self.config.dataset.get("train_ratio", 0.7),
+                val_ratio=self.config.dataset.get("val_ratio", 0.15),
+                test_ratio=self.config.dataset.get("test_ratio", 0.15),
+                random_seed=self.config.dataset.get("random_seed", 42),
+                split_by_tile=self.config.dataset.get("split_by_tile", True),
+                create_split_dirs=self.config.dataset.get("create_split_dirs", True),
+                patch_sizes=self.config.dataset.get(
+                    "patch_sizes", [int(self.patch_size)]
+                ),
+                balance_across_sizes=self.config.dataset.get(
+                    "balance_across_sizes", False
+                ),
+            )
+            self._dataset_config = dataset_config
+            logger.info("📊 Dataset mode enabled - will create train/val/test splits")
+        else:
+            self._dataset_config = None
+
+    def _init_tile_loader(self) -> None:
+        """Initialize tile loading module."""
+        self.tile_loader = TileLoader(self.config)
+
+    def _init_data_fetcher(self) -> None:
+        """
+        Initialize data fetcher for ground truth classification.
+
+        Supports BD TOPO®, BD Forêt®, RPG, and Cadastre data sources.
+        """
+        self.data_fetcher = None
+        logger.debug("Checking data sources configuration...")
+
+        if "data_sources" not in self.config:
+            logger.warning(
+                "⚠️  'data_sources' not found in config! "
+                "Ground truth data won't be loaded."
+            )
+            return
+
+        # Extract data source enablement flags
+        bd_topo_enabled, bd_topo_features = self._parse_bd_topo_config()
+        bd_foret_enabled = OmegaConf.select(
+            self.config, "data_sources.bd_foret_enabled", default=False
+        )
+        rpg_enabled = OmegaConf.select(
+            self.config, "data_sources.rpg_enabled", default=False
+        )
+        cadastre_enabled = OmegaConf.select(
+            self.config, "data_sources.cadastre_enabled", default=False
+        )
+
+        # Log enabled data sources
+        self._log_data_sources(
+            bd_topo_enabled, bd_foret_enabled, rpg_enabled, cadastre_enabled
+        )
+
+        # Initialize data fetcher if any source is enabled
+        if any([bd_topo_enabled, bd_foret_enabled, rpg_enabled, cadastre_enabled]):
+            self._create_data_fetcher(bd_topo_features, rpg_enabled)
+
+    def _parse_bd_topo_config(self) -> tuple[bool, Dict[str, bool]]:
+        """
+        Parse BD TOPO configuration (supports V4 flat and V5 nested).
+
+        Returns:
+            Tuple of (enabled, features_dict)
+        """
+        # Check nested structure FIRST (V5), then fall back to flat (V4)
+        bd_topo_enabled = OmegaConf.select(
+            self.config, "data_sources.bd_topo.enabled", default=False
+        )
+
+        if bd_topo_enabled:
+            # V5 nested structure
+            features = {
+                "buildings": OmegaConf.select(
+                    self.config,
+                    "data_sources.bd_topo.features.buildings",
+                    default=False,
+                ),
+                "roads": OmegaConf.select(
+                    self.config,
+                    "data_sources.bd_topo.features.roads",
+                    default=False,
+                ),
+                "water": OmegaConf.select(
+                    self.config,
+                    "data_sources.bd_topo.features.water",
+                    default=False,
+                ),
+                "vegetation": OmegaConf.select(
+                    self.config,
+                    "data_sources.bd_topo.features.vegetation",
+                    default=False,
+                ),
+                "bridges": OmegaConf.select(
+                    self.config,
+                    "data_sources.bd_topo.features.bridges",
+                    default=OmegaConf.select(
+                        self.config,
+                        "data_sources.bd_topo_bridges",
+                        default=False,
+                    ),
+                ),
+                "power_lines": OmegaConf.select(
+                    self.config,
+                    "data_sources.bd_topo.features.power_lines",
+                    default=OmegaConf.select(
+                        self.config,
+                        "data_sources.bd_topo_power_lines",
+                        default=False,
+                    ),
+                ),
+            }
+            logger.debug("Extracted BD TOPO features from nested config (V5)")
+        else:
+            # V4 flat structure (fallback)
+            features = {
+                "buildings": OmegaConf.select(
+                    self.config, "data_sources.bd_topo_buildings", default=False
+                ),
+                "roads": OmegaConf.select(
+                    self.config, "data_sources.bd_topo_roads", default=False
+                ),
+                "water": OmegaConf.select(
+                    self.config, "data_sources.bd_topo_water", default=False
+                ),
+                "vegetation": OmegaConf.select(
+                    self.config,
+                    "data_sources.bd_topo_vegetation",
+                    default=False,
+                ),
+                "bridges": OmegaConf.select(
+                    self.config, "data_sources.bd_topo_bridges", default=False
+                ),
+                "power_lines": OmegaConf.select(
+                    self.config,
+                    "data_sources.bd_topo_power_lines",
+                    default=False,
+                ),
+            }
+
+            # Check if ANY feature is enabled
+            bd_topo_enabled = any(features.values())
+
+            if bd_topo_enabled:
+                logger.debug("Extracted BD TOPO features from flat config (V4)")
+
+        return bd_topo_enabled, features
+
+    def _log_data_sources(
+        self,
+        bd_topo_enabled: bool,
+        bd_foret_enabled: bool,
+        rpg_enabled: bool,
+        cadastre_enabled: bool,
+    ) -> None:
+        """Log enabled data sources."""
+        logger.info(
+            f"   - BD TOPO®: " f"{'✅ Enabled' if bd_topo_enabled else '❌ Disabled'}"
+        )
+        logger.info(
+            f"   - BD Forêt®: " f"{'✅ Enabled' if bd_foret_enabled else '❌ Disabled'}"
+        )
+        logger.info(f"   - RPG: {'✅ Enabled' if rpg_enabled else '❌ Disabled'}")
+        logger.info(
+            f"   - Cadastre: " f"{'✅ Enabled' if cadastre_enabled else '❌ Disabled'}"
+        )
+
+    def _create_data_fetcher(
+        self, bd_topo_features: Dict[str, bool], rpg_enabled: bool
+    ) -> None:
+        """Create and initialize data fetcher with configuration."""
+        try:
+            from ..io.data_fetcher import DataFetchConfig, DataFetcher
+
+            cache_dir = Path(
+                OmegaConf.select(self.config, "cache_dir", default="data/cache")
+            )
+
+            # Create fetch configuration
+            fetch_config = DataFetchConfig(
+                include_buildings=bd_topo_features["buildings"],
+                include_roads=bd_topo_features["roads"],
+                include_water=bd_topo_features["water"],
+                include_vegetation=bd_topo_features["vegetation"],
+                include_bridges=bd_topo_features["bridges"],
+                include_power_lines=bd_topo_features["power_lines"],
+                # ... (other parameters)
+            )
+
+            self.data_fetcher = DataFetcher(cache_dir=cache_dir, config=fetch_config)
+            logger.info("✅ Data fetcher initialized successfully")
+            logger.info(f"   Cache directory: {cache_dir}")
+
+        except ImportError as e:
+            logger.error(f"❌ Could not initialize data fetcher: {e}")
+            logger.error("   Ground truth classification will NOT be applied")
+            logger.error("   Install required packages: pip install geopandas shapely")
+            self.data_fetcher = None
