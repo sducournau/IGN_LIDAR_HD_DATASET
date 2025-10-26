@@ -180,6 +180,8 @@ class GeometricRulesEngine:
         intensities: Optional[np.ndarray] = None,
         rgb: Optional[np.ndarray] = None,
         nir: Optional[np.ndarray] = None,
+        verticality: Optional[np.ndarray] = None,
+        preserve_ground_truth: bool = True,  # ✅ NEW: Preserve GT labels
     ) -> Tuple[np.ndarray, Dict[str, int]]:
         """
         Apply all geometric rules to improve classification.
@@ -192,6 +194,10 @@ class GeometricRulesEngine:
             intensities: Optional intensity values [N]
             rgb: Optional RGB values [N, 3] normalized to [0, 1]
             nir: Optional NIR values [N] normalized to [0, 1]
+            verticality: Optional verticality values [N] (0-1) for relaxed
+                classification rules
+            preserve_ground_truth: If True, only modify unclassified points
+                (ASPRS code 1). If False, all points can be reclassified.
 
         Returns:
             Tuple of:
@@ -203,51 +209,20 @@ class GeometricRulesEngine:
 
         logger.info("🔧 Applying geometric rules for classification refinement...")
 
-        # Rule 1: Road-vegetation disambiguation
-        if "roads" in ground_truth_features and ndvi is not None:
-            n_fixed = self.fix_road_vegetation_overlap(
-                points=points,
-                labels=updated_labels,
-                road_geometries=ground_truth_features["roads"],
-                ndvi=ndvi,
-            )
-            stats["road_vegetation_fixed"] = n_fixed
-            if n_fixed > 0:
-                logger.info(f"  ✓ Rule 1 (Road-Vegetation): Fixed {n_fixed:,} points")
-
-        # Rule 2: Building buffer zone classification with verticality
-        if "buildings" in ground_truth_features:
-            # Use clustered version if enabled (10-100× faster)
-            if self.use_clustering:
-                n_added = self.classify_building_buffer_zone_clustered(
-                    points=points,
-                    labels=updated_labels,
-                    building_geometries=ground_truth_features["buildings"],
-                )
-            else:
-                n_added = self.classify_building_buffer_zone(
-                    points=points,
-                    labels=updated_labels,
-                    building_geometries=ground_truth_features["buildings"],
-                )
-            stats["building_buffer_added"] = n_added
-            if n_added > 0:
-                method = "Clustered" if self.use_clustering else "Standard"
-                logger.info(
-                    f"  ✓ Rule 2 (Building Buffer - {method}): Added {n_added:,} points"
-                )
-
-        # Rule 2b: Verticality-based building classification
-        n_vertical = self.classify_by_verticality(
-            points=points, labels=updated_labels, ndvi=ndvi
-        )
-        stats["verticality_buildings_added"] = n_vertical
-        if n_vertical > 0:
+        # ✅ NEW: Create mask for points that can be modified
+        if preserve_ground_truth:
+            # Only unclassified points (code 1) can be modified
+            modifiable_mask = updated_labels == self.ASPRS_UNCLASSIFIED
+            n_modifiable = np.sum(modifiable_mask)
             logger.info(
-                f"  ✓ Rule 2b (Verticality): Added {n_vertical:,} building points"
+                f"  GT preservation enabled: {n_modifiable:,} modifiable points"
             )
+        else:
+            # All points can be modified
+            modifiable_mask = np.ones(len(points), dtype=bool)
 
-        # Rule 3: NDVI-based general refinement (multi-level)
+        # ✅ FIX Bug #3: Apply NDVI refinement FIRST (before geometric rules)
+        # This ensures NDVI-based labels are not overwritten by verticality rules
         if ndvi is not None:
             # Calculate height above ground for better vegetation sub-classification
             height = None
@@ -258,13 +233,83 @@ class GeometricRulesEngine:
                 )
 
             n_refined = self.apply_ndvi_refinement(
-                points=points, labels=updated_labels, ndvi=ndvi, height=height
+                points=points,
+                labels=updated_labels,
+                ndvi=ndvi,
+                height=height,
+                modifiable_mask=modifiable_mask,
             )
             stats["ndvi_refined"] = n_refined
             if n_refined > 0:
                 logger.info(
-                    f"  ✓ Rule 3 (Multi-Level NDVI): Refined {n_refined:,} points"
+                    f"  ✓ NDVI Refinement (First): Refined {n_refined:,} points"
                 )
+
+            # ✅ NEW: Protect NDVI-modified labels from future rules
+            # Points that were reclassified by NDVI should not be touched
+            # by geometric rules
+            ndvi_modified_mask = labels != updated_labels
+            if np.any(ndvi_modified_mask):
+                # Remove NDVI-modified points from modifiable mask
+                modifiable_mask = modifiable_mask & ~ndvi_modified_mask
+                n_protected = np.sum(ndvi_modified_mask)
+                logger.info(
+                    f"  NDVI labels protected: {n_protected:,} points "
+                    "locked from further modification"
+                )
+
+        # Rule 1: Road-vegetation disambiguation
+        if "roads" in ground_truth_features and ndvi is not None:
+            n_fixed = self.fix_road_vegetation_overlap(
+                points=points,
+                labels=updated_labels,
+                road_geometries=ground_truth_features["roads"],
+                ndvi=ndvi,
+                modifiable_mask=modifiable_mask,
+            )
+            stats["road_vegetation_fixed"] = n_fixed
+            if n_fixed > 0:
+                logger.info(
+                    f"  ✓ Rule 1 (Road-Vegetation): " f"Fixed {n_fixed:,} points"
+                )
+
+        # Rule 2: Building buffer zone classification with verticality
+        if "buildings" in ground_truth_features:
+            # Use clustered version if enabled (10-100× faster)
+            if self.use_clustering:
+                n_added = self.classify_building_buffer_zone_clustered(
+                    points=points,
+                    labels=updated_labels,
+                    building_geometries=ground_truth_features["buildings"],
+                    modifiable_mask=modifiable_mask,
+                )
+            else:
+                n_added = self.classify_building_buffer_zone(
+                    points=points,
+                    labels=updated_labels,
+                    building_geometries=ground_truth_features["buildings"],
+                    modifiable_mask=modifiable_mask,
+                )
+            stats["building_buffer_added"] = n_added
+            if n_added > 0:
+                method = "Clustered" if self.use_clustering else "Standard"
+                logger.info(
+                    f"  ✓ Rule 2 (Building Buffer - {method}): "
+                    f"Added {n_added:,} points"
+                )
+
+        # Rule 2b: Verticality-based building classification
+        n_vertical = self.classify_by_verticality(
+            points=points,
+            labels=updated_labels,
+            ndvi=ndvi,
+            modifiable_mask=modifiable_mask,
+        )
+        stats["verticality_buildings_added"] = n_vertical
+        if n_vertical > 0:
+            logger.info(
+                f"  ✓ Rule 2b (Verticality): " f"Added {n_vertical:,} building points"
+            )
 
         # Rule 4: Advanced spectral classification (if RGB + NIR available)
         if self.spectral_rules is not None and rgb is not None and nir is not None:
@@ -318,20 +363,26 @@ class GeometricRulesEngine:
         labels: np.ndarray,
         road_geometries: gpd.GeoDataFrame,
         ndvi: np.ndarray,
+        modifiable_mask: np.ndarray,
     ) -> int:
         """
-        Fix misclassified vegetation points on roads using vertical separation and NDVI.
+        Fix misclassified vegetation points on roads using vertical
+        separation and NDVI.
 
         Logic:
-        - Points above roads (e.g., tree canopy) with high NDVI -> keep as vegetation
+        - Points above roads (e.g., tree canopy) with high NDVI
+          -> keep as vegetation
         - Points on road surface with low NDVI -> reclassify to road
-        - Uses height difference and NDVI to determine if vegetation is ON road or ABOVE road
+        - Uses height difference and NDVI to determine if vegetation
+          is ON road or ABOVE road
 
         Args:
             points: XYZ coordinates [N, 3]
             labels: Classification labels [N] (modified in-place)
             road_geometries: GeoDataFrame with road polygons
             ndvi: NDVI values [N] for each point
+            modifiable_mask: Boolean mask [N] indicating which points
+                can be modified
 
         Returns:
             Number of points reclassified
@@ -341,7 +392,7 @@ class GeometricRulesEngine:
 
         n_fixed = 0
 
-        # Find points currently classified as vegetation
+        # Find points currently classified as vegetation AND modifiable
         vegetation_mask = np.isin(
             labels,
             [
@@ -350,6 +401,8 @@ class GeometricRulesEngine:
                 self.ASPRS_HIGH_VEGETATION,
             ],
         )
+        # ✅ NEW: Only process modifiable vegetation points
+        vegetation_mask = vegetation_mask & modifiable_mask
 
         if not np.any(vegetation_mask):
             return 0
@@ -423,6 +476,7 @@ class GeometricRulesEngine:
         points: np.ndarray,
         labels: np.ndarray,
         building_geometries: gpd.GeoDataFrame,
+        modifiable_mask: np.ndarray,
     ) -> int:
         """
         Classify unclassified points near buildings as building points.
@@ -436,6 +490,8 @@ class GeometricRulesEngine:
             points: XYZ coordinates [N, 3]
             labels: Classification labels [N] (modified in-place)
             building_geometries: GeoDataFrame with building polygons
+            modifiable_mask: Boolean mask [N] indicating which points
+                can be modified
 
         Returns:
             Number of points classified as building
@@ -445,8 +501,8 @@ class GeometricRulesEngine:
 
         n_added = 0
 
-        # Find unclassified points
-        unclassified_mask = labels == self.ASPRS_UNCLASSIFIED
+        # Find unclassified points that are modifiable
+        unclassified_mask = (labels == self.ASPRS_UNCLASSIFIED) & modifiable_mask
 
         if not np.any(unclassified_mask):
             return 0
@@ -513,20 +569,25 @@ class GeometricRulesEngine:
         points: np.ndarray,
         labels: np.ndarray,
         building_geometries: gpd.GeoDataFrame,
+        modifiable_mask: np.ndarray,
     ) -> int:
         """
-        Classify unclassified points near buildings using spatial clustering (10-100× faster).
+        Classify unclassified points near buildings using spatial
+        clustering (10-100× faster).
 
         Logic:
         1. Extract all unclassified points within building buffers
         2. Cluster points by spatial proximity
-        3. For each cluster, check height consistency with nearby buildings
+        3. For each cluster, check height consistency with nearby
+           buildings
         4. Classify entire clusters at once (batch processing)
 
         Args:
             points: XYZ coordinates [N, 3]
             labels: Classification labels [N] (modified in-place)
             building_geometries: GeoDataFrame with building polygons
+            modifiable_mask: Boolean mask [N] indicating which points
+                can be modified
 
         Returns:
             Number of points classified as building
@@ -534,8 +595,8 @@ class GeometricRulesEngine:
         if len(building_geometries) == 0:
             return 0
 
-        # Find unclassified points
-        unclassified_mask = labels == self.ASPRS_UNCLASSIFIED
+        # Find unclassified points that are modifiable
+        unclassified_mask = (labels == self.ASPRS_UNCLASSIFIED) & modifiable_mask
         if not np.any(unclassified_mask):
             return 0
 
@@ -626,11 +687,14 @@ class GeometricRulesEngine:
         labels: np.ndarray,
         ndvi: np.ndarray,
         height: Optional[np.ndarray] = None,
+        modifiable_mask: Optional[np.ndarray] = None,
     ) -> int:
         """
-        Apply multi-level NDVI-based refinement for all classification types.
+        Apply multi-level NDVI-based refinement for all classification
+        types.
 
-        Uses multi-level NDVI thresholds aligned with advanced_classification.py:
+        Uses multi-level NDVI thresholds aligned with
+        advanced_classification.py:
         - Dense forest (≥0.60): HIGH vegetation
         - Healthy trees (≥0.50): HIGH/MED vegetation
         - Moderate vegetation (≥0.40): MEDIUM vegetation
@@ -639,32 +703,46 @@ class GeometricRulesEngine:
         - Road/impervious (≤0.15): Non-vegetation
 
         Logic:
-        - High NDVI points classified as non-vegetation -> reclassify to vegetation (multi-level)
-        - Low NDVI points classified as vegetation -> check if should be non-vegetation
-        - Unclassified points with clear NDVI signal -> classify (multi-level)
+        - High NDVI points classified as non-vegetation -> reclassify
+          to vegetation (multi-level)
+        - Low NDVI points classified as vegetation -> check if should
+          be non-vegetation
+        - Unclassified points with clear NDVI signal -> classify
+          (multi-level)
 
         Args:
             points: XYZ coordinates [N, 3]
             labels: Classification labels [N] (modified in-place)
             ndvi: NDVI values [N] for each point
-            height: Optional height above ground [N] for sub-classification
+            height: Optional height above ground [N] for
+                sub-classification
+            modifiable_mask: Optional boolean mask [N] indicating which
+                points can be modified. If None, all points can be
+                modified.
 
         Returns:
             Number of points refined
         """
         n_refined = 0
 
-        # Rule 1: Non-vegetation with high NDVI -> vegetation (multi-level)
-        non_veg_mask = ~np.isin(
-            labels,
-            [
-                self.ASPRS_LOW_VEGETATION,
-                self.ASPRS_MEDIUM_VEGETATION,
-                self.ASPRS_HIGH_VEGETATION,
-                self.ASPRS_UNCLASSIFIED,
-                self.ASPRS_GROUND,
-                self.ASPRS_WATER,  # Keep water as water
-            ],
+        # Create modifiable mask if not provided
+        if modifiable_mask is None:
+            modifiable_mask = np.ones(len(points), dtype=bool)
+
+        # Rule 1: Non-vegetation with high NDVI -> vegetation
+        # (multi-level)
+        non_veg_mask = (
+            ~np.isin(
+                labels,
+                [
+                    self.ASPRS_LOW_VEGETATION,
+                    self.ASPRS_MEDIUM_VEGETATION,
+                    self.ASPRS_HIGH_VEGETATION,
+                    self.ASPRS_UNCLASSIFIED,
+                    self.ASPRS_GROUND,
+                ],
+            )
+            & modifiable_mask
         )
 
         # Multi-level NDVI classification for non-vegetation
@@ -728,15 +806,20 @@ class GeometricRulesEngine:
             labels[sparse_veg] = self.ASPRS_LOW_VEGETATION
             n_refined += np.sum(sparse_veg)
 
-        # Rule 2: Vegetation with very low NDVI -> might be misclassified
-        # (Be conservative here - only very low NDVI, below road threshold)
-        veg_mask = np.isin(
-            labels,
-            [
-                self.ASPRS_LOW_VEGETATION,
-                self.ASPRS_MEDIUM_VEGETATION,
-                self.ASPRS_HIGH_VEGETATION,
-            ],
+        # Rule 2: Vegetation with very low NDVI -> might be
+        # misclassified
+        # (Be conservative here - only very low NDVI, below road
+        # threshold)
+        veg_mask = (
+            np.isin(
+                labels,
+                [
+                    self.ASPRS_LOW_VEGETATION,
+                    self.ASPRS_MEDIUM_VEGETATION,
+                    self.ASPRS_HIGH_VEGETATION,
+                ],
+            )
+            & modifiable_mask
         )
         very_low_ndvi_veg = veg_mask & (ndvi <= self.NDVI_ROAD)  # Below road threshold
 
@@ -745,8 +828,9 @@ class GeometricRulesEngine:
             labels[very_low_ndvi_veg] = self.ASPRS_UNCLASSIFIED
             n_refined += np.sum(very_low_ndvi_veg)
 
-        # Rule 3: Unclassified with clear NDVI signal -> classify (multi-level)
-        unclassified_mask = labels == self.ASPRS_UNCLASSIFIED
+        # Rule 3: Unclassified with clear NDVI signal -> classify
+        # (multi-level)
+        unclassified_mask = (labels == self.ASPRS_UNCLASSIFIED) & modifiable_mask
 
         # Dense forest (NDVI ≥ 0.60) -> HIGH vegetation
         dense_forest_unc = unclassified_mask & (ndvi >= self.NDVI_DENSE_FOREST)
@@ -811,23 +895,33 @@ class GeometricRulesEngine:
         return n_refined
 
     def classify_by_verticality(
-        self, points: np.ndarray, labels: np.ndarray, ndvi: Optional[np.ndarray] = None
+        self,
+        points: np.ndarray,
+        labels: np.ndarray,
+        ndvi: Optional[np.ndarray] = None,
+        modifiable_mask: Optional[np.ndarray] = None,
     ) -> int:
         """
-        Classify unclassified points as buildings based on verticality analysis.
+        Classify unclassified points as buildings based on verticality
+        analysis.
 
-        Verticality measures how vertically aligned points are in a local neighborhood,
+        Verticality measures how vertically aligned points are in a
+        local neighborhood,
         which is a strong indicator of building walls and structures.
 
         Logic:
         - Compute verticality score for unclassified points
         - High verticality + low NDVI = likely building
-        - Check height consistency with nearby classified building points
+        - Check height consistency with nearby classified building
+          points
 
         Args:
             points: XYZ coordinates [N, 3]
             labels: Classification labels [N] (modified in-place)
             ndvi: Optional NDVI values [N] to exclude vegetation
+            modifiable_mask: Optional boolean mask [N] indicating which
+                points can be modified. If None, all points can be
+                modified.
 
         Returns:
             Number of points classified as building
@@ -836,6 +930,10 @@ class GeometricRulesEngine:
 
         # Find unclassified points
         unclassified_mask = labels == self.ASPRS_UNCLASSIFIED
+
+        # Apply modifiable mask if provided
+        if modifiable_mask is not None:
+            unclassified_mask = unclassified_mask & modifiable_mask
 
         if not np.any(unclassified_mask):
             return 0

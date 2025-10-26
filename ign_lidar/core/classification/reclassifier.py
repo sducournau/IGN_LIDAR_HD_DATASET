@@ -18,17 +18,21 @@ Date: October 16, 2025
 
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Literal
+from typing import Dict, Literal, Optional, Tuple
+
 import numpy as np
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
+# ✅ Import centralized priority system
+from ign_lidar.core.classification.priorities import get_priority_order_for_iteration
+
 # Import CPU spatial libraries
 try:
+    import geopandas as gpd
     from shapely.geometry import Point
     from shapely.strtree import STRtree
-    import geopandas as gpd
 
     HAS_SPATIAL = True
 except ImportError:
@@ -46,9 +50,9 @@ except ImportError:
 
 # Import GPU libraries (RAPIDS)
 try:
+    import cudf
     import cupy as cp
     import cuspatial
-    import cudf
 
     HAS_GPU = True
     logger.info("✅ GPU acceleration available (RAPIDS cuSpatial)")
@@ -186,17 +190,13 @@ class OptimizedReclassifier:
             else:
                 self.acceleration_mode = acceleration_mode
 
-        # Classification priority (lower in list = higher priority, overwrites previous)
+        # ✅ FIXED: Use centralized priority system
+        # Priority order for sequential processing (lowest to highest)
+        # Later features in the list overwrite earlier ones
+        feature_priority = get_priority_order_for_iteration()
+
         self.priority_order = [
-            ("vegetation", self.ASPRS_MEDIUM_VEGETATION),
-            ("water", self.ASPRS_WATER),
-            ("cemeteries", self.ASPRS_CEMETERY),
-            ("parking", self.ASPRS_PARKING),
-            ("sports", self.ASPRS_SPORTS),
-            ("railways", self.ASPRS_RAIL),
-            ("roads", self.ASPRS_ROAD),
-            ("bridges", self.ASPRS_BRIDGE),
-            ("buildings", self.ASPRS_BUILDING),  # Highest priority
+            (feature, self._get_asprs_code(feature)) for feature in feature_priority
         ]
 
         logger.info("🚀 Optimized Reclassifier initialized")
@@ -209,6 +209,29 @@ class OptimizedReclassifier:
             logger.info(f"   Backend: GPU (RAPIDS cuSpatial)")
         elif self.acceleration_mode == "gpu+cuml":
             logger.info(f"   Backend: GPU+cuML (Full RAPIDS stack)")
+
+    def _get_asprs_code(self, feature_name: str) -> int:
+        """
+        Get ASPRS code for a feature type.
+
+        Args:
+            feature_name: Feature type (e.g., 'buildings', 'roads')
+
+        Returns:
+            ASPRS classification code
+        """
+        mapping = {
+            "buildings": self.ASPRS_BUILDING,
+            "roads": self.ASPRS_ROAD,
+            "water": self.ASPRS_WATER,
+            "vegetation": self.ASPRS_MEDIUM_VEGETATION,
+            "bridges": self.ASPRS_BRIDGE,
+            "railways": self.ASPRS_RAIL,
+            "sports": self.ASPRS_SPORTS,
+            "parking": self.ASPRS_PARKING,
+            "cemeteries": self.ASPRS_CEMETERY,
+        }
+        return mapping.get(feature_name, self.ASPRS_UNCLASSIFIED)
 
     def reclassify(
         self,
