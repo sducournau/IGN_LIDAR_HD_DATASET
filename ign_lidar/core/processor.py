@@ -60,12 +60,19 @@ from .classification.reclassifier import (
     OptimizedReclassifier,
     reclassify_tile_optimized,
 )
+from .classification_applier import ClassificationApplier
 from .gpu_context import disable_gpu_for_multiprocessing
 
 # Optimization factory for intelligent strategy selection
 from .optimization_factory import auto_optimize_config, optimization_factory
+from .output_writer import OutputWriter
+from .patch_extractor import PatchExtractor
 from .processing_metadata import ProcessingMetadata
+
+# Phase 2: Refactored components (v3.4.0)
+from .processor_core import ProcessorCore
 from .skip_checker import PatchSkipChecker
+from .tile_processor import TileProcessor
 
 # Note: FeatureComputer has been replaced by FeatureOrchestrator in Phase 4.3
 
@@ -1405,6 +1412,106 @@ class LiDARProcessor:
             logger.warning(
                 f"⚠️  {len(laz_files) - success_count} tiles failed to prefetch (will retry during processing)"
             )
+
+    def process_tile_v2(
+        self,
+        laz_file: Path,
+        output_dir: Path,
+        tile_idx: int = 0,
+        total_tiles: int = 0,
+        skip_existing: bool = True,
+    ) -> int:
+        """
+        Process a single LAZ tile using refactored TileProcessor (v3.4.0).
+
+        This is the NEW facade-style method that delegates to TileProcessor.
+        It replaces the monolithic _process_tile_core() with clean component orchestration.
+
+        Args:
+            laz_file: Path to LAZ file
+            output_dir: Output directory
+            tile_idx: Current tile index (for progress display)
+            total_tiles: Total number of tiles (for progress display)
+            skip_existing: Skip processing if patches already exist
+
+        Returns:
+            Number of patches created (0 if skipped)
+
+        Note:
+            This method uses the new component architecture:
+            - ProcessorCore: Configuration & initialization
+            - TileProcessor: Orchestrates all processing steps
+            - ClassificationApplier: Ground truth & classification
+            - PatchExtractor: Patch extraction
+            - OutputWriter: Multi-format output
+
+        See Also:
+            process_tile: Original method (backward compatible)
+            TileProcessor: Core processing coordinator
+        """
+        progress_prefix = f"[{tile_idx}/{total_tiles}]" if total_tiles > 0 else ""
+
+        # Skip check (metadata-based + output-based)
+        if skip_existing:
+            # Check metadata
+            metadata_mgr = ProcessingMetadata(output_dir)
+            should_reprocess, reprocess_reason = metadata_mgr.should_reprocess(
+                laz_file.stem, self.config
+            )
+
+            if not should_reprocess:
+                logger.info(
+                    f"{progress_prefix} ⏭️  {laz_file.name}: "
+                    f"Already processed with same config, skipping"
+                )
+                return 0
+
+            # Check outputs if no metadata
+            if reprocess_reason == "no_metadata_found":
+                should_skip, skip_info = self.skip_checker.should_skip_tile(
+                    tile_path=laz_file,
+                    output_dir=output_dir,
+                    expected_patches=None,
+                )
+
+                if should_skip:
+                    logger.info(f"{progress_prefix} ⏭️  {laz_file.name}: {skip_info}")
+                    return 0
+
+        # Initialize TileProcessor (lazy initialization for backward compatibility)
+        if not hasattr(self, "_tile_processor"):
+            logger.info("🚀 Initializing TileProcessor with refactored components...")
+
+            # Create component instances
+            patch_extractor = PatchExtractor(self.config)
+            classification_applier = ClassificationApplier(
+                self.config, self.data_fetcher
+            )
+            output_writer = OutputWriter(self.config, self.dataset_manager)
+
+            # Create TileProcessor coordinator
+            self._tile_processor = TileProcessor(
+                config=self.config,
+                feature_orchestrator=self.feature_orchestrator,
+                patch_extractor=patch_extractor,
+                classification_applier=classification_applier,
+                output_writer=output_writer,
+                tile_loader=self.tile_loader,
+            )
+
+            logger.info("✅ TileProcessor initialized successfully")
+
+        # Delegate to TileProcessor
+        num_patches = self._tile_processor.process_tile(
+            laz_file=laz_file,
+            output_dir=output_dir,
+            tile_data=None,  # TileProcessor will load if needed
+            prefetched_ground_truth=None,  # TODO: Pass if available
+            progress_prefix=progress_prefix,
+            tile_split=None,  # TODO: Extract from dataset_manager if needed
+        )
+
+        return num_patches
 
     def _process_tile_with_data(
         self,
