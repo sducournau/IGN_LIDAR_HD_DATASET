@@ -11,13 +11,13 @@ The module is organized into:
 - base: Abstract base classes and common interfaces
 - utils: Shared utility functions
 - adaptive: AdaptiveBuildingClassifier
-- detection: BuildingDetector  
+- detection: BuildingDetector
 - clustering: BuildingClusterer
 - fusion: BuildingFusion
 
 Usage:
     from ign_lidar.core.classification.building import AdaptiveBuildingClassifier
-    
+
     classifier = AdaptiveBuildingClassifier(mode='asprs')
     result = classifier.classify(points)
 
@@ -35,7 +35,7 @@ from .base import (
     BuildingClassifierBase,
     BuildingDetectorBase,
     BuildingClustererBase,
-    BuildingFusionBase
+    BuildingFusionBase,
 )
 
 # Utility functions
@@ -46,11 +46,13 @@ try:
     from .adaptive import (
         AdaptiveBuildingClassifier,
         BuildingFeatureSignature,
-        PointBuildingScore
+        PointBuildingScore,
     )
+
     _HAS_ADAPTIVE = True
 except ImportError as e:
     import logging
+
     logging.getLogger(__name__).warning(f"Failed to import adaptive module: {e}")
     AdaptiveBuildingClassifier = None
     BuildingFeatureSignature = None
@@ -58,7 +60,12 @@ except ImportError as e:
     _HAS_ADAPTIVE = False
 
 try:
-    from .detection import BuildingDetector, BuildingDetectionMode, BuildingDetectionConfig
+    from .detection import (
+        BuildingDetector,
+        BuildingDetectionMode,
+        BuildingDetectionConfig,
+    )
+
     _HAS_DETECTION = True
 except ImportError:
     BuildingDetector = None
@@ -68,6 +75,7 @@ except ImportError:
 
 try:
     from .clustering import BuildingClusterer, BuildingCluster
+
     _HAS_CLUSTERING = True
 except ImportError:
     BuildingClusterer = None
@@ -76,6 +84,7 @@ except ImportError:
 
 try:
     from .fusion import BuildingFusion, PolygonQuality
+
     _HAS_FUSION = True
 except ImportError:
     BuildingFusion = None
@@ -87,11 +96,13 @@ try:
         Building3DExtruder,
         BoundingBox3D,
         FloorSegment,
-        create_3d_bboxes_from_ground_truth
+        create_3d_bboxes_from_ground_truth,
     )
+
     _HAS_EXTRUSION_3D = True
 except ImportError as e:
     import logging
+
     logging.getLogger(__name__).warning(f"Failed to import 3D extrusion module: {e}")
     Building3DExtruder = None
     BoundingBox3D = None
@@ -99,74 +110,54 @@ except ImportError as e:
     create_3d_bboxes_from_ground_truth = None
     _HAS_EXTRUSION_3D = False
 
-try:
-    from .adaptive_polygon_buffer import (
-        AdaptivePolygonBuffer,
-        AdaptiveBufferConfig,
-        BuildingBoundaryAnalysis
-    )
-    from .adaptive_integration import (
-        AdaptiveGroundTruthProcessor,
-        integrate_adaptive_buffering_with_wfs
-    )
-    _HAS_ADAPTIVE_BUFFERING = True
-except ImportError as e:
-    import logging
-    logging.getLogger(__name__).warning(f"Failed to import adaptive buffering module: {e}")
-    AdaptivePolygonBuffer = None
-    AdaptiveBufferConfig = None
-    BuildingBoundaryAnalysis = None
-    AdaptiveGroundTruthProcessor = None
-    integrate_adaptive_buffering_with_wfs = None
-    _HAS_ADAPTIVE_BUFFERING = False
+# Adaptive polygon buffering and integration modules are planned for future implementation
+# These features are currently integrated directly into the adaptive classifier
+AdaptivePolygonBuffer = None
+AdaptiveBufferConfig = None
+BuildingBoundaryAnalysis = None
+AdaptiveGroundTruthProcessor = None
+integrate_adaptive_buffering_with_wfs = None
+_HAS_ADAPTIVE_BUFFERING = False
 
 __all__ = [
     # Enumerations
-    'BuildingMode',
-    'BuildingSource',
-    'ClassificationConfidence',
-    
+    "BuildingMode",
+    "BuildingSource",
+    "ClassificationConfidence",
     # Base classes
-    'BuildingConfigBase',
-    'BuildingClassificationResult',
-    'BuildingClassifierBase',
-    'BuildingDetectorBase',
-    'BuildingClustererBase',
-    'BuildingFusionBase',
-    
+    "BuildingConfigBase",
+    "BuildingClassificationResult",
+    "BuildingClassifierBase",
+    "BuildingDetectorBase",
+    "BuildingClustererBase",
+    "BuildingFusionBase",
     # Utilities module (consolidated spatial operations, bbox utilities)
-    'utils',
-    
+    "utils",
     # Adaptive building classifier
-    'AdaptiveBuildingClassifier',
-    'BuildingFeatureSignature',
-    'PointBuildingScore',
-    
+    "AdaptiveBuildingClassifier",
+    "BuildingFeatureSignature",
+    "PointBuildingScore",
     # Building detection
-    'BuildingDetector',
-    'BuildingDetectionMode',
-    'BuildingDetectionConfig',
-    
+    "BuildingDetector",
+    "BuildingDetectionMode",
+    "BuildingDetectionConfig",
     # Building clustering
-    'BuildingClusterer',
-    'BuildingCluster',
-    
+    "BuildingClusterer",
+    "BuildingCluster",
     # Building fusion
-    'BuildingFusion',
-    'PolygonQuality',
-    
+    "BuildingFusion",
+    "PolygonQuality",
     # 3D Extrusion (uses consolidated bbox utilities from utils)
-    'Building3DExtruder',
-    'BoundingBox3D',
-    'FloorSegment',
-    'create_3d_bboxes_from_ground_truth',
-    
+    "Building3DExtruder",
+    "BoundingBox3D",
+    "FloorSegment",
+    "create_3d_bboxes_from_ground_truth",
     # Adaptive Polygon Buffering (v3.3.0)
-    'AdaptivePolygonBuffer',
-    'AdaptiveBufferConfig',
-    'BuildingBoundaryAnalysis',
-    'AdaptiveGroundTruthProcessor',
-    'integrate_adaptive_buffering_with_wfs',
+    "AdaptivePolygonBuffer",
+    "AdaptiveBufferConfig",
+    "BuildingBoundaryAnalysis",
+    "AdaptiveGroundTruthProcessor",
+    "integrate_adaptive_buffering_with_wfs",
 ]
 
-__version__ = '3.3.1'  # Bumped for module consolidation
+__version__ = "3.3.1"  # Bumped for module consolidation

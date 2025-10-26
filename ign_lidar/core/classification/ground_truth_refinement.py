@@ -52,10 +52,16 @@ class GroundTruthRefinementConfig:
 
     # Building polygon adjustment
     BUILDING_BUFFER_EXPAND = 0.5  # Expand building polygons by 0.5m
-    BUILDING_HEIGHT_MIN = 1.5  # Minimum height for buildings
-    BUILDING_PLANARITY_MIN = 0.65  # Minimum planarity for building surfaces
-    BUILDING_NDVI_MAX = 0.20  # Maximum NDVI (buildings not vegetation)
-    BUILDING_VERTICAL_THRESHOLD = 0.6  # Minimum verticality for walls
+    BUILDING_HEIGHT_MIN = (
+        0.5  # ✅ IMPROVED: Abaissé de 1.5→0.5m pour capturer façades basses
+    )
+    BUILDING_PLANARITY_MIN = 0.60  # ✅ IMPROVED: Abaissé de 0.65→0.60 pour surfaces de bâtiments moins planaires
+    BUILDING_NDVI_MAX = (
+        0.25  # ✅ IMPROVED: Augmenté de 0.20→0.25 pour tolérer végétation proche
+    )
+    BUILDING_VERTICAL_THRESHOLD = (
+        0.5  # ✅ IMPROVED: Abaissé de 0.6→0.5 pour capturer plus de murs/façades
+    )
 
 
 class GroundTruthRefiner:
@@ -141,12 +147,28 @@ class GroundTruthRefiner:
 
         # Criterion 2: Planarity (water should be very flat)
         if planarity is not None:
-            planarity_valid = (
-                planarity[water_candidates] >= self.config.WATER_PLANARITY_MIN
+            # Filter out NaN/Inf before comparison to prevent silent rejection
+            candidate_planarity = planarity[water_candidates]
+            is_finite = np.isfinite(candidate_planarity)
+
+            planarity_valid = is_finite & (
+                candidate_planarity >= self.config.WATER_PLANARITY_MIN
             )
             valid_water &= planarity_valid
             n_planarity_invalid = np.sum(~planarity_valid)
-            if n_planarity_invalid > 0:
+
+            # Log if artifacts detected
+            n_invalid_features = np.sum(~is_finite)
+            if n_invalid_features > 0:
+                validation_reasons.append(
+                    f"planarity: {n_planarity_invalid} rejected "
+                    f"({n_invalid_features} with NaN/Inf artifacts)"
+                )
+                logger.warning(
+                    f"      ⚠️  {n_invalid_features} water candidates have "
+                    f"invalid planarity (NaN/Inf)"
+                )
+            elif n_planarity_invalid > 0:
                 validation_reasons.append(f"planarity: {n_planarity_invalid} rejected")
 
         # Criterion 3: Curvature (water should be smooth)
@@ -270,12 +292,28 @@ class GroundTruthRefiner:
 
         # Criterion 2: Planarity (roads should be very flat)
         if planarity is not None:
-            planarity_valid = (
-                planarity[road_candidates] >= self.config.ROAD_PLANARITY_MIN
+            # Filter out NaN/Inf before comparison to prevent silent rejection
+            candidate_planarity = planarity[road_candidates]
+            is_finite = np.isfinite(candidate_planarity)
+
+            planarity_valid = is_finite & (
+                candidate_planarity >= self.config.ROAD_PLANARITY_MIN
             )
             valid_road &= planarity_valid
             n_planarity_invalid = np.sum(~planarity_valid)
-            if n_planarity_invalid > 0:
+
+            # Log if artifacts detected
+            n_invalid_features = np.sum(~is_finite)
+            if n_invalid_features > 0:
+                validation_reasons.append(
+                    f"planarity: {n_planarity_invalid} rejected "
+                    f"({n_invalid_features} with NaN/Inf artifacts)"
+                )
+                logger.warning(
+                    f"      ⚠️  {n_invalid_features} road candidates have "
+                    f"invalid planarity (NaN/Inf) - features may be corrupted"
+                )
+            elif n_planarity_invalid > 0:
                 validation_reasons.append(f"planarity: {n_planarity_invalid} rejected")
 
         # Criterion 3: Curvature (roads should be smooth)
@@ -575,15 +613,31 @@ class GroundTruthRefiner:
 
         # Criterion 2: Planarity or Verticality (buildings have flat or vertical surfaces)
         if planarity is not None and verticality is not None:
+            # Filter out NaN/Inf before comparison to prevent silent rejection
+            candidate_planarity = planarity[building_candidates]
+            candidate_verticality = verticality[building_candidates]
+            is_finite_plan = np.isfinite(candidate_planarity)
+            is_finite_vert = np.isfinite(candidate_verticality)
+
             # Either high planarity (roofs) or high verticality (walls)
             geometry_valid = (
-                planarity[building_candidates] >= self.config.BUILDING_PLANARITY_MIN
+                is_finite_plan
+                & (candidate_planarity >= self.config.BUILDING_PLANARITY_MIN)
             ) | (
-                verticality[building_candidates]
-                >= self.config.BUILDING_VERTICAL_THRESHOLD
+                is_finite_vert
+                & (candidate_verticality >= self.config.BUILDING_VERTICAL_THRESHOLD)
             )
             valid_building &= geometry_valid
             n_geometry_invalid = np.sum(~geometry_valid)
+
+            # Log if artifacts detected
+            n_invalid_plan = np.sum(~is_finite_plan)
+            n_invalid_vert = np.sum(~is_finite_vert)
+            if n_invalid_plan > 0 or n_invalid_vert > 0:
+                logger.warning(
+                    f"      ⚠️  Building candidates with invalid features: "
+                    f"{n_invalid_plan} planarity, {n_invalid_vert} verticality NaN/Inf"
+                )
             if n_geometry_invalid > 0:
                 logger.info(
                     f"      - Geometry: {n_geometry_invalid} rejected (neither flat nor vertical)"

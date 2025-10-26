@@ -1120,8 +1120,24 @@ class FeatureOrchestrator:
         allowed_features = set(self.get_feature_list(mode))
 
         # Always keep core features regardless of mode
-        core_features = {"normals", "curvature", "height", "intensity", "return_number"}
+        core_features = {
+            "normals",
+            "curvature",
+            "height",
+            "intensity",
+            "return_number",
+            "is_ground",
+            "is_synthetic",
+        }
         allowed_features.update(core_features)
+
+        # Always keep cluster ID features if they were computed
+        # These are ground-truth-based spatial features
+        cluster_features = {
+            "building_cluster_id",
+            "parcel_cluster_id",
+        }
+        allowed_features.update(cluster_features)
 
         # Handle spectral features: if mode defines 'red', 'green', 'blue' individually,
         # also allow 'rgb' as a combined feature (and vice versa)
@@ -1318,6 +1334,26 @@ class FeatureOrchestrator:
                 f"  🔽 Filtered to {len(all_features)} features for mode {self.feature_mode.value}"
             )
 
+        # ✅ PHASE 2: Validate features before use
+        from .validation import validate_features, check_feature_sanity
+
+        if not check_feature_sanity(all_features, points):
+            logger.error("Feature sanity check failed!")
+
+        # Fix invalid values (NaN, Inf, out-of-range)
+        all_features, issue_counts = validate_features(
+            all_features, fix_invalid=True, verbose=True
+        )
+
+        if issue_counts:
+            logger.info(
+                f"  ✅ Validated features: fixed {sum(issue_counts.values())} "
+                f"invalid values in {len(issue_counts)} features"
+            )
+
+        # Log feature quality metrics for debugging
+        self._log_feature_quality(all_features)
+
         # V5 OPTIMIZATION: Cache results and update performance metrics
         processing_time = time.time() - start_time
 
@@ -1335,6 +1371,43 @@ class FeatureOrchestrator:
             self._update_performance_metrics(processing_time, len(points))
 
         return all_features
+
+    def _log_feature_quality(self, features: Dict[str, np.ndarray]) -> None:
+        """
+        Log feature quality metrics for debugging artifacts.
+
+        Helps identify numerical instability issues in geometric features.
+        """
+        quality_report = []
+
+        # Check critical geometric features
+        for name in ["planarity", "linearity", "horizontality", "verticality"]:
+            if name not in features:
+                continue
+
+            values = features[name]
+            n_total = len(values)
+
+            # Count edge values (potential artifacts after clamping)
+            n_zero = np.sum(values == 0.0)
+            n_one = np.sum(values == 1.0)
+            n_invalid = np.sum(~np.isfinite(values))
+
+            # Only report if significant issues detected
+            pct_zero = 100 * n_zero / n_total
+            pct_one = 100 * n_one / n_total
+
+            if n_invalid > 0 or pct_zero > 5.0 or pct_one > 5.0:
+                quality_report.append(
+                    f"{name}: {n_zero} at 0.0 ({pct_zero:.1f}%), "
+                    f"{n_one} at 1.0 ({pct_one:.1f}%), "
+                    f"{n_invalid} invalid"
+                )
+
+        if quality_report:
+            logger.info("  📊 Feature Quality Check:")
+            for line in quality_report:
+                logger.info(f"      {line}")
 
     def _compute_geometric_features(
         self,
@@ -1899,28 +1972,30 @@ class FeatureOrchestrator:
         """
         Add optional cluster ID features for spatial object grouping.
 
-        Computes two types of cluster IDs:
-        1. building_cluster_id: Points grouped by building polygon
-        2. parcel_cluster_id: Points grouped by cadastral parcel
+        Computes two types of cluster IDs (strict polygon containment):
+        1. building_cluster_id: Points inside building polygons (NO buffering)
+        2. parcel_cluster_id: Points inside cadastral parcel polygons (NO buffering)
 
         These features are optional and only computed if:
         - compute_building_cluster_id or compute_parcel_cluster_id is True in config
         - Ground truth geometries are available
 
+        IMPORTANT: Uses STRICT polygon containment without buffering.
+        Only points strictly inside polygons get cluster IDs.
+
         Args:
             tile_data: Tile data dict (must contain 'points')
             all_features: Features dict to update
         """
-        processor_cfg = self.config.get("processor", {})
         features_cfg = self.config.get("features", {})
 
-        # Check if cluster ID features are requested
+        # Check which cluster ID features are requested
         compute_building_clusters = features_cfg.get(
             "compute_building_cluster_id", False
         )
         compute_parcel_clusters = features_cfg.get("compute_parcel_cluster_id", False)
 
-        if not compute_building_clusters and not compute_parcel_clusters:
+        if not (compute_building_clusters or compute_parcel_clusters):
             return  # No cluster IDs requested
 
         try:
@@ -1932,18 +2007,18 @@ class FeatureOrchestrator:
             points = tile_data["points"]
             ground_truth_features = tile_data.get("ground_truth_features", {})
 
-            # Building cluster IDs
+            # Building cluster IDs (strict containment, no buffering)
             if compute_building_clusters:
                 buildings = ground_truth_features.get("buildings")
                 if buildings is not None and len(buildings) > 0:
-                    # 🔥 CRITICAL FIX: Apply adaptive buffers to buildings for better facade capture
                     logger.info(
-                        f"  🏢 Computing building cluster IDs for {len(buildings)} buildings..."
+                        f"  🏢 Computing building cluster IDs for {len(buildings)} buildings "
+                        f"(strict polygon containment, no buffering)..."
                     )
-                    buffered_buildings = self._apply_building_buffers(buildings, points)
 
+                    # Use original buildings WITHOUT buffering
                     building_ids = compute_building_cluster_ids(
-                        points, buffered_buildings
+                        points, buildings  # Use unbuffered polygons
                     )
                     all_features["building_cluster_id"] = building_ids
 
@@ -1961,10 +2036,15 @@ class FeatureOrchestrator:
                         "  ⚠️  Building cluster IDs requested but no building geometries available"
                     )
 
-            # Parcel cluster IDs
+            # Parcel cluster IDs (strict containment, no buffering)
             if compute_parcel_clusters:
                 parcels = ground_truth_features.get("parcels")
                 if parcels is not None and len(parcels) > 0:
+                    logger.info(
+                        f"  📦 Computing parcel cluster IDs for {len(parcels)} parcels "
+                        f"(strict polygon containment)..."
+                    )
+
                     parcel_ids = compute_parcel_cluster_ids(points, parcels)
                     all_features["parcel_cluster_id"] = parcel_ids
 

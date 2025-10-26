@@ -142,8 +142,11 @@ class CPUStrategy(BaseFeatureStrategy):
             result["roughness"] = features.get(
                 "roughness", features["curvature"]
             ).astype(np.float32)
+            # ✅ FIXED: Verticality was inverted (walls got low scores)
+            # Correct formula: verticality = 1 - |normal_z|
             result["verticality"] = features.get(
-                "verticality", np.abs(features["normals"][:, 2])
+                "verticality",
+                np.clip(1.0 - np.abs(features["normals"][:, 2]), 0.0, 1.0),
             ).astype(np.float32)
             result["density"] = features.get(
                 "density", np.ones(n_points, dtype=np.float32)

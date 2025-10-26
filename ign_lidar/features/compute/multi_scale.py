@@ -206,16 +206,16 @@ class MultiScaleFeatureComputer:
 
                 # 🔥 MORE AGGRESSIVE: Use chunking if estimated memory > 30% of available (was 50%)
                 if total_memory_mb > 0.3 * available_mb:
-                    # Target chunks that use ~15% of available memory (was 20%)
-                    target_chunk_mb = 0.15 * available_mb
+                    # Target chunks that use ~20% of available memory (increased from 15%)
+                    target_chunk_mb = 0.20 * available_mb
                     chunk_size = int(
                         (target_chunk_mb * 1024**2)
                         / (bytes_per_point_per_scale * len(self.scales))
                     )
-                    # 🔥 MORE CONSERVATIVE: Lower max chunk size
+                    # 🔥 BALANCED: Allow larger chunks for systems with sufficient RAM
                     chunk_size = max(
-                        100_000, min(chunk_size, 3_000_000, n_points)
-                    )  # Cap at 3M points
+                        100_000, min(chunk_size, 5_000_000, n_points)
+                    )  # Cap at 5M points (increased from 3M)
                     logger.info(
                         f"🔄 Auto-enabling chunked processing: "
                         f"chunk_size={chunk_size:,} "
@@ -225,7 +225,7 @@ class MultiScaleFeatureComputer:
             except ImportError:
                 # psutil not available, very conservative chunking
                 if n_points > 5_000_000:  # LOWERED from 10M to 5M
-                    chunk_size = 2_000_000  # REDUCED from 5M to 2M
+                    chunk_size = 5_000_000  # Allow 5M chunks (increased from 2M)
                     logger.info(
                         f"🔄 Using chunked processing: " f"chunk_size={chunk_size:,}"
                     )
@@ -461,20 +461,27 @@ class MultiScaleFeatureComputer:
 
         n_points = len(points)
 
-        # Query neighbors using radius search (more artifact-resistant)
-        # Then ensure minimum k neighbors
+        # 🔥 ARTIFACT SUPPRESSION: Use hybrid radius + k-NN search
+        # This ensures consistent neighborhood sizes while adapting to point density
         neighbors_indices = []
         for i in range(n_points):
-            # Radius search
+            # Start with radius search (more stable for varying densities)
             indices = kdtree.query_ball_point(points[i], search_radius)
 
-            # Ensure minimum k neighbors
+            # Ensure minimum k neighbors for stable statistics
             if len(indices) < k_neighbors:
-                # Fall back to k-NN
+                # Fall back to k-NN to ensure sufficient neighborhood
                 _, knn_idx = kdtree.query(points[i], k=k_neighbors)
                 indices = (
                     knn_idx.tolist() if hasattr(knn_idx, "tolist") else list(knn_idx)
                 )
+            # 🔥 NEW: Cap maximum neighbors to avoid artifacts from over-sampling
+            elif len(indices) > k_neighbors * 3:
+                # Too many neighbors can cause over-smoothing artifacts
+                # Keep closest k_neighbors * 2 for stability
+                distances = np.linalg.norm(points[indices] - points[i], axis=1)
+                closest_idx = np.argsort(distances)[: k_neighbors * 2]
+                indices = [indices[j] for j in closest_idx]
 
             neighbors_indices.append(indices)
 
@@ -489,7 +496,21 @@ class MultiScaleFeatureComputer:
                 continue
 
             neighbors = points[neighbors_idx]
-            cov = compute_covariance_matrix(neighbors)
+
+            # 🔥 ARTIFACT SUPPRESSION: Weighted covariance matrix
+            # Weight points by inverse distance to reduce influence of outliers
+            distances = np.linalg.norm(neighbors - points[i], axis=1)
+            # Use Gaussian weighting: closer points have more influence
+            sigma = search_radius / 3.0  # Gaussian std = 1/3 of search radius
+            weights = np.exp(-0.5 * (distances / sigma) ** 2)
+            weights = weights / weights.sum()  # Normalize
+
+            # Compute weighted covariance matrix
+            centroid = np.average(neighbors, axis=0, weights=weights)
+            centered = neighbors - centroid
+            # Apply sqrt of weights to maintain proper covariance scale
+            weighted_centered = centered * np.sqrt(weights)[:, np.newaxis]
+            cov = np.dot(weighted_centered.T, weighted_centered) / len(neighbors_idx)
 
             # Compute eigenvalues and eigenvectors
             eigvals, eigvecs = np.linalg.eigh(cov)
@@ -501,10 +522,18 @@ class MultiScaleFeatureComputer:
             # Normal is eigenvector of smallest eigenvalue
             normals[i] = eigvecs[:, idx[2]]
 
+        # 🔥 ARTIFACT SUPPRESSION: Apply median filter to eigenvalues
+        # This reduces noise and scan line artifacts
+        eigenvalues = self._apply_spatial_median_filter(
+            eigenvalues, points, kdtree, filter_radius=search_radius * 0.5
+        )
+
         # Compute requested features using eigenvalues and normals
         result = {}
 
         if "normals" in features:
+            # 🔥 ARTIFACT SUPPRESSION: Smooth normals to reduce discontinuities
+            normals = self._smooth_normals(normals, points, kdtree, search_radius * 0.3)
             result["normals"] = normals
 
         if "linearity" in features:
@@ -530,6 +559,95 @@ class MultiScaleFeatureComputer:
             )
 
         return result
+
+    def _apply_spatial_median_filter(
+        self,
+        eigenvalues: np.ndarray,
+        points: np.ndarray,
+        kdtree: cKDTree,
+        filter_radius: float,
+    ) -> np.ndarray:
+        """
+        Apply spatial median filter to eigenvalues to reduce artifacts.
+
+        Args:
+            eigenvalues: Eigenvalue array [N, 3]
+            points: Point cloud [N, 3]
+            kdtree: KD-tree for spatial queries
+            filter_radius: Radius for median filtering
+
+        Returns:
+            Filtered eigenvalues [N, 3]
+        """
+        n_points = len(eigenvalues)
+        filtered = np.copy(eigenvalues)
+
+        # Only filter if we have enough points (avoid overhead for small clouds)
+        if n_points < 100:
+            return filtered
+
+        # Apply median filter in spatial neighborhoods
+        for i in range(n_points):
+            neighbors_idx = kdtree.query_ball_point(points[i], filter_radius)
+            if len(neighbors_idx) >= 5:  # Need at least 5 for meaningful median
+                # Compute median of each eigenvalue separately
+                for j in range(3):
+                    filtered[i, j] = np.median(eigenvalues[neighbors_idx, j])
+
+        return filtered.astype(np.float32)
+
+    def _smooth_normals(
+        self,
+        normals: np.ndarray,
+        points: np.ndarray,
+        kdtree: cKDTree,
+        smooth_radius: float,
+    ) -> np.ndarray:
+        """
+        Smooth normal vectors to reduce discontinuities and artifacts.
+
+        Uses bilateral filtering: smooth in space but preserve sharp edges.
+
+        Args:
+            normals: Normal vectors [N, 3]
+            points: Point cloud [N, 3]
+            kdtree: KD-tree for spatial queries
+            smooth_radius: Radius for smoothing
+
+        Returns:
+            Smoothed normals [N, 3]
+        """
+        n_points = len(normals)
+        smoothed = np.copy(normals)
+
+        # Only smooth if we have enough points
+        if n_points < 100:
+            return smoothed
+
+        # Bilateral smoothing: preserve sharp edges (high normal variation)
+        for i in range(n_points):
+            neighbors_idx = kdtree.query_ball_point(points[i], smooth_radius)
+            if len(neighbors_idx) < 3:
+                continue
+
+            neighbor_normals = normals[neighbors_idx]
+
+            # Compute similarity weights based on normal alignment
+            # Points with similar normals get higher weight (preserve edges)
+            similarities = np.abs(np.dot(neighbor_normals, normals[i]))
+            # Use exponential weighting: high similarity = high weight
+            weights = np.exp(5.0 * (similarities - 1.0))  # Peaks at similarity=1
+            weights = weights / (weights.sum() + 1e-10)
+
+            # Weighted average of normals
+            smoothed[i] = np.average(neighbor_normals, axis=0, weights=weights)
+
+            # Re-normalize to unit length
+            norm = np.linalg.norm(smoothed[i])
+            if norm > 1e-6:
+                smoothed[i] = smoothed[i] / norm
+
+        return smoothed.astype(np.float32)
 
     def _compute_local_variance(
         self,

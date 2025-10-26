@@ -2082,9 +2082,13 @@ class LiDARProcessor:
 
                         # Create optimizer with auto-selection of best method
                         # GPU chunked for large datasets (>10M pts), GPU for medium, CPU STRtree for small
+                        # Use chunk_size from config (default 2M for CPU, 5M for GPU)
+                        chunk_size = self.config.ground_truth.get(
+                            "chunk_size", 2_000_000
+                        )
                         optimizer = GroundTruthOptimizer(
                             force_method="auto",  # Auto-select best method
-                            gpu_chunk_size=5_000_000,
+                            gpu_chunk_size=chunk_size,  # ✅ FIXED: Use config value
                             verbose=True,
                         )
 

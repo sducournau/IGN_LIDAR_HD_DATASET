@@ -127,7 +127,7 @@ class VariableObjectFilter:
             points: Point cloud [N, 3] (X, Y, Z)
             classification: ASPRS classifications [N]
             height_above_ground: Height above DTM [N]
-            features: Geometric features (verticality, planarity, etc.)
+            features: Geometric features (verticality, etc.)
 
         Returns:
             Tuple of:
@@ -383,33 +383,29 @@ class VariableObjectFilter:
         Filter walls and fences.
 
         Strategy:
-        - Height: 0.5-2.5m (typical wall/fence height)
+        - Height: >= 0.5m (minimum height, no upper limit)
         - Verticality: > 0.8 (vertical structures)
-        - Planarity: > 0.7 (smooth surfaces)
+        - Note: planarity not used (buggy with line artifacts)
 
         Args:
             classification: Point classifications
             height: Height above DTM
-            features: Geometric features (verticality, planarity)
+            features: Geometric features (verticality)
 
         Returns:
             Number of points filtered
         """
         verticality = features.get("verticality")
-        planarity = features.get("planarity")
 
-        if verticality is None or planarity is None:
-            logger.warning(
-                "    Verticality or planarity not available - skipping wall filtering"
-            )
+        if verticality is None:
+            logger.warning("    Verticality not available - skipping wall filtering")
             return 0
 
         # Wall criteria: height + geometry
-        wall_mask = (
-            (height >= self.wall_height_min)
-            & (height <= self.wall_height_max)
-            & (verticality >= self.wall_min_verticality)
-            & (planarity >= 0.7)
+        # Note: planarity removed due to line artifacts bug
+        # No upper height limit to detect walls of any height
+        wall_mask = (height >= self.wall_height_min) & (
+            verticality >= self.wall_min_verticality
         )
 
         n_walls = wall_mask.sum()
@@ -452,7 +448,7 @@ def apply_variable_object_filtering(
         classification: ASPRS classifications [N]
         height_above_ground: Height above DTM [N]
         config: Full configuration dict
-        features: Geometric features (verticality, planarity, etc.)
+        features: Geometric features (verticality, etc.)
 
     Returns:
         Tuple of:

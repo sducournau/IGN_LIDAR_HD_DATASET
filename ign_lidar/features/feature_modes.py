@@ -292,7 +292,11 @@ ASPRS_FEATURES = {
     "blue",  # RGB for visual classification
     "nir",  # NIR for vegetation (NDVI computation)
     "ndvi",  # Vegetation index (primary vegetation classifier)
-}  # Total: ~20 features (comprehensive set for ASPRS + enriched LAZ visualization)
+    # Cluster ID features (optional - for object-based analysis)
+    "cluster_id",  # General spatial clustering
+    "building_cluster_id",  # Building polygon membership
+    "parcel_cluster_id",  # Cadastral parcel membership
+}  # Total: ~23 features (ASPRS + enriched LAZ + cluster IDs)
 
 
 # PLANES: Plane-based features only (~8 features) - NEW for v3.x

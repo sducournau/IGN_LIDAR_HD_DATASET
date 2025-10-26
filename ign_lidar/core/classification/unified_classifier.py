@@ -483,7 +483,7 @@ class UnifiedClassifier(BaseClassifier):
             helpful_features={"curvature", "ndvi"},
             optional_features={"intensity", "brightness"},
             thresholds={
-                "height": (-0.2, 0.5),  # Strict DTM-based: -20cm to +50cm above ground
+                "height": (-0.2, 0.3),  # Strict DTM-based: -20cm to +30cm above ground
                 "planarity": (0.85, None),
                 "normal_z": (0.90, None),
                 "curvature": (None, 0.05),

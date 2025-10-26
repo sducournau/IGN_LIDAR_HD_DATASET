@@ -287,11 +287,17 @@ def compute_normals(
 
     # Build KD-tree and find neighbors
     from sklearn.neighbors import NearestNeighbors
+    import multiprocessing
 
     if search_radius is not None:
         logger.warning("Radius search not optimized - using k-NN instead")
 
-    nbrs = NearestNeighbors(n_neighbors=k_neighbors, algorithm="kd_tree", n_jobs=-1)
+    # ✅ FIXED: Avoid sklearn parallelism conflicts with multiprocessing
+    # If we're in a worker process, use n_jobs=1, otherwise use all cores
+    current_process = multiprocessing.current_process()
+    n_jobs = 1 if current_process.name != "MainProcess" else -1
+
+    nbrs = NearestNeighbors(n_neighbors=k_neighbors, algorithm="kd_tree", n_jobs=n_jobs)
     nbrs.fit(points)
     distances, indices = nbrs.kneighbors(points)
 
@@ -385,8 +391,14 @@ def compute_all_features_optimized(
 
     # Build KD-tree ONCE (fast and memory-efficient)
     from sklearn.neighbors import NearestNeighbors
+    import multiprocessing
 
-    nbrs = NearestNeighbors(n_neighbors=k_neighbors, algorithm="kd_tree", n_jobs=-1)
+    # ✅ FIXED: Avoid sklearn parallelism conflicts with multiprocessing
+    # If we're in a worker process, use n_jobs=1, otherwise use all cores
+    current_process = multiprocessing.current_process()
+    n_jobs = 1 if current_process.name != "MainProcess" else -1
+
+    nbrs = NearestNeighbors(n_neighbors=k_neighbors, algorithm="kd_tree", n_jobs=n_jobs)
     nbrs.fit(points)
 
     # MEMORY SAFETY: Query neighbors in chunks for large point clouds
