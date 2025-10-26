@@ -8,8 +8,7 @@ Extracted from LiDARProcessor as part of refactoring (v3.4.0).
 """
 
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from omegaconf import DictConfig
@@ -18,7 +17,6 @@ from .classification.patch_extractor import (
     AugmentationConfig,
     PatchConfig,
     extract_and_augment_patches,
-    format_patch_for_architecture,
 )
 
 logger = logging.getLogger(__name__)
@@ -57,19 +55,22 @@ class PatchExtractor:
         # Create patch configuration
         self.patch_config = PatchConfig(
             patch_size=self.patch_size,
-            num_points=self.num_points,
+            target_num_points=self.num_points,  # Correct parameter name
             overlap=self.patch_overlap,
+            min_points=config.processor.get("min_points_per_patch", 10000),
+            augment=self.augment,
+            num_augmentations=self.num_augmentations,
         )
 
         # Create augmentation configuration if enabled
         self.aug_config = None
         if self.augment:
             self.aug_config = AugmentationConfig(
-                rotation_range=config.processor.get("rotation_range", 360),
+                rotation_range=config.processor.get("rotation_range", 2 * np.pi),
                 jitter_sigma=config.processor.get("jitter_sigma", 0.01),
-                jitter_clip=config.processor.get("jitter_clip", 0.05),
-                scale_range=config.processor.get("scale_range", (0.8, 1.25)),
-                mirror_probability=config.processor.get("mirror_prob", 0.5),
+                scale_range=config.processor.get("scale_range", (0.95, 1.05)),
+                dropout_range=config.processor.get("dropout_range", (0.05, 0.15)),
+                apply_to_raw_points=config.processor.get("apply_to_raw_points", True),
             )
 
         logger.debug(
@@ -100,160 +101,35 @@ class PatchExtractor:
             - 'points': Patch point cloud [M, 3]
             - 'features': Patch features dict
             - 'classification': Patch classifications [M]
-            - 'patch_id': Unique patch identifier
+            - '_version': Patch version (original or augmented)
+            - '_patch_idx': Patch index
 
         Note:
-            Patches are extracted in a grid pattern with configurable overlap.
-            Patches with insufficient points are discarded.
+            Patches are extracted using the classification module's
+            extract_and_augment_patches function, which handles:
+            - Grid-based extraction with overlap
+            - Point count validation
+            - Data augmentation (if enabled)
+            - Architecture-specific formatting
         """
-        # Combine points, features, and classification
-        combined_data = self._combine_data(points, features, classification)
-
-        # Extract patches using grid-based approach
-        raw_patches = extract_and_augment_patches(
-            combined_data,
-            self.patch_config,
-            self.aug_config if self.augment else None,
-            num_augmentations=self.num_augmentations if self.augment else 0,
+        # Extract patches using the classification module's function
+        patches = extract_and_augment_patches(
+            points=points,
+            features=features,
+            labels=classification,
+            patch_config=self.patch_config,
+            augment_config=self.aug_config if self.augment else None,
+            architecture=self.architecture,
+            logger_instance=logger,
         )
-
-        # Validate and filter patches
-        valid_patches = self._validate_patches(raw_patches)
-
-        # Format patches for target architecture
-        formatted_patches = self._format_patches(valid_patches)
 
         logger.info(
-            f"Extracted {len(formatted_patches)} patches "
-            f"(from {len(raw_patches)} raw patches)"
+            f"Extracted {len(patches)} patches "
+            f"(patch_size={self.patch_size}m, "
+            f"target_points={self.num_points})"
         )
 
-        return formatted_patches
-
-    def _combine_data(
-        self,
-        points: np.ndarray,
-        features: Dict[str, np.ndarray],
-        classification: np.ndarray,
-    ) -> np.ndarray:
-        """
-        Combine points, features, and classification into single array.
-
-        Args:
-            points: XYZ coordinates [N, 3]
-            features: Feature dictionary
-            classification: Classification codes [N]
-
-        Returns:
-            Combined array [N, 3+F+1] where F is number of features
-        """
-        # Start with XYZ coordinates
-        combined = [points]
-
-        # Add features in consistent order
-        feature_names = sorted(features.keys())
-        for name in feature_names:
-            feat = features[name]
-            if feat.ndim == 1:
-                feat = feat.reshape(-1, 1)
-            combined.append(feat)
-
-        # Add classification as last column
-        combined.append(classification.reshape(-1, 1))
-
-        return np.hstack(combined)
-
-    def _validate_patches(
-        self, patches: List[np.ndarray]
-    ) -> List[np.ndarray]:
-        """
-        Validate patches and filter out invalid ones.
-
-        Args:
-            patches: List of raw patch arrays
-
-        Returns:
-            List of valid patches
-
-        Note:
-            Patches are considered invalid if:
-            - Too few points (< 50% of target)
-            - All points have same classification
-            - Contains NaN or Inf values
-        """
-        valid_patches = []
-        min_points = int(self.num_points * 0.5)
-
-        for i, patch in enumerate(patches):
-            # Check point count
-            if len(patch) < min_points:
-                logger.debug(
-                    f"Patch {i} discarded: too few points "
-                    f"({len(patch)} < {min_points})"
-                )
-                continue
-
-            # Check for NaN/Inf
-            if not np.all(np.isfinite(patch)):
-                logger.warning(f"Patch {i} discarded: contains NaN/Inf values")
-                continue
-
-            # Check classification diversity
-            classification = patch[:, -1].astype(int)
-            unique_classes = np.unique(classification)
-            if len(unique_classes) < 2:
-                logger.debug(
-                    f"Patch {i} discarded: single class "
-                    f"({unique_classes[0]})"
-                )
-                continue
-
-            valid_patches.append(patch)
-
-        return valid_patches
-
-    def _format_patches(
-        self, patches: List[np.ndarray]
-    ) -> List[Dict[str, np.ndarray]]:
-        """
-        Format patches for target ML architecture.
-
-        Args:
-            patches: List of valid patch arrays
-
-        Returns:
-            List of formatted patch dictionaries
-
-        Note:
-            Different architectures require different input formats:
-            - PointNet++: [N, 3+F] with separate classification
-            - DGCNN: [N, 3+F] with edge features
-            - PointCNN: [N, 3+F] with local ordering
-        """
-        formatted_patches = []
-
-        for i, patch in enumerate(patches):
-            # Separate coordinates, features, and classification
-            coords = patch[:, :3]
-            features = patch[:, 3:-1]
-            classification = patch[:, -1].astype(int)
-
-            # Format for architecture
-            formatted = format_patch_for_architecture(
-                coords=coords,
-                features=features,
-                classification=classification,
-                architecture=self.architecture,
-                num_points=self.num_points,
-            )
-
-            # Add patch metadata
-            formatted["patch_id"] = i
-            formatted["num_points_original"] = len(patch)
-
-            formatted_patches.append(formatted)
-
-        return formatted_patches
+        return patches
 
     def extract_patches_by_class(
         self,
@@ -291,14 +167,12 @@ class PatchExtractor:
         patches_by_class = {cls: [] for cls in target_classes}
 
         # Extract all patches
-        all_patches = self.extract_patches(
-            points, features, classification, metadata
-        )
+        all_patches = self.extract_patches(points, features, classification, metadata)
 
         # Group by dominant class
         for patch in all_patches:
             patch_classification = patch["classification"]
-            dominant_class = np.bincount(patch_classification).argmax()
+            dominant_class = int(np.bincount(patch_classification).argmax())
 
             if dominant_class in target_classes:
                 patches_by_class[dominant_class].append(patch)
