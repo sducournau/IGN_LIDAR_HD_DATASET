@@ -95,7 +95,7 @@
 **Extracted Functionality:**
 
 - Patch extraction from processed tiles
-- Multi-class patch extraction  
+- Multi-class patch extraction
 - Data augmentation coordination via classification module
 - Clean wrapper around `extract_and_augment_patches`
 
@@ -123,62 +123,51 @@
 
 ---
 
+#### Phase 2.2: ClassificationApplier Extraction
+
+**Status:** ✅ Complete  
+**Files Created:** `ign_lidar/core/classification_applier.py` (357 lines)
+
+**Extracted Functionality:**
+
+- Ground truth data fetching (BD TOPO, BD Forêt, RPG, Cadastre)
+- Optimized GPU-accelerated classification (GroundTruthOptimizer)
+- UnifiedClassifier integration with comprehensive strategy
+- ASPRS → LOD class mapping
+- Classification change tracking and reporting
+
+**Key Methods:**
+
+- `apply_class_mapping()` - ASPRS → LOD2/LOD3 mapping
+- `apply_ground_truth()` - Main ground truth application with bbox
+- `_apply_optimized_ground_truth()` - GPU-accelerated method
+- `_apply_unified_classifier()` - UnifiedClassifier with comprehensive strategy
+- `_log_classification_changes()` - Detailed change reporting
+
+**Configuration Support:**
+
+- Optimized vs. unified classifier selection
+- Building detection mode (asprs, comprehensive)
+- Transport detection mode (asprs_extended)
+- Chunk size for GPU processing (2M default)
+- NDVI refinement parameters
+- BD TOPO caching and road buffer tolerance
+
+**Impact:**
+
+- Extracted ~250 lines from `_process_tile_core()`
+- Clear separation of classification concerns
+- Easy to test classification logic independently
+- Better configurability and maintainability
+
+---
+
 ### 🔄 In Progress
-
-#### Phase 2.2: ClassificationApplier Extraction
-
-**Status:** 🔄 Next up  
-**Priority:** High
-
-**Scope:**
-
-- Ground truth application logic
-- ASPRS classification rules integration
-- Building/facade classification
-- Transport infrastructure classification
-- Multi-class confidence handling
-
-**Target Methods to Extract:**
-
-- Ground truth application from WFS
-- Classification rule engine coordination
-- Building polygon intersection
-- Road/railway classification
-- Confidence score management
-
-**Estimated Size:** ~200 lines
-
----
-
-### 📋 Upcoming Phases
-
-#### Phase 2.2: ClassificationApplier Extraction
-
-**Status:** 📋 Planned  
-**Estimated Size:** ~200 lines
-
-**Scope:**
-
-- Ground truth application logic
-- ASPRS classification rules integration
-- Building/facade classification
-- Transport infrastructure classification
-- Multi-class confidence handling
-
-**Target Methods to Extract:**
-
-- Ground truth application
-- Classification rule engine coordination
-- Building polygon intersection
-- Road/railway classification
-- Confidence score management
-
----
 
 #### Phase 2.3: OutputWriter Extraction
 
-**Status:** 📋 Planned  
-**Estimated Size:** ~200 lines
+**Status:** 🔄 Next up  
+**Priority:** High
 
 **Scope:**
 
@@ -188,13 +177,7 @@
 - Memory-efficient writing
 - Error handling for I/O operations
 
-**Target Methods to Extract:**
-
-- LAZ writing with features
-- NumPy array saving
-- HDF5 dataset creation
-- Pickle serialization
-- Metadata JSON generation
+**Estimated Size:** ~200 lines
 
 ---
 
@@ -270,8 +253,8 @@ class TileProcessor:
 ### Test Coverage
 
 - ProcessorCore: ✅ Created test file
-- PatchExtractor: ⏳ Needs tests
-- ClassificationApplier: ⏳ Not created
+- PatchExtractor: ✅ Complete (201 lines, API fixed)
+- ClassificationApplier: ✅ Complete (357 lines)
 - OutputWriter: ⏳ Not created
 - TileProcessor: ⏳ Not created
 
