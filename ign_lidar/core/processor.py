@@ -32,8 +32,8 @@ from ..features.architectural_styles import get_architectural_style_id
 from ..features.orchestrator import FeatureOrchestrator
 from ..io.metadata import MetadataManager
 
-# Classification module (unified in v3.1.0)
-from .classification import UnifiedClassifier, refine_classification_unified
+# Classification module (unified in v3.1.0, renamed in v3.3.0)
+from .classification import Classifier, refine_classification
 
 # Import refactored modules from classification package
 # Note: FeatureManager has been replaced by FeatureOrchestrator in Phase 4.3
@@ -55,10 +55,10 @@ from .classification.patch_extractor import (
     format_patch_for_architecture,
 )
 
-# Reclassification module (optimized)
+# Reclassification module
 from .classification.reclassifier import (
-    OptimizedReclassifier,
-    reclassify_tile_optimized,
+    Reclassifier,
+    reclassify_tile,
 )
 from .classification_applier import ClassificationApplier
 from .gpu_context import disable_gpu_for_multiprocessing
@@ -89,7 +89,154 @@ ProcessingMode = Literal["patches_only", "both", "enriched_only", "reclassify_on
 
 class LiDARProcessor:
     """
-    Main class for processing IGN LiDAR HD data into ML-ready datasets.
+    Main entry point for processing IGN LiDAR HD data into ML-ready datasets.
+
+    This is the **PUBLIC API** that users interact with directly. It provides high-level
+    orchestration for batch processing of LiDAR tiles with classification, feature extraction,
+    and dataset generation.
+
+    Architecture Overview:
+    =====================
+
+    LiDARProcessor (Public API - This Class)
+    │
+    ├─→ Configuration Management
+    │   ├─ Config validation and optimization
+    │   ├─ Hardware detection (GPU/CPU)
+    │   └─ Auto-tuning of processing parameters
+    │
+    ├─→ Batch Orchestration
+    │   ├─ Multi-tile processing
+    │   ├─ Progress tracking
+    │   ├─ Error handling and recovery
+    │   └─ Dataset management (train/val/test splits)
+    │
+    ├─→ TileProcessor (Tile-Level Processing)
+    │   ├─ Individual tile loading and validation
+    │   ├─ Ground truth integration (WFS, BD TOPO, etc.)
+    │   ├─ Feature computation orchestration
+    │   ├─ Classification application
+    │   ├─ Patch extraction
+    │   └─ Output generation (LAZ, NPZ, HDF5, etc.)
+    │   │
+    │   └─→ ProcessorCore (Low-Level Operations)
+    │       ├─ Spatial indexing (KD-tree)
+    │       ├─ Neighbor searches
+    │       ├─ Point cloud preprocessing
+    │       └─ Memory-efficient algorithms
+    │
+    ├─→ FeatureOrchestrator (Feature Management)
+    │   ├─ Feature mode selection (minimal/LOD2/LOD3/full)
+    │   ├─ CPU/GPU strategy selection
+    │   ├─ Geometric features (normals, curvature, planarity, etc.)
+    │   ├─ Multi-scale features (optional)
+    │   └─ Spectral features (RGB, NIR, NDVI)
+    │
+    └─→ Classification Subsystem
+        ├─ UnifiedClassifier (Ground truth integration)
+        ├─ Rule-based classification (geometric, spectral)
+        ├─ Building detection and refinement
+        ├─ Vegetation classification (NDVI-based)
+        └─ Transport infrastructure detection
+
+    Key Responsibilities:
+    ====================
+
+    1. **User Interface**: Simple, intuitive API for common workflows
+       ```python
+       processor = LiDARProcessor(config)
+       processor.process_tiles()
+       ```
+
+    2. **Batch Management**: Process multiple tiles efficiently
+       - Parallel processing support (multi-worker)
+       - Memory management and cleanup
+       - Progress tracking with tqdm
+       - Graceful error handling
+
+    3. **Configuration**: Unified config system with smart defaults
+       - Preset configurations (asprs_production, lod2_buildings, etc.)
+       - Hardware detection and auto-tuning
+       - Validation and conflict detection
+
+    4. **Dataset Generation**: Create ML-ready datasets
+       - Train/val/test splits
+       - Multiple output formats (NPZ, HDF5, LAZ, PyTorch)
+       - Metadata tracking
+       - Augmentation support
+
+    5. **Delegation**: Route work to specialized components
+       - TileProcessor for per-tile operations
+       - FeatureOrchestrator for feature computation
+       - ClassificationApplier for ground truth
+
+    When to Use:
+    ============
+
+    - **Batch processing** of LiDAR tiles from IGN LiDAR HD
+    - **Creating ML datasets** for building classification (LOD2/LOD3)
+    - **Enriching point clouds** with features and classifications
+    - **Production pipelines** with error recovery and monitoring
+
+    When NOT to Use:
+    ================
+
+    - Single-tile processing with custom logic → Use TileProcessor directly
+    - Feature computation only → Use FeatureOrchestrator directly
+    - Custom processing workflows → Use ProcessorCore and other components
+
+    Example Usage:
+    =============
+
+    Basic usage with preset:
+        >>> from ign_lidar.config import Config
+        >>> config = Config.preset('lod2_buildings')
+        >>> config.input_dir = '/data/lidar_tiles'
+        >>> config.output_dir = '/data/output'
+        >>>
+        >>> processor = LiDARProcessor(config)
+        >>> processor.process_tiles()
+
+    Advanced configuration:
+        >>> config = Config(
+        ...     input_dir='/data/lidar_tiles',
+        ...     output_dir='/data/output',
+        ...     mode='lod2',
+        ...     use_gpu=True,
+        ...     ground_truth={'bd_topo': {'buildings': True}},
+        ...     features={'use_rgb': True, 'compute_ndvi': True}
+        ... )
+        >>> processor = LiDARProcessor(config)
+        >>> results = processor.process_tiles()
+
+    Monitoring progress:
+        >>> for tile_path, result in processor.process_tiles():
+        ...     print(f"Processed {tile_path.name}: {result['num_patches']} patches")
+
+    Related Classes:
+    ===============
+
+    - **TileProcessor**: Per-tile orchestration (1 level down)
+    - **ProcessorCore**: Low-level operations (2 levels down)
+    - **FeatureOrchestrator**: Feature computation management
+    - **UnifiedClassifier**: Ground truth classification
+    - **DatasetManager**: ML dataset organization
+
+    Version History:
+    ===============
+
+    - v3.2: Unified Config class replacing multiple schemas
+    - v3.1: UnifiedClassifier replacing multiple classifier classes
+    - v3.0: GPU acceleration with CuPy/cuML support
+    - v2.x: Multi-scale features and architectural style detection
+    - v1.x: Initial release with LOD2/LOD3 support
+
+    See Also:
+    ========
+
+    - Documentation: https://sducournau.github.io/IGN_LIDAR_HD_DATASET/
+    - Examples: examples/quickstart/
+    - Architecture: docs/docs/architecture.md
     """
 
     def __init__(self, config: Union[DictConfig, Dict] = None, **kwargs):
@@ -1506,9 +1653,11 @@ class LiDARProcessor:
             laz_file=laz_file,
             output_dir=output_dir,
             tile_data=None,  # TileProcessor will load if needed
-            prefetched_ground_truth=None,  # TODO: Pass if available
+            # Feature request: Pass prefetched data (see OPTIMIZATION.md)
+            prefetched_ground_truth=None,
             progress_prefix=progress_prefix,
-            tile_split=None,  # TODO: Extract from dataset_manager if needed
+            # Feature request: Extract from dataset_manager (see OPTIMIZATION.md)
+            tile_split=None,
         )
 
         return num_patches
@@ -2214,13 +2363,11 @@ class LiDARProcessor:
                             )
 
                     else:
-                        # Use UnifiedClassifier with comprehensive strategy
-                        logger.info(
-                            "  Using UnifiedClassifier with comprehensive strategy"
-                        )
+                        # Use Classifier with comprehensive strategy
+                        logger.info("  Using Classifier with comprehensive strategy")
                         from .classification import (
+                            Classifier,
                             ClassificationStrategy,
-                            UnifiedClassifier,
                         )
 
                         # Get building and transport detection modes from config
@@ -2241,8 +2388,8 @@ class LiDARProcessor:
                         logger.info(f"  🔧 Building detection mode: {building_mode}")
                         logger.info(f"  🔧 Transport detection mode: {transport_mode}")
 
-                        # Create unified classifier with comprehensive strategy and appropriate config
-                        classifier = UnifiedClassifier(
+                        # Create classifier with comprehensive strategy and appropriate config
+                        classifier = Classifier(
                             strategy=ClassificationStrategy.COMPREHENSIVE,
                             use_ground_truth=True,
                             use_ndvi=self.config.features.get("compute_ndvi", False),
@@ -2448,7 +2595,7 @@ class LiDARProcessor:
                     logger.info(f"      Chunk size: {chunk_size:,}")
                     logger.info(f"      Geometric rules: {use_geometric_rules}")
 
-                    reclassifier = OptimizedReclassifier(
+                    reclassifier = Reclassifier(
                         chunk_size=chunk_size,
                         show_progress=show_progress,
                         acceleration_mode=acceleration_mode,
@@ -3475,7 +3622,7 @@ class LiDARProcessor:
         data_fetcher = DataFetcher(cache_dir=cache_dir, config=config)
 
         # Initialize reclassifier with acceleration mode
-        reclassifier = OptimizedReclassifier(
+        reclassifier = Reclassifier(
             chunk_size=chunk_size,
             show_progress=show_progress,
             acceleration_mode=acceleration_mode,

@@ -21,37 +21,39 @@ Date: October 20, 2025 (Migrated: October 22, 2025)
 """
 
 import logging
-from ..constants import ASPRSClass
-from typing import Optional, Dict, List, Tuple, TYPE_CHECKING
-import numpy as np
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-# Import from base module
-from .base import (
-    ClassificationConfidence,
-    BuildingClassifierBase,
-    BuildingConfigBase,
-    BuildingClassificationResult,
-    BuildingMode,
-)
+import numpy as np
+
+from ..constants import ASPRSClass
 
 # Import shared utilities
 from . import utils
 
+# Import from base module
+from .base import (
+    BuildingClassificationResult,
+    BuildingClassifierBase,
+    BuildingConfigBase,
+    BuildingMode,
+    ClassificationConfidence,
+)
+
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from shapely.geometry import Polygon, MultiPolygon, Point
     import geopandas as gpd
+    from shapely.geometry import MultiPolygon, Point, Polygon
 
 # Check spatial dependencies using utils
 HAS_SPATIAL = utils.check_spatial_dependencies()
 
 if HAS_SPATIAL:
-    from shapely.geometry import Point
-    from shapely.strtree import STRtree
     import geopandas as gpd
     from scipy.spatial import cKDTree
+    from shapely.geometry import Point
+    from shapely.strtree import STRtree
 
 
 @dataclass
@@ -162,11 +164,6 @@ class AdaptiveBuildingClassifier:
 
     # ASPRS class codes
     # Use ASPRSClass from constants module
-    
-    
-    
-    
-    
 
     def __init__(
         self,

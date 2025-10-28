@@ -1,0 +1,211 @@
+# =============================================================================
+# IGN LiDAR HD - LOD3 Roof Detection Configuration (v3.1)
+# =============================================================================
+# This configuration enables advanced roof type detection and architectural
+# detail classification for building LOD3 enhancement.
+#
+# Features:
+# - Automatic roof type classification (flat, gabled, hipped, complex)
+# - Ridge line detection
+# - Roof edge detection
+# - Dormer detection
+# - LOD3-specific ASPRS class codes (63-69)
+#
+# Requirements:
+# - Normal features must be computed (included in LOD2/LOD3 modes)
+# - Verticality features required (included in LOD2/LOD3 modes)
+# - Curvature features recommended for ridge detection
+# =============================================================================
+
+# Input/Output Configuration
+input_dir: /data/lidar/tiles
+output_dir: /data/lidar/output
+temp_dir: /tmp/ign_lidar
+
+# Processing Configuration
+processor:
+  lod_level: LOD3 # Required for roof classification
+  processing_mode: both # Create patches + enriched tiles
+  use_gpu: true
+  num_workers: 4
+
+  # Patch Configuration
+  patch_size: 150.0
+  num_points: 16384
+  overlap: 20.0
+  min_points: 1000
+
+  # Performance
+  cache_kd_trees: true
+  cache_rgb: true
+  chunk_size: 1000000
+
+# Feature Configuration
+features:
+  mode: lod3 # LOD3 mode includes all required features for roof classification
+  k_neighbors: 30
+  search_radius: 3.0
+
+  # Feature Groups
+  geometric: true
+  statistical: true
+  multi_scale: true
+
+  # Specific Features (LOD3 includes these automatically)
+  compute_normals: true
+  compute_verticality: true
+  compute_curvature: true
+  compute_planarity: true
+
+# Building Classification Configuration
+classification:
+  building_facade:
+    # === Core Facade Detection (v3.0) ===
+    enable: true
+    method: adaptive # adaptive or basic
+    min_building_area: 20.0
+    min_building_height: 2.5
+    facade_buffer: 0.5
+
+    # === LOD3 Roof Detection (v3.1) ===
+    # Enable roof type classification and architectural detail detection
+    enable_roof_classification: true
+
+    # Roof Type Classification Thresholds
+    # Controls sensitivity of slope-based type detection
+    roof_flat_threshold: 15.0 # Max slope (degrees) for flat roofs
+    roof_pitched_threshold: 20.0 # Min slope (degrees) for pitched roofs
+
+    # Roof Segmentation Parameters
+    # Fine-tune plane segmentation quality (advanced users)
+    # roof_dbscan_eps: 0.15        # DBSCAN epsilon for normal clustering
+    # roof_min_plane_points: 50    # Minimum points per roof plane
+
+    # Architectural Detail Detection
+    # Ridge detection uses curvature thresholds
+    # roof_ridge_curvature: 0.5    # Min curvature for ridge lines
+    # Dormer detection uses verticality thresholds
+    # roof_dormer_verticality: 0.5  # Min verticality for dormers
+
+    # === Adaptive Facade Parameters (v3.0.3) ===
+    enable_adaptive_rotation: true
+    enable_adaptive_scaling: true
+    adaptive_rotation_step: 5.0
+    adaptive_min_scale: 0.7
+    adaptive_max_scale: 1.3
+    adaptive_scale_step: 0.1
+
+    # === Facade Quality Thresholds ===
+    facade_min_points: 50
+    facade_coverage_threshold: 0.3
+    facade_height_ratio_min: 0.4
+
+    # === Edge Expansion ===
+    edge_expansion_radius: 0.3
+    edge_offset: 0.15
+
+# Data Source Configuration
+data_sources:
+  bd_topo:
+    # Building footprints
+    buildings: true
+    buffer: 2.0
+    crs: EPSG:2154
+
+    # Infrastructure for context
+    roads: true
+    railways: true
+    vegetation: true
+    water_bodies: true
+
+    # Advanced Options
+    cache_enabled: true
+    cache_duration: 3600
+    batch_size: 100
+
+# Dataset Configuration (PyTorch)
+dataset:
+  format: pytorch
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  shuffle: true
+  random_seed: 42
+
+# Logging Configuration
+logging:
+  level: INFO
+  file: logs/roof_detection.log
+  console: true
+  format: "%(asctime)s [%(levelname)s] %(message)s"
+# =============================================================================
+# Expected Output Classes (LOD3 with Roof Detection)
+# =============================================================================
+# Building Classes:
+#   58 - BUILDING_ROOF (generic roof, fallback)
+#   59 - BUILDING_FACADE
+#   60 - BUILDING_GROUND
+#   61 - BUILDING_DOOR
+#   62 - BUILDING_WINDOW
+#
+# LOD3 Roof Classes (v3.1):
+#   63 - BUILDING_ROOF_FLAT      # Flat roof surfaces
+#   64 - BUILDING_ROOF_GABLED    # Gabled/pitched roofs (2 planes)
+#   65 - BUILDING_ROOF_HIPPED    # Hipped roofs (3-4 planes)
+#   66 - BUILDING_ROOF_COMPLEX   # Complex roofs (5+ planes)
+#   67 - BUILDING_ROOF_RIDGE     # Ridge lines (high curvature)
+#   68 - BUILDING_ROOF_EDGE      # Roof edges/eaves
+#   69 - BUILDING_DORMER         # Dormer windows
+#
+# =============================================================================
+# Usage Examples
+# =============================================================================
+#
+# 1. Process with roof detection:
+#    ign-lidar process --config examples/production/asprs_roof_detection.yaml
+#
+# 2. Disable roof detection temporarily:
+#    ign-lidar process --config examples/production/asprs_roof_detection.yaml \
+#      --override classification.building_facade.enable_roof_classification=false
+#
+# 3. Adjust flat roof threshold:
+#    ign-lidar process --config examples/production/asprs_roof_detection.yaml \
+#      --override classification.building_facade.roof_flat_threshold=20.0
+#
+# 4. GPU-optimized processing:
+#    ign-lidar process --config examples/production/asprs_roof_detection.yaml \
+#      --override processor.use_gpu=true \
+#      --override processor.num_workers=1
+#
+# =============================================================================
+# Performance Considerations
+# =============================================================================
+#
+# Roof classification adds ~10-15% overhead to building processing:
+# - Typical processing time: +2-3 seconds per building
+# - Memory overhead: Minimal (<5% increase)
+# - GPU acceleration: Supported via feature computation
+#
+# Optimization Tips:
+# 1. Use GPU for large datasets (>1M points)
+# 2. Enable caching for repeated processing
+# 3. Reduce num_workers when using GPU (num_workers=1 recommended)
+# 4. Adjust thresholds based on building types in your region
+#
+# =============================================================================
+# Troubleshooting
+# =============================================================================
+#
+# Issue: No roofs classified
+# Solution: Ensure LOD3 mode enabled and normal/verticality features computed
+#
+# Issue: Too many complex roofs
+# Solution: Increase roof_flat_threshold (e.g., 20.0) to classify more as flat
+#
+# Issue: Missing ridge lines
+# Solution: Ensure curvature features computed, lower ridge_curvature threshold
+#
+# Issue: False dormer detections
+# Solution: Increase roof_dormer_verticality threshold (e.g., 0.6)
+#
+# =============================================================================

@@ -64,6 +64,76 @@ ign_lidar/
 3. **Orchestrator Pattern:** `FeatureOrchestrator` unifies feature management
 4. **Configuration Pattern:** Hydra-based hierarchical configuration
 
+## Serena MCP Code Intelligence (CRITICAL)
+
+**ALWAYS use Serena MCP tools for code exploration and modification.** Serena provides semantic code intelligence that understands the structure and relationships in your codebase.
+
+### When to Use Serena MCP
+
+**Code Exploration (REQUIRED before making changes):**
+
+- ✅ Use `mcp_oraios_serena_get_symbols_overview` to understand file structure before reading
+- ✅ Use `mcp_oraios_serena_find_symbol` to locate specific classes, functions, or methods
+- ✅ Use `mcp_oraios_serena_find_referencing_symbols` to understand where code is used
+- ✅ Use `mcp_oraios_serena_search_for_pattern` for flexible regex-based searches across files
+
+**Code Modification (PREFERRED over manual edits):**
+
+- ✅ Use `mcp_oraios_serena_replace_symbol_body` to update entire functions/classes
+- ✅ Use `mcp_oraios_serena_insert_before_symbol` to add imports or new code
+- ✅ Use `mcp_oraios_serena_insert_after_symbol` to append new functions/classes
+- ✅ Use `mcp_oraios_serena_rename_symbol` for safe refactoring across the codebase
+
+**Memory Management:**
+
+- ✅ Use `mcp_oraios_serena_list_memories` to check available project knowledge
+- ✅ Use `mcp_oraios_serena_read_memory` to load relevant project context
+- ✅ Use `mcp_oraios_serena_write_memory` to document important patterns for future use
+
+### Serena Workflow Example
+
+```
+# 1. Activate project
+mcp_oraios_serena_activate_project("/mnt/d/Users/Simon/OneDrive/Documents/GitHub/IGN_LIDAR_HD_DATASET")
+
+# 2. Check onboarding status
+mcp_oraios_serena_check_onboarding_performed()
+
+# 3. List available memories
+mcp_oraios_serena_list_memories()
+
+# 4. Get file overview (BEFORE reading entire file)
+mcp_oraios_serena_get_symbols_overview(relative_path="ign_lidar/features/orchestrator.py")
+
+# 5. Find specific symbol
+mcp_oraios_serena_find_symbol(
+    name_path="FeatureOrchestrator/compute_features",
+    relative_path="ign_lidar/features/orchestrator.py",
+    include_body=True
+)
+
+# 6. Find where it's used
+mcp_oraios_serena_find_referencing_symbols(
+    name_path="FeatureOrchestrator/compute_features",
+    relative_path="ign_lidar/features/orchestrator.py"
+)
+
+# 7. Make changes using symbolic edit
+mcp_oraios_serena_replace_symbol_body(
+    name_path="FeatureOrchestrator/compute_features",
+    relative_path="ign_lidar/features/orchestrator.py",
+    body="<new implementation>"
+)
+```
+
+### Critical Rules for Serena Usage
+
+1. **ALWAYS activate project first** using `mcp_oraios_serena_activate_project`
+2. **NEVER read entire files** without first checking `get_symbols_overview`
+3. **Use symbolic tools** for precise edits instead of regex replacements when possible
+4. **Find references** before modifying to ensure backward compatibility
+5. **Think before acting** using `mcp_oraios_serena_think_about_collected_information` and `mcp_oraios_serena_think_about_task_adherence`
+
 ## Coding Standards
 
 ### Code Modification Rules (CRITICAL)

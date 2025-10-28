@@ -30,7 +30,7 @@ class TestThresholdConsistency:
             GroundTruthRefinementConfig,
         )
         from ign_lidar.core.classification.geometric_rules import GeometricRulesEngine
-        from ign_lidar.core.classification.unified_classifier import UnifiedClassifier
+        from ign_lidar.core.classification.classifier import Classifier
 
         # Check GroundTruthRefinementConfig
         gt_config = GroundTruthRefinementConfig()
@@ -47,8 +47,8 @@ class TestThresholdConsistency:
             rules_engine.road_vegetation_height_threshold == 0.5
         ), f"GeometricRulesEngine.road_vegetation_height_threshold should be 0.5, got {rules_engine.road_vegetation_height_threshold}"
 
-        # Check UnifiedClassifier road rule
-        classifier = UnifiedClassifier()
+        # Check Classifier road rule
+        classifier = Classifier()
         rules = classifier._create_classification_rules()
         road_rule = rules["road"]
         height_thresholds = road_rule.thresholds["height"]
@@ -305,16 +305,16 @@ class TestGeometricRulesThresholds:
             assert True, "Low point with low NDVI correctly classified as road"
 
 
-class TestUnifiedClassifierRules:
+class TestClassifierRules:
     """Test unified classifier with new road thresholds."""
 
     def test_road_rule_thresholds(self):
         """
         Test that road rule in unified classifier uses correct thresholds.
         """
-        from ign_lidar.core.classification.unified_classifier import UnifiedClassifier
+        from ign_lidar.core.classification.classifier import Classifier
 
-        classifier = UnifiedClassifier()
+        classifier = Classifier()
         rules = classifier._create_classification_rules()
         road_rule = rules["road"]
 
@@ -341,13 +341,13 @@ class TestIntegration:
         from ign_lidar.core.classification import (
             GroundTruthRefiner,
             GeometricRulesEngine,
-            UnifiedClassifier,
+            Classifier,
         )
 
         # Create instances
         refiner = GroundTruthRefiner()
         rules = GeometricRulesEngine()
-        classifier = UnifiedClassifier()
+        classifier = Classifier()
 
         # Verify they all use consistent thresholds
         assert refiner.config.ROAD_HEIGHT_MAX == 0.3

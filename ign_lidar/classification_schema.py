@@ -104,8 +104,16 @@ class ASPRSClass(IntEnum):
     BUILDING_FACADE = 60  # Façade
     BUILDING_CHIMNEY = 61  # Cheminée
     BUILDING_BALCONY = 62  # Balcon
-    # 63-69: Reserved for future building subtypes
-    # Note: IGN uses classes 64-65 in some tiles (mapped to BUILDING)
+
+    # LOD3 Roof subtypes (63-69) - v3.1
+    BUILDING_ROOF_FLAT = 63  # Toit plat
+    BUILDING_ROOF_GABLED = 64  # Toit à pignon (2 pentes)
+    BUILDING_ROOF_HIPPED = 65  # Toit à 4 pentes
+    BUILDING_ROOF_COMPLEX = 66  # Toit complexe (mansarde, etc.)
+    BUILDING_ROOF_RIDGE = 67  # Faîtage (ligne de crête)
+    BUILDING_ROOF_EDGE = 68  # Bordure de toit
+    BUILDING_DORMER = 69  # Lucarne
+    # Note: IGN uses classes 64-65 in some tiles (now mapped to roof types)
 
     # Vegetation types (70-79)
     VEGETATION_TREE = 70  # Arbre

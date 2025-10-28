@@ -1,6 +1,7 @@
 # Configuration System v5.5 - Quick Reference
 
-**See [CONFIGURATION_GUIDE.md](CONFIGURATION_GUIDE.md) for detailed documentation.**
+> **📖 For comprehensive documentation, see [CONFIG_GUIDE.md](CONFIG_GUIDE.md)**  
+> **🇫🇷 Pour la documentation en français, voir [README.md](README.md)**
 
 ## 🚀 Quick Start
 

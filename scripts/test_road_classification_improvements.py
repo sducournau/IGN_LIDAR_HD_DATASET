@@ -15,7 +15,7 @@ import logging
 from typing import Tuple
 
 # Import du module de classification unifié
-from ign_lidar.core.classification import UnifiedClassifier
+from ign_lidar.core.classification import Classifier
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

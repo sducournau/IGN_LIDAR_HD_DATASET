@@ -15,12 +15,11 @@ Date: October 15, 2025
 """
 
 import logging
-from ..constants import ASPRSClass
-from typing import Optional, Dict, Any, Tuple
-from ..constants import ASPRSClass
 from enum import Enum
-from ..constants import ASPRSClass
+from typing import Any, Dict, Optional, Tuple
+
 import numpy as np
+
 from ..constants import ASPRSClass
 
 logger = logging.getLogger(__name__)
@@ -427,12 +426,12 @@ class BuildingDetector:
             "total": 0,
         }
 
-        
-
         # Strategy 1: Ground truth (highest priority)
         if ground_truth_mask is not None and self.config.use_ground_truth:
             if self.config.ground_truth_priority:
-                building_points = ground_truth_mask & (refined != int(ASPRSClass.BUILDING))
+                building_points = ground_truth_mask & (
+                    refined != int(ASPRSClass.BUILDING)
+                )
                 refined[building_points] = int(ASPRSClass.BUILDING)
                 stats["ground_truth"] = building_points.sum()
 

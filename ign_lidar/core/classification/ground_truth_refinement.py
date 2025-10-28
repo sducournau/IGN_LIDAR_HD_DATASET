@@ -11,18 +11,14 @@ Date: October 19, 2025
 """
 
 import logging
-from ..constants import ASPRSClass
 from typing import Dict, Optional, Tuple
-from ..constants import ASPRSClass
 
 import geopandas as gpd
-from ..constants import ASPRSClass
 import numpy as np
-from ..constants import ASPRSClass
 from shapely.geometry import MultiPolygon, Point, Polygon
-from ..constants import ASPRSClass
 from shapely.strtree import STRtree
-from ..constants import ASPRSClass
+
+from .constants import ASPRSClass
 
 logger = logging.getLogger(__name__)
 
@@ -82,13 +78,6 @@ class GroundTruthRefiner:
 
     # ASPRS class definitions
     # Use ASPRSClass from constants module
-    
-    
-    
-    
-    
-    
-    
 
     def __init__(self, config: Optional[GroundTruthRefinementConfig] = None):
         """Initialize refiner with configuration."""
@@ -280,8 +269,12 @@ class GroundTruthRefiner:
                     veg_indices = above_road_indices[vegetation_ndvi]
                     # Classify by height: >5m = HIGH, 2-5m = MEDIUM
                     high_veg_mask = height[veg_indices] > 5.0
-                    refined[veg_indices[high_veg_mask]] = int(ASPRSClass.HIGH_VEGETATION)
-                    refined[veg_indices[~high_veg_mask]] = int(ASPRSClass.MEDIUM_VEGETATION)
+                    refined[veg_indices[high_veg_mask]] = int(
+                        ASPRSClass.HIGH_VEGETATION
+                    )
+                    refined[veg_indices[~high_veg_mask]] = int(
+                        ASPRSClass.MEDIUM_VEGETATION
+                    )
                     n_reclassified = np.sum(vegetation_ndvi)
                     stats["elevated_roads_reclassified_vegetation"] = n_reclassified
                     logger.debug(
@@ -356,8 +349,12 @@ class GroundTruthRefiner:
                     canopy_indices = road_candidates[tree_canopy]
                     # Classify based on height
                     high_trees = height[canopy_indices] > 5.0
-                    refined[canopy_indices[high_trees]] = int(ASPRSClass.HIGH_VEGETATION)
-                    refined[canopy_indices[~high_trees]] = int(ASPRSClass.MEDIUM_VEGETATION)
+                    refined[canopy_indices[high_trees]] = int(
+                        ASPRSClass.HIGH_VEGETATION
+                    )
+                    refined[canopy_indices[~high_trees]] = int(
+                        ASPRSClass.MEDIUM_VEGETATION
+                    )
                     stats["road_vegetation_override"] = np.sum(tree_canopy)
 
             valid_road &= ndvi_valid
@@ -576,7 +573,9 @@ class GroundTruthRefiner:
         tree = STRtree(polygons_list)
 
         # Find unclassified or uncertain points
-        uncertain_mask = np.isin(labels, [int(ASPRSClass.UNCLASSIFIED), int(ASPRSClass.GROUND)])
+        uncertain_mask = np.isin(
+            labels, [int(ASPRSClass.UNCLASSIFIED), int(ASPRSClass.GROUND)]
+        )
         uncertain_indices = np.where(uncertain_mask)[0]
 
         if len(uncertain_indices) == 0:

@@ -1,0 +1,197 @@
+# Balcony & Horizontal Protrusion Detection Configuration (Phase 2.3)
+# =======================================================================
+# This configuration enables detection of horizontal architectural features
+# protruding from building facades: balconies, overhangs, and canopies.
+#
+# Version: 3.3.0
+# Feature: Phase 2.3 - Balcony & Overhang Detection
+# Date: January 2025
+
+# Input/Output Configuration
+input_dir: /path/to/laz/tiles
+output_dir: /path/to/output
+processing_mode: enriched_only # or 'both' for enriched + patches
+
+# Core Processor Configuration
+processor:
+  lod_level: LOD3 # Required for balcony detection
+  use_gpu: true
+  num_workers: 1 # Use 1 with GPU to avoid context issues
+
+  # Building Classification
+  building:
+    enabled: true
+
+    # Balcony Detection Settings
+    balcony_detection:
+      enabled: true
+
+      # Distance Thresholds
+      # ---------------------
+      # Minimum distance from facade to be considered a protrusion
+      # Filters out points too close to walls (likely part of facade)
+      min_distance_from_facade: 0.5 # meters
+      # Range: 0.3-0.8m
+      # - Lower (0.3m): Detect shallow features (e.g., small decorative overhangs)
+      # - Higher (0.8m): Only detect substantial protrusions
+
+      # Maximum protrusion depth from facade
+      # Prevents detecting features too far from building
+      max_balcony_depth: 3.0 # meters
+      # Range: 2.0-5.0m
+      # - Lower (2.0m): Conservative, only shallow balconies
+      # - Higher (5.0m): Include deep terraces/porches
+
+      # Height Thresholds
+      # ------------------
+      # Minimum height above ground to be considered a protrusion
+      # Filters out ground-level features (patios, steps)
+      min_height_above_ground: 2.0 # meters
+      # Range: 1.0-3.0m
+      # - Lower (1.0m): Detect low balconies/platforms
+      # - Higher (3.0m): Only elevated balconies
+
+      # Maximum height from roof (if detected)
+      # Prevents confusing roof features with balconies
+      max_height_from_roof: 2.0 # meters
+      # Range: 1.0-3.0m
+      # - Lower (1.0m): Strict roof separation
+      # - Higher (3.0m): Allow for complex roof geometries
+
+      # Point Density Requirements
+      # ---------------------------
+      # Minimum points required to form a valid balcony cluster
+      min_balcony_points: 25
+      # Range: 15-50 points
+      # - Lower (15): Detect smaller features with sparse data
+      # - Higher (50): Only well-defined large balconies
+
+      # Clustering Parameters (DBSCAN)
+      # -------------------------------
+      # Maximum distance between points in same cluster
+      dbscan_eps: 0.5 # meters
+      # Range: 0.3-0.8m
+      # - Lower (0.3m): Strict clustering, separate nearby balconies
+      # - Higher (0.8m): Merge adjacent features
+
+      # Minimum points to form a cluster core
+      dbscan_min_samples: 15
+      # Range: 10-25 points
+      # - Lower (10): More lenient clustering
+      # - Higher (25): Only dense, well-defined clusters
+
+      # Confidence Threshold
+      # --------------------
+      # Minimum confidence score to accept a detection
+      confidence_threshold: 0.5
+      # Range: 0.3-0.7
+      # - Lower (0.3): More detections, higher false positives
+      # - Higher (0.7): Fewer detections, higher precision
+
+# Feature Computation Configuration
+features:
+  mode: lod3 # Full geometric features required
+  k_neighbors: 30
+  search_radius: 3.0
+
+# Data Source Configuration
+data_sources:
+  bd_topo:
+    buildings: true
+    roads: false
+    vegetation: false
+    water: false
+
+# Memory Management
+memory:
+  chunk_size_mb: 100
+  max_memory_gb: 16
+
+# Logging
+logging:
+  level: INFO
+  log_file: logs/balcony_detection.log
+# Usage Examples
+# ==============
+# 1. Standard Residential Buildings (typical balconies)
+#    min_distance_from_facade: 0.5
+#    max_balcony_depth: 2.5
+#    min_balcony_points: 25
+#
+# 2. High-Density Urban (smaller balconies, noisy data)
+#    min_distance_from_facade: 0.4
+#    max_balcony_depth: 2.0
+#    min_balcony_points: 20
+#    dbscan_eps: 0.4
+#
+# 3. Large Terraces/Verandas (deep protrusions)
+#    min_distance_from_facade: 0.6
+#    max_balcony_depth: 5.0
+#    min_balcony_points: 40
+#    dbscan_eps: 0.8
+#
+# 4. Historic Buildings (complex overhangs)
+#    min_distance_from_facade: 0.3
+#    max_balcony_depth: 3.0
+#    min_height_above_ground: 1.5
+#    confidence_threshold: 0.4
+
+# Troubleshooting
+# ===============
+# Issue: No balconies detected despite visual confirmation
+# Solution: Lower min_distance_from_facade (0.3-0.4m) or reduce min_balcony_points (15-20)
+#
+# Issue: Too many false positives (facade irregularities detected)
+# Solution: Increase confidence_threshold (0.6-0.7) or min_balcony_points (30-40)
+#
+# Issue: Balconies merged with nearby features
+# Solution: Reduce dbscan_eps (0.3-0.4m) for stricter clustering
+#
+# Issue: Large terraces not detected
+# Solution: Increase max_balcony_depth (4.0-5.0m) and min_balcony_points (40-50)
+#
+# Issue: Ground-level patios detected as balconies
+# Solution: Increase min_height_above_ground (2.5-3.0m)
+
+# Performance Notes
+# =================
+# - Balcony detection adds ~15-25% overhead per building
+# - Memory usage: ~50-100MB per large building tile
+# - GPU acceleration recommended for large datasets
+# - Process enriched tiles only if you don't need ML patches
+# - Use num_workers=1 when use_gpu=true to avoid CUDA context issues
+
+# Classification Output
+# =====================
+# Detected features are assigned to point cloud with:
+# - Balcony flag (boolean)
+# - Protrusion type (0=none, 1=balcony, 2=overhang, 3=canopy)
+# - Confidence score (0.0-1.0)
+# - Facade side index (which facade the protrusion extends from)
+#
+# Results are saved in:
+# - Enriched LAZ tiles: output_dir/enriched/
+# - Detection logs: logs/balcony_detection.log
+# - Optional visualization: output_dir/visualizations/
+
+# Integration with Other Features
+# ================================
+# Balcony detection integrates with:
+# - Roof type detection (Phase 2.1): Distinguishes roof overhangs from balconies
+# - Chimney detection (Phase 2.2): Prevents confusing vertical superstructures
+# - LOD2/LOD3 classification: Uses protrusion info for building complexity assessment
+# - Facade segmentation: Identifies which facade segment each protrusion belongs to
+
+# Algorithm Overview
+# ==================
+# 1. Extract facade lines from building polygon
+# 2. Compute horizontal distance from each point to nearest facade
+# 3. Filter candidates: points beyond facade, reasonable depth, appropriate height
+# 4. Cluster candidate points using DBSCAN
+# 5. Classify each cluster based on geometry:
+#    - BALCONY: 2-15m height, 0.8-3m depth, 2-20m² area, mixed verticality
+#    - OVERHANG: >8m height, <1.5m depth, horizontal (low verticality)
+#    - CANOPY: 2-8m height, <2m depth, >3m² area, horizontal
+# 6. Compute confidence scores based on geometric consistency
+# 7. Filter by confidence threshold and minimum points
+# 8. Return classified protrusions with metadata

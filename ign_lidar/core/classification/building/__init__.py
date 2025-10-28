@@ -110,6 +110,93 @@ except ImportError as e:
     create_3d_bboxes_from_ground_truth = None
     _HAS_EXTRUSION_3D = False
 
+# Phase 2 LOD3 Detectors (v3.1-3.3)
+try:
+    from .roof_classifier import (
+        RoofTypeClassifier,
+        RoofType,
+        RoofSegment,
+        RoofClassificationResult,
+    )
+
+    _HAS_ROOF_CLASSIFIER = True
+except ImportError as e:
+    import logging
+
+    logging.getLogger(__name__).warning(f"Failed to import roof classifier: {e}")
+    RoofTypeClassifier = None
+    RoofType = None
+    RoofSegment = None
+    RoofClassificationResult = None
+    _HAS_ROOF_CLASSIFIER = False
+
+try:
+    from .chimney_detector import (
+        ChimneyDetector,
+        SuperstructureType,
+        SuperstructureSegment,
+        ChimneyDetectionResult,
+    )
+
+    _HAS_CHIMNEY_DETECTOR = True
+except ImportError as e:
+    import logging
+
+    logging.getLogger(__name__).warning(f"Failed to import chimney detector: {e}")
+    ChimneyDetector = None
+    SuperstructureType = None
+    SuperstructureSegment = None
+    ChimneyDetectionResult = None
+    _HAS_CHIMNEY_DETECTOR = False
+
+try:
+    from .balcony_detector import (
+        BalconyDetector,
+        ProtrusionType,
+        ProtrusionSegment,
+        BalconyDetectionResult,
+    )
+
+    _HAS_BALCONY_DETECTOR = True
+except ImportError as e:
+    import logging
+
+    logging.getLogger(__name__).warning(f"Failed to import balcony detector: {e}")
+    BalconyDetector = None
+    ProtrusionType = None
+    ProtrusionSegment = None
+    BalconyDetectionResult = None
+    _HAS_BALCONY_DETECTOR = False
+
+# Phase 2.4: Building Classifier (v3.4.0) - renamed from Enhanced
+try:
+    from .building_classifier import (
+        BuildingClassifier,
+        BuildingClassifierConfig,
+        BuildingClassificationResult,
+        classify_building,
+        # Deprecated aliases (remove in v4.0)
+        EnhancedBuildingClassifier,
+        EnhancedClassifierConfig,
+        EnhancedClassificationResult,
+        classify_building_enhanced,
+    )
+
+    _HAS_BUILDING_CLASSIFIER = True
+except ImportError as e:
+    import logging
+
+    logging.getLogger(__name__).warning(f"Failed to import building classifier: {e}")
+    BuildingClassifier = None
+    BuildingClassifierConfig = None
+    BuildingClassificationResult = None
+    classify_building = None
+    EnhancedBuildingClassifier = None
+    EnhancedClassifierConfig = None
+    EnhancedClassificationResult = None
+    classify_building_enhanced = None
+    _HAS_BUILDING_CLASSIFIER = False
+
 # Adaptive polygon buffering and integration modules are planned for future implementation
 # These features are currently integrated directly into the adaptive classifier
 AdaptivePolygonBuffer = None
@@ -152,6 +239,29 @@ __all__ = [
     "BoundingBox3D",
     "FloorSegment",
     "create_3d_bboxes_from_ground_truth",
+    # Phase 2 LOD3 Detectors (v3.1-3.3)
+    "RoofTypeClassifier",
+    "RoofType",
+    "RoofSegment",
+    "RoofClassificationResult",
+    "ChimneyDetector",
+    "SuperstructureType",
+    "SuperstructureSegment",
+    "ChimneyDetectionResult",
+    "BalconyDetector",
+    "ProtrusionType",
+    "ProtrusionSegment",
+    "BalconyDetectionResult",
+    # Phase 2.4: Building Classifier (v3.4.0)
+    "BuildingClassifier",
+    "BuildingClassifierConfig",
+    "BuildingClassificationResult",
+    "classify_building",
+    # Deprecated (remove in v4.0)
+    "EnhancedBuildingClassifier",
+    "EnhancedClassifierConfig",
+    "EnhancedClassificationResult",
+    "classify_building_enhanced",
     # Adaptive Polygon Buffering (v3.3.0)
     "AdaptivePolygonBuffer",
     "AdaptiveBufferConfig",
@@ -160,4 +270,4 @@ __all__ = [
     "integrate_adaptive_buffering_with_wfs",
 ]
 
-__version__ = "3.3.1"  # Bumped for module consolidation
+__version__ = "3.4.0"  # Bumped for enhanced building classifier integration
