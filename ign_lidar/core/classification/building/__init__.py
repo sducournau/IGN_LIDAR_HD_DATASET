@@ -168,25 +168,34 @@ except ImportError as e:
     BalconyDetectionResult = None
     _HAS_BALCONY_DETECTOR = False
 
-# Phase 2.4: Enhanced Building Classifier (v3.4.0)
+# Phase 2.4: Building Classifier (v3.4.0) - renamed from Enhanced
 try:
-    from .enhanced_classifier import (
+    from .building_classifier import (
+        BuildingClassifier,
+        BuildingClassifierConfig,
+        BuildingClassificationResult,
+        classify_building,
+        # Deprecated aliases (remove in v4.0)
         EnhancedBuildingClassifier,
         EnhancedClassifierConfig,
         EnhancedClassificationResult,
         classify_building_enhanced,
     )
 
-    _HAS_ENHANCED_CLASSIFIER = True
+    _HAS_BUILDING_CLASSIFIER = True
 except ImportError as e:
     import logging
 
-    logging.getLogger(__name__).warning(f"Failed to import enhanced classifier: {e}")
+    logging.getLogger(__name__).warning(f"Failed to import building classifier: {e}")
+    BuildingClassifier = None
+    BuildingClassifierConfig = None
+    BuildingClassificationResult = None
+    classify_building = None
     EnhancedBuildingClassifier = None
     EnhancedClassifierConfig = None
     EnhancedClassificationResult = None
     classify_building_enhanced = None
-    _HAS_ENHANCED_CLASSIFIER = False
+    _HAS_BUILDING_CLASSIFIER = False
 
 # Adaptive polygon buffering and integration modules are planned for future implementation
 # These features are currently integrated directly into the adaptive classifier
@@ -243,7 +252,12 @@ __all__ = [
     "ProtrusionType",
     "ProtrusionSegment",
     "BalconyDetectionResult",
-    # Phase 2.4: Enhanced Building Classifier (v3.4.0)
+    # Phase 2.4: Building Classifier (v3.4.0)
+    "BuildingClassifier",
+    "BuildingClassifierConfig",
+    "BuildingClassificationResult",
+    "classify_building",
+    # Deprecated (remove in v4.0)
     "EnhancedBuildingClassifier",
     "EnhancedClassifierConfig",
     "EnhancedClassificationResult",

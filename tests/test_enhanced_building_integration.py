@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 from shapely.geometry import Polygon
 
-from ign_lidar.config.enhanced_building import EnhancedBuildingConfig
+from ign_lidar.config.building_config import BuildingConfig
 from ign_lidar.core.classification.building.facade_processor import (
     BuildingFacadeClassifier,
 )
@@ -129,8 +129,8 @@ def buildings_gdf(sample_building_polygon):
 
 
 def test_enhanced_config_initialization():
-    """Test EnhancedBuildingConfig initialization."""
-    config = EnhancedBuildingConfig()
+    """Test BuildingConfig initialization."""
+    config = BuildingConfig()
 
     assert config.enable_roof_detection is True
     assert config.enable_chimney_detection is True
@@ -141,30 +141,30 @@ def test_enhanced_config_initialization():
 
 
 def test_enhanced_config_presets():
-    """Test EnhancedBuildingConfig presets."""
+    """Test BuildingConfig presets."""
     # Residential
-    res = EnhancedBuildingConfig.preset_residential()
+    res = BuildingConfig.preset_residential()
     assert res.roof_flat_threshold == 15.0
 
     # Urban high-density
-    urban = EnhancedBuildingConfig.preset_urban_high_density()
+    urban = BuildingConfig.preset_urban_high_density()
     assert urban.roof_flat_threshold == 10.0
     assert urban.chimney_min_height_above_roof == 0.5
 
     # Industrial
-    industrial = EnhancedBuildingConfig.preset_industrial()
+    industrial = BuildingConfig.preset_industrial()
     assert industrial.enable_balcony_detection is False
     assert industrial.chimney_min_height_above_roof == 2.0
 
     # Historic
-    historic = EnhancedBuildingConfig.preset_historic()
+    historic = BuildingConfig.preset_historic()
     assert historic.roof_flat_threshold == 25.0
     assert historic.balcony_confidence_threshold == 0.4
 
 
 def test_enhanced_config_to_dict():
-    """Test EnhancedBuildingConfig.to_dict()."""
-    config = EnhancedBuildingConfig(
+    """Test BuildingConfig.to_dict()."""
+    config = BuildingConfig(
         enable_roof_detection=True,
         enable_chimney_detection=False,
         roof_flat_threshold=12.0,
@@ -178,12 +178,12 @@ def test_enhanced_config_to_dict():
 
 
 def test_enhanced_config_from_dict():
-    """Test EnhancedBuildingConfig.from_dict()."""
+    """Test BuildingConfig.from_dict()."""
     data = {
         "enable_roof_detection": False,
         "chimney_min_height_above_roof": 1.5,
     }
-    config = EnhancedBuildingConfig.from_dict(data)
+    config = BuildingConfig.from_dict(data)
 
     assert config.enable_roof_detection is False
     assert config.chimney_min_height_above_roof == 1.5

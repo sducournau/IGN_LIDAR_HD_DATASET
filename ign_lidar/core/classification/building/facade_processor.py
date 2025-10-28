@@ -1149,19 +1149,19 @@ class BuildingFacadeClassifier:
         if self.enable_enhanced_lod3:
             try:
                 from ign_lidar.core.classification.building import (
-                    EnhancedBuildingClassifier,
-                    EnhancedClassifierConfig,
+                    BuildingClassifier,
+                    BuildingClassifierConfig,
                 )
 
                 # Build config from provided dict or use defaults
                 if enhanced_building_config:
-                    classifier_config = EnhancedClassifierConfig(
+                    classifier_config = BuildingClassifierConfig(
                         **enhanced_building_config
                     )
                 else:
-                    classifier_config = EnhancedClassifierConfig()
+                    classifier_config = BuildingClassifierConfig()
 
-                self.enhanced_classifier = EnhancedBuildingClassifier(classifier_config)
+                self.enhanced_classifier = BuildingClassifier(classifier_config)
                 logger.info("Enhanced LOD3 classifier enabled (v3.4 - Phase 2.4)")
                 logger.info(
                     f"  - Roof detection: " f"{classifier_config.enable_roof_detection}"

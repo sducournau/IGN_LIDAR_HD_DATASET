@@ -1,7 +1,7 @@
 """
 Test suite for enhanced building classifier integration.
 
-Tests the EnhancedBuildingClassifier that integrates:
+Tests the BuildingClassifier that integrates:
 - Roof type detection (Phase 2.1)
 - Chimney detection (Phase 2.2)
 - Balcony detection (Phase 2.3)
@@ -15,11 +15,11 @@ import numpy as np
 import pytest
 from shapely.geometry import Polygon
 
-from ign_lidar.core.classification.building.enhanced_classifier import (
-    EnhancedBuildingClassifier,
-    EnhancedClassifierConfig,
-    EnhancedClassificationResult,
-    classify_building_enhanced,
+from ign_lidar.core.classification.building.building_classifier import (
+    BuildingClassifier,
+    BuildingClassifierConfig,
+    BuildingClassificationResult,
+    classify_building,
 )
 
 
@@ -28,7 +28,7 @@ class TestEnhancedClassifierInit:
 
     def test_default_initialization(self):
         """Test classifier initializes with default config."""
-        classifier = EnhancedBuildingClassifier()
+        classifier = BuildingClassifier()
 
         assert classifier.roof_classifier is not None
         assert classifier.chimney_detector is not None
@@ -41,7 +41,7 @@ class TestEnhancedClassifierInit:
 
     def test_custom_config(self):
         """Test classifier with custom configuration."""
-        config = EnhancedClassifierConfig(
+        config = BuildingClassifierConfig(
             enable_roof_detection=True,
             enable_chimney_detection=False,
             enable_balcony_detection=True,
@@ -49,7 +49,7 @@ class TestEnhancedClassifierInit:
             balcony_min_points=30,
         )
 
-        classifier = EnhancedBuildingClassifier(config)
+        classifier = BuildingClassifier(config)
 
         assert classifier.roof_classifier is not None
         assert classifier.chimney_detector is None
@@ -62,13 +62,13 @@ class TestEnhancedClassifierInit:
 
     def test_all_detectors_disabled(self):
         """Test classifier with all detectors disabled."""
-        config = EnhancedClassifierConfig(
+        config = BuildingClassifierConfig(
             enable_roof_detection=False,
             enable_chimney_detection=False,
             enable_balcony_detection=False,
         )
 
-        classifier = EnhancedBuildingClassifier(config)
+        classifier = BuildingClassifier(config)
 
         assert classifier.roof_classifier is None
         assert classifier.chimney_detector is None
@@ -81,7 +81,7 @@ class TestEnhancedClassification:
     @pytest.fixture
     def classifier(self):
         """Create classifier with relaxed parameters for testing."""
-        config = EnhancedClassifierConfig(
+        config = BuildingClassifierConfig(
             enable_roof_detection=True,
             enable_chimney_detection=True,
             enable_balcony_detection=True,
@@ -91,7 +91,7 @@ class TestEnhancedClassification:
             balcony_min_distance_from_facade=0.3,
             balcony_min_points=15,
         )
-        return EnhancedBuildingClassifier(config)
+        return BuildingClassifier(config)
 
     @pytest.fixture
     def complex_building(self):
@@ -206,7 +206,7 @@ class TestEnhancedClassification:
         result = classifier.classify_building(points, features, polygon, ground_elev)
 
         # Check result structure
-        assert isinstance(result, EnhancedClassificationResult)
+        assert isinstance(result, BuildingClassificationResult)
         assert result.success is True
 
         # Check roof detection
@@ -235,9 +235,9 @@ class TestEnhancedClassification:
         """Test convenience function for classification."""
         points, features, polygon, ground_elev = complex_building
 
-        result = classify_building_enhanced(points, features, polygon, ground_elev)
+        result = classify_building(points, features, polygon, ground_elev)
 
-        assert isinstance(result, EnhancedClassificationResult)
+        assert isinstance(result, BuildingClassificationResult)
         assert result.success is True
 
 
@@ -246,12 +246,12 @@ class TestDetectorIntegration:
 
     def test_roof_only_classification(self):
         """Test with only roof detection enabled."""
-        config = EnhancedClassifierConfig(
+        config = BuildingClassifierConfig(
             enable_roof_detection=True,
             enable_chimney_detection=False,
             enable_balcony_detection=False,
         )
-        classifier = EnhancedBuildingClassifier(config)
+        classifier = BuildingClassifier(config)
 
         # Simple flat roof
         points = np.array([[5, 5, 15 + i * 0.1] for i in range(100)])
@@ -271,12 +271,12 @@ class TestDetectorIntegration:
 
     def test_chimney_requires_roof(self):
         """Test that chimney detection requires roof detection."""
-        config = EnhancedClassifierConfig(
+        config = BuildingClassifierConfig(
             enable_roof_detection=False,
             enable_chimney_detection=True,
             enable_balcony_detection=False,
         )
-        classifier = EnhancedBuildingClassifier(config)
+        classifier = BuildingClassifier(config)
 
         # Roof with chimney
         points = np.random.rand(100, 3) * [10, 10, 5] + [0, 0, 15]
@@ -298,7 +298,7 @@ class TestStatisticsComputation:
 
     def test_stats_all_detectors(self):
         """Test statistics with all detectors enabled."""
-        classifier = EnhancedBuildingClassifier()
+        classifier = BuildingClassifier()
 
         # Simple building
         points = np.random.rand(100, 3) * [10, 10, 15]

@@ -169,7 +169,7 @@ class BuildingClassifier:
         building_polygon: Polygon,
         ground_elevation: float,
         roof_elevation: Optional[float] = None,
-    ) -> EnhancedClassificationResult:
+    ) -> BuildingClassificationResult:
         """
         Perform comprehensive LOD3 classification on building points.
 
@@ -390,7 +390,7 @@ class BuildingClassifier:
         self,
         points: np.ndarray,
         point_labels: np.ndarray,
-        result: EnhancedClassificationResult,
+        result: BuildingClassificationResult,
     ) -> Dict:
         """Compute building-level statistics."""
         stats = {
@@ -438,15 +438,15 @@ class BuildingClassifier:
 
 
 # Convenience function for simple classification
-def classify_building_enhanced(
+def classify_building(
     points: np.ndarray,
     features: Dict[str, np.ndarray],
     building_polygon: Polygon,
     ground_elevation: float,
-    config: Optional[EnhancedClassifierConfig] = None,
-) -> EnhancedClassificationResult:
+    config: Optional[BuildingClassifierConfig] = None,
+) -> BuildingClassificationResult:
     """
-    Convenience function for enhanced building classification.
+    Convenience function for building classification.
 
     Args:
         points: Building point cloud [N, 3]
@@ -461,6 +461,34 @@ def classify_building_enhanced(
     classifier = BuildingClassifier(config)
     return classifier.classify_building(
         points, features, building_polygon, ground_elevation
+    )
+
+
+# ============================================================================
+# DEPRECATION ALIASES (Remove in v4.0)
+# ============================================================================
+
+
+def classify_building_enhanced(
+    points: np.ndarray,
+    features: Dict[str, np.ndarray],
+    building_polygon: Polygon,
+    ground_elevation: float,
+    config: Optional[BuildingClassifierConfig] = None,
+) -> BuildingClassificationResult:
+    """
+    Deprecated: Use classify_building() instead.
+
+    This function will be removed in v4.0.
+    """
+    warnings.warn(
+        "classify_building_enhanced() is deprecated, use classify_building() instead. "
+        "This function will be removed in v4.0.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return classify_building(
+        points, features, building_polygon, ground_elevation, config
     )
 
 
