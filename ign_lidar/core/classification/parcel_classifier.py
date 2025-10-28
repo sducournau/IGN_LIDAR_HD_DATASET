@@ -20,24 +20,17 @@ Version: 1.1
 """
 
 import logging
-from ..constants import ASPRSClass
 from collections import defaultdict
-from ..constants import ASPRSClass
 from dataclasses import dataclass
-from ..constants import ASPRSClass
 from enum import IntEnum
-from ..constants import ASPRSClass
 from typing import Any, Dict, List, Optional, Tuple, Union
-from ..constants import ASPRSClass
 
 import numpy as np
-from ..constants import ASPRSClass
 
 # Import BaseClassifier for v3.2+ unified interface
 from .base import BaseClassifier
-from ..constants import ASPRSClass
 from .base import ClassificationResult as BaseClassificationResult
-from ..constants import ASPRSClass
+from .constants import ASPRSClass
 
 logger = logging.getLogger(__name__)
 
@@ -200,15 +193,6 @@ class ParcelClassifier(BaseClassifier):
 
     # ASPRS Classification codes
     # Use ASPRSClass from constants module
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
     def __init__(self, config: Optional[ParcelClassificationConfig] = None):
         """
@@ -833,7 +817,9 @@ class ParcelClassifier(BaseClassifier):
                     int(ASPRSClass.MEDIUM_VEGETATION),
                 )
             else:
-                labels = np.full(n_points, int(ASPRSClass.HIGH_VEGETATION), dtype=np.uint8)
+                labels = np.full(
+                    n_points, int(ASPRSClass.HIGH_VEGETATION), dtype=np.uint8
+                )
 
         elif parcel_type == ParcelType.AGRICULTURE:
             labels = np.full(n_points, int(ASPRSClass.LOW_VEGETATION), dtype=np.uint8)

@@ -113,10 +113,6 @@ from .stitching import (
 # New Unified Interface (v3.2+)
 # ============================================================================
 
-# Main classifier facade - use this for simple access
-Classifier = None  # Will be set below after UnifiedClassifier is imported
-
-
 # Reclassification modules (optional - may not be available)
 try:
     from .geometric_rules import GeometricRulesEngine
@@ -156,12 +152,17 @@ except ImportError:
     get_artifact_free_features = None
     ArtifactReport = None
 
-# Unified classifier module (new in v3.1.0 - consolidation)
+# Unified classifier module (v3.1.0 consolidation, renamed in v3.3.0)
 try:
-    from .unified_classifier import (
+    from .classifier import (
+        Classifier,
+        ClassifierConfig,
         ClassificationRule,
         ClassificationStrategy,
         FeatureImportance,
+        classify_points,
+        refine_classification,
+        # Deprecated aliases
         UnifiedClassifier,
         UnifiedClassifierConfig,
         classify_points_unified,
@@ -171,27 +172,30 @@ try:
     _HAS_UNIFIED_CLASSIFIER = True
 except ImportError:
     _HAS_UNIFIED_CLASSIFIER = False
-    UnifiedClassifier = None
+    Classifier = None
+    ClassifierConfig = None
     ClassificationStrategy = None
     ClassificationRule = None
     FeatureImportance = None
+    classify_points = None
+    refine_classification = None
+    # Deprecated
+    UnifiedClassifier = None
     UnifiedClassifierConfig = None
     classify_points_unified = None
     refine_classification_unified = None
 
 # Backward compatibility removed in v3.1.0
-# Use UnifiedClassifier instead:
-#   - AdvancedClassifier → UnifiedClassifier(strategy='comprehensive')
-#   - AdaptiveClassifier → UnifiedClassifier(strategy='adaptive')
-#   - refine_classification() → UnifiedClassifier().refine_classification()
+# Use Classifier instead:
+#   - AdvancedClassifier → Classifier(strategy='comprehensive')
+#   - AdaptiveClassifier → Classifier(strategy='adaptive')
+#   - refine_classification() → Classifier().refine_classification()
 
 _HAS_ADAPTIVE_CLASSIFIER = _HAS_UNIFIED_CLASSIFIER
 
-# Set Classifier facade to UnifiedClassifier if available
+# Convenience function for creating classifier with common settings
 if _HAS_UNIFIED_CLASSIFIER:
-    Classifier = UnifiedClassifier
 
-    # Also create convenience aliases for common strategies
     def create_classifier(strategy="comprehensive", use_gpu=False, **kwargs):
         """
         Convenience function to create a classifier with common settings.
@@ -199,17 +203,17 @@ if _HAS_UNIFIED_CLASSIFIER:
         Args:
             strategy: 'basic', 'adaptive', or 'comprehensive'
             use_gpu: Enable GPU acceleration (requires CuPy)
-            **kwargs: Additional UnifiedClassifier parameters
+            **kwargs: Additional Classifier parameters
 
         Returns:
-            UnifiedClassifier instance
+            Classifier instance
 
         Example:
             >>> from ign_lidar.core.classification import create_classifier
             >>> classifier = create_classifier('adaptive', use_gpu=True)
             >>> result = classifier.classify(points, features)
         """
-        return UnifiedClassifier(strategy=strategy, use_gpu=use_gpu, **kwargs)
+        return Classifier(strategy=strategy, use_gpu=use_gpu, **kwargs)
 
 
 # Adaptive building classifier module (new in v5.2.2 - Enhanced building classification)
@@ -303,14 +307,20 @@ __all__ = [
     "validate_features_before_classification",
     "get_artifact_free_features",
     "ArtifactReport",
-    # Unified classifier (v3.1.0 - new)
-    "UnifiedClassifier",
+    # Unified classifier (v3.1.0, renamed in v3.3.0)
+    "Classifier",
+    "ClassifierConfig",
     "ClassificationStrategy",
+    "classify_points",
+    "refine_classification",
+    "ClassificationRule",
+    "FeatureImportance",
+    "create_classifier",
+    # Deprecated aliases (will be removed in v4.0)
+    "UnifiedClassifier",
     "UnifiedClassifierConfig",
     "classify_points_unified",
     "refine_classification_unified",
-    "ClassificationRule",
-    "FeatureImportance",
     # Adaptive building classifier (optional, v5.2.2)
     "AdaptiveBuildingClassifier",
     "BuildingFeatureSignature",

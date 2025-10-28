@@ -3,6 +3,53 @@
 **Date**: October 17, 2025  
 **Version**: 5.0.0 (Harmonized)
 
+> **💡 Quick Reference**: See [CONFIGURATION_GUIDE.md](CONFIGURATION_GUIDE.md) for command examples  
+> **🇫🇷 Version française**: Voir [README.md](README.md)
+
+---
+
+## Table of Contents
+
+1. [Quick Start](#quick-start)
+2. [Overview](#overview)
+3. [Configuration Hierarchy](#configuration-hierarchy)
+4. [Core Concepts](#core-concepts)
+5. [Configuration Sections](#configuration-sections)
+6. [Presets & Profiles](#presets--profiles)
+7. [Custom Configurations](#custom-configurations)
+8. [Migration Guide](#migration-guide)
+9. [Troubleshooting](#troubleshooting)
+
+---
+
+## Quick Start
+
+### Zero-Config (Simplest)
+
+```bash
+ign-lidar-hd process input_dir=/data output_dir=/output
+```
+
+### Use a Preset (Recommended)
+
+```bash
+# ASPRS classification with GPU
+ign-lidar-hd process --config-name presets/asprs_classification_gpu \
+  input_dir=/data output_dir=/output
+
+# Fast preview
+ign-lidar-hd process --config-name presets/fast_preview \
+  input_dir=/data output_dir=/output
+```
+
+### Select Hardware Profile
+
+```bash
+# RTX 4080 (16GB)
+ign-lidar-hd process --config-name profiles/gpu_rtx4080 \
+  input_dir=/data output_dir=/output
+```
+
 ## Overview
 
 The IGN LiDAR HD configuration system uses Hydra for flexible, composable configurations. This guide explains the harmonized V5.0 configuration structure.

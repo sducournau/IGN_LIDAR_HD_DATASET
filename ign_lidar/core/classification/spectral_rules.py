@@ -40,7 +40,7 @@ class SpectralRulesEngine:
 
     def __init__(
         self,
-        nir_vegetation_threshold: float = 0.4,
+        nir_vegetation_threshold: float = 0.35,  # 🌿 ABAISSÉ: 0.40 → 0.35 pour végétation moyenne
         nir_building_threshold: float = 0.3,
         brightness_concrete_min: float = 0.4,
         brightness_concrete_max: float = 0.7,
@@ -50,13 +50,13 @@ class SpectralRulesEngine:
         nir_asphalt_threshold: float = 0.15,
         brightness_metal_min: float = 0.5,
         brightness_metal_max: float = 0.8,
-        nir_red_ratio_veg_threshold: float = 2.0,
+        nir_red_ratio_veg_threshold: float = 1.8,  # 🌿 ABAISSÉ: 2.0 → 1.8 pour détecter végétation moins dense
     ):
         """
-        Initialize spectral rules engine.
+        Initialize spectral rules engine with improved vegetation detection thresholds.
 
         Args:
-            nir_vegetation_threshold: Minimum NIR for vegetation classification
+            nir_vegetation_threshold: Minimum NIR for vegetation classification (0.35 lowered)
             nir_building_threshold: Minimum NIR for building materials (concrete)
             brightness_concrete_min: Minimum brightness for concrete surfaces
             brightness_concrete_max: Maximum brightness for concrete surfaces
@@ -66,7 +66,7 @@ class SpectralRulesEngine:
             nir_asphalt_threshold: Maximum NIR for asphalt surfaces
             brightness_metal_min: Minimum brightness for metal roofs
             brightness_metal_max: Maximum brightness for metal roofs
-            nir_red_ratio_veg_threshold: Minimum NIR/Red ratio for vegetation
+            nir_red_ratio_veg_threshold: Minimum NIR/Red ratio for vegetation (1.8 lowered)
         """
         self.nir_vegetation_threshold = nir_vegetation_threshold
         self.nir_building_threshold = nir_building_threshold
@@ -80,14 +80,14 @@ class SpectralRulesEngine:
         self.brightness_metal_max = brightness_metal_max
         self.nir_red_ratio_veg_threshold = nir_red_ratio_veg_threshold
 
-        logger.info("🌈 Spectral Rules Engine initialized")
-        logger.info(f"   NIR vegetation threshold: {nir_vegetation_threshold}")
+        logger.info("🌈 Spectral Rules Engine initialized (IMPROVED vegetation detection)")
+        logger.info(f"   NIR vegetation threshold: {nir_vegetation_threshold} (lowered)")
         logger.info(f"   NIR building threshold: {nir_building_threshold}")
         logger.info(
             f"   Brightness concrete range: [{brightness_concrete_min}, {brightness_concrete_max}]"
         )
         logger.info(
-            f"   NIR/Red ratio vegetation threshold: {nir_red_ratio_veg_threshold}"
+            f"   NIR/Red ratio vegetation threshold: {nir_red_ratio_veg_threshold} (lowered)"
         )
 
     def classify_by_spectral_signature(
@@ -99,7 +99,7 @@ class SpectralRulesEngine:
         apply_to_unclassified_only: bool = True,
     ) -> Tuple[np.ndarray, Dict[str, int]]:
         """
-        Classify points based on spectral signatures.
+        Classify points based on spectral signatures with improved vegetation detection.
 
         Args:
             rgb: RGB values [N, 3] normalized to [0, 1]
@@ -117,6 +117,7 @@ class SpectralRulesEngine:
         labels = current_labels.copy()
         stats = {
             "vegetation_spectral": 0,
+            "vegetation_sparse": 0,
             "water_spectral": 0,
             "building_concrete_spectral": 0,
             "building_metal_spectral": 0,
@@ -135,6 +136,7 @@ class SpectralRulesEngine:
 
         brightness = np.mean(rgb, axis=1)
         nir_red_ratio = nir / (red + 1e-8)
+        green_dominance = (green > red) & (green > blue)
 
         # Determine which points to classify
         if apply_to_unclassified_only:
@@ -144,21 +146,38 @@ class SpectralRulesEngine:
 
         initial_mask_count = np.sum(mask)
 
-        # ✅ AMÉLIORÉ - Règle 1: Végétation avec critères assouplis
-        # Au lieu de 3 conditions strictes, utiliser des alternatives
+        # 🌿 AMÉLIORÉ - Règle 1: Végétation dense et moyenne (critères assouplis)
+        # Au lieu de 3 conditions strictes, utiliser des alternatives plus permissives
         veg_mask = mask & (
             # Option A: NDVI élevé + NIR élevé (végétation dense)
             ((ndvi > 0.3) & (nir > self.nir_vegetation_threshold))
             |
             # Option B: NDVI modéré + ratio NIR/Red élevé (végétation moyenne)
-            ((ndvi > 0.2) & (nir_red_ratio > self.nir_red_ratio_veg_threshold))
+            ((ndvi > 0.18) & (nir_red_ratio > self.nir_red_ratio_veg_threshold))
             |
             # Option C: NDVI modéré + NIR élevé + vert dominant (végétation claire)
-            ((ndvi > 0.15) & (nir > 0.35) & (green > red) & (green > blue))
+            ((ndvi > 0.12) & (nir > 0.32) & green_dominance)
+            |
+            # Option D: NDVI faible + NIR très élevé + vert dominant (végétation jeune/claire)
+            ((ndvi > 0.08) & (nir > 0.45) & green_dominance & (green > 0.4))
         )
         labels[veg_mask] = int(ASPRSClass.MEDIUM_VEGETATION)
         stats["vegetation_spectral"] = int(np.sum(veg_mask))
         mask[veg_mask] = False  # Remove classified points from mask
+
+        # 🌾 NOUVEAU - Règle 1b: Végétation sparse/faible (herbe, pelouse)
+        # NDVI positif mais faible + NIR modéré + brightness élevé
+        sparse_veg_mask = mask & (
+            (ndvi > 0.05) & 
+            (ndvi <= 0.12) &
+            (nir > 0.25) & 
+            (nir < 0.45) &
+            (brightness > 0.35) &
+            green_dominance
+        )
+        labels[sparse_veg_mask] = int(ASPRSClass.LOW_VEGETATION)
+        stats["vegetation_sparse"] = int(np.sum(sparse_veg_mask))
+        mask[sparse_veg_mask] = False
 
         # Rule 2: Negative NDVI + Low NIR + Low Brightness = Water
         # Water absorbs NIR strongly and has low overall brightness
@@ -222,7 +241,11 @@ class SpectralRulesEngine:
             )
             if stats["vegetation_spectral"] > 0:
                 logger.info(
-                    f"     Vegetation (spectral): {stats['vegetation_spectral']:,}"
+                    f"     Vegetation/Medium (spectral): {stats['vegetation_spectral']:,}"
+                )
+            if stats["vegetation_sparse"] > 0:
+                logger.info(
+                    f"     Vegetation/Low-Sparse (spectral): {stats['vegetation_sparse']:,}"
                 )
             if stats["water_spectral"] > 0:
                 logger.info(f"     Water (spectral): {stats['water_spectral']:,}")

@@ -24,20 +24,202 @@ logger = logging.getLogger(__name__)
 
 class TileProcessor:
     """
-    Coordinate tile processing workflow.
+    Orchestrates tile-level processing workflow for individual LAZ tiles.
 
-    Orchestrates:
-    - Tile loading and validation
-    - Feature computation
-    - Classification application
-    - Patch extraction
-    - Multi-format output generation
-    - Metadata saving
-    - Error handling and recovery
+    This class is the **MIDDLE LAYER** between LiDARProcessor (batch orchestration)
+    and ProcessorCore (low-level operations). It coordinates all components needed
+    to process a single LiDAR tile from raw LAZ to final output.
 
-    This class was extracted from LiDARProcessor to separate tile
-    processing orchestration from processor initialization and
-    directory-level operations.
+    Architecture Position:
+    =====================
+
+    LiDARProcessor (batch orchestration)
+        ↓
+    **TileProcessor** ← You are here (tile orchestration)
+        ↓
+    ProcessorCore (low-level operations)
+
+    Workflow Steps:
+    ==============
+
+    1. **Tile Loading** (via TileLoader)
+       - Read LAZ file
+       - Extract point cloud (XYZ, classification, RGB, NIR, etc.)
+       - Validate tile data (point count, bounds, etc.)
+       - Apply bounding box filtering if specified
+
+    2. **Ground Truth Integration** (via ClassificationApplier)
+       - Fetch WFS data (BD TOPO buildings, roads, water, vegetation)
+       - Spatial join with point cloud
+       - Apply ground truth labels to points
+       - Refine classifications based on features
+
+    3. **Feature Computation** (via FeatureOrchestrator)
+       - Select appropriate strategy (CPU/GPU/GPU-chunked)
+       - Compute geometric features (normals, curvature, etc.)
+       - Compute spectral features (RGB, NIR, NDVI)
+       - Multi-scale features (if enabled)
+       - Architectural style detection (if enabled)
+
+    4. **Patch Extraction** (via PatchExtractor)
+       - Spatial gridding of tile
+       - Extract patches of configurable size (e.g., 150m × 150m)
+       - Subsample to target point count (e.g., 16384 points)
+       - Apply augmentation if enabled
+       - Handle tile boundaries with buffer zones
+
+    5. **Output Generation** (via OutputWriter)
+       - Save patches in multiple formats:
+         * NPZ: Lightweight NumPy arrays
+         * HDF5: Hierarchical data with metadata
+         * LAZ: Enriched point clouds with features
+         * PyTorch: Ready-to-use tensors
+       - Save metadata (processing stats, config, etc.)
+       - Generate enriched full-tile LAZ (if requested)
+
+    Key Responsibilities:
+    ====================
+
+    1. **Component Coordination**: Orchestrate specialized components
+       - Feature computation
+       - Classification application
+       - Patch extraction
+       - Output writing
+       - Each component is independently testable
+
+    2. **State Management**: Track tile processing state
+       - Points loaded/processed
+       - Features computed
+       - Patches extracted
+       - Outputs saved
+
+    3. **Error Handling**: Graceful degradation
+       - Continue on non-fatal errors
+       - Log warnings for recoverable issues
+       - Propagate critical errors to caller
+
+    4. **Performance Monitoring**: Track processing metrics
+       - Time per stage
+       - Memory usage
+       - Feature computation stats
+       - Patch generation stats
+
+    Processing Modes:
+    ================
+
+    - **patches_only** (default): Generate training patches only
+      - Extract patches with features and labels
+      - Save in ML-ready formats (NPZ, HDF5, PyTorch)
+      - Fastest mode for dataset creation
+
+    - **enriched_only**: Generate enriched LAZ tiles only
+      - Add features as extra dimensions to LAZ
+      - Apply/refine classifications
+      - No patch extraction
+      - Use for visualization or further processing
+
+    - **both**: Generate patches AND enriched LAZ
+      - All outputs from both modes
+      - Most comprehensive but slowest
+      - Use for production pipelines
+
+    - **reclassify_only**: Re-classify existing enriched tiles
+      - Load enriched LAZ with features
+      - Apply new classification rules
+      - Save updated LAZ
+      - Fast iteration on classification logic
+
+    Dependencies:
+    ============
+
+    - **FeatureOrchestrator**: Feature computation with CPU/GPU strategies
+    - **ClassificationApplier**: Ground truth integration and classification
+    - **PatchExtractor**: Spatial gridding and patch creation
+    - **OutputWriter**: Multi-format output generation
+    - **TileLoader**: LAZ file loading and validation (optional, lazy-loaded)
+    - **ProcessorCore**: Low-level spatial operations (used by components)
+
+    Design Principles:
+    =================
+
+    1. **Single Responsibility**: One tile at a time
+       - No cross-tile dependencies
+       - Stateless processing (tile-to-tile)
+       - Parallelizable by LiDARProcessor
+
+    2. **Dependency Injection**: Components passed at init
+       - Easy testing with mocks
+       - Flexible configuration
+       - Clear dependencies
+
+    3. **Error Isolation**: Tile failures don't affect others
+       - Try/except around tile processing
+       - Detailed error logging
+       - Continue batch processing on error
+
+    Example Usage:
+    =============
+
+    Typical usage (via LiDARProcessor):
+        >>> # Usually created by LiDARProcessor, not directly
+        >>> processor = LiDARProcessor(config)
+        >>> processor.process_tiles()  # Uses TileProcessor internally
+
+    Direct usage (advanced):
+        >>> tile_processor = TileProcessor(
+        ...     config=config,
+        ...     feature_orchestrator=feature_orch,
+        ...     patch_extractor=patch_ext,
+        ...     classification_applier=class_app,
+        ...     output_writer=output_writer
+        ... )
+        >>> result = tile_processor.process_tile(
+        ...     tile_path=Path('/data/tile.laz'),
+        ...     output_dir=Path('/data/output')
+        ... )
+        >>> print(f"Processed {result['num_points']} points, "
+        ...       f"extracted {result['num_patches']} patches")
+
+    Performance Characteristics:
+    ===========================
+
+    Typical tile (18M points, LOD2 mode, GPU enabled):
+    - Loading: ~2-3 seconds
+    - Ground truth: ~5-10 seconds (WFS queries + spatial joins)
+    - Features: ~30-60 seconds (GPU) or ~5-10 minutes (CPU)
+    - Patches: ~10-20 seconds
+    - Output: ~5-10 seconds
+    - **Total: ~1-2 minutes (GPU) or ~6-12 minutes (CPU)**
+
+    Memory usage:
+    - Base: ~500 MB (point cloud + features)
+    - Peak: ~2-4 GB (during patch extraction with augmentation)
+    - GPU: +2-4 GB VRAM (for feature computation)
+
+    Related Classes:
+    ===============
+
+    - **LiDARProcessor**: Parent class, batch orchestration (1 level up)
+    - **ProcessorCore**: Low-level operations (1 level down)
+    - **FeatureOrchestrator**: Feature computation management
+    - **ClassificationApplier**: Ground truth application
+    - **PatchExtractor**: Patch extraction logic
+    - **OutputWriter**: Multi-format output generation
+
+    Version History:
+    ===============
+
+    - v3.4.0: Extracted from LiDARProcessor for better modularity
+    - v3.2.0: Added reclassify_only mode
+    - v3.1.0: Integrated UnifiedClassifier
+    - v3.0.0: GPU acceleration support
+
+    See Also:
+    ========
+
+    - LiDARProcessor: For batch processing
+    - ProcessorCore: For low-level operations
+    - FeatureOrchestrator: For feature computation
     """
 
     def __init__(

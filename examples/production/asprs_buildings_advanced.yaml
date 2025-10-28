@@ -1,0 +1,123 @@
+# Advanced Building Classification Configuration (v3.0.3+)
+#
+# This configuration enables all advanced building facade features:
+# - Adaptive facade rotation (±15°)
+# - Adaptive facade scaling (0.67x - 1.5x)
+# - Edge detection with curvature
+# - Ground filtering with is_ground feature
+# - Polygon reconstruction from adapted facades
+#
+# Use this configuration for:
+# - Dense urban areas with complex buildings
+# - Buildings with oblique orientations
+# - High-accuracy facade classification
+# - Production environments requiring maximum coverage
+
+# Input/Output Configuration
+input_dir: /path/to/input/tiles
+output_dir: /path/to/output
+
+# Processing Configuration
+processor:
+  lod_level: LOD2 # or LOD3 for more detailed classification
+  processing_mode: both # Create patches + enriched LAZ tiles
+  use_gpu: true
+  patch_size: 150.0
+  num_points: 16384
+  overlap_ratio: 0.1
+
+# Feature Configuration
+features:
+  mode: lod2 # Feature set optimized for building classification
+  k_neighbors: 30
+  search_radius: 3.0
+  compute_normals: true
+  compute_curvature: true # Required for edge detection
+  compute_verticality: true
+
+# Data Sources Configuration
+data_sources:
+  bd_topo:
+    buildings: true
+    roads: true
+    water: true
+    vegetation: true
+    railways: false
+
+  # Ground truth refinement
+  ground_truth_refinement:
+    enable: true
+    expand_building_buffer: 3.0 # meters
+    expand_road_buffer: 2.0
+    min_points_threshold: 100
+
+  # RGB/NIR augmentation (optional)
+  rgb_nir:
+    enable: false
+    rgb_cache_dir: null
+    nir_cache_dir: null
+
+# 🏢 ADVANCED BUILDING FACADE CLASSIFICATION (v3.0.3+)
+classification:
+  building_facade:
+    enable: true # Enable facade classification
+
+    # Basic Parameters
+    initial_buffer: 2.0 # Initial buffer distance (m)
+    verticality_threshold: 0.55 # Lowered from 0.70 for better coverage
+    min_point_density: 5.0 # points/m²
+    min_confidence: 0.3 # Minimum confidence to classify
+
+    # Adaptive Buffer Parameters
+    gap_detection_resolution: 1.0 # Resolution for gap detection (m)
+    adaptive_buffer_range: [1.5, 4.0] # Min/max buffer (m)
+
+    # 🆕 ADAPTIVE GEOMETRY (v3.0.3)
+    enable_facade_adaptation: true
+    max_translation: 3.0 # Max translation offset (m)
+    max_lateral_expansion: 5.0 # Max lateral expansion (m)
+
+    # 🆕 ROTATION ADAPTATION (v3.0.3)
+    max_rotation_degrees: 15.0 # Max rotation angle (±degrees)
+    # Rotation is automatically detected when points are misaligned
+    # with facade geometry. Improves coverage for oblique buildings.
+
+    # 🆕 SCALING ADAPTATION (v3.0.3)
+    enable_scaling: true
+    max_scale_factor: 1.5 # Max scale (0.67x - 1.5x)
+    # Scaling adjusts facade length to match actual building dimensions
+    # when BD TOPO geometry differs from reality.
+
+    # 🆕 EDGE DETECTION (v3.0.3)
+    enable_edge_detection: true
+    edge_detection_threshold: 0.15 # Curvature threshold for edges
+    edge_expansion_radius: 0.5 # Radius to expand edge points (m)
+    # Uses curvature feature to detect building edges/corners
+
+    # 🆕 GROUND FILTERING (v3.0.3)
+    use_ground_filter: true
+    ground_height_tolerance: 0.3 # Height tolerance for ground points (m)
+    # Filters out low ground points using is_ground feature
+
+    # Classification Codes
+    building_class: 6 # ASPRS class for building
+    wall_subclass: 6_01 # LOD3 sub-class for walls
+
+# Memory & Performance
+memory:
+  max_workers: 4 # Parallel workers (use 1 with GPU)
+  chunk_size: 1000000
+  cache_ground_truth: true
+  adaptive_memory_management: true
+
+# Output Configuration
+output:
+  save_enriched_laz: true
+  save_patches: true
+  compression: true
+  las_version: "1.4"
+
+# Logging
+logging:
+  level: INFO # DEBUG for detailed facade adaptation logs
+  log_file: null # or path to log file

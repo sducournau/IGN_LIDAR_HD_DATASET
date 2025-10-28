@@ -1,0 +1,246 @@
+# LOD3 Chimney and Superstructure Detection - Production Configuration
+#
+# This configuration enables chimney, antenna, and ventilation structure
+# detection for detailed LOD3 building classification.
+#
+# Version: 3.2.0 (Phase 2.2)
+# Date: January 2025
+#
+# Features:
+# - Chimney detection on building roofs
+# - Antenna detection (tall, thin structures)
+# - Ventilation structure detection
+# - Height-above-roof analysis
+# - Robust plane fitting for roof surfaces
+#
+# Usage:
+#   ign-lidar-hd process -c examples/production/asprs_chimney_detection.yaml \
+#       input_dir="/path/to/tiles" \
+#       output_dir="/path/to/output"
+#
+# Requirements:
+# - LOD3 feature mode (includes verticality, normals, planarity)
+# - Sufficient point density on roof surfaces (>50 pts/m²)
+# - Building facade classification enabled (for building segmentation)
+#
+# Performance:
+# - Overhead: ~15-20% per building with chimneys
+# - Memory: Minimal additional overhead
+# - Recommended: Use with GPU for feature computation
+
+# ============================================================================
+# Input/Output Configuration
+# ============================================================================
+
+input_dir: "/path/to/laz/tiles"
+output_dir: "/path/to/output"
+
+# Processing mode
+processor:
+  lod_level: LOD3  # LOD3 required for architectural details
+  processing_mode: patches_only  # or 'both' to create enriched LAZ
+  use_gpu: true  # Recommended for LOD3 features
+
+  # Patch generation (for ML training)
+  patch_size: 150.0  # meters
+  num_points: 16384  # points per patch
+  stride: 75.0  # 50% overlap
+
+# ============================================================================
+# Feature Computation - LOD3 Mode
+# ============================================================================
+
+features:
+  mode: lod3  # Includes all features needed for chimney detection
+
+  # Key features for chimney detection:
+  # - verticality: Separate vertical structures from horizontal roofs
+  # - normals: Used for plane fitting and geometry analysis
+  # - planarity: Validate planar roof surfaces
+  # - curvature: (optional) Enhanced roof edge detection
+
+  # Neighborhood parameters
+  k_neighbors: 30
+  search_radius: 3.0
+
+# ============================================================================
+# Building Classification with Chimney Detection
+# ============================================================================
+
+classification:
+  building_facade:
+    # Enable building and facade classification
+    enabled: true
+    enable_classification: true
+
+    # Roof type classification (Phase 2.1 - required for Phase 2.2)
+    enable_roof_classification: true
+    roof_flat_threshold: 15.0  # Max slope for flat roof (degrees)
+    roof_pitched_threshold: 20.0  # Min slope for pitched roof (degrees)
+
+    # ========================================================================
+    # Chimney & Superstructure Detection (Phase 2.2)
+    # ========================================================================
+
+    enable_chimney_detection: true  # Enable chimney detection
+
+    # Height threshold
+    chimney_min_height_above_roof: 1.0  # Minimum height above roof (meters)
+    # Typical: 0.8-1.5m
+    # Lower values detect more structures but increase false positives
+
+    # Size constraints
+    chimney_min_points: 20  # Minimum points for valid chimney
+    # Typical: 15-30 points
+    # Depends on point density
+
+    chimney_max_diameter: 3.0  # Maximum horizontal diameter (meters)
+    # Typical: 2.0-4.0m
+    # Filters out large roof elements
+
+    # Verticality threshold
+    chimney_verticality_threshold: 0.6  # Minimum verticality score
+    # Typical: 0.5-0.7
+    # Higher values = stricter vertical requirement
+
+    # Clustering parameters
+    chimney_dbscan_eps: 0.5  # Clustering distance (meters)
+    # Typical: 0.3-0.7m
+    # Smaller = tighter clusters
+
+    chimney_dbscan_min_samples: 10  # Minimum points per cluster
+    # Typical: 8-15 points
+    # Must be < chimney_min_points
+
+    # Confidence filtering
+    chimney_confidence_threshold: 0.5  # Minimum detection confidence
+    # Typical: 0.4-0.6
+    # Higher values = fewer false positives
+
+    # Building segmentation
+    buffer_size: 3.0  # Buffer around building polygons (meters)
+    vertical_buffer: 5.0  # Vertical buffer (meters)
+
+    # Facade detection
+    edge_curvature_threshold: 0.3
+    edge_neighbor_k: 20
+
+    # Classification from BD TOPO nature
+    classify_from_nature: true
+
+# ============================================================================
+# Data Sources - BD TOPO & Ground Truth
+# ============================================================================
+
+data_sources:
+  bd_topo:
+    buildings: true
+    roads: true
+    vegetation: true
+    water: true
+    railway: true
+
+  # WFS ground truth (optional, for training data generation)
+  wfs:
+    enabled: false
+    url: "https://wxs.ign.fr/parcellaire/geoportail/wfs"
+    timeout: 30
+
+# ============================================================================
+# Performance & Memory
+# ============================================================================
+
+performance:
+  # Multi-processing (CPU only - do not use with GPU)
+  num_workers: 0  # 0 = auto-detect (use with CPU only)
+  # Set to 0 or 1 when using GPU
+
+  # Memory management
+  max_memory_gb: 32  # Maximum memory usage
+  chunk_size: 1000000  # Points per chunk
+
+  # Caching
+  cache_rgb_tiles: true
+  cache_wfs_data: true
+
+# ============================================================================
+# Troubleshooting & Debugging
+# ============================================================================
+
+# Logging level
+logging:
+  level: INFO  # DEBUG for detailed chimney detection logs
+
+# Visualization (requires additional packages)
+visualization:
+  enabled: false
+  save_building_classifications: false
+
+# ============================================================================
+# Expected Results
+# ============================================================================
+
+# Classification Codes:
+# - 61: BUILDING_CHIMNEY - Detected chimneys
+# - 96: ANTENNA - Tall, thin antennas
+# - Custom: Ventilation structures (future extension)
+#
+# Detection Statistics (per building):
+# - num_chimneys: Count of detected chimneys
+# - num_antennas: Count of detected antennas
+# - num_ventilations: Count of detected ventilation structures
+# - chimney_detection_success: Whether detection completed successfully
+#
+# Performance Impact:
+# - ~15-20% overhead per building with superstructures
+# - ~5% overhead per building without superstructures
+# - Linear scaling with number of roof points
+
+# ============================================================================
+# Advanced Usage Examples
+# ============================================================================
+
+# Example 1: High-precision chimney detection (low false positives)
+# chimney_min_height_above_roof: 1.2
+# chimney_verticality_threshold: 0.7
+# chimney_confidence_threshold: 0.6
+# chimney_min_points: 25
+
+# Example 2: Sensitive detection (higher recall, more false positives)
+# chimney_min_height_above_roof: 0.8
+# chimney_verticality_threshold: 0.5
+# chimney_confidence_threshold: 0.4
+# chimney_min_points: 15
+
+# Example 3: Urban areas with dense roofs
+# chimney_dbscan_eps: 0.4  # Tighter clustering
+# chimney_min_points: 20
+# chimney_max_diameter: 2.5  # Smaller max size
+
+# Example 4: Rural areas with sparse point clouds
+# chimney_min_points: 15  # Lower minimum
+# chimney_dbscan_eps: 0.6  # More lenient clustering
+# chimney_verticality_threshold: 0.55  # Slightly lower threshold
+
+# ============================================================================
+# Known Limitations
+# ============================================================================
+
+# 1. Requires sufficient point density on roofs (>50 pts/m²)
+# 2. Small chimneys (<0.5m) may not be detected
+# 3. Chimneys at tile boundaries may be incomplete
+# 4. Very complex roof geometries may affect plane fitting
+# 5. Tall trees near buildings may cause false detections
+
+# ============================================================================
+# References
+# ============================================================================
+
+# - Implementation Plan: BUILDING_IMPROVEMENTS_IMPLEMENTATION_PLAN.md (Phase 2.2)
+# - Module: ign_lidar/core/classification/building/chimney_detector.py
+# - Tests: tests/test_chimney_detector.py
+# - Classification Schema: ign_lidar/classification_schema.py
+
+# For more information:
+# https://github.com/sducournau/IGN_LIDAR_HD_DATASET
+# https://sducournau.github.io/IGN_LIDAR_HD_DATASET/

@@ -27,16 +27,232 @@ logger = logging.getLogger(__name__)
 
 class ProcessorCore:
     """
-    Core processor configuration and initialization.
+    Low-level processor configuration, initialization, and component setup.
 
-    Handles:
-    - Configuration validation and migration
-    - Auto-optimization
-    - Component initialization (orchestrator, stitcher, skip checker)
-    - Data source configuration
+    This class is the **FOUNDATION LAYER** that handles all the setup work needed
+    before actual tile processing can begin. It validates configuration, initializes
+    components, and provides utility methods for low-level operations.
 
-    This class was extracted from LiDARProcessor to separate configuration
-    concerns from processing logic.
+    Architecture Position:
+    =====================
+
+    LiDARProcessor (batch orchestration)
+        ↓
+    TileProcessor (tile orchestration)
+        ↓
+    **ProcessorCore** ← You are here (setup & utilities)
+
+    Key Responsibilities:
+    ====================
+
+    1. **Configuration Management**
+       - Validate configuration schema
+       - Handle backward compatibility (v2.x → v3.x)
+       - Migrate deprecated parameters
+       - Set intelligent defaults
+
+    2. **Auto-Optimization**
+       - Detect hardware capabilities (CPU/GPU, RAM, cores)
+       - Auto-tune processing parameters:
+         * GPU batch sizes based on VRAM
+         * Worker count based on CPU cores
+         * Memory limits based on available RAM
+       - Select optimal processing strategies
+
+    3. **Component Initialization**
+       - FeatureOrchestrator: Feature computation engine
+       - TileStitcher: Boundary handling across tiles
+       - PatchSkipChecker: Duplicate patch detection
+       - TileLoader: LAZ file loading
+       - ClassificationApplier: Ground truth integration
+
+    4. **Low-Level Utilities**
+       - Spatial indexing (KD-tree construction)
+       - Neighbor searches
+       - Point cloud validation
+       - Memory management helpers
+
+    Configuration Handling:
+    ======================
+
+    Supports multiple configuration sources:
+
+    **Modern approach (v3.2+):**
+    ```python
+    from ign_lidar.config import Config
+    config = Config.preset('lod2_buildings')
+    core = ProcessorCore(config)
+    ```
+
+    **Legacy approach (v3.1):**
+    ```python
+    from ign_lidar.config.schema import IGNLiDARConfig
+    config = IGNLiDARConfig(...)
+    core = ProcessorCore(config)
+    ```
+
+    **Backward compatible (v2.x):**
+    ```python
+    core = ProcessorCore(
+        lod_level='LOD2',
+        use_gpu=True,
+        patch_size=150.0
+    )
+    ```
+
+    Validation Pipeline:
+    ===================
+
+    1. **Schema Validation**
+       - Check required fields present
+       - Validate value types and ranges
+       - Detect configuration conflicts
+
+    2. **Compatibility Migration**
+       - Convert v2.x configs to v3.x
+       - Map old parameter names to new ones
+       - Apply deprecation warnings
+
+    3. **Logical Validation**
+       - Check GPU availability if use_gpu=True
+       - Verify path existence if required
+       - Validate parameter combinations
+
+    4. **Auto-Optimization** (if enabled)
+       - Profile hardware
+       - Adjust batch sizes
+       - Set worker counts
+       - Configure memory limits
+
+    Auto-Optimization Logic:
+    =======================
+
+    When `processing.auto_optimize=True`:
+
+    **GPU Detection:**
+    ```
+    if GPU available:
+        - Enable GPU acceleration
+        - Set gpu_batch_size based on VRAM:
+          * 4GB VRAM → 500K points
+          * 8GB VRAM → 1M points
+          * 16GB+ VRAM → 2M points
+        - Disable multiprocessing (GPU + workers = bad)
+    else:
+        - Use CPU strategies
+        - Set num_workers = CPU cores - 1
+        - Enable parallel processing
+    ```
+
+    **Memory Management:**
+    ```
+    available_ram = psutil.virtual_memory().available
+    memory_per_worker = 2GB  # Typical per worker
+    max_workers = min(
+        cpu_count - 1,
+        available_ram // memory_per_worker
+    )
+    ```
+
+    Component Lifecycle:
+    ===================
+
+    1. **Construction**: `__init__()` validates config
+    2. **Setup**: Components initialized lazily or eagerly
+    3. **Use**: LiDARProcessor/TileProcessor use utilities
+    4. **Cleanup**: Components cleaned up on processor exit
+
+    Design Principles:
+    =================
+
+    1. **Validation First**: Fail fast on invalid config
+       - Better to error at initialization than mid-processing
+       - Clear error messages for debugging
+       - Suggest corrections when possible
+
+    2. **Lazy Initialization**: Create components only when needed
+       - TileLoader: Only if not provided externally
+       - Stitcher: Only if stitching enabled
+       - Reduces memory footprint
+
+    3. **Immutable Config**: Configuration frozen after validation
+       - Prevents accidental modification during processing
+       - Enables safe parallel processing
+       - Config changes require new ProcessorCore
+
+    4. **Separation of Concerns**: Setup vs. execution
+       - ProcessorCore: Configuration and setup
+       - TileProcessor: Orchestration and execution
+       - Clear boundary between concerns
+
+    Common Configuration Patterns:
+    =============================
+
+    **Minimal (quickstart):**
+    ```python
+    config = Config(
+        input_dir='/data/tiles',
+        output_dir='/data/output',
+        mode='lod2'
+    )
+    ```
+
+    **Production (ASPRS classification):**
+    ```python
+    config = Config.preset('asprs_production')
+    config.use_gpu = True
+    config.ground_truth = {'bd_topo': {'buildings': True, 'roads': True}}
+    ```
+
+    **Research (full features + RGB + NIR):**
+    ```python
+    config = Config(
+        mode='lod3',
+        features={'feature_set': 'full', 'use_rgb': True, 'use_nir': True},
+        use_gpu=True,
+        augmentation={'enabled': True, 'num_augmentations': 5}
+    )
+    ```
+
+    Error Handling:
+    ==============
+
+    - **TypeError**: Invalid config type
+    - **ValueError**: Invalid parameter values
+    - **FileNotFoundError**: Missing required files/directories
+    - **GPUError**: GPU requested but not available
+    - **ConfigurationError**: Logical configuration conflicts
+
+    Performance Considerations:
+    ==========================
+
+    - Construction is lightweight (~10ms typical)
+    - Component initialization adds ~100-500ms
+    - Auto-optimization adds ~50-200ms (hardware detection)
+    - Total initialization: < 1 second typical
+
+    Related Classes:
+    ===============
+
+    - **LiDARProcessor**: Uses ProcessorCore for initialization (2 levels up)
+    - **TileProcessor**: Uses ProcessorCore utilities (1 level up)
+    - **ConfigValidator**: Configuration schema validation
+    - **optimization_factory**: Auto-optimization logic
+
+    Version History:
+    ===============
+
+    - v3.4.0: Extracted from LiDARProcessor (god class refactoring)
+    - v3.2.0: Added unified Config support
+    - v3.1.0: Added auto-optimization
+    - v3.0.0: Added GPU configuration support
+
+    See Also:
+    ========
+
+    - LiDARProcessor: For batch processing API
+    - TileProcessor: For tile orchestration
+    - Config: For modern configuration approach
     """
 
     def __init__(self, config: Union[DictConfig, Dict, None] = None, **kwargs):
