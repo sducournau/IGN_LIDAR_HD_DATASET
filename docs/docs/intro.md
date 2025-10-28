@@ -18,74 +18,103 @@ Transform French IGN LiDAR HD point clouds into ML-ready datasets for building c
 
 ## 🎯 What's New
 
-### v3.3.3 (2025-10-25) - Latest Release
+### v3.3.3 (2025-10-28) - Latest Release
 
-### 🚀 DTM Integration, Memory Optimization & Enhanced Facade Detection
+### 🚀 Enhanced DTM Integration, Memory Optimization & Code Simplification
 
-This release brings major performance and quality improvements with intelligent memory management and advanced DTM integration:
+This release brings significant improvements in DTM processing, memory management, and code quality:
 
-**Major Enhancements:**
+**🌟 Highlights:**
 
-- **✨ RTM Spatial Indexing** - 10x faster DTM file lookup using rtree
+- **10× faster DTM lookup** with RTM spatial indexing
+- **Intelligent gap filling** for missing DTM values
+- **Automatic memory optimization** prevents OOM crashes on large tiles
+- **40-50% faster processing** with memory-optimized configuration
+- **+30-40% facade detection** improvement
+- **Simplified API** with cleaner naming conventions
 
-  - Efficient spatial index built at initialization
-  - Sub-second DTM file discovery for bounding boxes
-  - Automatic fallback to sequential search if rtree unavailable
+**✨ New Features:**
 
-- **✨ DTM Nodata Interpolation** - Intelligent gap filling
+**RTM Spatial Indexing:**
 
-  - Nearest-neighbor interpolation for missing DTM values (up to 10m radius)
-  - scipy KDTree-based search for accurate elevation estimation
-  - Graceful handling of complex terrain and urban areas
+- **10× faster DTM file lookup** using rtree spatial index
+- Efficient sub-second DTM file discovery for bounding boxes
+- Automatic fallback to sequential search if rtree unavailable
 
-- **✨ Multi-Scale Chunked Processing** - Automatic memory optimization
+**DTM Nodata Interpolation:**
 
-  - psutil-based detection of available RAM
-  - Auto-chunking when estimated memory >50% of available
-  - 2M-5M point chunks prevent OOM crashes
-  - Seamless processing of 18M+ point tiles
+- **Intelligent gap filling** for missing DTM values
+- Nearest-neighbor interpolation using scipy KDTree (up to 10m radius)
+- Accurate elevation estimation for complex terrain
+- Graceful handling of urban areas and data gaps
 
-- **✨ Memory-Optimized Configuration** - NEW asprs_memory_optimized.yaml
-  - Designed for 28-32GB RAM systems
-  - Single-scale computation (40-50% faster)
-  - 2m DTM grid (75% fewer synthetic points)
-  - Peak memory: 20-24GB (vs 30-35GB in asprs_complete)
-  - 92-95% classification rate, 8-12 min per tile
+**Multi-Scale Chunked Processing:**
 
-**Configuration Updates (v6.3.2):**
+- **Automatic memory optimization** based on available RAM (psutil)
+- Auto-chunking when estimated memory >50% of available
+- 2M-5M point chunks prevent out-of-memory crashes
+- Seamless processing of 18M+ point tiles
 
-- **🏗️ Enhanced Facade Detection** - asprs_complete.yaml optimized
+**Memory-Optimized Configuration:**
 
-  - Adaptive buffers: 0.7m-7.5m range (was 0.6m-6.0m)
-  - Wall verticality: 0.55 threshold (more aggressive)
-  - Ultra-fine gap detection: 60 sectors at 6° resolution
-  - Enhanced 3D bounding boxes: 6m overhangs, 3.5m roof expansion
-  - **Result:** +30-40% facade point capture, +25% verticality detection
+- **NEW `asprs_memory_optimized.yaml`** for 28-32GB RAM systems
+- Single-scale computation (40-50% faster than asprs_complete)
+- 2m DTM grid spacing (75% fewer synthetic points)
+- Peak memory: 20-24GB (vs 30-35GB in asprs_complete)
+- 92-95% classification rate, 8-12 min per tile
+- 5-7% artifact rate (vs 2-5% in asprs_complete)
 
-- **📍 Building Cluster IDs** - Object identification features
-  - Assign unique IDs to buildings from BD TOPO
-  - Cadastral parcel cluster IDs for property analysis
-  - Enable building-level statistics and change detection
+**Enhanced Facade Detection:**
 
-**Performance Improvements:**
+- **asprs_complete.yaml v6.3.2 optimizations**
+- Adaptive buffers: 0.7m-7.5m range (increased from 0.6m-6.0m)
+- Wall verticality threshold: 0.55 (lowered from 0.60)
+- Ultra-fine gap detection: 60 sectors at 6° resolution
+- Enhanced 3D bounding boxes: 6m overhang detection
+- **Result**: +30-40% facade point capture, +25% verticality detection
 
-- 🚀 **DTM Lookup:** Up to 10x faster with spatial indexing
-- 🚀 **Memory Safety:** Automatic chunking prevents OOM crashes
-- 🚀 **Memory-Optimized Config:** 40-50% faster (8-12 min vs 12-18 min per tile)
-- 🚀 **Enhanced Validation:** Smarter DTM augmentation (12m radius, 4 neighbors)
+**Building Cluster IDs:**
 
-**Bug Fixes & Cleanup:**
+- Assign unique IDs to buildings from BD TOPO polygons
+- Cadastral parcel cluster IDs for property-level analysis
+- Enable building-level statistics and change detection
+- Complete guide in `docs/docs/features/CLUSTER_ID_FEATURES_GUIDE.md`
 
-- 🐛 Fixed DTM nodata interpolation using nearest-neighbor
-- 🐛 Multi-scale: Added psutil fallback for memory detection
-- 🗑️ Removed deprecated gpu_dataframe_ops.py (relocated in v3.1.0)
-- 🗑️ Cleaned up obsolete milestone documentation
+**🔄 Simplified Naming Convention:**
 
-**Documentation:**
+Major refactoring for cleaner, more intuitive API:
 
-- 📚 New CLUSTER_ID_FEATURES_GUIDE.md - Complete guide for building/parcel IDs
-- 📚 New ign_lidar/config/README.md - Configuration architecture
-- 📚 Updated all version references to 3.3.3
+- `UnifiedClassifier` → `Classifier` (removed redundant "Unified" prefix)
+- `EnhancedBuildingClassifier` → `BuildingClassifier` (removed "Enhanced" prefix)
+- `OptimizedReclassifier` → `Reclassifier` (removed "Optimized" prefix)
+
+**Impact:** Zero breaking changes - old names still work via backward compatibility layer with deprecation warnings.
+
+**🚀 Performance Improvements:**
+
+| Improvement             | Speedup                                        |
+| ----------------------- | ---------------------------------------------- |
+| DTM Lookup              | 10× faster                                     |
+| Memory-Optimized Config | 40-50% faster (8-12 min vs 12-18 min per tile) |
+| Facade Detection        | +30-40% point capture                          |
+| Memory Safety           | Automatic chunking prevents OOM crashes        |
+
+**🐛 Bug Fixes:**
+
+- Fixed DTM nodata handling with nearest-neighbor interpolation
+- Added psutil fallback for systems without memory detection
+- Aligned all version references to 3.3.3 across package files
+
+**🗑️ Removed:**
+
+- Deprecated module: `ign_lidar/optimization/gpu_dataframe_ops.py` (relocated to `io/` in v3.1.0)
+- Obsolete documentation: Cleaned up 6 milestone tracking files
+
+**📚 Documentation:**
+
+- Updated configuration system architecture documentation
+- New cluster ID features guide (400+ lines)
+- Updated all version references to 3.3.3
 
 📖 [Full Release Notes](release-notes/v3.3.3.md)
 
@@ -380,7 +409,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {ImagoData},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {3.0.0}
+  version      = {3.3.3}
 }
 ```
 
