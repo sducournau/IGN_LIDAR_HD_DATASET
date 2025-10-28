@@ -2364,9 +2364,7 @@ class LiDARProcessor:
 
                     else:
                         # Use Classifier with comprehensive strategy
-                        logger.info(
-                            "  Using Classifier with comprehensive strategy"
-                        )
+                        logger.info("  Using Classifier with comprehensive strategy")
                         from .classification import (
                             Classifier,
                             ClassificationStrategy,
