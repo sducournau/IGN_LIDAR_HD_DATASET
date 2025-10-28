@@ -248,17 +248,17 @@ class ClassificationApplier:
         Returns:
             Updated labels [N]
         """
-        from .classification import ClassificationStrategy, UnifiedClassifier
+        from .classification import ClassificationStrategy, Classifier
 
-        logger.info(f"  🗺️  Applying ground truth (UnifiedClassifier)")
+        logger.info(f"  🗺️  Applying ground truth (Classifier)")
         logger.info(f"      Building mode: {self.building_mode}")
         logger.info(f"      Transport mode: {self.transport_mode}")
 
         # Store original for comparison
         labels_before = labels.copy()
 
-        # Create unified classifier
-        classifier = UnifiedClassifier(
+        # Create classifier
+        classifier = Classifier(
             strategy=ClassificationStrategy.COMPREHENSIVE,
             use_ground_truth=True,
             use_ndvi=self.use_ndvi,

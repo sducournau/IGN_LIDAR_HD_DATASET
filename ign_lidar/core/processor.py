@@ -55,10 +55,10 @@ from .classification.patch_extractor import (
     format_patch_for_architecture,
 )
 
-# Reclassification module (optimized)
+# Reclassification module
 from .classification.reclassifier import (
-    OptimizedReclassifier,
-    reclassify_tile_optimized,
+    Reclassifier,
+    reclassify_tile,
 )
 from .classification_applier import ClassificationApplier
 from .gpu_context import disable_gpu_for_multiprocessing
@@ -2595,7 +2595,7 @@ class LiDARProcessor:
                     logger.info(f"      Chunk size: {chunk_size:,}")
                     logger.info(f"      Geometric rules: {use_geometric_rules}")
 
-                    reclassifier = OptimizedReclassifier(
+                    reclassifier = Reclassifier(
                         chunk_size=chunk_size,
                         show_progress=show_progress,
                         acceleration_mode=acceleration_mode,
@@ -3622,7 +3622,7 @@ class LiDARProcessor:
         data_fetcher = DataFetcher(cache_dir=cache_dir, config=config)
 
         # Initialize reclassifier with acceleration mode
-        reclassifier = OptimizedReclassifier(
+        reclassifier = Reclassifier(
             chunk_size=chunk_size,
             show_progress=show_progress,
             acceleration_mode=acceleration_mode,
