@@ -62,6 +62,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Simplified Naming Convention**: Major refactoring for cleaner, more intuitive API
+  - `UnifiedClassifier` → `Classifier` (removed redundant "Unified" prefix)
+  - `EnhancedBuildingClassifier` → `BuildingClassifier` (removed "Enhanced" prefix)
+  - `OptimizedReclassifier` → `Reclassifier` (removed "Optimized" prefix)
+  - Updated all imports and references across the codebase
+  - **Rationale**: Eliminates marketing-style prefixes, follows principle that current implementation should have the simple name
+  - **Impact**: Zero breaking changes - old names still work via backward compatibility layer
+  - **Migration**: Automatic via import redirects with deprecation warnings
+
+### Changed
+
 - **DTM Augmentation**: Enhanced validation parameters
 
   - Search radius: 12m (increased from 10m)
