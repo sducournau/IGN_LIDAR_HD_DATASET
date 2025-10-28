@@ -24,9 +24,9 @@ from typing import Dict
 
 
 @dataclass
-class EnhancedBuildingConfig:
+class BuildingConfig:
     """
-    Configuration for enhanced LOD3 building classification.
+    Configuration for LOD3 building classification.
 
     This configuration enables advanced architectural feature detection
     including roof types, chimneys, and balconies for detailed building
@@ -368,14 +368,39 @@ class EnhancedBuildingConfig:
         )
 
 
-# Convenience aliases for backward compatibility
-RoofDetectionConfig = EnhancedBuildingConfig
-ChimneyDetectionConfig = EnhancedBuildingConfig
-BalconyDetectionConfig = EnhancedBuildingConfig
+# ============================================================================
+# Deprecated aliases for backward compatibility
+# ============================================================================
+
+import warnings
+
+
+class EnhancedBuildingConfig(BuildingConfig):
+    """
+    Deprecated: Use BuildingConfig instead.
+
+    This class is deprecated and will be removed in v4.0.
+    Use BuildingConfig for the same functionality.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "EnhancedBuildingConfig is deprecated, " "use BuildingConfig instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+# Convenience aliases
+RoofDetectionConfig = BuildingConfig
+ChimneyDetectionConfig = BuildingConfig
+BalconyDetectionConfig = BuildingConfig
 
 
 __all__ = [
-    "EnhancedBuildingConfig",
+    "BuildingConfig",
+    "EnhancedBuildingConfig",  # Deprecated
     "RoofDetectionConfig",
     "ChimneyDetectionConfig",
     "BalconyDetectionConfig",

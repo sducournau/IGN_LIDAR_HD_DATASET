@@ -1,12 +1,12 @@
 """
-Enhanced Building Classifier with LOD3 Architectural Details
+Building Classifier with LOD3 Architectural Details
 
 This module provides a comprehensive building classifier that integrates:
 - Roof type detection (Phase 2.1)
 - Chimney & superstructure detection (Phase 2.2)
 - Balcony & horizontal protrusion detection (Phase 2.3)
 
-The EnhancedBuildingClassifier coordinates multiple specialized detectors
+The BuildingClassifier coordinates multiple specialized detectors
 to provide complete LOD3 building classification with architectural details.
 
 Author: IGN LiDAR HD Processing Library
@@ -29,9 +29,9 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class EnhancedClassificationResult:
+class BuildingClassificationResult:
     """
-    Result from enhanced building classification with LOD3 details.
+    Result from building classification with LOD3 details.
 
     Attributes:
         roof_result: Roof type classification result
@@ -51,9 +51,9 @@ class EnhancedClassificationResult:
 
 
 @dataclass
-class EnhancedClassifierConfig:
+class BuildingClassifierConfig:
     """
-    Configuration for enhanced building classifier.
+    Configuration for building classifier.
 
     Attributes:
         enable_roof_detection: Enable roof type detection
@@ -99,7 +99,7 @@ class EnhancedClassifierConfig:
     balcony_dbscan_eps: float = 0.5
 
 
-class EnhancedBuildingClassifier:
+class BuildingClassifier:
     """
     Comprehensive building classifier with LOD3 architectural details.
 
@@ -109,7 +109,7 @@ class EnhancedBuildingClassifier:
     - BalconyDetector: Detect horizontal protrusions
 
     Example:
-        >>> classifier = EnhancedBuildingClassifier()
+        >>> classifier = BuildingClassifier()
         >>> result = classifier.classify_building(
         ...     points, features, building_polygon, ground_elevation
         ... )
@@ -118,14 +118,14 @@ class EnhancedBuildingClassifier:
         >>> print(f"Balconies: {result.balcony_result.num_balconies}")
     """
 
-    def __init__(self, config: Optional[EnhancedClassifierConfig] = None):
+    def __init__(self, config: Optional[BuildingClassifierConfig] = None):
         """
-        Initialize enhanced building classifier.
+        Initialize building classifier.
 
         Args:
             config: Configuration object. If None, uses defaults.
         """
-        self.config = config or EnhancedClassifierConfig()
+        self.config = config or BuildingClassifierConfig()
 
         # Initialize detectors based on config
         if self.config.enable_roof_detection:
@@ -456,9 +456,56 @@ def classify_building_enhanced(
         config: Optional configuration
 
     Returns:
-        EnhancedClassificationResult with all detections
+        BuildingClassificationResult with all detections
     """
-    classifier = EnhancedBuildingClassifier(config)
+    classifier = BuildingClassifier(config)
     return classifier.classify_building(
         points, features, building_polygon, ground_elevation
     )
+
+
+# ============================================================================
+# Deprecated aliases for backward compatibility
+# ============================================================================
+
+import warnings
+
+
+class EnhancedBuildingClassifier(BuildingClassifier):
+    """
+    Deprecated: Use BuildingClassifier instead.
+
+    This class is deprecated and will be removed in v4.0.
+    Use BuildingClassifier for the same functionality.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "EnhancedBuildingClassifier is deprecated, "
+            "use BuildingClassifier instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class EnhancedClassifierConfig(BuildingClassifierConfig):
+    """
+    Deprecated: Use BuildingClassifierConfig instead.
+
+    This class is deprecated and will be removed in v4.0.
+    Use BuildingClassifierConfig for the same functionality.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "EnhancedClassifierConfig is deprecated, "
+            "use BuildingClassifierConfig instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+# Alias for result class (dataclass, so we can't use inheritance)
+EnhancedClassificationResult = BuildingClassificationResult
