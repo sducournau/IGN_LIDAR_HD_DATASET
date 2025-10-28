@@ -1,14 +1,14 @@
 """
-Optimized Reclassifier Module with GPU Acceleration
+Reclassifier Module with GPU Acceleration
 
-This module provides optimized ground truth reclassification using:
+This module provides ground truth reclassification using:
 - CPU: Spatial indexing (STRtree) for fast point-in-polygon queries
 - GPU: RAPIDS cuSpatial for GPU-accelerated spatial operations
 - GPU+cuML: Additional GPU acceleration for large-scale processing
 
 Performance comparison (18M points):
 - CPU baseline: ~30-60 minutes
-- CPU optimized (STRtree): ~5-10 minutes
+- CPU with STRtree: ~5-10 minutes
 - GPU (RAPIDS): ~1-2 minutes
 - GPU+cuML: ~30-60 seconds
 
@@ -17,6 +17,7 @@ Date: October 16, 2025
 """
 
 import logging
+import warnings
 from pathlib import Path
 from typing import Dict, Literal, Optional, Tuple
 
@@ -75,9 +76,9 @@ except ImportError:
 AccelerationMode = Literal["cpu", "gpu", "gpu+cuml", "auto"]
 
 
-class OptimizedReclassifier:
+class Reclassifier:
     """
-    Optimized reclassifier with multi-backend support (CPU, GPU, GPU+cuML).
+    Reclassifier with multi-backend support (CPU, GPU, GPU+cuML).
 
     Features:
     - CPU: STRtree spatial indexing for O(log n) query performance
@@ -766,7 +767,7 @@ class OptimizedReclassifier:
         return stats
 
 
-def reclassify_tile_optimized(
+def reclassify_tile(
     input_laz: Path,
     output_laz: Path,
     ground_truth_features: Dict[str, gpd.GeoDataFrame],
@@ -786,12 +787,47 @@ def reclassify_tile_optimized(
     Returns:
         Statistics dict
     """
-    reclassifier = OptimizedReclassifier(
-        chunk_size=chunk_size, show_progress=show_progress
-    )
+    reclassifier = Reclassifier(chunk_size=chunk_size, show_progress=show_progress)
 
     return reclassifier.reclassify_file(
         input_laz=input_laz,
         output_laz=output_laz,
         ground_truth_features=ground_truth_features,
     )
+
+
+# ============================================================================
+# Deprecated aliases for backward compatibility
+# ============================================================================
+
+
+class OptimizedReclassifier(Reclassifier):
+    """
+    Deprecated: Use Reclassifier instead.
+
+    This class is deprecated and will be removed in v4.0.
+    Use Reclassifier for the same functionality.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "OptimizedReclassifier is deprecated, " "use Reclassifier instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+def reclassify_tile_optimized(*args, **kwargs):
+    """
+    Deprecated: Use reclassify_tile() instead.
+
+    This function is deprecated and will be removed in v4.0.
+    Use reclassify_tile() for the same functionality.
+    """
+    warnings.warn(
+        "reclassify_tile_optimized() is deprecated, " "use reclassify_tile() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return reclassify_tile(*args, **kwargs)
