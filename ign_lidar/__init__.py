@@ -22,7 +22,7 @@ Version 3.0.0 - Major Release:
 All features now work with the new unified configuration architecture.
 """
 
-__version__ = "3.3.3"
+__version__ = "3.3.4"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 
