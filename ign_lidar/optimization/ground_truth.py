@@ -127,7 +127,10 @@ class GroundTruthOptimizer:
         try:
             _ = cp.array([1.0])
             return True
-        except Exception:
+        except (RuntimeError, AttributeError, ImportError):
+            # RuntimeError: CUDA not available or initialization failed
+            # AttributeError: cp.array not available
+            # ImportError: CuPy module issue
             return False
 
     @staticmethod

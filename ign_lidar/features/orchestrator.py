@@ -1181,6 +1181,7 @@ class FeatureOrchestrator:
         3. Parallel RGB/NIR processing
         4. Performance monitoring and adaptive tuning
         5. All original feature computation capabilities
+        6. Spatial artifact filtering (v3.1.0) for planarity, linearity, horizontality
 
         Args:
             tile_data: Dictionary containing:
@@ -1350,6 +1351,52 @@ class FeatureOrchestrator:
                 f"  ✅ Validated features: fixed {sum(issue_counts.values())} "
                 f"invalid values in {len(issue_counts)} features"
             )
+
+        # 🆕 PHASE 3: Apply spatial artifact filtering (v3.1.0)
+        # Remove scan line artifacts from planarity, linearity, horizontality
+        features_cfg = self.config.get("features", {})
+        enable_filtering = features_cfg.get("enable_artifact_filtering", True)
+
+        if enable_filtering:
+            from .compute.feature_filter import smooth_feature_spatial
+
+            filter_start = time.time()
+            filtered_count = 0
+
+            # Features that need artifact filtering
+            artifact_prone_features = ["planarity", "linearity", "horizontality"]
+
+            # v3.1.1: Get threshold from config or use improved default
+            filter_threshold = features_cfg.get("artifact_filter_threshold", 0.2)
+
+            for feature_name in artifact_prone_features:
+                if feature_name in all_features:
+                    original = all_features[feature_name]
+
+                    # Apply spatial filtering (v3.1.1: deviation-based algorithm)
+                    filtered = smooth_feature_spatial(
+                        feature=original,
+                        points=points,
+                        k_neighbors=15,
+                        std_threshold=filter_threshold,
+                        feature_name=feature_name,
+                    )
+
+                    # Count how many values changed
+                    changes = np.sum(np.abs(filtered - original) > 1e-6)
+                    if changes > 0:
+                        all_features[feature_name] = filtered
+                        filtered_count += 1
+                        logger.debug(
+                            f"  🔧 Filtered {feature_name}: {changes} points modified"
+                        )
+
+            if filtered_count > 0:
+                filter_time = time.time() - filter_start
+                logger.info(
+                    f"  🧹 Applied artifact filtering to {filtered_count} features "
+                    f"in {filter_time:.2f}s"
+                )
 
         # Log feature quality metrics for debugging
         self._log_feature_quality(all_features)

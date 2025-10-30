@@ -180,6 +180,10 @@ class Reclassifier:
         # Later features in the list overwrite earlier ones
         feature_priority = get_priority_order_for_iteration()
 
+        # 🔄 CRITICAL FIX v3.0.5: Remove double reversal
+        # get_priority_order_for_iteration() ALREADY returns lowest→highest
+        # (it internally reverses PRIORITY_ORDER which is highest→lowest)
+        # So we use it directly - important features come LAST to overwrite
         self.priority_order = [
             (feature, self._get_asprs_code(feature)) for feature in feature_priority
         ]

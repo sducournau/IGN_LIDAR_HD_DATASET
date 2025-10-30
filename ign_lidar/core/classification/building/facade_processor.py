@@ -236,70 +236,30 @@ class FacadeProcessor:
 
     def _identify_candidate_points(self):
         """
-        Identifier les points proches de cette façade avec bounding box optimisée.
+        Identifier les points proches de cette façade.
 
-        Améliorations:
-        - Bounding box orientée (OBB) au lieu de AABB pour mieux capturer façades obliques
-        - Buffer adaptatif selon densité de points
-        - Pré-filtrage spatial plus efficace
+        SIMPLIFIÉ v3.0.5: Utilise buffer circulaire au lieu de OBB complexe
+        pour éviter échecs silencieux et meilleure robustesse.
         """
-        # Créer zone de recherche (buffer autour de l'arête)
+        # Créer zone de recherche (buffer circulaire autour de l'arête)
         search_zone = self.facade.edge_line.buffer(self.facade.buffer_distance)
 
-        # 🔥 AMÉLIORATION 1: Bounding box orientée (OBB) pour façades obliques
-        # Calculer l'orientation de la façade
-        coords = list(self.facade.edge_line.coords)
-        if len(coords) >= 2:
-            dx = coords[1][0] - coords[0][0]
-            dy = coords[1][1] - coords[0][1]
-            facade_angle = np.arctan2(dy, dx)
-
-            # Créer OBB orientée selon la façade
-            facade_center = np.array(self.facade.edge_line.centroid.coords[0])
-
-            # Rotation inverse pour aligner avec axes
-            cos_a = np.cos(-facade_angle)
-            sin_a = np.sin(-facade_angle)
-
-            # Transformer points dans repère de la façade
-            points_centered = self.points[:, :2] - facade_center
-            points_rotated = np.column_stack(
-                [
-                    points_centered[:, 0] * cos_a - points_centered[:, 1] * sin_a,
-                    points_centered[:, 0] * sin_a + points_centered[:, 1] * cos_a,
-                ]
-            )
-
-            # Calculer limites OBB dans repère façade
-            half_length = self.facade.length / 2 + self.facade.buffer_distance
-            half_width = self.facade.buffer_distance
-
-            # Masque OBB: points dans rectangle orienté
-            obb_mask = (np.abs(points_rotated[:, 0]) <= half_length) & (
-                np.abs(points_rotated[:, 1]) <= half_width
-            )
-        else:
-            # Fallback: bounding box standard
+        if not HAS_SHAPELY:
+            # Fallback simple: bounding box
             bounds = search_zone.bounds
-            obb_mask = (
+            mask = (
                 (self.points[:, 0] >= bounds[0])
                 & (self.points[:, 0] <= bounds[2])
                 & (self.points[:, 1] >= bounds[1])
                 & (self.points[:, 1] <= bounds[3])
             )
-
-        # 🔥 AMÉLIORATION 2: Filtrage raffiné par polygone pour candidats OBB
-        if not HAS_SHAPELY:
-            self._candidate_mask = obb_mask
+            self._candidate_mask = mask
         else:
+            # Filtrage direct par polygon (plus robuste que OBB)
             from shapely.vectorized import contains
 
-            refined_mask = obb_mask.copy()
-            if np.any(obb_mask):
-                refined_mask[obb_mask] = contains(
-                    search_zone, self.points[obb_mask, 0], self.points[obb_mask, 1]
-                )
-            self._candidate_mask = refined_mask
+            mask = contains(search_zone, self.points[:, 0], self.points[:, 1])
+            self._candidate_mask = mask
 
         # Stocker indices
         self.facade.point_indices = np.where(self._candidate_mask)[0]
@@ -320,10 +280,11 @@ class FacadeProcessor:
 
         # 🔥 AMÉLIORATION 1: Seuil de verticalité assoupli
         # Au lieu d'un seuil strict, utiliser un seuil progressif
-        strict_threshold = self.facade.verticality_threshold
+        strict_threshold = self.facade.verticality_threshold  # = 0.55
+        # 🔄 V3.0.5: Fixed gradient (0.4 floor, -0.15 delta) for better coverage
         relaxed_threshold = max(
-            0.5, strict_threshold - 0.2
-        )  # -0.2 par rapport au seuil
+            0.4, strict_threshold - 0.15
+        )  # Gives 0.4 for better gradient
 
         # Points avec haute verticalité (haute confiance)
         high_confidence_mask = candidate_verticality >= strict_threshold

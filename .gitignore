@@ -23,7 +23,7 @@ MANIFEST
 .cache/
 # Build artifacts
 ign_lidar_hd-*/
-
+./.serena/
 # Virtual environments
 .env
 .venv

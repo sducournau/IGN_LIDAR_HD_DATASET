@@ -94,6 +94,27 @@ from .eigenvalues import (
     compute_verticality,
 )
 
+# Feature filtering (artifact reduction) - Unified module v3.1.0
+from .feature_filter import (
+    smooth_feature_spatial,
+    validate_feature,
+    smooth_planarity_spatial,
+    smooth_linearity_spatial,
+    smooth_horizontality_spatial,
+    validate_planarity,
+    validate_linearity,
+    validate_horizontality,
+)
+
+# Legacy imports for backward compatibility (deprecated)
+try:
+    from .planarity_filter import (
+        smooth_planarity_spatial as _legacy_smooth_planarity,
+        validate_planarity as _legacy_validate_planarity,
+    )
+except ImportError:
+    pass  # planarity_filter.py may be removed in future versions
+
 # Geometric features (consolidated)
 from .geometric import extract_geometric_features
 
@@ -168,6 +189,15 @@ __all__ = [
     "compute_linearity",
     "compute_planarity",
     "compute_sphericity",
+    # Feature filtering (artifact reduction) - v3.1.0 unified
+    "smooth_feature_spatial",
+    "validate_feature",
+    "smooth_planarity_spatial",
+    "smooth_linearity_spatial",
+    "smooth_horizontality_spatial",
+    "validate_planarity",
+    "validate_linearity",
+    "validate_horizontality",
     "compute_anisotropy",
     "compute_omnivariance",
     "compute_eigenentropy",

@@ -345,14 +345,15 @@ class OptimizedGroundTruthClassifier:
         # Road candidates: VERY low height above ground, high planarity
         # 🆕 V5.2: Stricter threshold (0.5m vs 2.0m) thanks to accurate DTM reference
         # This excludes vegetation above roads (trees, bushes) automatically
+        # 🔄 V3.0.5: Relaxed thresholds (1.2m, 0.5 planarity) to capture curbs/sidewalks
         if (
             "roads" in ground_truth_features
             and ground_truth_features["roads"] is not None
         ):
             road_mask = (
-                (height_above_ground <= 0.5)  # 🆕 STRICT: max 50cm above DTM ground
-                & (height_above_ground >= -0.2)  # 🆕 Tolerance for slight embedding
-                & (planarity >= 0.7)  # High planarity (flat surface)
+                (height_above_ground <= 1.2)  # 🔄 RELAXED: up to 1.2m (curbs/sidewalks)
+                & (height_above_ground >= -0.3)  # 🔄 Increased embedding tolerance
+                & (planarity >= 0.5)  # 🔄 RELAXED: damaged roads still captured
             )
             if intensity is not None:
                 # Roads typically have moderate intensity (asphalt/concrete)
@@ -366,14 +367,15 @@ class OptimizedGroundTruthClassifier:
 
         # Railway candidates: low height above ground, medium planarity
         # 🆕 V5.2: Stricter threshold (0.8m vs 2.0m) for rails + ballast
+        # 🔄 V3.0.5: Relaxed to 1.0m and 0.45 planarity for better rail coverage
         if (
             "railways" in ground_truth_features
             and ground_truth_features["railways"] is not None
         ):
             rail_mask = (
-                (height_above_ground <= 0.8)  # 🆕 Rails + ballast + ties
-                & (height_above_ground >= -0.2)  # 🆕 Slight embedding tolerance
-                & (planarity >= 0.5)  # Medium planarity
+                (height_above_ground <= 1.0)  # 🔄 RELAXED: 1.0m (rails + equipment)
+                & (height_above_ground >= -0.3)  # 🔄 Increased embedding tolerance
+                & (planarity >= 0.45)  # 🔄 RELAXED: damaged tracks still captured
             )
             candidates_map["railways"] = np.where(rail_mask)[0]
             reduction = len(candidates_map["railways"]) / len(points) * 100
@@ -383,14 +385,15 @@ class OptimizedGroundTruthClassifier:
 
         # Sports facility candidates: low-medium height, high planarity
         # 🆕 V5.2: NEW filter for sports surfaces (tennis courts, football fields, etc.)
+        # 🔄 V3.0.5: Relaxed to 2.5m and 0.60 planarity for equipment coverage
         if (
             "sports" in ground_truth_features
             and ground_truth_features["sports"] is not None
         ):
             sports_mask = (
-                (height_above_ground <= 2.0)  # 🆕 Sports surfaces + low equipment
-                & (height_above_ground >= -0.2)  # Ground level
-                & (planarity >= 0.65)  # Relatively flat surfaces
+                (height_above_ground <= 2.5)  # 🔄 RELAXED: 2.5m (include equipment)
+                & (height_above_ground >= -0.3)  # 🔄 Increased tolerance
+                & (planarity >= 0.60)  # 🔄 RELAXED: worn surfaces still captured
             )
             candidates_map["sports"] = np.where(sports_mask)[0]
             reduction = len(candidates_map["sports"]) / len(points) * 100
@@ -415,14 +418,15 @@ class OptimizedGroundTruthClassifier:
 
         # Parking candidates: very low height (similar to roads)
         # 🆕 V5.2: NEW filter for parking areas
+        # 🔄 V3.0.5: Aligned with relaxed road thresholds (1.2m, 0.5 planarity)
         if (
             "parking" in ground_truth_features
             and ground_truth_features["parking"] is not None
         ):
             parking_mask = (
-                (height_above_ground <= 0.5)  # 🆕 Similar to roads
-                & (height_above_ground >= -0.2)  # Ground level
-                & (planarity >= 0.7)  # Flat surface
+                (height_above_ground <= 1.2)  # 🔄 RELAXED: align with roads (curbs)
+                & (height_above_ground >= -0.3)  # 🔄 Increased tolerance
+                & (planarity >= 0.5)  # 🔄 RELAXED: damaged surfaces
             )
             if intensity is not None:
                 # Parking typically has moderate intensity (asphalt/concrete)
@@ -452,20 +456,19 @@ class OptimizedGroundTruthClassifier:
             )
 
         # Building candidates: elevated structures, facades (low planarity or high verticality)
+        # 🔄 V3.0.5: Further relaxed thresholds for low facades and rough surfaces
         if (
             "buildings" in ground_truth_features
             and ground_truth_features["buildings"] is not None
         ):
             building_mask = (
                 (
-                    height_above_ground >= 0.5
-                )  # ✅ IMPROVED: Lower threshold (1.0→0.5m) to capture low facades
+                    height_above_ground >= 0.2
+                )  # 🔄 RELAXED: 0.2m (capture very low facades)
+                | (planarity < 0.7)  # 🔄 RELAXED: <0.7 (include more rough surfaces)
                 | (
-                    planarity < 0.6
-                )  # ✅ IMPROVED: Higher threshold (0.5→0.6) to include more facade-like surfaces
-                | (
-                    verticality is not None and verticality >= 0.5
-                )  # ✅ NEW: Direct verticality check for facades
+                    verticality is not None and verticality >= 0.45
+                )  # 🔄 RELAXED: 0.45 (more facade-like surfaces)
             )
             candidates_map["buildings"] = np.where(building_mask)[0]
             reduction = len(candidates_map["buildings"]) / len(points) * 100

@@ -473,29 +473,33 @@ class PerformanceMonitor:
         """Print current performance statistics."""
         stats = self.get_current_stats()
 
-        print(f"\n📊 Performance Monitor - {self.session_id}")
-        print(f"Session Duration: {stats['session_duration']:.1f}s")
-        print(f"Items Processed: {stats['items_processed']:,}")
+        logger.info(f"\n📊 Performance Monitor - {self.session_id}")
+        logger.info(f"Session Duration: {stats['session_duration']:.1f}s")
+        logger.info(f"Items Processed: {stats['items_processed']:,}")
 
         if stats["current_stage"]:
-            print(f"Current Stage: {stats['current_stage']}")
+            logger.info(f"Current Stage: {stats['current_stage']}")
 
         # System metrics
         system = stats["system"]
         if system["cpu_percent"] is not None:
-            print(f"CPU: {system['cpu_percent']:.1f}%")
+            logger.info(f"CPU: {system['cpu_percent']:.1f}%")
         if system["ram_percent"] is not None:
-            print(f"RAM: {system['ram_used_mb']:.0f}MB ({system['ram_percent']:.1f}%)")
+            logger.info(
+                f"RAM: {system['ram_used_mb']:.0f}MB ({system['ram_percent']:.1f}%)"
+            )
         if system["gpu_percent"] is not None:
-            print(f"GPU: {system['gpu_used_mb']:.0f}MB ({system['gpu_percent']:.1f}%)")
+            logger.info(
+                f"GPU: {system['gpu_used_mb']:.0f}MB ({system['gpu_percent']:.1f}%)"
+            )
 
         # Stage timings
         if stats.get("stage_timings"):
-            print("\n⏱️  Stage Timings:")
+            logger.info("\n⏱️  Stage Timings:")
             for stage, duration in stats["stage_timings"].items():
-                print(f"  {stage}: {duration:.2f}s")
+                logger.info(f"  {stage}: {duration:.2f}s")
 
-        print()
+        logger.info("")
 
     def generate_report(self) -> PerformanceMetrics:
         """Generate comprehensive performance report."""
