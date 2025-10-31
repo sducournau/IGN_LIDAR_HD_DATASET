@@ -14,7 +14,7 @@ These cluster IDs are used for:
 
 import logging
 import multiprocessing
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 import numpy as np
 
 logger = logging.getLogger(__name__)
