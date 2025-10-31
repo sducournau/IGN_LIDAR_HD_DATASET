@@ -17,6 +17,10 @@ import numpy as np
 from typing import Dict, Optional, List, Tuple, Any
 from dataclasses import dataclass
 
+from ign_lidar.core.classification.priorities import (
+    get_priority_order_for_iteration,
+)
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -240,18 +244,10 @@ class OptimizedGroundTruthClassifier:
         all_polygons = []
         metadata_map = {}
 
-        # Priority order (lower = higher priority, overwrites previous)
+        # ✅ Use centralized priority order (lowest → highest priority)
+        feature_priority = get_priority_order_for_iteration()
         priority_order = [
-            ("vegetation", self.ASPRS_MEDIUM_VEGETATION),
-            ("water", self.ASPRS_WATER),
-            ("cemeteries", self.ASPRS_CEMETERY),
-            ("parking", self.ASPRS_PARKING),
-            ("sports", self.ASPRS_SPORTS),
-            ("power_lines", self.ASPRS_POWER_LINE),
-            ("railways", self.ASPRS_RAIL),
-            ("roads", self.ASPRS_ROAD),
-            ("bridges", self.ASPRS_BRIDGE),
-            ("buildings", self.ASPRS_BUILDING),
+            (feature, self._get_asprs_code(feature)) for feature in feature_priority
         ]
 
         for feature_type, asprs_class in priority_order:

@@ -1,8 +1,10 @@
 """
-Test for v3.0.5 priority fix in reclassifier.
+Test for reclassification priority order.
 
-Validates that the reversed priority order ensures buildings overwrite roads,
-not the other way around.
+Validates:
+- v3.0.5: Buildings overwrite roads (not the other way around)
+- v3.0.6: Roads have lowest priority, so vegetation can overwrite roads
+  (trees on roads remain vegetation)
 """
 
 import numpy as np
@@ -89,6 +91,34 @@ def test_priority_order_consistency():
 
     # Should be identical regardless of chunk_size
     assert order1 == order2, "Priority order should be consistent across instances"
+
+
+def test_vegetation_overwrites_roads():
+    """Test that vegetation has higher priority than roads (v3.0.6)."""
+    from ign_lidar.core.classification.reclassifier import Reclassifier
+
+    reclassifier = Reclassifier(chunk_size=10000, show_progress=False)
+    reclassifier_features = [feat for feat, _ in reclassifier.priority_order]
+
+    # Get indices
+    vegetation_idx = None
+    road_idx = None
+
+    for idx, feature in enumerate(reclassifier_features):
+        if feature == "vegetation":
+            vegetation_idx = idx
+        elif feature == "roads":
+            road_idx = idx
+
+    # Both features must exist in priority order
+    assert vegetation_idx is not None, "Vegetation should be in priority order"
+    assert road_idx is not None, "Roads should be in priority order"
+
+    # Vegetation should be processed AFTER roads (higher priority)
+    # so vegetation can overwrite roads (trees on roads remain vegetation)
+    assert (
+        vegetation_idx > road_idx
+    ), "Vegetation must be processed after roads to overwrite them"
 
 
 if __name__ == "__main__":

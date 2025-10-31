@@ -23,23 +23,27 @@ from typing import Dict, List, Tuple
 # Priority values are assigned in descending order from the list:
 # - buildings: priority 9 (highest)
 # - bridges: priority 8
-# - roads: priority 7
-# - railways: priority 6
-# - sports: priority 5
-# - parking: priority 4
-# - cemeteries: priority 3
-# - water: priority 2
-# - vegetation: priority 1 (lowest)
+# - railways: priority 7
+# - sports: priority 6
+# - parking: priority 5
+# - cemeteries: priority 4
+# - water: priority 3
+# - vegetation: priority 2
+# - roads: priority 1 (lowest)
+#
+# 🔄 V3.0.6 CHANGE: Roads moved to lowest priority (below vegetation)
+# This ensures vegetation can overwrite roads (trees on roads remain as
+# vegetation) while roads are processed first in sequential iteration.
 PRIORITY_ORDER: List[str] = [
     "buildings",  # Priority 9 - Highest (solid structures)
     "bridges",  # Priority 8 - Elevated structures
-    "roads",  # Priority 7 - Transport infrastructure
-    "railways",  # Priority 6 - Rail transport
-    "sports",  # Priority 5 - Sports facilities
-    "parking",  # Priority 4 - Parking areas
-    "cemeteries",  # Priority 3 - Cemetery grounds
-    "water",  # Priority 2 - Water bodies
-    "vegetation",  # Priority 1 - Lowest (natural features)
+    "railways",  # Priority 7 - Rail transport
+    "sports",  # Priority 6 - Sports facilities
+    "parking",  # Priority 5 - Parking areas
+    "cemeteries",  # Priority 4 - Cemetery grounds
+    "water",  # Priority 3 - Water bodies
+    "vegetation",  # Priority 2 - Natural features (can overwrite roads)
+    "roads",  # Priority 1 - Lowest (transport infrastructure, processed first)
 ]
 
 # Simplified label mapping for ground truth labeling
