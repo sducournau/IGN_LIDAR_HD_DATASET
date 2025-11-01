@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 3.3.4** | Python 3.8+ | MIT License
+**Version 3.3.5** | Python 3.8+ | MIT License
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -18,11 +18,11 @@ Transform French IGN LiDAR HD point clouds into ML-ready datasets for building c
 
 ## 🎯 What's New
 
-### v3.3.4 (2025-10-30) - Latest Release ⚠️ CRITICAL BUG FIX
+### v3.3.5 (2025-11-01) - Latest Release
 
-### � Critical: BD TOPO Classification Priority Fix + Unified Feature Filtering
+### 📦 Maintenance Release
 
-**⚠️ CRITICAL FIX:** This release resolves a major classification priority bug causing roads to overwrite buildings. **Upgrade immediately if you are processing building classification data.**
+**This release includes version updates and minor improvements.**
 
 **🌟 Highlights:**
 
@@ -76,7 +76,7 @@ All performance improvements from v3.3.3 are preserved:
 **🔄 Migration:**
 
 ```bash
-# Upgrade to v3.3.4
+# Upgrade to v3.3.5
 pip install --upgrade ign-lidar-hd
 
 # No configuration changes needed!
@@ -85,16 +85,24 @@ pip install --upgrade ign-lidar-hd
 
 **📖 Learn More:**
 
+- [v3.3.5 Release Notes (Current)](./release-notes/v3.3.5)
 - [v3.3.4 Release Notes (Critical Fix)](./release-notes/v3.3.4) 🔴
 - [v3.1.0 Release Notes (Unified Filtering)](./release-notes/v3.1.0)
 - [v3.0.6 Release Notes (Planarity Filtering)](./release-notes/v3.0.6)
 - [v3.3.3 Release Notes (Performance)](./release-notes/v3.3.3)
 
-**🐛 Bug Fixes:**
+**📖 Previous Releases:**
+
+- [v3.3.4 Release Notes (Critical Fix)](./release-notes/v3.3.4) - BD TOPO priority fix 🔴
+- [v3.1.0 Release Notes (Unified Filtering)](./release-notes/v3.1.0)
+- [v3.0.6 Release Notes (Planarity Filtering)](./release-notes/v3.0.6)
+- [v3.3.3 Release Notes (Performance)](./release-notes/v3.3.3)
+
+**�🐛 Bug Fixes:**
 
 - Fixed DTM nodata handling with nearest-neighbor interpolation
 - Added psutil fallback for systems without memory detection
-- Aligned all version references to 3.3.3 across package files
+- Aligned all version references to 3.3.5 across package files
 
 **🗑️ Removed:**
 

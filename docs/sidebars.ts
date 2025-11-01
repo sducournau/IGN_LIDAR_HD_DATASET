@@ -227,6 +227,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "📝 Release Notes",
       items: [
+        "release-notes/v3.3.5", // Maintenance release
         "release-notes/v3.3.4", // CRITICAL: Bug fix + unified filtering
         "release-notes/v3.3.3", // Performance optimizations
         "release-notes/v3.2.1", // Rules framework
