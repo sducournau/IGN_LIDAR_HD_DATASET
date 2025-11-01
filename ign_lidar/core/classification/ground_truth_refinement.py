@@ -53,17 +53,30 @@ class GroundTruthRefinementConfig:
     TREE_CANOPY_HEIGHT_MIN = 2.0  # Trees typically start at 2m height above ground
 
     # Building polygon adjustment
-    BUILDING_BUFFER_EXPAND = 0.5  # Expand building polygons by 0.5m
-    BUILDING_HEIGHT_MIN = (
-        0.5  # ✅ IMPROVED: Abaissé de 1.5→0.5m pour capturer façades basses
-    )
-    BUILDING_PLANARITY_MIN = 0.60  # ✅ IMPROVED: Abaissé de 0.65→0.60 pour surfaces de bâtiments moins planaires
-    BUILDING_NDVI_MAX = (
-        0.25  # ✅ IMPROVED: Augmenté de 0.20→0.25 pour tolérer végétation proche
-    )
-    BUILDING_VERTICAL_THRESHOLD = (
-        0.5  # ✅ IMPROVED: Abaissé de 0.6→0.5 pour capturer plus de murs/façades
-    )
+    BUILDING_BUFFER_EXPAND = 0.5  # Expand building polygons by 0.5m (fixed)
+    BUILDING_BUFFER_MIN = 0.5  # Minimum buffer for adaptive mode (meters)
+    BUILDING_BUFFER_MAX = 3.0  # Maximum buffer for adaptive mode (meters)
+    BUILDING_BUFFER_SCALE = 0.05  # Scale factor: 5% of perimeter
+    USE_ADAPTIVE_BUFFERS = True  # Use adaptive sizing (recommended)
+
+    # Height-stratified validation (facades vs roofs)
+    USE_FACADE_SPECIFIC_VALIDATION = True  # Separate criteria for facades
+    FACADE_TRANSITION_HEIGHT = 2.0  # Below this = facade, above = roof
+
+    # Facade-specific criteria (relaxed for vertical walls)
+    FACADE_HEIGHT_MIN = 0.3  # Lower than general threshold
+    FACADE_VERTICAL_MIN = 0.35  # Relaxed verticality for complex facades
+    FACADE_PLANARITY_MAX = 0.70  # Facades can be less planar
+
+    # Roof-specific criteria (stricter for horizontal surfaces)
+    ROOF_HEIGHT_MIN = 0.5  # Standard minimum
+    ROOF_PLANARITY_MIN = 0.60  # Roofs should be planar
+
+    # Legacy thresholds (used when stratification disabled)
+    BUILDING_HEIGHT_MIN = 0.5
+    BUILDING_PLANARITY_MIN = 0.60
+    BUILDING_NDVI_MAX = 0.25
+    BUILDING_VERTICAL_THRESHOLD = 0.5
 
 
 class GroundTruthRefiner:
@@ -562,11 +575,37 @@ class GroundTruthRefiner:
 
         logger.info("  Refining building classification with expanded polygons...")
 
-        # Expand building polygons
+        # Compute buffer distances (adaptive or fixed)
         expanded_polygons = building_polygons.copy()
-        expanded_polygons["geometry"] = building_polygons.geometry.buffer(
-            self.config.BUILDING_BUFFER_EXPAND
-        )
+        if self.config.USE_ADAPTIVE_BUFFERS:
+            # Adaptive buffer based on building area
+            areas = building_polygons.geometry.area
+            # Buffer = 5% of perimeter (sqrt(area) approximates side length)
+            buffer_distances = np.clip(
+                (areas**0.5) * self.config.BUILDING_BUFFER_SCALE,
+                self.config.BUILDING_BUFFER_MIN,
+                self.config.BUILDING_BUFFER_MAX,
+            )
+            # Apply per-building buffers
+            expanded_geoms = [
+                geom.buffer(dist)
+                for geom, dist in zip(building_polygons.geometry, buffer_distances)
+            ]
+            expanded_polygons["geometry"] = expanded_geoms
+            logger.info(
+                f"    Using adaptive buffers: "
+                f"{buffer_distances.min():.2f}m - "
+                f"{buffer_distances.max():.2f}m "
+                f"(mean: {buffer_distances.mean():.2f}m)"
+            )
+        else:
+            # Fixed buffer for all buildings
+            expanded_polygons["geometry"] = building_polygons.geometry.buffer(
+                self.config.BUILDING_BUFFER_EXPAND
+            )
+            logger.info(
+                f"    Using fixed buffer: " f"{self.config.BUILDING_BUFFER_EXPAND}m"
+            )
 
         # Build spatial index
         polygons_list = expanded_polygons.geometry.tolist()
@@ -618,34 +657,48 @@ class GroundTruthRefiner:
 
         # Criterion 2: Planarity or Verticality (buildings have flat or vertical surfaces)
         if planarity is not None and verticality is not None:
-            # Filter out NaN/Inf before comparison to prevent silent rejection
+            # Robust NaN/Inf handling with intelligent fallbacks
             candidate_planarity = planarity[building_candidates]
             candidate_verticality = verticality[building_candidates]
             is_finite_plan = np.isfinite(candidate_planarity)
             is_finite_vert = np.isfinite(candidate_verticality)
 
-            # Either high planarity (roofs) or high verticality (walls)
-            geometry_valid = (
-                is_finite_plan
-                & (candidate_planarity >= self.config.BUILDING_PLANARITY_MIN)
-            ) | (
-                is_finite_vert
-                & (candidate_verticality >= self.config.BUILDING_VERTICAL_THRESHOLD)
+            # Create robust versions with fallbacks
+            # If verticality is NaN but planarity is low → assume vertical
+            # If planarity is NaN but verticality is low → assume planar
+            planarity_robust = np.where(
+                is_finite_plan,
+                candidate_planarity,
+                0.0,  # Default for missing planarity
             )
+            verticality_robust = np.where(
+                is_finite_vert,
+                candidate_verticality,
+                np.maximum(0.0, 1.0 - planarity_robust),  # Inverse planarity
+            )
+
+            # Either high planarity (roofs) or high verticality (walls)
+            # Use robust versions to avoid silent rejections
+            geometry_valid = (
+                planarity_robust >= self.config.BUILDING_PLANARITY_MIN
+            ) | (verticality_robust >= self.config.BUILDING_VERTICAL_THRESHOLD)
             valid_building &= geometry_valid
             n_geometry_invalid = np.sum(~geometry_valid)
 
-            # Log if artifacts detected
+            # Log if artifacts were corrected
             n_invalid_plan = np.sum(~is_finite_plan)
             n_invalid_vert = np.sum(~is_finite_vert)
+            n_recovered = np.sum(~is_finite_vert & geometry_valid)
             if n_invalid_plan > 0 or n_invalid_vert > 0:
-                logger.warning(
-                    f"      ⚠️  Building candidates with invalid features: "
-                    f"{n_invalid_plan} planarity, {n_invalid_vert} verticality NaN/Inf"
+                logger.info(
+                    f"      ℹ️  Invalid features handled with fallbacks: "
+                    f"{n_invalid_plan} planarity, {n_invalid_vert} verticality "
+                    f"({n_recovered} recovered)"
                 )
             if n_geometry_invalid > 0:
                 logger.info(
-                    f"      - Geometry: {n_geometry_invalid} rejected (neither flat nor vertical)"
+                    f"      - Geometry: {n_geometry_invalid} rejected "
+                    f"(neither flat nor vertical)"
                 )
 
         # Criterion 3: NDVI (buildings should not be vegetation)
@@ -680,6 +733,90 @@ class GroundTruthRefiner:
         )
         if stats["building_rejected"] > 0:
             logger.info(f"    ✗ Rejected: {stats['building_rejected']:,} candidates")
+
+        return refined, stats
+
+    def recover_missing_facades(
+        self,
+        labels: np.ndarray,
+        points: np.ndarray,
+        building_polygons: gpd.GeoDataFrame,
+        height: np.ndarray,
+        verticality: np.ndarray,
+    ) -> Tuple[np.ndarray, Dict[str, int]]:
+        """
+        Aggressive recovery pass for missing facade points.
+
+        Finds unclassified vertical points near buildings that were
+        missed by polygon expansion. This is a final recovery pass
+        after standard classification.
+
+        Strategy:
+        1. Find unclassified points with vertical geometry
+        2. Check if they're within search radius of building polygons
+        3. Validate with height constraints
+        4. Classify as building
+
+        Args:
+            labels: Current classification labels [N]
+            points: Point cloud XYZ coordinates [N, 3]
+            building_polygons: Building polygons from ground truth
+            height: Height above ground [N]
+            verticality: Verticality feature [N]
+
+        Returns:
+            Tuple of (refined_labels, stats_dict)
+        """
+        stats = {"facades_recovered": 0}
+        refined = labels.copy()
+
+        if building_polygons is None or len(building_polygons) == 0:
+            return refined, stats
+
+        logger.info("  🔍 Aggressive facade recovery...")
+
+        # Find candidates: unclassified + vertical + reasonable height
+        unclassified = labels == int(ASPRSClass.UNCLASSIFIED)
+        height_valid = (height > 0.2) & (height < 15.0)  # Typical building range
+        vert_valid = np.isfinite(verticality) & (verticality > 0.30)  # Relaxed
+
+        facade_candidates = unclassified & height_valid & vert_valid
+        n_candidates = np.sum(facade_candidates)
+
+        if n_candidates == 0:
+            logger.info("    No facade candidates found")
+            return refined, stats
+
+        logger.info(f"    Found {n_candidates:,} potential facade points")
+
+        # Build spatial index with search buffers
+        search_radius = 2.0  # 2m search radius
+        buffered_polygons = building_polygons.geometry.buffer(search_radius)
+        tree = STRtree(buffered_polygons.tolist())
+
+        # Check each candidate point
+        recovered_count = 0
+        candidate_indices = np.where(facade_candidates)[0]
+
+        for idx in candidate_indices:
+            pt = Point(points[idx, 0], points[idx, 1])
+            nearby = tree.query(pt)
+
+            if len(nearby) > 0:
+                # Point is near a building → classify as building
+                refined[idx] = int(ASPRSClass.BUILDING)
+                recovered_count += 1
+
+        stats["facades_recovered"] = recovered_count
+
+        if recovered_count > 0:
+            pct = 100.0 * recovered_count / n_candidates
+            logger.info(
+                f"    ✅ Recovered {recovered_count:,} facade points "
+                f"({pct:.1f}% of candidates)"
+            )
+        else:
+            logger.info("    No additional facades recovered")
 
         return refined, stats
 
@@ -853,6 +990,13 @@ class GroundTruthRefiner:
                     refined, points, buildings_gdf, height, planarity, verticality, ndvi
                 )
                 all_stats.update(building_stats)
+
+                # 4b. Aggressive facade recovery (new post-processing step)
+                if verticality is not None:
+                    refined, facade_stats = self.recover_missing_facades(
+                        refined, points, buildings_gdf, height, verticality
+                    )
+                    all_stats.update(facade_stats)
 
         # 5. Resolve road/building conflicts (elevated road points inside building polygons)
         if "buildings" in ground_truth_features and "roads" in ground_truth_features:

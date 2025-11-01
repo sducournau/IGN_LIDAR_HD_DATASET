@@ -199,6 +199,8 @@ class OutputWriter:
                     )
 
             # Save enriched tile
+            # RGB colors come from orthophoto augmentation
+            # Classification uses ASPRS codes (stored in classification field)
             save_enriched_tile_laz(
                 save_path=output_path,
                 points=points,

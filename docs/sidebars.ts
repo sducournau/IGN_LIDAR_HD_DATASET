@@ -227,8 +227,12 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "📝 Release Notes",
       items: [
-        "release-notes/v3.2.1", // NEW: Latest release
-        "release-notes/v3.0.0",
+        "release-notes/v3.3.4", // CRITICAL: Bug fix + unified filtering
+        "release-notes/v3.3.3", // Performance optimizations
+        "release-notes/v3.2.1", // Rules framework
+        "release-notes/v3.1.0", // Unified feature filtering
+        "release-notes/v3.0.6", // Planarity filtering
+        "release-notes/v3.0.0", // Major refactor
         "release-notes/v1.7.2",
         "release-notes/v1.7.1",
         "release-notes/v1.7.0",

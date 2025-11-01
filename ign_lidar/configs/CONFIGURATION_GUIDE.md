@@ -1,9 +1,20 @@
 # Configuration System v5.5 - Quick Reference
 
-> **📖 For comprehensive documentation, see [CONFIG_GUIDE.md](CONFIG_GUIDE.md)**  
+> **⚠️ This guide has been consolidated into [CONFIG_GUIDE.md](CONFIG_GUIDE.md)**  
+> **Please use CONFIG_GUIDE.md for the complete, up-to-date documentation.**  
 > **🇫🇷 Pour la documentation en français, voir [README.md](README.md)**
 
-## 🚀 Quick Start
+---
+
+**This file is maintained for backward compatibility only.**  
+**Last Updated**: October 31, 2025
+
+All content from this quick reference has been merged into the main [CONFIG_GUIDE.md](CONFIG_GUIDE.md)
+for easier maintenance and navigation.
+
+---
+
+## 🚀 Quick Start (see CONFIG_GUIDE.md for full details)
 
 ### Zero-Config (Simplest)
 

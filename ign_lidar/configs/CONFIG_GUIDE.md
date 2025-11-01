@@ -1,24 +1,60 @@
-# IGN LiDAR HD - Configuration Guide V5.0
+# IGN LiDAR HD - Configuration Guide V5.5
 
-**Date**: October 17, 2025  
-**Version**: 5.0.0 (Harmonized)
+**Date**: October 31, 2025  
+**Version**: 5.5.0 (Consolidated)
 
-> **💡 Quick Reference**: See [CONFIGURATION_GUIDE.md](CONFIGURATION_GUIDE.md) for command examples  
 > **🇫🇷 Version française**: Voir [README.md](README.md)
 
 ---
 
 ## Table of Contents
 
-1. [Quick Start](#quick-start)
-2. [Overview](#overview)
-3. [Configuration Hierarchy](#configuration-hierarchy)
-4. [Core Concepts](#core-concepts)
-5. [Configuration Sections](#configuration-sections)
-6. [Presets & Profiles](#presets--profiles)
-7. [Custom Configurations](#custom-configurations)
-8. [Migration Guide](#migration-guide)
-9. [Troubleshooting](#troubleshooting)
+1. [Quick Reference](#quick-reference)
+2. [Quick Start](#quick-start)
+3. [Overview](#overview)
+4. [Configuration Files](#configuration-files)
+5. [Configuration Hierarchy](#configuration-hierarchy)
+6. [Core Concepts](#core-concepts)
+7. [Configuration Sections](#configuration-sections)
+8. [Presets & Profiles](#presets--profiles)
+9. [Custom Configurations](#custom-configurations)
+10. [Performance Comparison](#performance-comparison)
+11. [What's New in V5.5](#whats-new-in-v55)
+12. [Migration Guide](#migration-guide)
+13. [Troubleshooting](#troubleshooting)
+
+---
+
+## Quick Reference
+
+### Choose Your Config
+
+| If you want...        | Use this...                | Example                                          |
+| --------------------- | -------------------------- | ------------------------------------------------ |
+| **Quick test**        | `fast_preview`             | `--config-name presets/fast_preview`             |
+| **Standard workflow** | `asprs_classification_gpu` | `--config-name presets/asprs_classification_gpu` |
+| **Best quality**      | `high_quality`             | `--config-name presets/high_quality`             |
+| **No GPU**            | `asprs_classification_cpu` | `--config-name presets/asprs_classification_cpu` |
+| **Custom hardware**   | Select profile             | `--config-name profiles/gpu_rtx4090`             |
+
+### Configuration Structure
+
+```
+configs/
+├── base_complete.yaml    # Complete defaults (430 lines)
+├── profiles/             # Hardware-specific (6 files)
+│   ├── gpu_rtx4090.yaml  # 24GB VRAM
+│   ├── gpu_rtx4080.yaml  # 16GB VRAM
+│   ├── gpu_rtx3080.yaml  # 12GB VRAM
+│   ├── gpu_rtx3060.yaml  # 8GB VRAM
+│   ├── cpu_high_end.yaml # 32+ cores
+│   └── cpu_standard.yaml # 8-16 cores
+└── presets/              # Task-specific (4 files)
+    ├── asprs_classification_gpu.yaml
+    ├── asprs_classification_cpu.yaml
+    ├── fast_preview.yaml
+    └── high_quality.yaml
+```
 
 ---
 
@@ -354,17 +390,147 @@ All configs are validated at runtime:
 - "enriched_only"
 ```
 
+## Performance Comparison
+
+| Profile   | Hardware  | Time/20M pts | Throughput   |
+| --------- | --------- | ------------ | ------------ |
+| RTX 4090  | 24GB VRAM | 6-10 min     | 120-160M/min |
+| RTX 4080  | 16GB VRAM | 8-14 min     | 80-100M/min  |
+| RTX 3080  | 12GB VRAM | 12-18 min    | 60-80M/min   |
+| CPU (32c) | 64GB RAM  | 45-60 min    | 15-25M/min   |
+
+---
+
+## What's New in V5.5
+
+### V5.5 (October 31, 2025) - Documentation Consolidation
+
+- ✅ **Consolidated guides** - Merged quick reference into main guide
+- ✅ **Updated TOC** - Better navigation structure
+- ✅ **Cross-references** - Clearer links between documents
+
+### V5.0 (October 17, 2025) - Harmonized Configuration
+
+- ✅ **97% smaller configs** (20 lines vs 650)
+- ✅ **Zero-config mode** (works with just paths)
+- ✅ **6 hardware profiles** (GPU + CPU)
+- ✅ **4 task presets** (common workflows)
+- ✅ **No more missing keys** (all required sections included)
+- ✅ **Smart defaults** (works out-of-box for 80% of users)
+
+---
+
+## Migration Guide
+
+### From V4.x to V5.0
+
+**Old approach (650 lines):**
+
+```yaml
+# All settings repeated...
+processor:
+  lod_level: "ASPRS"
+  use_gpu: true
+  gpu_batch_size: 8_000_000
+  # ... 600 more lines
+```
+
+**New approach (20 lines):**
+
+```yaml
+# my_config.yaml
+defaults:
+  - /base_complete
+  - /profiles/gpu_rtx4080
+
+config_name: "my_custom"
+
+# Only override what changes
+processor:
+  gpu_batch_size: 10_000_000
+features:
+  k_neighbors: 40
+```
+
+### Automatic Migration
+
+```bash
+ign-lidar migrate-config old_config.yaml --output new_config.yaml
+```
+
+---
+
 ## Troubleshooting
 
 ### Config Not Found
 
-```bash
-# ❌ Wrong
-ign-lidar-hd process --config-name my_config
+If Hydra can't find your config:
 
-# ✅ Correct - specify full path
-ign-lidar-hd process -c "path/to/my_config.yaml"
+```bash
+# Check search path
+python -c "from hydra import compose, initialize_config_dir; print(compose.__doc__)"
+
+# Or specify full path
+ign-lidar-hd process --config-path /full/path/to/configs --config-name my_config
 ```
+
+### Out of Memory
+
+GPU OOM errors:
+
+```yaml
+# Reduce batch size
+processor:
+  gpu_batch_size: 2_000_000  # Default: 8M
+
+# Or use chunked mode
+processor:
+  use_gpu_chunked: true
+```
+
+**Quick fix via command line:**
+
+```bash
+# Use smaller profile
+--config-name profiles/gpu_rtx3060
+
+# Or reduce batch size
+processor.gpu_batch_size=4_000_000
+```
+
+### Validation Errors
+
+Config validation failures:
+
+```bash
+# Check config
+ign-lidar-hd process --cfg job --config-name my_config
+
+# Enable debug logging
+export HYDRA_FULL_ERROR=1
+ign-lidar-hd process --config-name my_config
+```
+
+### Want to See Merged Config?
+
+```bash
+ign-lidar-hd process --config-name presets/asprs_classification_gpu \
+  input_dir=/data output_dir=/output --cfg job
+```
+
+---
+
+## Support
+
+- **Documentation**: https://sducournau.github.io/IGN_LIDAR_HD_DATASET/
+- **Issues**: https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues
+- **Examples**: `examples/` directory
+
+---
+
+**Version**: 5.5.0  
+**Last Updated**: October 31, 2025  
+**Note**: This guide consolidates previous CONFIGURATION_GUIDE.md content
 
 ### Parameters Not Applied
 

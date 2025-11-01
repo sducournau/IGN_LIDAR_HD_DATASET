@@ -532,7 +532,8 @@ def save_enriched_tile_laz(
     Save a full enriched tile as LAZ with all computed features.
 
     This function preserves the original LAZ structure while adding computed
-    features as extra dimensions.
+    features as extra dimensions. RGB colors come from orthophoto augmentation,
+    while ASPRS classification codes are stored in the separate classification field.
 
     Args:
         save_path: Output LAZ file path
@@ -609,19 +610,20 @@ def save_enriched_tile_laz(
     las.return_number = return_number.astype(np.uint8)
     las.classification = classification.astype(np.uint8)
 
-    # Set RGB if available
+    # Set RGB colors from orthophoto augmentation
+    # Classification is stored separately in the classification field (ASPRS codes)
     if original_las is not None and hasattr(original_las, "red"):
         # Copy RGB from original LAS object
+        logger.debug("  Using RGB from original LAS file")
         las.red = original_las.red
         las.green = original_las.green
         las.blue = original_las.blue
     elif input_rgb is not None:
-        # Use RGB from chunked loading
+        # Use RGB from orthophotos/chunked loading
+        logger.debug("  Using RGB from orthophoto augmentation")
         las.red = (input_rgb[:, 0] * 65535.0).astype(np.uint16)
         las.green = (input_rgb[:, 1] * 65535.0).astype(np.uint16)
-        las.blue = (input_rgb[:, 2] * 65535.0).astype(np.uint16)
-
-    # Set NIR if available
+        las.blue = (input_rgb[:, 2] * 65535.0).astype(np.uint16)  # Set NIR if available
     if original_las is not None and hasattr(original_las, "nir"):
         # Copy NIR from original LAS object
         las.nir = original_las.nir
