@@ -117,7 +117,7 @@ processor:
   chunk_size: 8_000_000 # ✅ OPTIMIZED: 8M points balances memory and throughput
 
   # Parallel processing - CPU MODE - OPTIMIZED FOR MULTI-CORE
-  num_workers: 1 # ⚙️ ADJUST: Set to 6-8 for 8-core CPU, 10-12 for 12-core, etc.
+  num_workers: 4 # ⚙️ ADJUST: Set to 6-8 for 8-core CPU, 10-12 for 12-core, etc.
 
   # Patch generation
   patch_size: 50.0
