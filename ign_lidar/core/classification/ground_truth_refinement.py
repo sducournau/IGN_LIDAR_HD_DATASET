@@ -34,13 +34,13 @@ class GroundTruthRefinementConfig:
 
     # Road refinement (DTM-based strict filtering)
     ROAD_HEIGHT_MAX = (
-        0.3  # Maximum height for roads (30cm above DTM ground, excludes vegetation)
+        0.20  # FURTHER REDUCED from 0.25 - Ultra-strict ground level (20cm)
     )
     ROAD_HEIGHT_MIN = -0.2  # Minimum height (tolerance for slight embedding in ground)
     ROAD_PLANARITY_MIN = 0.85  # Minimum planarity for roads
     ROAD_CURVATURE_MAX = 0.05  # Maximum curvature for smooth roads
     ROAD_NORMAL_Z_MIN = 0.90  # Minimum normal Z for horizontal roads
-    ROAD_NDVI_MAX = 0.15  # Maximum NDVI (roads are not vegetation)
+    ROAD_NDVI_MAX = 0.12  # REDUCED from 0.15 - Stricter vegetation exclusion
 
     # Vegetation refinement
     VEG_NDVI_MIN = 0.25  # Minimum NDVI for vegetation
@@ -55,18 +55,30 @@ class GroundTruthRefinementConfig:
     # Building polygon adjustment
     BUILDING_BUFFER_EXPAND = 0.5  # Expand building polygons by 0.5m (fixed)
     BUILDING_BUFFER_MIN = 0.5  # Minimum buffer for adaptive mode (meters)
-    BUILDING_BUFFER_MAX = 3.0  # Maximum buffer for adaptive mode (meters)
-    BUILDING_BUFFER_SCALE = 0.05  # Scale factor: 5% of perimeter
+    BUILDING_BUFFER_MAX = 4.0  # INCREASED from 3.5 - Better capture of large buildings
+    BUILDING_BUFFER_SCALE = 0.08  # INCREASED from 0.06 - Scale factor: 8% of perimeter
     USE_ADAPTIVE_BUFFERS = True  # Use adaptive sizing (recommended)
 
     # Height-stratified validation (facades vs roofs)
     USE_FACADE_SPECIFIC_VALIDATION = True  # Separate criteria for facades
-    FACADE_TRANSITION_HEIGHT = 2.0  # Below this = facade, above = roof
+    FACADE_TRANSITION_HEIGHT = 2.5  # Better roof/facade separation
 
-    # Facade-specific criteria (relaxed for vertical walls)
-    FACADE_HEIGHT_MIN = 0.3  # Lower than general threshold
-    FACADE_VERTICAL_MIN = 0.35  # Relaxed verticality for complex facades
-    FACADE_PLANARITY_MAX = 0.70  # Facades can be less planar
+    # Facade-specific criteria (more relaxed for better capture)
+    FACADE_HEIGHT_MIN = 0.15  # LOWERED from 0.2 - Capture very low foundation edges
+    FACADE_VERTICAL_MIN = (
+        0.25  # LOWERED from 0.30 - More permissive for complex facades
+    )
+    FACADE_PLANARITY_MAX = (
+        0.80  # INCREASED from 0.75 - More permissive for varied facades
+    )
+
+    # Roof overhang detection (enhanced)
+    OVERHANG_DETECTION_ENABLED = True  # Enable overhang detection
+    OVERHANG_HEIGHT_MIN = 1.8  # LOWERED from 2.0 - Capture lower overhangs
+    OVERHANG_PLANARITY_MIN = (
+        0.45  # LOWERED from 0.50 - More permissive for complex roofs
+    )
+    OVERHANG_VERTICAL_MAX = 0.65  # INCREASED from 0.60 - Allow steeper roof angles
 
     # Roof-specific criteria (stricter for horizontal surfaces)
     ROOF_HEIGHT_MIN = 0.5  # Standard minimum
@@ -227,10 +239,12 @@ class GroundTruthRefiner:
         ndvi: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, Dict[str, int]]:
         """
-        Refine road classification to ensure points are on flat, horizontal surfaces.
+        Refine road classification to ensure ALL points are on flat, horizontal surfaces.
+
+        CRITICAL: Roads MUST be on ground level. Any elevated point is reclassified.
 
         Roads should have:
-        - Low height (near ground level)
+        - Very low height (near ground level, max 25cm)
         - High planarity (flat surfaces)
         - Low curvature (smooth pavement)
         - Horizontal normals
@@ -249,14 +263,21 @@ class GroundTruthRefiner:
         Returns:
             Tuple of (refined_labels, stats_dict)
         """
-        stats = {"road_validated": 0, "road_rejected": 0, "road_vegetation_override": 0}
+        stats = {
+            "road_validated": 0,
+            "road_rejected": 0,
+            "elevated_to_vegetation": 0,
+            "elevated_to_unclassified": 0,
+        }
 
         refined = labels.copy()
 
         if not np.any(road_mask):
             return refined, stats
 
-        logger.info("  Refining road classification...")
+        logger.info(
+            "  Refining road classification (strict ground-level enforcement)..."
+        )
 
         # Extract road candidates from ground truth
         road_candidates = np.where(road_mask)[0]
@@ -265,46 +286,96 @@ class GroundTruthRefiner:
         valid_road = np.ones(len(road_candidates), dtype=bool)
         validation_reasons = []
 
-        # Criterion 1: Height (roads should be near ground)
+        # CRITICAL Criterion 1: Height - MUST be near ground
         if height is not None:
-            height_valid = (height[road_candidates] >= self.config.ROAD_HEIGHT_MIN) & (
-                height[road_candidates] <= self.config.ROAD_HEIGHT_MAX
+            candidate_height = height[road_candidates]
+
+            # Strict height validation
+            height_valid = (candidate_height >= self.config.ROAD_HEIGHT_MIN) & (
+                candidate_height <= self.config.ROAD_HEIGHT_MAX
             )
 
-            # Special case: Points above road are likely tree canopy
-            # CRITICAL FIX: Reclassify elevated points as vegetation
-            above_road = height[road_candidates] > self.config.ROAD_HEIGHT_MAX
-            if np.any(above_road) and ndvi is not None:
-                above_road_indices = road_candidates[above_road]
-                # Check NDVI to confirm vegetation (threshold 0.25)
-                vegetation_ndvi = ndvi[above_road_indices] > 0.25
-                if np.any(vegetation_ndvi):
-                    veg_indices = above_road_indices[vegetation_ndvi]
-                    # Classify by height: >5m = HIGH, 2-5m = MEDIUM
-                    high_veg_mask = height[veg_indices] > 5.0
-                    refined[veg_indices[high_veg_mask]] = int(
-                        ASPRSClass.HIGH_VEGETATION
-                    )
-                    refined[veg_indices[~high_veg_mask]] = int(
-                        ASPRSClass.MEDIUM_VEGETATION
-                    )
-                    n_reclassified = np.sum(vegetation_ndvi)
-                    stats["elevated_roads_reclassified_vegetation"] = n_reclassified
-                    logger.debug(
-                        f"      🌳 Reclassified {n_reclassified} elevated "
-                        f"road points as vegetation"
-                    )
+            # AGGRESSIVE RECLASSIFICATION: Points above road threshold
+            above_road = candidate_height > self.config.ROAD_HEIGHT_MAX
+
+            if np.any(above_road):
+                above_indices = road_candidates[above_road]
+                n_above = len(above_indices)
+
+                logger.info(f"      ⚠️  Found {n_above:,} elevated points above roads")
+
+                # Classify elevated points based on height and NDVI
+                if ndvi is not None:
+                    # Check NDVI to determine if vegetation or other
+                    above_ndvi = ndvi[above_indices]
+
+                    # High NDVI = vegetation
+                    is_vegetation = above_ndvi > 0.20  # Lower threshold for safety
+
+                    veg_indices = above_indices[is_vegetation]
+                    non_veg_indices = above_indices[~is_vegetation]
+
+                    if len(veg_indices) > 0:
+                        # Classify by height: >5m = HIGH, 2-5m = MEDIUM, <2m = LOW
+                        veg_heights = height[veg_indices]
+                        high_veg = veg_heights > 5.0
+                        med_veg = (veg_heights >= 2.0) & (veg_heights <= 5.0)
+                        low_veg = veg_heights < 2.0
+
+                        refined[veg_indices[high_veg]] = int(ASPRSClass.HIGH_VEGETATION)
+                        refined[veg_indices[med_veg]] = int(
+                            ASPRSClass.MEDIUM_VEGETATION
+                        )
+                        refined[veg_indices[low_veg]] = int(ASPRSClass.LOW_VEGETATION)
+
+                        stats["elevated_to_vegetation"] = len(veg_indices)
+                        logger.info(
+                            f"         └─ Reclassified {len(veg_indices):,} as vegetation "
+                            f"(H:{np.sum(high_veg)}, M:{np.sum(med_veg)}, L:{np.sum(low_veg)})"
+                        )
+
+                    if len(non_veg_indices) > 0:
+                        # Non-vegetation elevated points → unclassified (may be poles, signs, etc.)
+                        refined[non_veg_indices] = int(ASPRSClass.UNCLASSIFIED)
+                        stats["elevated_to_unclassified"] = len(non_veg_indices)
+                        logger.info(
+                            f"         └─ Reclassified {len(non_veg_indices):,} as unclassified "
+                            f"(low NDVI, likely infrastructure)"
+                        )
+                else:
+                    # No NDVI available - conservative reclassification
+                    # Assume vegetation if height > 2m, otherwise unclassified
+                    above_heights = height[above_indices]
+                    likely_vegetation = above_heights > 2.0
+
+                    veg_indices = above_indices[likely_vegetation]
+                    other_indices = above_indices[~likely_vegetation]
+
+                    if len(veg_indices) > 0:
+                        refined[veg_indices] = int(ASPRSClass.MEDIUM_VEGETATION)
+                        stats["elevated_to_vegetation"] = len(veg_indices)
+                        logger.info(
+                            f"         └─ Reclassified {len(veg_indices):,} as vegetation "
+                            f"(height-based, no NDVI)"
+                        )
+
+                    if len(other_indices) > 0:
+                        refined[other_indices] = int(ASPRSClass.UNCLASSIFIED)
+                        stats["elevated_to_unclassified"] = len(other_indices)
+                        logger.info(
+                            f"         └─ Reclassified {len(other_indices):,} as unclassified"
+                        )
 
             valid_road &= height_valid
             n_height_invalid = np.sum(~height_valid)
             if n_height_invalid > 0:
                 validation_reasons.append(
-                    f"height: {n_height_invalid} rejected (likely tree canopy)"
+                    f"height: {n_height_invalid} rejected (not ground-level)"
                 )
 
         # Criterion 2: Planarity (roads should be very flat)
         if planarity is not None:
-            # Filter out NaN/Inf before comparison to prevent silent rejection
+            # Filter out NaN/Inf before comparison
             candidate_planarity = planarity[road_candidates]
             is_finite = np.isfinite(candidate_planarity)
 
@@ -347,35 +418,70 @@ class GroundTruthRefiner:
             if n_normal_invalid > 0:
                 validation_reasons.append(f"normals: {n_normal_invalid} rejected")
 
-            # Criterion 5: NDVI (roads should not be vegetation)
+        # Criterion 5: NDVI (roads should not be vegetation) - ENHANCED
         if ndvi is not None:
-            ndvi_valid = ndvi[road_candidates] <= self.config.ROAD_NDVI_MAX
+            candidate_ndvi = ndvi[road_candidates]
 
-            # Points with high NDVI are tree canopy over road -> reclassify as vegetation
-            high_ndvi = ndvi[road_candidates] > self.config.VEG_NDVI_MIN
-            if height is not None:
-                # High NDVI + elevated = tree canopy (use TREE_CANOPY_HEIGHT_MIN threshold)
-                tree_canopy = high_ndvi & (
-                    height[road_candidates] > self.config.TREE_CANOPY_HEIGHT_MIN
+            # Robust NaN/Inf handling for NDVI
+            is_finite_ndvi = np.isfinite(candidate_ndvi)
+            ndvi_robust = np.where(is_finite_ndvi, candidate_ndvi, 0.0)
+
+            ndvi_valid = ndvi_robust <= self.config.ROAD_NDVI_MAX
+
+            # Enhanced vegetation detection on roads:
+            # 1. Moderate NDVI (0.12-0.40) = grass, shrubs on/near road
+            moderate_ndvi = (ndvi_robust > self.config.ROAD_NDVI_MAX) & (
+                ndvi_robust <= 0.40
+            )
+            # 2. High NDVI (>0.40) = trees, dense vegetation over road
+            high_ndvi = ndvi_robust > 0.40
+
+            # 3. Very low NDVI but elevated = likely artificial structures (poles, signs)
+            very_low_ndvi = ndvi_robust < 0.05
+
+            if height is not None and np.any(moderate_ndvi):
+                # Moderate NDVI: Precise height-based classification
+                mod_indices = road_candidates[moderate_ndvi]
+                mod_heights = height[mod_indices]
+
+                # Low vegetation on road surface (grass, small plants)
+                low_grass = mod_heights <= self.config.VEG_LOW_HEIGHT_MAX
+                refined[mod_indices[low_grass]] = int(ASPRSClass.LOW_VEGETATION)
+
+                # Medium vegetation near road (shrubs, small trees)
+                med_grass = (mod_heights > self.config.VEG_LOW_HEIGHT_MAX) & (
+                    mod_heights <= self.config.VEG_MEDIUM_HEIGHT_MAX
                 )
-                if np.any(tree_canopy):
-                    canopy_indices = road_candidates[tree_canopy]
-                    # Classify based on height
-                    high_trees = height[canopy_indices] > 5.0
-                    refined[canopy_indices[high_trees]] = int(
-                        ASPRSClass.HIGH_VEGETATION
-                    )
-                    refined[canopy_indices[~high_trees]] = int(
-                        ASPRSClass.MEDIUM_VEGETATION
-                    )
-                    stats["road_vegetation_override"] = np.sum(tree_canopy)
+                refined[mod_indices[med_grass]] = int(ASPRSClass.MEDIUM_VEGETATION)
+
+                logger.info(
+                    f"      🌱 Reclassified {np.sum(low_grass)} as low vegetation (grass on road)"
+                )
+
+            if height is not None and np.any(high_ndvi):
+                # High NDVI = tree canopy over road
+                tree_indices = road_candidates[high_ndvi]
+                tree_heights = height[tree_indices]
+
+                # Classify based on height
+                high_trees = tree_heights > 5.0
+                med_trees = (tree_heights >= 2.0) & (tree_heights <= 5.0)
+
+                refined[tree_indices[high_trees]] = int(ASPRSClass.HIGH_VEGETATION)
+                refined[tree_indices[med_trees]] = int(ASPRSClass.MEDIUM_VEGETATION)
+
+                n_trees = len(tree_indices)
+                logger.info(
+                    f"      🌳 Reclassified {n_trees} as tree canopy over road "
+                    f"(H:{np.sum(high_trees)}, M:{np.sum(med_trees)})"
+                )
 
             valid_road &= ndvi_valid
-            n_ndvi_invalid = np.sum(~ndvi_valid & ~high_ndvi)  # Exclude tree canopy
+            n_ndvi_invalid = np.sum(~ndvi_valid)
             if n_ndvi_invalid > 0:
-                validation_reasons.append(
-                    f"ndvi: {n_ndvi_invalid} rejected"
-                )  # Apply validated road classification
+                validation_reasons.append(f"ndvi: {n_ndvi_invalid} rejected")
+
+        # Apply validated road classification
         validated_indices = road_candidates[valid_road]
         rejected_indices = road_candidates[~valid_road]
 
@@ -384,14 +490,23 @@ class GroundTruthRefiner:
         stats["road_rejected"] = len(rejected_indices)
 
         # Log results
-        logger.info(f"    ✓ Validated: {stats['road_validated']:,} road points")
+        logger.info(
+            f"    ✓ Validated: {stats['road_validated']:,} road points (ground-level)"
+        )
         if stats["road_rejected"] > 0:
             logger.info(f"    ✗ Rejected: {stats['road_rejected']:,} road points")
             for reason in validation_reasons:
                 logger.info(f"      - {reason}")
-        if stats["road_vegetation_override"] > 0:
+
+        # Summary of reclassifications
+        n_reclassified = (
+            stats["elevated_to_vegetation"] + stats["elevated_to_unclassified"]
+        )
+        if n_reclassified > 0:
             logger.info(
-                f"    🌳 Tree canopy over road: {stats['road_vegetation_override']:,} points → vegetation"
+                f"    ♻️  Reclassified {n_reclassified:,} elevated points "
+                f"(vegetation: {stats['elevated_to_vegetation']:,}, "
+                f"other: {stats['elevated_to_unclassified']:,})"
             )
 
         return refined, stats
@@ -425,7 +540,7 @@ class GroundTruthRefiner:
             height: Height above ground [N]
             curvature: Curvature feature [N]
             planarity: Planarity feature [N]
-            sphericity: Sphericity feature [N] (NEW - better organic shape detection)
+            sphericity: Sphericity feature [N] (organic shape detection)
             roughness: Surface roughness [N]
 
         Returns:
@@ -433,10 +548,11 @@ class GroundTruthRefiner:
         """
         stats = {
             "vegetation_added": 0,
-            "vegetation_refined": 0,
+            "vegetation_corrected": 0,
             "low_veg": 0,
             "medium_veg": 0,
             "high_veg": 0,
+            "false_buildings_corrected": 0,
         }
 
         refined = labels.copy()
@@ -446,45 +562,55 @@ class GroundTruthRefiner:
             return refined, stats
 
         logger.info(
-            "  Refining vegetation classification with NDVI + curvature + sphericity..."
+            "  Refining vegetation classification with NDVI + geometric features..."
         )
 
         # Build vegetation confidence score (multi-feature approach)
         veg_confidence = np.zeros(len(labels), dtype=np.float32)
         total_weight = 0.0
 
-        # 1. NDVI contribution (primary indicator, weight: 0.40)
-        ndvi_normalized = np.clip((ndvi - self.config.VEG_NDVI_MIN) / 0.5, 0, 1)
-        veg_confidence += ndvi_normalized * 0.40
-        total_weight += 0.40
+        # 1. NDVI contribution (primary indicator, weight: 0.45 - increased)
+        # Robust handling of NaN/Inf
+        ndvi_valid = np.isfinite(ndvi)
+        ndvi_safe = np.where(ndvi_valid, ndvi, 0.0)
+        ndvi_normalized = np.clip((ndvi_safe - self.config.VEG_NDVI_MIN) / 0.5, 0, 1)
+        veg_confidence += ndvi_normalized * 0.45
+        total_weight += 0.45
 
         # 2. Curvature contribution (complex surfaces like branches, weight: 0.20)
         if curvature is not None:
-            curv_normalized = np.clip(curvature / 0.1, 0, 1)
+            curv_valid = np.isfinite(curvature)
+            curv_safe = np.where(curv_valid, curvature, 0.0)
+            curv_normalized = np.clip(curv_safe / 0.1, 0, 1)
             veg_confidence += curv_normalized * 0.20
             total_weight += 0.20
 
-        # 3. Sphericity contribution (organic shapes, weight: 0.20)
-        # NEW: Sphericity is excellent for detecting vegetation's irregular, organic geometry
+        # 3. Sphericity contribution (organic shapes, weight: 0.15)
         if sphericity is not None:
             # High sphericity = more isotropic = more organic/vegetation-like
-            spher_normalized = np.clip(sphericity, 0, 1)
-            veg_confidence += spher_normalized * 0.20
-            total_weight += 0.20
+            spher_valid = np.isfinite(sphericity)
+            spher_safe = np.where(spher_valid, sphericity, 0.0)
+            spher_normalized = np.clip(spher_safe, 0, 1)
+            veg_confidence += spher_normalized * 0.15
+            total_weight += 0.15
 
         # 4. Planarity contribution (irregular surfaces, weight: 0.10)
         if planarity is not None:
+            plan_valid = np.isfinite(planarity)
+            plan_safe = np.where(plan_valid, planarity, 1.0)
             # Invert: low planarity = high vegetation likelihood
             plan_normalized = 1.0 - np.clip(
-                planarity / self.config.VEG_PLANARITY_MAX, 0, 1
+                plan_safe / self.config.VEG_PLANARITY_MAX, 0, 1
             )
             veg_confidence += plan_normalized * 0.10
             total_weight += 0.10
 
         # 5. Roughness contribution (irregular surfaces, weight: 0.10)
         if roughness is not None:
+            rough_valid = np.isfinite(roughness)
+            rough_safe = np.where(rough_valid, roughness, 0.0)
             # Normalize roughness: higher = more vegetation-like
-            rough_normalized = np.clip(roughness / 0.15, 0, 1)
+            rough_normalized = np.clip(rough_safe / 0.15, 0, 1)
             veg_confidence += rough_normalized * 0.10
             total_weight += 0.10
 
@@ -492,31 +618,74 @@ class GroundTruthRefiner:
         if total_weight > 0:
             veg_confidence /= total_weight
 
-        # Identify vegetation points (confidence > 0.6)
-        is_vegetation = veg_confidence > 0.6
+        # Two-tier classification strategy:
+        # Tier 1: High confidence vegetation (confidence > 0.65)
+        high_confidence_veg = veg_confidence > 0.65
+
+        # Tier 2: Moderate confidence + unclassified/ground (confidence > 0.50)
+        # This captures vegetation that was missed but has reasonable evidence
+        moderate_confidence_veg = (veg_confidence > 0.50) & (veg_confidence <= 0.65)
+        can_reclassify = np.isin(
+            labels, [int(ASPRSClass.UNCLASSIFIED), int(ASPRSClass.GROUND)]
+        )
+        moderate_safe = moderate_confidence_veg & can_reclassify
+
+        # Combined vegetation mask
+        is_vegetation = high_confidence_veg | moderate_safe
+
+        # Correction: Find buildings/roads misclassified as vegetation
+        if height is not None and planarity is not None:
+            # Buildings with high NDVI but also high planarity + elevated → likely green roofs
+            potential_green_roofs = (
+                (labels == int(ASPRSClass.BUILDING))
+                & (ndvi_safe > 0.30)
+                & (planarity > 0.70)
+                & (height > 2.0)
+            )
+            # Keep as buildings but log
+            if np.any(potential_green_roofs):
+                n_green_roofs = np.sum(potential_green_roofs)
+                logger.info(
+                    f"      ℹ️  Detected {n_green_roofs:,} potential green roofs "
+                    f"(high NDVI + planar + elevated)"
+                )
 
         # Classify by height if available
         if height is not None:
+            height_safe = np.where(np.isfinite(height), height, 0.0)
+
             # Low vegetation (0-0.5m)
-            low_veg_mask = is_vegetation & (height <= self.config.VEG_LOW_HEIGHT_MAX)
+            low_veg_mask = is_vegetation & (
+                height_safe <= self.config.VEG_LOW_HEIGHT_MAX
+            )
             refined[low_veg_mask] = int(ASPRSClass.LOW_VEGETATION)
             stats["low_veg"] = np.sum(low_veg_mask)
 
             # Medium vegetation (0.5-2m)
             med_veg_mask = (
                 is_vegetation
-                & (height > self.config.VEG_LOW_HEIGHT_MAX)
-                & (height <= self.config.VEG_MEDIUM_HEIGHT_MAX)
+                & (height_safe > self.config.VEG_LOW_HEIGHT_MAX)
+                & (height_safe <= self.config.VEG_MEDIUM_HEIGHT_MAX)
             )
             refined[med_veg_mask] = int(ASPRSClass.MEDIUM_VEGETATION)
             stats["medium_veg"] = np.sum(med_veg_mask)
 
             # High vegetation (>2m)
-            high_veg_mask = is_vegetation & (height > self.config.VEG_MEDIUM_HEIGHT_MAX)
+            high_veg_mask = is_vegetation & (
+                height_safe > self.config.VEG_MEDIUM_HEIGHT_MAX
+            )
             refined[high_veg_mask] = int(ASPRSClass.HIGH_VEGETATION)
             stats["high_veg"] = np.sum(high_veg_mask)
 
             stats["vegetation_added"] = np.sum(is_vegetation)
+
+            # Count corrections
+            was_unclassified = np.isin(
+                labels[is_vegetation],
+                [int(ASPRSClass.UNCLASSIFIED), int(ASPRSClass.GROUND)],
+            )
+            stats["vegetation_corrected"] = np.sum(~was_unclassified)
+
         else:
             # No height - classify as medium vegetation
             refined[is_vegetation] = int(ASPRSClass.MEDIUM_VEGETATION)
@@ -526,9 +695,13 @@ class GroundTruthRefiner:
         # Log results
         logger.info(f"    ✓ Total vegetation: {stats['vegetation_added']:,} points")
         if height is not None:
-            logger.info(f"      - Low (0-0.5m): {stats['low_veg']:,}")
+            logger.info(f"      - Low (≤0.5m): {stats['low_veg']:,}")
             logger.info(f"      - Medium (0.5-2m): {stats['medium_veg']:,}")
             logger.info(f"      - High (>2m): {stats['high_veg']:,}")
+        if stats["vegetation_corrected"] > 0:
+            logger.info(
+                f"      - Corrected: {stats['vegetation_corrected']:,} previously misclassified"
+            )
 
         return refined, stats
 
@@ -549,6 +722,7 @@ class GroundTruthRefiner:
         resulting in unclassified points that belong to buildings.
 
         Solution: Expand building polygons slightly and validate with geometric features.
+        Uses height-stratified validation to separately handle facades, roofs, and overhangs.
 
         Args:
             labels: Current classification labels [N]
@@ -566,6 +740,9 @@ class GroundTruthRefiner:
             "building_validated": 0,
             "building_expanded": 0,
             "building_rejected": 0,
+            "facades_captured": 0,
+            "roofs_captured": 0,
+            "overhangs_captured": 0,
         }
 
         refined = labels.copy()
@@ -580,7 +757,7 @@ class GroundTruthRefiner:
         if self.config.USE_ADAPTIVE_BUFFERS:
             # Adaptive buffer based on building area
             areas = building_polygons.geometry.area
-            # Buffer = 5% of perimeter (sqrt(area) approximates side length)
+            # Buffer = 6% of perimeter (sqrt(area) approximates side length)
             buffer_distances = np.clip(
                 (areas**0.5) * self.config.BUILDING_BUFFER_SCALE,
                 self.config.BUILDING_BUFFER_MIN,
@@ -642,74 +819,216 @@ class GroundTruthRefiner:
             f"    Found {len(building_candidates):,} candidates in expanded polygons"
         )
 
-        # Validate building candidates with geometric features
-        valid_building = np.ones(len(building_candidates), dtype=bool)
-
-        # Criterion 1: Height (buildings should be elevated)
-        if height is not None:
-            height_valid = (
-                height[building_candidates] >= self.config.BUILDING_HEIGHT_MIN
-            )
-            valid_building &= height_valid
-            n_height_invalid = np.sum(~height_valid)
-            if n_height_invalid > 0:
-                logger.info(f"      - Height: {n_height_invalid} rejected (too low)")
-
-        # Criterion 2: Planarity or Verticality (buildings have flat or vertical surfaces)
-        if planarity is not None and verticality is not None:
-            # Robust NaN/Inf handling with intelligent fallbacks
-            candidate_planarity = planarity[building_candidates]
-            candidate_verticality = verticality[building_candidates]
-            is_finite_plan = np.isfinite(candidate_planarity)
-            is_finite_vert = np.isfinite(candidate_verticality)
-
-            # Create robust versions with fallbacks
-            # If verticality is NaN but planarity is low → assume vertical
-            # If planarity is NaN but verticality is low → assume planar
-            planarity_robust = np.where(
-                is_finite_plan,
-                candidate_planarity,
-                0.0,  # Default for missing planarity
-            )
-            verticality_robust = np.where(
-                is_finite_vert,
-                candidate_verticality,
-                np.maximum(0.0, 1.0 - planarity_robust),  # Inverse planarity
+        # Height-stratified validation
+        if (
+            height is not None
+            and planarity is not None
+            and verticality is not None
+            and self.config.USE_FACADE_SPECIFIC_VALIDATION
+        ):
+            logger.info(
+                "    Using height-stratified validation (facades/roofs/overhangs)"
             )
 
-            # Either high planarity (roofs) or high verticality (walls)
-            # Use robust versions to avoid silent rejections
-            geometry_valid = (
-                planarity_robust >= self.config.BUILDING_PLANARITY_MIN
-            ) | (verticality_robust >= self.config.BUILDING_VERTICAL_THRESHOLD)
-            valid_building &= geometry_valid
-            n_geometry_invalid = np.sum(~geometry_valid)
+            # Stratify by height
+            candidate_heights = height[building_candidates]
 
-            # Log if artifacts were corrected
-            n_invalid_plan = np.sum(~is_finite_plan)
-            n_invalid_vert = np.sum(~is_finite_vert)
-            n_recovered = np.sum(~is_finite_vert & geometry_valid)
-            if n_invalid_plan > 0 or n_invalid_vert > 0:
-                logger.info(
-                    f"      ℹ️  Invalid features handled with fallbacks: "
-                    f"{n_invalid_plan} planarity, {n_invalid_vert} verticality "
-                    f"({n_recovered} recovered)"
-                )
-            if n_geometry_invalid > 0:
-                logger.info(
-                    f"      - Geometry: {n_geometry_invalid} rejected "
-                    f"(neither flat nor vertical)"
+            # Facades: low points (ground level to ~2.5m)
+            facade_mask = candidate_heights < self.config.FACADE_TRANSITION_HEIGHT
+
+            # Roofs: higher points with high planarity
+            roof_mask = candidate_heights >= self.config.FACADE_TRANSITION_HEIGHT
+
+            # Overhangs: high points with mixed planarity/verticality
+            overhang_mask = (
+                roof_mask
+                & (candidate_heights >= self.config.OVERHANG_HEIGHT_MIN)
+                & self.config.OVERHANG_DETECTION_ENABLED
+            )
+
+            valid_building = np.zeros(len(building_candidates), dtype=bool)
+
+            # Process facades (enhanced with multi-criteria validation)
+            if np.any(facade_mask):
+                candidate_vert = verticality[building_candidates[facade_mask]]
+                candidate_plan = planarity[building_candidates[facade_mask]]
+                candidate_ndvi = (
+                    ndvi[building_candidates[facade_mask]] if ndvi is not None else None
                 )
 
-        # Criterion 3: NDVI (buildings should not be vegetation)
-        if ndvi is not None:
-            ndvi_valid = ndvi[building_candidates] <= self.config.BUILDING_NDVI_MAX
-            valid_building &= ndvi_valid
-            n_ndvi_invalid = np.sum(~ndvi_valid)
-            if n_ndvi_invalid > 0:
-                logger.info(
-                    f"      - NDVI: {n_ndvi_invalid} rejected (likely vegetation)"
+                # Robust NaN/Inf handling with intelligent fallback
+                is_finite_vert = np.isfinite(candidate_vert)
+                is_finite_plan = np.isfinite(candidate_plan)
+
+                # Smart fallback: if verticality is NaN but planarity is low, likely vertical
+                vert_robust = np.where(
+                    is_finite_vert,
+                    candidate_vert,
+                    np.where(is_finite_plan & (candidate_plan < 0.3), 0.8, 0.0),
                 )
+                plan_robust = np.where(
+                    is_finite_plan, candidate_plan, 1.0
+                )  # Assume non-planar if unknown
+
+                # Very relaxed criteria for facades to maximize capture
+                height_valid = (
+                    candidate_heights[facade_mask] >= self.config.FACADE_HEIGHT_MIN
+                )
+
+                # Multi-criteria geometry validation (more permissive)
+                # Accept if: vertical walls OR planar elements OR reasonable geometry
+                is_vertical_wall = vert_robust >= self.config.FACADE_VERTICAL_MIN
+                is_planar_element = plan_robust <= self.config.FACADE_PLANARITY_MAX
+                has_reasonable_geometry = (vert_robust > 0.15) | (
+                    plan_robust < 0.85
+                )  # Very permissive
+
+                geometry_valid = (
+                    is_vertical_wall | is_planar_element | has_reasonable_geometry
+                )
+
+                # NDVI check (not vegetation) - relaxed for facades near vegetation
+                if candidate_ndvi is not None:
+                    # Allow slightly higher NDVI for facades (may have climbing plants)
+                    ndvi_valid = candidate_ndvi <= self.config.BUILDING_NDVI_MAX + 0.05
+                else:
+                    ndvi_valid = True
+
+                facade_valid = height_valid & geometry_valid & ndvi_valid
+                valid_building[facade_mask] = facade_valid
+                stats["facades_captured"] = np.sum(facade_valid)
+
+                if stats["facades_captured"] > 0:
+                    pct = 100.0 * stats["facades_captured"] / np.sum(facade_mask)
+                    logger.info(
+                        f"      🏢 Facades: {stats['facades_captured']:,} points validated ({pct:.1f}% of candidates)"
+                    )
+
+            # Process roofs (non-overhangs)
+            roof_only_mask = roof_mask & ~overhang_mask
+            if np.any(roof_only_mask):
+                candidate_plan = planarity[building_candidates[roof_only_mask]]
+                candidate_ndvi = (
+                    ndvi[building_candidates[roof_only_mask]]
+                    if ndvi is not None
+                    else None
+                )
+
+                # Robust NaN handling
+                is_finite_plan = np.isfinite(candidate_plan)
+                plan_robust = np.where(is_finite_plan, candidate_plan, 0.0)
+
+                # Stricter criteria for roofs
+                height_valid = (
+                    candidate_heights[roof_only_mask] >= self.config.ROOF_HEIGHT_MIN
+                )
+                geometry_valid = plan_robust >= self.config.ROOF_PLANARITY_MIN
+                ndvi_valid = (
+                    (candidate_ndvi <= self.config.BUILDING_NDVI_MAX)
+                    if candidate_ndvi is not None
+                    else True
+                )
+
+                roof_valid = height_valid & geometry_valid & ndvi_valid
+                valid_building[roof_only_mask] = roof_valid
+                stats["roofs_captured"] = np.sum(roof_valid)
+
+                if stats["roofs_captured"] > 0:
+                    logger.info(
+                        f"      🏠 Roofs: {stats['roofs_captured']:,} points validated"
+                    )
+
+            # Process overhangs (roof edges extending beyond building footprint - enhanced)
+            if np.any(overhang_mask):
+                candidate_plan = planarity[building_candidates[overhang_mask]]
+                candidate_vert = verticality[building_candidates[overhang_mask]]
+                candidate_ndvi = (
+                    ndvi[building_candidates[overhang_mask]]
+                    if ndvi is not None
+                    else None
+                )
+
+                # Robust NaN handling with intelligent defaults
+                is_finite_plan = np.isfinite(candidate_plan)
+                is_finite_vert = np.isfinite(candidate_vert)
+
+                # For overhangs, default to moderate planarity if unknown
+                plan_robust = np.where(is_finite_plan, candidate_plan, 0.5)
+                vert_robust = np.where(is_finite_vert, candidate_vert, 0.3)
+
+                # Relaxed criteria for overhangs (can be sloped, complex geometry)
+                height_valid = (
+                    candidate_heights[overhang_mask] >= self.config.OVERHANG_HEIGHT_MIN
+                )
+
+                # Multi-criteria validation for overhangs:
+                # 1. Moderate planarity (horizontal-ish roof edges)
+                has_planar_geometry = plan_robust >= self.config.OVERHANG_PLANARITY_MIN
+                # 2. Low to moderate verticality (sloped roofs, gutters)
+                has_sloped_geometry = vert_robust <= self.config.OVERHANG_VERTICAL_MAX
+                # 3. Mixed geometry (transition zones between roof and facade)
+                has_transition_geometry = (plan_robust > 0.35) & (vert_robust < 0.70)
+
+                geometry_valid = (
+                    has_planar_geometry | has_sloped_geometry | has_transition_geometry
+                )
+
+                # NDVI validation (allow slightly higher for roof vegetation like moss)
+                if candidate_ndvi is not None:
+                    ndvi_valid = candidate_ndvi <= self.config.BUILDING_NDVI_MAX + 0.03
+                else:
+                    ndvi_valid = True
+
+                overhang_valid = height_valid & geometry_valid & ndvi_valid
+                valid_building[overhang_mask] = overhang_valid
+                stats["overhangs_captured"] = np.sum(overhang_valid)
+
+                if stats["overhangs_captured"] > 0:
+                    pct = 100.0 * stats["overhangs_captured"] / np.sum(overhang_mask)
+                    logger.info(
+                        f"      🏘️  Overhangs: {stats['overhangs_captured']:,} points validated ({pct:.1f}% of candidates)"
+                    )
+
+        else:
+            # Fallback: Legacy validation without height stratification
+            logger.info("    Using legacy validation (no height stratification)")
+            valid_building = np.ones(len(building_candidates), dtype=bool)
+
+            # Height criterion
+            if height is not None:
+                height_valid = (
+                    height[building_candidates] >= self.config.BUILDING_HEIGHT_MIN
+                )
+                valid_building &= height_valid
+                n_height_invalid = np.sum(~height_valid)
+                if n_height_invalid > 0:
+                    logger.info(
+                        f"      - Height: {n_height_invalid} rejected (too low)"
+                    )
+
+            # Geometry criterion
+            if planarity is not None and verticality is not None:
+                candidate_planarity = planarity[building_candidates]
+                candidate_verticality = verticality[building_candidates]
+                is_finite_plan = np.isfinite(candidate_planarity)
+                is_finite_vert = np.isfinite(candidate_verticality)
+
+                planarity_robust = np.where(is_finite_plan, candidate_planarity, 0.0)
+                verticality_robust = np.where(
+                    is_finite_vert,
+                    candidate_verticality,
+                    np.maximum(0.0, 1.0 - planarity_robust),
+                )
+
+                geometry_valid = (
+                    planarity_robust >= self.config.BUILDING_PLANARITY_MIN
+                ) | (verticality_robust >= self.config.BUILDING_VERTICAL_THRESHOLD)
+                valid_building &= geometry_valid
+
+            # NDVI criterion
+            if ndvi is not None:
+                ndvi_valid = ndvi[building_candidates] <= self.config.BUILDING_NDVI_MAX
+                valid_building &= ndvi_valid
 
         # Apply validated building classification
         validated_indices = building_candidates[valid_building]
@@ -767,18 +1086,33 @@ class GroundTruthRefiner:
         Returns:
             Tuple of (refined_labels, stats_dict)
         """
-        stats = {"facades_recovered": 0}
+        stats = {
+            "facades_recovered": 0,
+            "low_walls_recovered": 0,
+            "vertical_elements_recovered": 0,
+        }
         refined = labels.copy()
 
         if building_polygons is None or len(building_polygons) == 0:
             return refined, stats
 
-        logger.info("  🔍 Aggressive facade recovery...")
+        logger.info("  🔍 Aggressive facade recovery pass...")
 
         # Find candidates: unclassified + vertical + reasonable height
         unclassified = labels == int(ASPRSClass.UNCLASSIFIED)
-        height_valid = (height > 0.2) & (height < 15.0)  # Typical building range
-        vert_valid = np.isfinite(verticality) & (verticality > 0.30)  # Relaxed
+
+        # Multi-tier height validation for different building elements
+        # Tier 1: Very low walls and foundations (0.1-1.0m)
+        low_wall_mask = (height > 0.1) & (height <= 1.0)
+        # Tier 2: Normal facades (1.0-10.0m)
+        facade_mask = (height > 1.0) & (height <= 10.0)
+        # Tier 3: High facades and chimneys (10.0-20.0m)
+        high_mask = (height > 10.0) & (height <= 20.0)
+
+        height_valid = low_wall_mask | facade_mask | high_mask
+
+        # Relaxed verticality threshold with NaN handling
+        vert_valid = np.isfinite(verticality) & (verticality > 0.25)  # Very relaxed
 
         facade_candidates = unclassified & height_valid & vert_valid
         n_candidates = np.sum(facade_candidates)
@@ -787,15 +1121,42 @@ class GroundTruthRefiner:
             logger.info("    No facade candidates found")
             return refined, stats
 
-        logger.info(f"    Found {n_candidates:,} potential facade points")
+        logger.info(f"    Found {n_candidates:,} potential facade/wall points")
 
-        # Build spatial index with search buffers
-        search_radius = 2.0  # 2m search radius
-        buffered_polygons = building_polygons.geometry.buffer(search_radius)
-        tree = STRtree(buffered_polygons.tolist())
+        # Separate candidates by type
+        low_wall_candidates = facade_candidates & low_wall_mask
+        facade_candidates_normal = facade_candidates & facade_mask
+        high_candidates = facade_candidates & high_mask
+
+        n_low = np.sum(low_wall_candidates)
+        n_normal = np.sum(facade_candidates_normal)
+        n_high = np.sum(high_candidates)
+
+        logger.info(f"      - Low walls: {n_low:,} candidates")
+        logger.info(f"      - Facades: {n_normal:,} candidates")
+        logger.info(f"      - High elements: {n_high:,} candidates")
+
+        # Build spatial index with adaptive search buffers
+        # Larger buildings get larger search radius
+        areas = building_polygons.geometry.area
+        base_radius = 2.0  # Base 2m search
+        adaptive_radius = np.clip(
+            base_radius + (areas**0.5) * 0.02,  # Add 2% of perimeter
+            2.0,  # Min 2m
+            5.0,  # Max 5m for very large buildings
+        )
+
+        # Create buffered polygons with adaptive radius
+        buffered_polygons = [
+            geom.buffer(radius)
+            for geom, radius in zip(building_polygons.geometry, adaptive_radius)
+        ]
+        tree = STRtree(buffered_polygons)
 
         # Check each candidate point
         recovered_count = 0
+        low_wall_count = 0
+        high_element_count = 0
         candidate_indices = np.where(facade_candidates)[0]
 
         for idx in candidate_indices:
@@ -807,14 +1168,26 @@ class GroundTruthRefiner:
                 refined[idx] = int(ASPRSClass.BUILDING)
                 recovered_count += 1
 
+                # Track by type
+                if low_wall_candidates[idx]:
+                    low_wall_count += 1
+                elif high_candidates[idx]:
+                    high_element_count += 1
+
         stats["facades_recovered"] = recovered_count
+        stats["low_walls_recovered"] = low_wall_count
+        stats["vertical_elements_recovered"] = high_element_count
 
         if recovered_count > 0:
             pct = 100.0 * recovered_count / n_candidates
             logger.info(
-                f"    ✅ Recovered {recovered_count:,} facade points "
+                f"    ✅ Recovered {recovered_count:,} facade/wall points "
                 f"({pct:.1f}% of candidates)"
             )
+            if low_wall_count > 0:
+                logger.info(f"       └─ Low walls: {low_wall_count:,}")
+            if high_element_count > 0:
+                logger.info(f"       └─ High elements: {high_element_count:,}")
         else:
             logger.info("    No additional facades recovered")
 

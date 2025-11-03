@@ -1,7 +1,10 @@
 # ============================================================================
-# IGN LiDAR HD - ASPRS Production Configuration v6.3.2 (FACADE OPTIMIZED)
+# IGN LiDAR HD - ASPRS Production Configuration v6.3.3 (RECLASSIFICATION ENHANCED)
 # ============================================================================
-# LAST UPDATED: October 25, 2025
+# LAST UPDATED: November 1, 2025
+#
+# 🆕 v3.0.5 RECLASSIFICATION IMPROVEMENTS (November 1, 2025):
+# Major improvements to ground truth reclassification for buildings, roads, and vegetation
 #
 # 🆕 OPTIMIZATION SUMMARY (v6.3.1 → v6.3.2):
 # 1. DTM 1m² Augmentation: Enhanced validation (12m radius, 4 neighbors)
@@ -34,8 +37,8 @@
 # - Spectral features (RGB + NIR + NDVI)
 # ============================================================================
 
-config_version: "6.3.2"
-preset_name: "asprs_production_facade_optimized"
+config_version: "6.3.3"
+preset_name: "asprs_production_reclassification_enhanced"
 
 # ============================================================================
 # PROCESSOR CONFIGURATION

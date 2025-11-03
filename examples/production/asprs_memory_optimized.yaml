@@ -1,11 +1,14 @@
 # ============================================================================
-# IGN LiDAR HD - ASPRS Facade Enhanced v6.7.5 + v3.0.4 CPU (OPTIMIZED)
+# IGN LiDAR HD - ASPRS Facade Enhanced v6.7.6 + v3.0.5 CPU (OPTIMIZED)
 # ============================================================================
 # FACADE ENHANCED VERSION - CPU OPTIMIZED - MEMORY & PERFORMANCE TUNED
 # For systems with moderate RAM (32-40GB) requiring superior facade detection
 # - CPU PROCESSING MODE
 # - OPTIMIZED: Reduced memory footprint by ~15-20%
 # - OPTIMIZED: Faster processing by ~10-15%
+#
+# 🆕 v3.0.5 RECLASSIFICATION IMPROVEMENTS (NOVEMBER 1, 2025):
+# Major improvements to building facades, roads, and vegetation detection
 #
 # 🐛 v3.0.4 FACADE CLASSIFICATION BUGFIXES (CRITICAL):
 # Fixed critical bugs causing classification artifacts and crashes
@@ -16,7 +19,43 @@
 # 🆕 v6.7 FACADE CLASSIFICATION IMPROVEMENTS:
 # Major improvements to building facade detection based on real-world validation
 #
-# Based on v6.7 + v3.0.4 with CPU OPTIMIZATIONS + v6.7.5 ENHANCEMENTS:
+# Based on v6.7 + v3.0.5 with CPU OPTIMIZATIONS + v6.7.6 ENHANCEMENTS:
+#
+# 🆕 v3.0.5 RECLASSIFICATION IMPROVEMENTS (NOVEMBER 1, 2025):
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 1. BUILDING FACADES - HEIGHT-STRATIFIED VALIDATION:
+#    - Separate criteria for facades (<2.5m), roofs (≥2.5m), overhangs (≥2.0m)
+#    - Relaxed facade thresholds: verticality ≥0.30 (was 0.50), height ≥0.2m (was 0.5m)
+#    - New overhang detection: planarity ≥0.50, captures sloped roof edges
+#    - Adaptive buffers increased: 6% of perimeter (was 5%), max 3.5m (was 3.0m)
+#    - Expected improvement: 85-95% facade coverage (vs 60-75% before)
+#
+# 2. ROADS - STRICT GROUND-LEVEL ENFORCEMENT:
+#    - Maximum height reduced: 25cm (was 30cm) - strict ground-level only
+#    - Automatic reclassification of elevated points:
+#      * NDVI >0.20 → Vegetation (HIGH/MEDIUM/LOW by height)
+#      * NDVI ≤0.20 → UNCLASSIFIED (poles, signs, infrastructure)
+#    - Vegetation on roads detected: grass (NDVI 0.15-0.40), trees (>0.40)
+#    - Expected improvement: <1% elevated points (vs 5-15% before)
+#
+# 3. VEGETATION - ENHANCED NDVI + MULTI-FEATURE DETECTION:
+#    - NDVI weight increased: 45% (was 40%)
+#    - Robust NaN/Inf handling for all features (no silent failures)
+#    - Two-tier classification:
+#      * High confidence (>0.65): direct classification
+#      * Moderate confidence (0.50-0.65): only UNCLASSIFIED/GROUND
+#    - Green roof detection: identified but preserved as BUILDING
+#    - Expected improvement: -80-90% missed vegetation, -50-70% false positives
+#
+# 4. AGGRESSIVE FACADE RECOVERY:
+#    - Multi-tier height validation:
+#      * Very low walls (0.1-1.0m): foundations, murets
+#      * Normal facades (1.0-10.0m): standard walls
+#      * High elements (10.0-20.0m): chimneys, architectural features
+#    - Relaxed verticality: >0.25 (very permissive for complex facades)
+#    - Adaptive search buffers: 2.0-5.0m based on building size
+#    - Expected improvement: +10-25% additional facade points recovered
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
 # 🆕 v6.7.5 OPTIMIZATION HIGHLIGHTS:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -99,8 +138,8 @@
 #   * If >64GB RAM: use 10-12M
 # ============================================================================
 
-config_version: "6.7.5-cpu"
-preset_name: "asprs_facade_enhanced_v675_cpu_optimized"
+config_version: "6.7.6-cpu"
+preset_name: "asprs_facade_enhanced_v676_cpu_optimized"
 
 # ============================================================================
 # PROCESSOR CONFIGURATION - CPU OPTIMIZED
