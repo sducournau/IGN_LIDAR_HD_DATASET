@@ -540,9 +540,9 @@ ground_truth:
 
 **After Improvements:**
 
-- ✅ Vegetation correctly excluded: <2% false positives
-- ✅ Buildings protected: <1% false positives
-- ✅ Transportation isolated: <3% confusion
+- ✅ Vegetation correctly excluded: &lt;2% false positives
+- ✅ Buildings protected: &lt;1% false positives
+- ✅ Transportation isolated: &lt;3% confusion
 - ✅ Overall road precision: **92-97%**
 
 ### Visual Classification Improvement
@@ -858,7 +858,7 @@ This order ensures:
 - **Processing time:** +25-46 seconds per km² tile
 - **Memory overhead:** ~135 MB additional
 - **Accuracy improvement:** 70-80% → **92-97%** precision
-- **False positive reduction:** -85% (from 15-25% to <2%)
+- **False positive reduction:** -85% (from 15-25% to &lt;2%)
 
 ### Production Readiness
 

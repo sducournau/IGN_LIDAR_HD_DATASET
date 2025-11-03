@@ -276,28 +276,28 @@ building_fusion:
 
 **Evidence Sources:**
 
-| Feature     | Weight | Computation                                                                 |
-| ----------- | ------ | --------------------------------------------------------------------------- |
-| Height      | 25%    | `height > 2.5m` → High confidence<br/>`2.0-2.5m` → Medium<br/>`<2.0m` → Low |
-| Planarity   | 20%    | `>0.75` → Roof points<br/>`0.5-0.75` → Mixed<br/>`<0.5` → Non-building      |
-| Verticality | 15%    | `>0.65` → Wall points<br/>`0.4-0.65` → Edges<br/>`<0.4` → Non-wall          |
-| NDVI        | 10%    | `<0.3` → Non-vegetation<br/>`>0.5` → Vegetation (exclude)                   |
-| GT Distance | 10%    | Fuzzy boundary confidence (Gaussian decay)                                  |
+| Feature     | Weight | Computation                                                                    |
+| ----------- | ------ | ------------------------------------------------------------------------------ |
+| Height      | 25%    | `height > 2.5m` → High confidence<br/>`2.0-2.5m` → Medium<br/>`&lt;2.0m` → Low |
+| Planarity   | 20%    | `>0.75` → Roof points<br/>`0.5-0.75` → Mixed<br/>`&lt;0.5` → Non-building      |
+| Verticality | 15%    | `>0.65` → Wall points<br/>`0.4-0.65` → Edges<br/>`&lt;0.4` → Non-wall          |
+| NDVI        | 10%    | `&lt;0.3` → Non-vegetation<br/>`>0.5` → Vegetation (exclude)                   |
+| GT Distance | 10%    | Fuzzy boundary confidence (Gaussian decay)                                     |
 
 **Advanced Features:**
 
 The system computes rich geometric metadata for each building cluster:
 
-| Feature                  | Definition                                     | Use Case                        | Typical Values                             |
-| ------------------------ | ---------------------------------------------- | ------------------------------- | ------------------------------------------ |
-| **Horizontality**        | % horizontal points (roofs)                    | Roof type classification        | Flat: 60-80%, Pitched: 30-50%              |
-| **Verticality**          | % vertical points (walls)                      | Wall detection, facade analysis | Residential: 40-60%, High-rise: 55-75%     |
-| **Compactness**          | $4\pi \times \text{Area} / \text{Perimeter}^2$ | Shape complexity                | Square: 0.785, Complex: 0.3-0.6            |
-| **Elongation**           | $\lambda_1 / \lambda_2$ (eigenvalue ratio)     | Shape classification            | Square: 1.0-1.2, Rectangular: 2.0-5.0      |
-| **Rectangularity**       | Area / min bounding rectangle                  | Building regularity             | Residential: 0.85-0.95, Complex: 0.60-0.80 |
-| **Dominant Orientation** | Principal axis angle (PCA)                     | Alignment analysis              | -180° to +180°                             |
-| **Point Density**        | Points per m²                                  | Quality assessment              | Urban: 20-100 pts/m²                       |
-| **Height Variation**     | Std dev of heights                             | Roof type detection             | Flat: 0.2-0.8m, Pitched: 1.5-4.0m          |
+| Feature                  | Definition                    | Use Case                        | Typical Values                             |
+| ------------------------ | ----------------------------- | ------------------------------- | ------------------------------------------ |
+| **Horizontality**        | % horizontal points (roofs)   | Roof type classification        | Flat: 60-80%, Pitched: 30-50%              |
+| **Verticality**          | % vertical points (walls)     | Wall detection, facade analysis | Residential: 40-60%, High-rise: 55-75%     |
+| **Compactness**          | 4π × Area / Perimeter²        | Shape complexity                | Square: 0.785, Complex: 0.3-0.6            |
+| **Elongation**           | λ₁ / λ₂ (eigenvalue ratio)    | Shape classification            | Square: 1.0-1.2, Rectangular: 2.0-5.0      |
+| **Rectangularity**       | Area / min bounding rectangle | Building regularity             | Residential: 0.85-0.95, Complex: 0.60-0.80 |
+| **Dominant Orientation** | Principal axis angle (PCA)    | Alignment analysis              | -180° to +180°                             |
+| **Point Density**        | Points per m²                 | Quality assessment              | Urban: 20-100 pts/m²                       |
+| **Height Variation**     | Std dev of heights            | Roof type detection             | Flat: 0.2-0.8m, Pitched: 1.5-4.0m          |
 
 **Configuration Example:**
 
@@ -338,7 +338,7 @@ building_fusion:
 **Classification Strategy:**
 
 1. **NDVI thresholds** - Primary vegetation signal (increased sensitivity)
-2. **Height-based classes** - Low (<0.5m), Medium (0.5-2.0m), High (>2.0m)
+2. **Height-based classes** - Low (&lt;0.5m), Medium (0.5-2.0m), High (>2.0m)
 3. **Geometry validation** - Low planarity confirms vegetation
 4. **Original label preservation** - Respect existing vegetation classifications when NDVI confirms
 
@@ -486,7 +486,7 @@ rge_alti:
 
 **Classification Strategy:**
 
-1. **Ground-referenced height** - Near-ground (`<0.5m`)
+1. **Ground-referenced height** - Near-ground (`&lt;0.5m`)
 2. **Extreme planarity** - Very flat surfaces (`>0.90`)
 3. **Horizontal normals** - Z-component `>0.95`
 4. **Low curvature** - Minimal surface variation
@@ -806,7 +806,7 @@ confidence_weights:
 ### RGE ALTI Caching
 
 - **First fetch:** 2-5 seconds (WCS download from IGN Géoservices)
-- **Cached fetch:** <0.1 seconds (local GeoTIFF file)
+- **Cached fetch:** &lt;0.1 seconds (local GeoTIFF file)
 - **Cache format:** GeoTIFF with LZW compression
 
 ---
@@ -840,7 +840,7 @@ confidence_weights:
 ### Infrastructure Analysis
 
 - **Bridge detection** - Identify elevated road/rail points (height >2m)
-- **Tunnel mapping** - Detect underground passages (height <-0.5m)
+- **Tunnel mapping** - Detect underground passages (height &lt;-0.5m)
 - **Water depth estimation** - Calculate water body depth from DTM reference
 
 ---

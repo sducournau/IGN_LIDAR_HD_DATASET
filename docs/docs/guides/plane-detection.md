@@ -263,9 +263,9 @@ for balcony_indices in balconies:
 
 **Critères:**
 
-- Plans verticaux de petite taille (<10 m²)
+- Plans verticaux de petite taille (&lt;10 m²)
 - Hauteur élevée (>8m)
-- Peu de points (<300)
+- Peu de points (&lt;300)
 - Sur toiture
 
 **Code:**
@@ -302,7 +302,7 @@ for dormer_indices in dormers:
 
 - Plans verticaux bas (0.5-2m de haut)
 - Juste au-dessus de toits plats
-- Peu de points (<200)
+- Peu de points (&lt;200)
 - Élément de sécurité
 
 **Code:**

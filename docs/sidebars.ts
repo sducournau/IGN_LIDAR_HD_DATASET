@@ -135,23 +135,6 @@ const sidebars: SidebarsConfig = {
       ],
     },
 
-    // User Guides
-    {
-      type: "category",
-      label: "📖 User Guides",
-      items: [
-        "guides/cli-commands",
-        "guides/hydra-cli",
-        "guides/auto-params",
-        "guides/preprocessing",
-        "guides/complete-workflow",
-        "guides/unified-pipeline",
-        "guides/regional-processing",
-        "guides/performance",
-        "guides/troubleshooting",
-      ],
-    },
-
     // QGIS Integration
     {
       type: "category",

@@ -39,10 +39,10 @@ const config: Config = {
     mermaid: true,
   },
 
-  // Internationalization (English + French)
+  // Internationalization (English only)
   i18n: {
     defaultLocale: "en",
-    locales: ["en", "fr"],
+    locales: ["en"],
   },
 
   presets: [
@@ -85,7 +85,7 @@ const config: Config = {
       {
         // Options for local search
         hashed: true,
-        language: ["en", "fr"], // Bilingual search support
+        language: ["en"],
         indexDocs: true,
         indexBlog: true,
         indexPages: false,
@@ -125,10 +125,6 @@ const config: Config = {
           label: "Documentation",
         },
         { to: "/blog", label: "📢 First Release!", position: "left" },
-        {
-          type: "localeDropdown",
-          position: "right",
-        },
         {
           href: "https://github.com/sducournau/IGN_LIDAR_HD_DATASET",
           label: "GitHub",
