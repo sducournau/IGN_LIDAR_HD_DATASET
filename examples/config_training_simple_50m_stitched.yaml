@@ -1,0 +1,575 @@
+# ============================================================================
+# IGN LiDAR HD - Simple Training Configuration (50m patches with stitching)
+# ============================================================================
+# Created: November 21, 2025
+#
+# Optimized for:
+# - Simple training dataset generation
+# - Patch size: 50m × 50m
+# - Points per patch: 32,000 (32K)
+# - LOD2 classification (buildings focus)
+# - GPU: NVIDIA RTX 4080 (16GB VRAM)
+# - Tile stitching: ENABLED for boundary artifacts
+# - NO multi-scale computation (faster processing)
+# - NO augmentation (generate original patches only)
+#
+# Input: /home/simon/ign_data/unified_dataset_rgb
+# Output: Training patches + enriched LAZ tiles
+# ============================================================================
+
+config_version: "6.3.0"
+preset_name: "training_simple_50m_stitched"
+
+# ============================================================================
+# PROCESSOR CONFIGURATION
+# ============================================================================
+processor:
+  # Processing mode
+  lod_level: "LOD2"
+  architecture: "hybrid"
+  processing_mode: "both" # Generate both enriched LAZ and training patches
+  output_format: "laz"
+
+  # GPU Configuration (Optimized for RTX 4080 16GB)
+  use_gpu: true
+  gpu_device: 0
+  gpu_batch_size: 10_000_000 # 10M points
+  gpu_memory_target: 0.85
+  vram_limit_gb: 14
+
+  # Parallel processing
+  num_workers: 0 # 0 when using GPU
+
+  # Patch Configuration
+  patch_size: 50.0 # 50m × 50m patches
+  num_points: 32000 # 32K points per patch
+  overlap: 0.15 # 15% overlap (7.5m buffer for stitching)
+
+  # Point sampling strategy
+  sampling_method: "fps" # Farthest Point Sampling
+
+  # NO DATA AUGMENTATION
+  augment: false
+  num_augmentations: 0
+
+  # Performance tuning
+  batch_size: "auto"
+  prefetch_factor: 2
+  pin_memory: true
+
+# ============================================================================
+# PREPROCESSING CONFIGURATION
+# ============================================================================
+preprocess:
+  enabled: true
+
+  # Statistical Outlier Removal (SOR)
+  sor_k: 16
+  sor_std: 2.0
+
+  # Radius Outlier Removal (ROR)
+  ror_radius: 1.0
+  ror_neighbors: 5
+
+  # Voxel downsampling (disabled)
+  voxel_enabled: false
+
+# ============================================================================
+# STITCHING CONFIGURATION - ENABLED
+# ============================================================================
+stitching:
+  enabled: true # ENABLED for boundary-aware processing
+
+  # Buffer zone
+  buffer_size: 15.0 # 15m buffer
+
+  # Auto-detection
+  auto_detect_neighbors: true
+  auto_download_neighbors: false # Use local tiles only
+
+  # Neighbor tiles
+  neighbor_pattern: "8_way" # Load all 8 neighbors
+
+  # Caching
+  cache_enabled: true
+  cache_dir: null # Auto: {output_dir}/cache/stitching
+
+  # Boundary handling
+  blend_method: "distance_weighted"
+  blend_width: 7.5 # 15% of 50m
+
+  # Feature recalculation at boundaries
+  recalculate_boundary_features: true
+  boundary_buffer: 5.0
+
+# ============================================================================
+# FEATURES CONFIGURATION - SINGLE SCALE (NO MULTI-SCALE)
+# ============================================================================
+features:
+  # Feature mode
+  mode: "lod2" # LOD2 feature set
+
+  # Geometric computation - SINGLE SCALE
+  k_neighbors: 30 # Base neighborhood size
+  search_radius: 2.5 # 2.5m search radius
+
+  # Core geometric features (REQUIRED)
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: true # planarity, sphericity, verticality
+  compute_density: true
+  compute_anisotropy: true
+
+  # Spectral features
+  compute_ndvi: true
+  use_rgb: true
+  use_infrared: false
+  use_nir: false
+
+  # Height computation
+  height_method: "local"
+  compute_height_above_ground: true
+  compute_height_local: true
+
+  # ========================================================================
+  # NO MULTI-SCALE COMPUTATION - SINGLE SCALE ONLY
+  # ========================================================================
+  multi_scale_computation: false # DISABLED for simplicity/speed
+
+  # Feature normalization
+  normalize_xyz: true
+  normalize_features: true
+  normalize_method: "z_score"
+
+  # FORCE GPU STRATEGY FOR FEATURES
+  gpu_batch_size: 3_000_000
+  use_gpu_chunked: true
+  force_gpu: true
+
+  # RGB augmentation
+  rgb_augmentation:
+    enabled: true
+    method: "orthophoto"
+    resolution: 0.2
+    cache_enabled: true
+    cache_dir: null
+
+  # Feature selection
+  feature_selection:
+    geometric_features:
+      - normals
+      - planarity
+      - sphericity
+      - verticality
+      - horizontality
+      - linearity
+      - curvature
+      - anisotropy
+      - omnivariance
+      - eigenentropy
+
+    height_features:
+      - height
+      - height_above_ground
+      - height_local
+      - height_range
+
+    density_features:
+      - point_density
+      - return_density
+
+    spectral_features:
+      - rgb
+      - rgb_intensity
+      - ndvi
+
+    radiometric_features:
+      - intensity
+      - return_number
+      - number_of_returns
+
+    contextual_features:
+      - local_point_count
+      - k_nearest_distance_mean
+      - k_nearest_distance_std
+
+# ============================================================================
+# DATA SOURCES - GROUND TRUTH
+# ============================================================================
+data_sources:
+  # RGE ALTI
+  rge_alti:
+    enabled: false
+
+  # BD TOPO - Ground truth
+  bd_topo:
+    enabled: true
+    path: "./data/ground_truth/BDTOPO/"
+
+    assign_building_cluster_ids: true
+    assign_parcel_cluster_ids: false
+
+    features:
+      buildings:
+        enabled: false
+
+      roads:
+        enabled: true
+        file: "TRONCON_DE_ROUTE.shp"
+        buffer_distance: 1.5
+        classification_method: "surface_type"
+
+      vegetation:
+        enabled: false
+
+      water:
+        enabled: false
+
+      ground:
+        enabled: false
+
+# ============================================================================
+# GROUND TRUTH CONFIGURATION
+# ============================================================================
+ground_truth:
+  enabled: true
+
+  # Processing method - GPU optimized
+  method: "gpu"
+  chunk_size: 3_000_000
+
+  # Caching
+  cache_dir: null
+  cache_ttl_days: 30
+  cache_compression: true
+
+  # Processing options
+  preclassify: true
+  show_progress: true
+
+  # BD TOPO WFS configuration
+  bd_topo:
+    enabled: true
+
+    features:
+      buildings:
+        enabled: false
+
+      roads:
+        enabled: true
+        buffer_distance: 1.5
+
+      vegetation:
+        enabled: false
+
+      water:
+        enabled: false
+
+      railways:
+        enabled: false
+
+      bridges:
+        enabled: false
+
+      power_lines:
+        enabled: false
+
+    parameters:
+      road_width_fallback: 4.0
+      use_spatial_index: true
+
+    cache_enabled: true
+
+# ============================================================================
+# CLASSIFICATION CONFIGURATION
+# ============================================================================
+classification:
+  mode: "lod2"
+
+  normalize_classes: true
+  strict_normalization: false
+
+  lod2_classes:
+    enabled: true
+    classes:
+      - 1 # Unclassified
+      - 2 # Ground
+      - 3 # Low Vegetation
+      - 4 # Medium Vegetation
+      - 5 # High Vegetation
+      - 6 # Building (generic)
+      - 9 # Water
+      - 11 # Road
+      - 32 # Roof
+      - 33 # Facade
+      - 34 # Building Components
+
+  height_classification:
+    enabled: true
+    low_vegetation_max: 0.5
+    medium_vegetation_max: 2.0
+    high_vegetation_min: 2.0
+
+  ndvi_classification:
+    enabled: true
+    vegetation_threshold: 0.3
+    strong_vegetation_threshold: 0.5
+
+  thresholds:
+    buildings:
+      min_height: 1.5
+      min_verticality: 0.60
+      min_roof_planarity: 0.70
+      max_roof_curvature: 0.15
+
+    ground:
+      max_height: 0.5
+      min_planarity: 0.80
+      min_horizontality: 0.75
+
+    vegetation:
+      min_ndvi: 0.3
+      max_planarity: 0.6
+      max_verticality: 0.4
+
+# ============================================================================
+# RECLASSIFICATION
+# ============================================================================
+reclassification:
+  enabled: true
+
+  use_geometric_rules: true
+  use_ndvi_classification: true
+  use_spectral_rules: true
+  use_clustering: true
+
+  ndvi_vegetation_threshold: 0.3
+  spatial_cluster_eps: 0.5
+  min_cluster_size: 10
+
+  min_classification_confidence: 0.35
+  rejection_confidence_threshold: 0.25
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  format: "laz"
+
+  # Enriched LAZ output (full tiles)
+  enriched_laz:
+    enabled: true
+    output_dir: "enriched_tiles"
+    compression: true
+
+  # Training patches output
+  patches:
+    enabled: true
+    format: "npz" # NumPy format for PyTorch
+    output_dir: "patches"
+
+    # Also save LAZ patches
+    save_laz: true
+    laz_output_dir: "patches_laz"
+
+  # Output structure
+  output_structure: "flat"
+
+  # Patch naming
+  patch_naming: "coordinates"
+
+  # Extra dimensions to save
+  extra_dims:
+    # Geometric features
+    - planarity
+    - sphericity
+    - verticality
+    - horizontality
+    - linearity
+    - curvature
+    - anisotropy
+    - omnivariance
+    - eigenentropy
+
+    # Height features
+    - height
+    - height_above_ground
+    - height_local
+    - height_range
+
+    # Density
+    - point_density
+    - return_density
+
+    # Spectral
+    - ndvi
+    - rgb_intensity
+
+    # Radiometric
+    - intensity
+    - return_number
+    - number_of_returns
+
+    # Contextual
+    - local_point_count
+    - k_nearest_distance_mean
+
+    # Quality control
+    - confidence_score
+    - cluster_id
+    - building_cluster_id
+
+  # Classification output
+  save_classification: true
+  save_confidence_scores: true
+
+  # Metadata
+  include_metadata: true
+  metadata_format: "json"
+
+  # Training split metadata
+  save_split_info: true
+  split_ratios:
+    train: 0.70
+    val: 0.15
+    test: 0.15
+
+# ============================================================================
+# PYTORCH DATASET CONFIGURATION
+# ============================================================================
+pytorch:
+  enabled: true
+
+  dataset_class: "IGNLiDARMultiArchDataset"
+  preset: "buildings"
+  architecture: "hybrid"
+
+  input_features:
+    - xyz
+    - normals
+    - planarity
+    - verticality
+    - height_above_ground
+    - rgb
+    - intensity
+
+  target: "classification"
+
+  batch_size: 8
+  num_workers: 4
+  shuffle: true
+  pin_memory: true
+  drop_last: true
+
+  augmentation:
+    enabled: false # No augmentation for simplicity
+
+# ============================================================================
+# MONITORING & LOGGING
+# ============================================================================
+monitoring:
+  enabled: true
+  log_level: "INFO"
+
+  track_memory: true
+  track_gpu_usage: true
+  track_processing_time: true
+
+  progress_interval: 5
+
+  compute_statistics: true
+  save_statistics: true
+  statistics_output: "training_dataset_stats.json"
+
+  save_class_distribution: true
+  warn_class_imbalance: true
+  max_class_imbalance_ratio: 10.0
+
+# ============================================================================
+# CACHE CONFIGURATION
+# ============================================================================
+cache:
+  enabled: true
+  cache_dir: null # Auto: {output_dir}/cache
+
+  cache_features: false
+  cache_ground_truth: true
+  cache_rgb: true
+  cache_kdtrees: true
+
+  ground_truth_ttl_days: 90
+  rgb_ttl_days: 180
+
+# ============================================================================
+# VALIDATION & QUALITY CONTROL
+# ============================================================================
+validation:
+  enabled: true
+
+  check_point_density: true
+  min_points_per_tile: 100_000
+
+  check_patch_completeness: true
+  min_points_per_patch: 30000
+  reject_incomplete_patches: true
+
+  check_feature_range: true
+  flag_invalid_features: true
+  check_nan_values: true
+  reject_patches_with_nans: true
+
+  check_class_distribution: true
+  warn_on_high_unclassified: true
+  max_unclassified_percentage: 20
+
+  check_output_completeness: true
+  verify_extra_dims: true
+# ============================================================================
+# NOTES & USAGE
+# ============================================================================
+#
+# USAGE:
+#   cd /mnt/d/Users/Simon/OneDrive/Documents/GitHub/IGN_LIDAR_HD_DATASET
+#
+#   ign-lidar-hd process \
+#     -c examples/config_training_simple_50m_stitched.yaml \
+#     input_dir="/mnt/c/Users/Simon/ign_lidar/unified_dataset_rgb" \
+#     output_dir="/mnt/c/Users/Simon/ign_lidar/training_simple_50m"
+#
+# EXPECTED OUTPUT:
+#   - Enriched LAZ tiles: Full tiles with features in enriched_tiles/
+#   - Training patches (NPZ): 50m × 50m with 32K points in patches/
+#   - Training patches (LAZ): Same in LAZ format in patches_laz/
+#   - NO augmentation: Only original patches
+#   - NO multi-scale: Single scale features (faster)
+#   - Stitching: Boundary artifacts handled
+#
+# PERFORMANCE (RTX 4080 16GB):
+#   - Feature computation: ~1-2 min per tile (single scale = faster)
+#   - Stitching overhead: ~1 min per tile
+#   - Ground truth: ~1-2 min per tile
+#   - Patch generation: ~1 min per tile
+#   - Total: ~4-6 min per tile (faster than multi-scale version)
+#
+# KEY DIFFERENCES FROM HYBRID CONFIG:
+#   - NO multi_scale_computation (faster, simpler features)
+#   - NO augmentation (only original patches)
+#   - Stitching ENABLED (boundary handling maintained)
+#   - Same patch size (50m × 50m)
+#   - Same point count (32K)
+#
+# TRADE-OFFS:
+#   ✅ Faster processing (~30% faster)
+#   ✅ Simpler features (easier to understand)
+#   ✅ Smaller dataset (no augmentations)
+#   ❌ Less robust features (no multi-scale artifact suppression)
+#   ❌ Smaller training set (need more tiles for same dataset size)
+#
+# WHEN TO USE:
+#   - Rapid prototyping / testing
+#   - Limited compute time
+#   - Large number of tiles available
+#   - Don't need augmentation (will do it in PyTorch)
+#
+# ============================================================================

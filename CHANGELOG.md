@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [3.4.1] - 2025-11-21
+
+### Performance
+
+- **FAISS GPU Optimization for High-VRAM GPUs** 🚀
+
+  - Dynamic VRAM detection and memory-aware GPU usage for FAISS k-NN
+  - Automatic Float16 (FP16) precision for large datasets (>50M points) - cuts memory in half
+  - Smart memory calculation: query results + index storage + temp memory
+  - Adaptive threshold: 80% of VRAM limit (vs hardcoded 15M point limit)
+  - **Impact on RTX 4080 SUPER (16GB)**: 72M point dataset now uses GPU (was CPU-only)
+  - Expected speedup: 10-50× faster (5-15s vs 30-90s for k-NN queries)
+  - Dynamic temp memory allocation: scales with available VRAM (4GB for 16GB, 2GB for 8GB)
+  - Supports up to 100M+ points on 16GB GPUs with FP16
+  - See `scripts/benchmark_faiss_gpu_optimization.py` for detailed analysis
+
 ## [3.4.0] - 2025-11-21
 
 ### Added

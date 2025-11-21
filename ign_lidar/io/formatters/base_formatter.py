@@ -8,6 +8,8 @@ from typing import Dict, Any, List, Optional, Union, Tuple
 import numpy as np
 from pathlib import Path
 
+from ...utils.normalization import normalize_nir
+
 
 class BaseFormatter:
     """
@@ -197,7 +199,9 @@ class BaseFormatter:
                 if nir is not None and isinstance(nir, np.ndarray) and nir.size > 0:
                     if nir.ndim == 1:
                         nir = nir[:, np.newaxis]  # Ensure [N, 1]
-                    nir_norm = (nir.astype(np.float32) / 255.0)
+                    nir_norm = normalize_nir(nir, use_gpu=False)
+                    if nir_norm.ndim == 1:
+                        nir_norm = nir_norm[:, np.newaxis]
                     features.append(nir_norm)
                     feature_names.append('nir')
             

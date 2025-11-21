@@ -32,6 +32,16 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from omegaconf import DictConfig
 
+# Error handling
+from ..core.error_handler import (
+    InitializationError,
+    FeatureComputationError,
+    CacheError,
+    DataFetchError,
+    GPUNotAvailableError,
+    ConfigurationError,
+)
+
 # Multi-scale computation (v6.2)
 from .compute.multi_scale import MultiScaleFeatureComputer, ScaleConfig
 
@@ -228,11 +238,23 @@ class FeatureOrchestrator:
             return fetcher
 
         except ImportError as e:
-            logger.error(f"RGB augmentation requires additional packages: {e}")
-            logger.error("Install with: pip install requests Pillow")
+            error = InitializationError.create(
+                component="RGB fetcher",
+                error=e,
+                dependencies=["requests", "Pillow"]
+            )
+            logger.error(str(error))
+            return None
+        except (OSError, IOError) as e:
+            logger.error(f"Failed to create RGB cache directory: {e}")
+            logger.error(f"  Check write permissions for: {rgb_cache_dir}")
             return None
         except Exception as e:
-            logger.error(f"Failed to initialize RGB fetcher: {e}")
+            error = InitializationError.create(
+                component="RGB fetcher",
+                error=e
+            )
+            logger.error(str(error))
             return None
 
     def _init_infrared_fetcher(self):
@@ -264,11 +286,23 @@ class FeatureOrchestrator:
             return fetcher
 
         except ImportError as e:
-            logger.error(f"Infrared augmentation requires additional packages: {e}")
-            logger.error("Install with: pip install requests Pillow")
+            error = InitializationError.create(
+                component="NIR fetcher",
+                error=e,
+                dependencies=["requests", "Pillow"]
+            )
+            logger.error(str(error))
+            return None
+        except (OSError, IOError) as e:
+            logger.error(f"Failed to create NIR cache directory: {e}")
+            logger.error(f"  Check write permissions for: {infrared_cache_dir}")
             return None
         except Exception as e:
-            logger.error(f"Failed to initialize infrared fetcher: {e}")
+            error = InitializationError.create(
+                component="NIR fetcher",
+                error=e
+            )
+            logger.error(str(error))
             return None
 
     def _validate_gpu(self) -> bool:
@@ -288,11 +322,13 @@ class FeatureOrchestrator:
             logger.info("GPU acceleration enabled")
             return True
 
-        except ImportError:
+        except ImportError as e:
             logger.warning("GPU module not available. Using CPU.")
+            logger.debug(f"  Import error details: {e}")
             return False
         except Exception as e:
-            logger.error(f"GPU validation failed: {e}")
+            error = GPUNotAvailableError.create(reason=str(e))
+            logger.warning(str(error))
             return False
 
     def _init_multi_scale(self):
@@ -359,14 +395,37 @@ class FeatureOrchestrator:
             # Connect GPU processor if available (must be done after _init_computer)
             self._connect_multi_scale_gpu()
 
+        except (ValueError, KeyError) as e:
+            logger.error(f"Invalid multi-scale configuration: {e}")
+            logger.error("  Check scales configuration in features section")
+            self.use_multi_scale = False
+            self.multi_scale_computer = None
+        except ImportError as e:
+            error = InitializationError.create(
+                component="multi-scale computer",
+                error=e
+            )
+            logger.error(str(error))
+            self.use_multi_scale = False
+            self.multi_scale_computer = None
         except Exception as e:
-            logger.error(f"Failed to initialize multi-scale computation: {e}")
+            error = InitializationError.create(
+                component="multi-scale computer",
+                error=e
+            )
+            logger.error(str(error))
             self.use_multi_scale = False
             self.multi_scale_computer = None
     
     def _connect_multi_scale_gpu(self):
         """
         Connect GPU processor to multi-scale computer after initialization.
+        
+        This performs intelligent GPU connection with validation and fallback:
+        1. Validates GPU availability when requested
+        2. Tests GPU functionality with CuPy
+        3. Provides actionable error messages
+        4. Falls back to CPU gracefully
         
         This must be called after _init_computer() to ensure self.computer exists.
         """
@@ -377,6 +436,7 @@ class FeatureOrchestrator:
         use_gpu = features_cfg.get("use_gpu", False) or features_cfg.get("force_gpu", False)
         
         if not use_gpu:
+            logger.debug("  💻 Multi-scale using CPU (GPU not requested)")
             return
         
         # Try to get GPU processor from strategy
@@ -384,12 +444,56 @@ class FeatureOrchestrator:
         if hasattr(self.computer, 'gpu_processor'):
             gpu_processor = self.computer.gpu_processor
         
-        if gpu_processor is not None:
+        if gpu_processor is None:
+            logger.warning("  ⚠️  GPU requested but no GPU processor available in feature computer")
+            logger.warning("       This may occur if:")
+            logger.warning("       1. CuPy is not installed (install: pip install cupy-cuda11x or cupy-cuda12x)")
+            logger.warning("       2. No CUDA-compatible GPU detected")
+            logger.warning("       3. GPU initialization failed during feature computer setup")
+            logger.warning("       → Multi-scale features will use CPU fallback")
+            logger.info("  💻 Multi-scale falling back to CPU mode")
+            self.multi_scale_computer.use_gpu = False
+            return
+        
+        # Validate GPU functionality
+        try:
+            import cupy as cp
+            
+            # Test GPU with small operation
+            test_array = cp.array([1.0, 2.0, 3.0])
+            _ = cp.mean(test_array)
+            cp.cuda.Stream.null.synchronize()
+            
+            # GPU is working - connect it
             self.multi_scale_computer.use_gpu = True
             self.multi_scale_computer.gpu_processor = gpu_processor
-            logger.info("  🚀 Multi-scale connected to GPU processor")
-        else:
-            logger.warning("  ⚠️  GPU requested but no GPU processor available in strategy")
+            
+            # Get GPU info for logging
+            device = cp.cuda.Device()
+            gpu_name = device.name
+            mem_info = device.mem_info
+            mem_total_gb = mem_info[1] / 1e9
+            mem_free_gb = mem_info[0] / 1e9
+            
+            logger.info(f"  🚀 Multi-scale connected to GPU: {gpu_name}")
+            logger.info(f"       GPU memory: {mem_free_gb:.1f}/{mem_total_gb:.1f} GB free")
+            
+        except ImportError:
+            logger.error("  ❌ GPU requested but CuPy not installed!")
+            logger.error("       Install with: conda install -c conda-forge cupy")
+            logger.error("       or: pip install cupy-cuda11x (for CUDA 11.x)")
+            logger.error("       or: pip install cupy-cuda12x (for CUDA 12.x)")
+            logger.info("  💻 Multi-scale falling back to CPU mode")
+            self.multi_scale_computer.use_gpu = False
+            
+        except Exception as e:
+            logger.error(f"  ❌ GPU validation failed: {e}")
+            logger.error("       This may indicate:")
+            logger.error("       1. GPU out of memory")
+            logger.error("       2. CUDA driver issues")
+            logger.error("       3. GPU hardware problems")
+            logger.info("  💻 Multi-scale falling back to CPU mode")
+            self.multi_scale_computer.use_gpu = False
 
     # =========================================================================
     # STRATEGY SELECTION (from FeatureComputerFactory)
@@ -441,10 +545,12 @@ class FeatureOrchestrator:
             from .feature_computer import FeatureComputer
             from .mode_selector import ModeSelector
         except ImportError as e:
-            logger.error(
-                f"FeatureComputer not available: {e}. "
-                "Falling back to strategy pattern."
+            error = InitializationError.create(
+                component="FeatureComputer",
+                error=e,
+                dependencies=["feature_computer", "mode_selector"]
             )
+            logger.error(str(error))
             # Fall back to strategy pattern
             self._init_strategy_computer()
             return
@@ -1034,6 +1140,336 @@ class FeatureOrchestrator:
             "adaptive_parameters": getattr(self, "_adaptive_parameters", {}).copy(),
         }
 
+    def get_performance_insights(self, detailed: bool = False) -> dict:
+        """
+        Get comprehensive performance insights and recommendations.
+        
+        Provides actionable recommendations based on:
+        - Cache hit ratios
+        - GPU utilization (if available)
+        - Processing time variance
+        - Resource efficiency
+        - Configuration optimization suggestions
+        
+        Args:
+            detailed: If True, include detailed statistics and distributions
+            
+        Returns:
+            Dictionary with insights, metrics, and recommendations
+            
+        Example:
+            >>> insights = orchestrator.get_performance_insights()
+            >>> print(insights['recommendations'])
+            ['Enable caching to improve performance', ...]
+            >>> if insights['gpu_available'] and not insights['gpu_utilized']:
+            ...     print("Consider enabling GPU acceleration")
+        """
+        insights = {
+            "timestamp": time.time(),
+            "summary": {},
+            "metrics": {},
+            "recommendations": [],
+            "warnings": [],
+        }
+        
+        # Basic summary stats
+        if not hasattr(self, "_processing_times") or not self._processing_times:
+            insights["summary"]["status"] = "No data available"
+            insights["recommendations"].append(
+                "Process some tiles to collect performance metrics"
+            )
+            return insights
+        
+        # Processing time analysis
+        times = np.array(self._processing_times)
+        insights["summary"]["total_computations"] = len(times)
+        insights["summary"]["avg_time_seconds"] = float(np.mean(times))
+        insights["summary"]["total_time_seconds"] = float(np.sum(times))
+        
+        insights["metrics"]["processing_times"] = {
+            "min": float(np.min(times)),
+            "max": float(np.max(times)),
+            "median": float(np.median(times)),
+            "std": float(np.std(times)),
+            "variance_coefficient": float(np.std(times) / np.mean(times)) if np.mean(times) > 0 else 0,
+        }
+        
+        # Processing time variance analysis
+        variance_coef = insights["metrics"]["processing_times"]["variance_coefficient"]
+        if variance_coef > 0.5:
+            insights["warnings"].append(
+                f"High processing time variance (CV={variance_coef:.2f}). "
+                "Tile sizes or point densities may be inconsistent."
+            )
+            insights["recommendations"].append(
+                "Consider preprocessing tiles for consistent sizes"
+            )
+        
+        # Cache analysis
+        if hasattr(self, "_feature_cache") and hasattr(self, "_enable_feature_cache"):
+            cache_enabled = self._enable_feature_cache
+            cache_size = len(self._feature_cache)
+            cache_memory_mb = getattr(self, "_current_cache_size", 0)
+            cache_max_mb = getattr(self, "_cache_max_size_mb", 300)
+            
+            insights["metrics"]["cache"] = {
+                "enabled": cache_enabled,
+                "entries": cache_size,
+                "size_mb": cache_memory_mb,
+                "max_size_mb": cache_max_mb,
+                "utilization_percent": (cache_memory_mb / cache_max_mb * 100) if cache_max_mb > 0 else 0,
+            }
+            
+            # Cache hit ratio (estimate)
+            # Note: Actual hits not tracked, estimating from cache size vs computations
+            if cache_enabled and cache_size > 0:
+                estimated_hit_ratio = min(cache_size / len(times), 1.0)
+                insights["metrics"]["cache"]["estimated_hit_ratio"] = estimated_hit_ratio
+                
+                if estimated_hit_ratio < 0.1:
+                    insights["recommendations"].append(
+                        f"Cache hit ratio low (~{estimated_hit_ratio:.0%}). "
+                        "Consider increasing cache size or reviewing feature computation patterns."
+                    )
+                elif estimated_hit_ratio > 0.7:
+                    insights["summary"]["cache_status"] = "✅ Excellent cache utilization"
+            else:
+                if not cache_enabled:
+                    insights["recommendations"].append(
+                        "Enable feature caching to improve performance for repeated tiles"
+                    )
+                insights["summary"]["cache_status"] = "⚠️  Cache disabled or empty"
+        
+        # GPU utilization analysis
+        if hasattr(self, "gpu_available") and hasattr(self, "use_gpu"):
+            insights["metrics"]["gpu"] = {
+                "available": self.gpu_available,
+                "requested": getattr(self, "use_gpu", False),
+                "strategy": self.strategy_name,
+            }
+            
+            if self.gpu_available:
+                # Try to get GPU memory info
+                try:
+                    from ..core.error_handler import get_gpu_memory_info
+                    gpu_mem = get_gpu_memory_info()
+                    if gpu_mem:
+                        insights["metrics"]["gpu"]["memory_gb"] = {
+                            "used": gpu_mem.get("used_gb", 0),
+                            "total": gpu_mem.get("device_total_gb", 0),
+                            "free": gpu_mem.get("free_gb", 0),
+                            "utilization_percent": (
+                                gpu_mem.get("used_gb", 0) / gpu_mem.get("device_total_gb", 1) * 100
+                            )
+                        }
+                        
+                        # GPU memory recommendations
+                        gpu_util = insights["metrics"]["gpu"]["memory_gb"]["utilization_percent"]
+                        if gpu_util < 20:
+                            insights["recommendations"].append(
+                                f"GPU memory underutilized ({gpu_util:.0f}%). "
+                                "Consider increasing chunk size for better GPU efficiency."
+                            )
+                        elif gpu_util > 90:
+                            insights["warnings"].append(
+                                f"GPU memory heavily utilized ({gpu_util:.0f}%). "
+                                "Risk of OOM errors."
+                            )
+                            insights["recommendations"].append(
+                                "Reduce chunk size or use GPU chunked mode"
+                            )
+                except Exception as e:
+                    logger.debug(f"Could not get GPU memory info: {e}")
+                
+                # GPU utilization recommendations
+                if self.gpu_available and not getattr(self, "use_gpu", False):
+                    insights["recommendations"].append(
+                        "🚀 GPU available but not utilized. Enable GPU to accelerate processing (3-10x faster)."
+                    )
+                    insights["summary"]["gpu_status"] = "⚠️  GPU available but unused"
+                elif self.gpu_available and getattr(self, "use_gpu", False):
+                    insights["summary"]["gpu_status"] = "✅ GPU acceleration enabled"
+            else:
+                if getattr(self, "use_gpu", False):
+                    insights["warnings"].append(
+                        "GPU requested but not available. Using CPU fallback."
+                    )
+                insights["summary"]["gpu_status"] = "💻 CPU mode"
+        
+        # Strategy analysis
+        insights["metrics"]["strategy"] = {
+            "name": self.strategy_name,
+            "feature_mode": str(self.feature_mode),
+        }
+        
+        # Multi-scale analysis
+        if hasattr(self, "use_multi_scale") and self.use_multi_scale:
+            insights["metrics"]["multi_scale"] = {
+                "enabled": True,
+                "gpu_accelerated": getattr(getattr(self, "multi_scale_computer", None), "use_gpu", False)
+            }
+            insights["summary"]["multi_scale_status"] = "✅ Multi-scale enabled"
+        
+        # RGB/NIR analysis
+        rgb_enabled = getattr(self, "use_rgb", False)
+        nir_enabled = getattr(self, "use_infrared", False)
+        insights["metrics"]["spectral_data"] = {
+            "rgb_enabled": rgb_enabled,
+            "nir_enabled": nir_enabled,
+            "rgb_fetcher_available": hasattr(self, "rgb_fetcher") and self.rgb_fetcher is not None,
+            "nir_fetcher_available": hasattr(self, "infrared_fetcher") and self.infrared_fetcher is not None,
+        }
+        
+        # Detailed statistics if requested
+        if detailed:
+            insights["detailed"] = {
+                "processing_time_percentiles": {
+                    "p10": float(np.percentile(times, 10)),
+                    "p25": float(np.percentile(times, 25)),
+                    "p50": float(np.percentile(times, 50)),
+                    "p75": float(np.percentile(times, 75)),
+                    "p90": float(np.percentile(times, 90)),
+                    "p95": float(np.percentile(times, 95)),
+                    "p99": float(np.percentile(times, 99)),
+                },
+                "processing_time_histogram": np.histogram(times, bins=10)[0].tolist(),
+            }
+            
+            # Adaptive parameters if available
+            if hasattr(self, "_adaptive_parameters"):
+                insights["detailed"]["adaptive_parameters"] = getattr(
+                    self, "_adaptive_parameters", {}
+                ).copy()
+        
+        # Overall recommendations
+        avg_time = insights["summary"]["avg_time_seconds"]
+        if avg_time > 10:
+            insights["recommendations"].append(
+                f"Average processing time is {avg_time:.1f}s. "
+                "Consider enabling GPU or optimizing parameters."
+            )
+        elif avg_time < 1:
+            insights["summary"]["performance_status"] = "✅ Excellent performance"
+        
+        # Configuration recommendations
+        if not insights["recommendations"]:
+            insights["recommendations"].append(
+                "✅ Performance is optimized. No specific recommendations."
+            )
+        
+        return insights
+
+    def print_performance_insights(self, detailed: bool = False):
+        """
+        Print formatted performance insights to console.
+        
+        Args:
+            detailed: If True, include detailed statistics
+            
+        Example:
+            >>> orchestrator.print_performance_insights()
+            
+            ╔══════════════════════════════════════════════════════════════╗
+            ║         PERFORMANCE INSIGHTS - Feature Orchestrator         ║
+            ╚══════════════════════════════════════════════════════════════╝
+            
+            📊 SUMMARY
+            ─────────────────────────────────────────────────────────────
+            Total Computations: 42
+            Average Time: 3.45s
+            GPU Status: ✅ GPU acceleration enabled
+            ...
+        """
+        insights = self.get_performance_insights(detailed=detailed)
+        
+        # Header
+        print("\n" + "╔" + "═" * 62 + "╗")
+        print("║" + " " * 10 + "PERFORMANCE INSIGHTS - Feature Orchestrator" + " " * 9 + "║")
+        print("╚" + "═" * 62 + "╝\n")
+        
+        # Summary section
+        if insights.get("summary"):
+            print("📊 SUMMARY")
+            print("─" * 64)
+            summary = insights["summary"]
+            if "total_computations" in summary:
+                print(f"Total Computations: {summary['total_computations']}")
+            if "avg_time_seconds" in summary:
+                print(f"Average Time: {summary['avg_time_seconds']:.2f}s")
+            if "total_time_seconds" in summary:
+                print(f"Total Time: {summary['total_time_seconds']:.1f}s")
+            if "gpu_status" in summary:
+                print(f"GPU Status: {summary['gpu_status']}")
+            if "cache_status" in summary:
+                print(f"Cache Status: {summary['cache_status']}")
+            if "multi_scale_status" in summary:
+                print(f"Multi-Scale: {summary['multi_scale_status']}")
+            if "performance_status" in summary:
+                print(f"Performance: {summary['performance_status']}")
+            print()
+        
+        # Metrics section
+        if insights.get("metrics"):
+            print("📈 METRICS")
+            print("─" * 64)
+            
+            # Processing times
+            if "processing_times" in insights["metrics"]:
+                pt = insights["metrics"]["processing_times"]
+                print(f"  Processing Time (s):")
+                print(f"    Min: {pt['min']:.2f}  |  Max: {pt['max']:.2f}  |  Median: {pt['median']:.2f}")
+                print(f"    Std Dev: {pt['std']:.2f}  |  Variance Coef: {pt['variance_coefficient']:.2f}")
+            
+            # Cache metrics
+            if "cache" in insights["metrics"]:
+                cache = insights["metrics"]["cache"]
+                print(f"  Cache:")
+                print(f"    Enabled: {cache['enabled']}  |  Entries: {cache['entries']}")
+                print(f"    Memory: {cache['size_mb']:.1f}/{cache['max_size_mb']:.0f} MB ({cache['utilization_percent']:.0f}%)")
+                if "estimated_hit_ratio" in cache:
+                    print(f"    Est. Hit Ratio: {cache['estimated_hit_ratio']:.1%}")
+            
+            # GPU metrics
+            if "gpu" in insights["metrics"]:
+                gpu = insights["metrics"]["gpu"]
+                print(f"  GPU:")
+                print(f"    Available: {gpu['available']}  |  Requested: {gpu['requested']}")
+                print(f"    Strategy: {gpu['strategy']}")
+                if "memory_gb" in gpu:
+                    mem = gpu["memory_gb"]
+                    print(f"    Memory: {mem['used']:.1f}/{mem['total']:.1f} GB ({mem['utilization_percent']:.0f}%)")
+            print()
+        
+        # Warnings
+        if insights.get("warnings"):
+            print("⚠️  WARNINGS")
+            print("─" * 64)
+            for i, warning in enumerate(insights["warnings"], 1):
+                print(f"  {i}. {warning}")
+            print()
+        
+        # Recommendations
+        if insights.get("recommendations"):
+            print("💡 RECOMMENDATIONS")
+            print("─" * 64)
+            for i, rec in enumerate(insights["recommendations"], 1):
+                print(f"  {i}. {rec}")
+            print()
+        
+        # Detailed statistics
+        if detailed and "detailed" in insights:
+            print("🔍 DETAILED STATISTICS")
+            print("─" * 64)
+            det = insights["detailed"]
+            if "processing_time_percentiles" in det:
+                perc = det["processing_time_percentiles"]
+                print("  Processing Time Percentiles (s):")
+                print(f"    P10: {perc['p10']:.2f}  P25: {perc['p25']:.2f}  P50: {perc['p50']:.2f}")
+                print(f"    P75: {perc['p75']:.2f}  P90: {perc['p90']:.2f}  P95: {perc['p95']:.2f}")
+            print()
+        
+        print("─" * 64)
+
     def _start_parallel_rgb_nir_processing(self, tile_data):
         """Start parallel RGB/NIR processing."""
 
@@ -1046,15 +1482,41 @@ class FeatureOrchestrator:
                 try:
                     rgb_data = self.rgb_fetcher.fetch_for_points(points)
                     results["rgb"] = rgb_data
+                except (ConnectionError, TimeoutError) as e:
+                    error = DataFetchError.create(
+                        data_type="RGB orthophoto",
+                        error=e
+                    )
+                    logger.warning(str(error))
+                except (OSError, IOError) as e:
+                    logger.warning(f"RGB fetch I/O error: {e}")
+                    logger.warning("  Check cache directory permissions and disk space")
                 except Exception as e:
-                    logger.warning(f"RGB fetch failed: {e}")
+                    error = DataFetchError.create(
+                        data_type="RGB orthophoto",
+                        error=e
+                    )
+                    logger.warning(str(error))
 
             if self.use_infrared and self.infrared_fetcher:
                 try:
                     nir_data = self.infrared_fetcher.fetch_for_points(points)
                     results["nir"] = nir_data
+                except (ConnectionError, TimeoutError) as e:
+                    error = DataFetchError.create(
+                        data_type="NIR infrared",
+                        error=e
+                    )
+                    logger.warning(str(error))
+                except (OSError, IOError) as e:
+                    logger.warning(f"NIR fetch I/O error: {e}")
+                    logger.warning("  Check cache directory permissions and disk space")
                 except Exception as e:
-                    logger.warning(f"NIR fetch failed: {e}")
+                    error = DataFetchError.create(
+                        data_type="NIR infrared",
+                        error=e
+                    )
+                    logger.warning(str(error))
 
             return results
 
@@ -1312,8 +1774,18 @@ class FeatureOrchestrator:
                         tile_data["fetched_rgb"] = parallel_rgb_nir["rgb"]
                     if "nir" in parallel_rgb_nir:
                         tile_data["fetched_nir"] = parallel_rgb_nir["nir"]
+                except TimeoutError as e:
+                    logger.warning("Parallel RGB/NIR processing timed out after 30s")
+                    logger.warning("  Consider increasing timeout or checking network")
+                except (ConnectionError, OSError) as e:
+                    error = DataFetchError.create(
+                        data_type="RGB/NIR parallel fetch",
+                        error=e
+                    )
+                    logger.warning(str(error))
                 except Exception as e:
                     logger.warning(f"Parallel RGB/NIR processing failed: {e}")
+                    logger.debug(f"  Error type: {type(e).__name__}")
 
         # Add main features
         all_features["normals"] = normals
@@ -1590,11 +2062,28 @@ class FeatureOrchestrator:
 
                 return normals, curvature, height, geo_features
 
-            except Exception as e:
+            except (ValueError, IndexError) as e:
                 logger.error(
-                    f"Multi-scale computation failed: {e}. "
+                    f"Multi-scale computation failed with invalid data: {e}. "
                     f"Falling back to standard computation."
                 )
+                # Fall through to standard computation
+            except ImportError as e:
+                error = InitializationError.create(
+                    component="multi-scale computer",
+                    error=e
+                )
+                logger.error(str(error))
+                logger.error("Falling back to standard computation.")
+                # Fall through to standard computation
+            except Exception as e:
+                error = FeatureComputationError.create(
+                    feature_name="multi-scale features",
+                    error=e,
+                    num_points=len(points)
+                )
+                logger.error(str(error))
+                logger.error("Falling back to standard computation.")
                 # Fall through to standard computation
 
         # NEW (Phase 4 Task 1.4): Check which computer API to use
@@ -1708,12 +2197,28 @@ class FeatureOrchestrator:
                 points = tile_data["points"]
                 rgb = self.rgb_fetcher.augment_points_with_rgb(points)
                 if rgb is not None:
-                    # Normalize RGB from [0, 255] to [0, 1] for consistency
-                    all_features["rgb"] = rgb.astype(np.float32) / 255.0
-                    logger.info("  ✓ Fetched RGB from IGN orthophotos")
+                    # Normalize RGB using GPU-accelerated utility
+                    use_gpu = self.use_gpu and is_gpu_available()
+                    all_features["rgb"] = normalize_rgb(rgb, use_gpu=use_gpu)
+                    logger.info(f"  ✓ Fetched RGB from IGN orthophotos (GPU: {use_gpu})")
                     return True
+            except (ConnectionError, TimeoutError) as e:
+                error = DataFetchError.create(
+                    data_type="RGB orthophoto",
+                    error=e
+                )
+                logger.warning(str(error))
+            except (OSError, IOError) as e:
+                logger.warning(f"  ⚠️  RGB fetch I/O error: {e}")
+                logger.warning("  Check cache directory and disk space")
+            except (ValueError, IndexError) as e:
+                logger.warning(f"  ⚠️  Invalid RGB data: {e}")
             except Exception as e:
-                logger.warning(f"  ⚠️  Failed to fetch RGB: {e}")
+                error = DataFetchError.create(
+                    data_type="RGB orthophoto",
+                    error=e
+                )
+                logger.warning(str(error))
 
         return False
 
@@ -1746,12 +2251,28 @@ class FeatureOrchestrator:
                 points = tile_data["points"]
                 nir = self.infrared_fetcher.augment_points_with_infrared(points)
                 if nir is not None:
-                    # Normalize NIR from [0, 255] to [0, 1] for consistency
-                    all_features["nir"] = nir.astype(np.float32) / 255.0
-                    logger.info("  ✓ Fetched NIR from IGN IRC")
+                    # Normalize NIR using GPU-accelerated utility
+                    use_gpu = self.use_gpu and is_gpu_available()
+                    all_features["nir"] = normalize_nir(nir, use_gpu=use_gpu)
+                    logger.info(f"  ✓ Fetched NIR from IGN IRC (GPU: {use_gpu})")
                     return True
+            except (ConnectionError, TimeoutError) as e:
+                error = DataFetchError.create(
+                    data_type="NIR infrared",
+                    error=e
+                )
+                logger.warning(str(error))
+            except (OSError, IOError) as e:
+                logger.warning(f"  ⚠️  NIR fetch I/O error: {e}")
+                logger.warning("  Check cache directory and disk space")
+            except (ValueError, IndexError) as e:
+                logger.warning(f"  ⚠️  Invalid NIR data: {e}")
             except Exception as e:
-                logger.warning(f"  ⚠️  Failed to fetch NIR: {e}")
+                error = DataFetchError.create(
+                    data_type="NIR infrared",
+                    error=e
+                )
+                logger.warning(str(error))
 
         return False
 
@@ -1887,10 +2408,18 @@ class FeatureOrchestrator:
                     f"({stats['ground_percentage']:.1f}%)"
                 )
 
-        except ImportError:
+        except ImportError as e:
             logger.warning("  ⚠️  is_ground module not available")
+            logger.debug(f"  Import error: {e}")
+        except (ValueError, IndexError) as e:
+            logger.warning(f"  ⚠️  Invalid data for is_ground computation: {e}")
         except Exception as e:
-            logger.warning(f"  ⚠️  Failed to compute is_ground feature: {e}")
+            error = FeatureComputationError.create(
+                feature_name="is_ground",
+                error=e,
+                num_points=len(tile_data.get("classification", []))
+            )
+            logger.warning(str(error))
 
     def _add_architectural_style(
         self, tile_data: Dict[str, Any], all_features: Dict[str, np.ndarray]
@@ -1922,10 +2451,18 @@ class FeatureOrchestrator:
             all_features["architectural_style"] = style_features
             logger.info(f"  ✓ Added architectural style features (encoding={encoding})")
 
-        except ImportError:
+        except ImportError as e:
             logger.warning("  ⚠️  Architectural style module not available")
+            logger.debug(f"  Import error: {e}")
+        except (ValueError, KeyError) as e:
+            logger.error(f"  ❌ Invalid configuration for architectural style: {e}")
         except Exception as e:
-            logger.error(f"  ❌ Failed to compute architectural style: {e}")
+            error = FeatureComputationError.create(
+                feature_name="architectural_style",
+                error=e,
+                num_points=len(tile_data.get("points", []))
+            )
+            logger.error(str(error))
 
     def _apply_building_buffers(
         self, buildings_gdf: "gpd.GeoDataFrame", points: np.ndarray
@@ -2026,10 +2563,27 @@ class FeatureOrchestrator:
                     f"avg={avg_buffer:.2f}m, range=[{min(buffer_distances):.2f}, {max(buffer_distances):.2f}]m"
                 )
 
+            except ImportError as e:
+                logger.warning(
+                    f"    ⚠️  Adaptive buffering requires geopandas/shapely: {e}"
+                )
+                # Fallback to base buffer
+                buffered_gdf["geometry"] = buildings_gdf.geometry.buffer(
+                    base_buffer, cap_style=2
+                )
+            except (ValueError, IndexError) as e:
+                logger.warning(
+                    f"    ⚠️  Invalid building geometry data: {e}"
+                )
+                # Fallback to base buffer
+                buffered_gdf["geometry"] = buildings_gdf.geometry.buffer(
+                    base_buffer, cap_style=2
+                )
             except Exception as e:
                 logger.warning(
                     f"    ⚠️  Adaptive buffering failed, using base buffer: {e}"
                 )
+                logger.debug(f"  Error type: {type(e).__name__}")
                 # Fallback to base buffer
                 buffered_gdf["geometry"] = buildings_gdf.geometry.buffer(
                     base_buffer, cap_style=2
@@ -2274,12 +2828,21 @@ class FeatureOrchestrator:
                     f"Inclined: {stats['n_inclined']}"
                 )
 
-        except ImportError:
+        except ImportError as e:
             logger.warning("  ⚠️  Plane detection module not available")
-        except Exception as e:
-            logger.warning(f"  ⚠️  Failed to compute plane features: {e}")
+            logger.debug(f"  Import error: {e}")
+        except (ValueError, IndexError, KeyError) as e:
+            logger.warning(f"  ⚠️  Invalid data for plane features: {e}")
             import traceback
-
+            logger.debug(f"  Traceback: {traceback.format_exc()}")
+        except Exception as e:
+            error = FeatureComputationError.create(
+                feature_name="plane features",
+                error=e,
+                num_points=len(tile_data.get("points", []))
+            )
+            logger.warning(str(error))
+            import traceback
             logger.debug(f"  Traceback: {traceback.format_exc()}")
 
     def _add_building_plane_features(
@@ -2415,12 +2978,21 @@ class FeatureOrchestrator:
                     "  ✓ Building-plane features computed (no buildings with planes)"
                 )
 
-        except ImportError:
+        except ImportError as e:
             logger.warning("  ⚠️  Building plane clustering module not available")
-        except Exception as e:
-            logger.warning(f"  ⚠️  Failed to compute building-plane features: {e}")
+            logger.debug(f"  Import error: {e}")
+        except (ValueError, IndexError, KeyError) as e:
+            logger.warning(f"  ⚠️  Invalid data for building-plane features: {e}")
             import traceback
-
+            logger.debug(f"  Traceback: {traceback.format_exc()}")
+        except Exception as e:
+            error = FeatureComputationError.create(
+                feature_name="building-plane features",
+                error=e,
+                num_points=len(tile_data.get("points", []))
+            )
+            logger.warning(str(error))
+            import traceback
             logger.debug(f"  Traceback: {traceback.format_exc()}")
 
     # =========================================================================

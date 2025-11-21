@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 3.3.5** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
+**Version 3.4.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -896,6 +896,7 @@ Each patch is saved as NPZ with:
 - [� Online Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) - Full documentation site
 - [🚀 Quick Start Guide](docs/QUICK_START_DEVELOPER.md) - Get started in 5 minutes
 - [📋 Testing Guide](TESTING.md) - Test suite and development testing
+- [⚡ GPU Testing Guide](GPU_TESTING_GUIDE.md) - **GPU environment setup (ign_gpu conda env)**
 - [📝 Changelog](CHANGELOG.md) - Version history and release notes
 
 ### Documentation by Category

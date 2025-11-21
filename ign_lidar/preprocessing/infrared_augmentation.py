@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Optional, Tuple
 import numpy as np
 
+from ..utils.normalization import normalize_nir
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -353,7 +355,7 @@ def add_infrared_to_patch(
     nir = nir_fetcher.augment_points_with_infrared(points_abs, bbox=bbox)
     
     # Normalize to [0, 1] for consistency with other features
-    patch['nir'] = nir.astype(np.float32) / 255.0
+    patch['nir'] = normalize_nir(nir, use_gpu=False)
     
     return patch
 

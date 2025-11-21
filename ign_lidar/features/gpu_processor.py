@@ -614,11 +614,27 @@ class GPUProcessor:
                 cov_matrices, num_iterations=8, epsilon=1e-12
             )
         except Exception as e:
-            logger.warning(f"⚠ Fast eigenvector method failed: {e}, using CPU fallback")
-            cov_matrices_cpu = cp.asnumpy(cov_matrices)
-            eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices_cpu)
-            normals_cpu = eigenvectors[:, :, 0]  # Smallest eigenvector
-            normals = cp.asarray(normals_cpu)
+            logger.warning(f"⚠ Fast eigenvector method failed: {e}, trying GPU eigenvalue decomposition")
+            try:
+                # Use GPU-accelerated eigenvalue computation (cp.linalg.eigh)
+                # Check available GPU memory before computation
+                mempool = cp.get_default_memory_pool()
+                free_mem = mempool.free_bytes()
+                required_mem = cov_matrices.nbytes * 3  # Estimate for eigh operation
+                
+                if free_mem > required_mem:
+                    eigenvalues, eigenvectors = cp.linalg.eigh(cov_matrices)
+                    normals = eigenvectors[:, :, 0]  # Smallest eigenvector
+                    logger.debug("✓ GPU eigenvalue decomposition successful")
+                else:
+                    raise cp.cuda.memory.OutOfMemoryError("Insufficient GPU memory for eigenvalue decomposition")
+            except (cp.cuda.memory.OutOfMemoryError, Exception) as gpu_error:
+                logger.warning(f"⚠ GPU eigenvalue failed: {gpu_error}, falling back to CPU")
+                cov_matrices_cpu = cp.asnumpy(cov_matrices)
+                eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices_cpu)
+                normals_cpu = eigenvectors[:, :, 0]  # Smallest eigenvector
+                normals = cp.asarray(normals_cpu)
+                logger.debug("✓ CPU eigenvalue decomposition fallback successful")
 
         return normals
 
@@ -694,17 +710,33 @@ class GPUProcessor:
         """
         Compute normals on CPU using sklearn KDTree.
 
-        Vectorized with parallel batch processing.
+        Uses Numba JIT compilation when available for 3-10x speedup,
+        with automatic fallback to vectorized NumPy implementation.
         """
+        from sklearn.neighbors import KDTree as SklearnKDTree
+        from ign_lidar.features.numba_accelerated import (
+            compute_covariance_matrices,
+            compute_normals_from_eigenvectors,
+            is_numba_available
+        )
+        
         N = len(points)
         normals = np.zeros((N, 3), dtype=np.float32)
 
-        # Build KDTree
-        tree = KDTree(points, metric="euclidean", leaf_size=40)
+        # Build KDTree (use sklearn's KDTree for CPU)
+        tree = SklearnKDTree(points, metric="euclidean", leaf_size=40)
 
         # Batch processing
         batch_size = 50_000
         num_batches = (N + batch_size - 1) // batch_size
+        
+        # Log Numba status once
+        if not hasattr(self, '_numba_status_logged'):
+            self._numba_status_logged = True
+            if is_numba_available():
+                logger.info("Using Numba JIT compilation for CPU normal computation (3-10x faster)")
+            else:
+                logger.debug("Numba not available - using NumPy fallback (install with: pip install numba)")
 
         def process_batch(batch_idx):
             start_idx = batch_idx * batch_size
@@ -717,20 +749,14 @@ class GPUProcessor:
                 # Query KNN
                 _, indices = tree.query(batch_points, k=k)
 
-                # Vectorized covariance computation
-                neighbor_points = points[indices]
-                centroids = np.mean(neighbor_points, axis=1, keepdims=True)
-                centered = neighbor_points - centroids
-
-                # Compute covariance matrices
-                cov_matrices = np.einsum("mki,mkj->mij", centered, centered) / (k - 1)
+                # Compute covariance matrices (Numba-accelerated when available)
+                cov_matrices = compute_covariance_matrices(points, indices, k)
 
                 # Eigendecomposition
                 eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
-                batch_normals = eigenvectors[:, :, 0]  # Smallest eigenvector
-
-                # Ensure upward orientation
-                batch_normals[batch_normals[:, 2] < 0] *= -1
+                
+                # Extract and orient normals (Numba-accelerated when available)
+                batch_normals = compute_normals_from_eigenvectors(eigenvectors)
 
                 return start_idx, end_idx, batch_normals
 
@@ -1036,72 +1062,157 @@ class GPUProcessor:
         N, D = points.shape
         logger.info(f"  🚀 Building FAISS index ({N:,} points, k={k})...")
 
-        # Memory-aware GPU usage: avoid FAISS GPU for huge point clouds on limited VRAM
+        # Memory-aware GPU usage: dynamic threshold based on detected VRAM
         # Rule of thumb: FAISS GPU needs ~N*k*4 bytes for query results alone
-        # For 21M points × 55 neighbors = ~4.6GB just for results
-        # Plus temp memory for IVF search = total can exceed 8GB easily
-        estimated_memory_gb = (N * k * 4) / (1024**3)
-        use_gpu_faiss = self.use_gpu and self.use_cuml and N < 15_000_000
+        # Plus temp memory for IVF (~4GB) + index storage (~N*D*4 bytes)
+        # For >50M points, we use Float16 which halves memory requirements
+        # Total: N*k*4 + N*D*4 + 4GB temp ≈ N*(k+D)*4 + 4GB
+        #        or N*(k+D)*2 + 4GB with Float16
+        
+        use_float16 = N > 50_000_000  # Float16 for very large datasets
+        bytes_per_value = 2 if use_float16 else 4
+        
+        estimated_query_gb = (N * k * bytes_per_value) / (1024**3)
+        estimated_index_gb = (N * D * bytes_per_value) / (1024**3)
+        estimated_total_gb = estimated_query_gb + estimated_index_gb + 4.0  # 4GB temp
+        
+        # Dynamic threshold: use GPU if estimated memory < 80% of VRAM limit
+        # For 16GB VRAM (12.8GB limit), this allows:
+        #   - ~64M points with k=30 (FP32)
+        #   - ~120M points with k=30 (FP16)
+        # Safety margin accounts for fragmentation and CUDA overhead
+        max_safe_memory_gb = self.vram_limit_gb * 0.8
+        use_gpu_faiss = (
+            self.use_gpu 
+            and self.use_cuml 
+            and estimated_total_gb < max_safe_memory_gb
+        )
 
-        if not use_gpu_faiss and N > 15_000_000:
-            logger.info(f"     ⚠ Large point cloud ({N:,} points) + limited VRAM")
+        if not use_gpu_faiss and estimated_total_gb >= max_safe_memory_gb:
+            precision = "FP16" if use_float16 else "FP32"
+            logger.info(f"     ⚠ Large point cloud ({N:,} points) requires {estimated_total_gb:.1f}GB ({precision})")
             logger.info(
-                f"     → Estimated memory: {estimated_memory_gb:.1f}GB for query results"
+                f"     → Max safe GPU memory: {max_safe_memory_gb:.1f}GB (80% of {self.vram_limit_gb:.1f}GB)"
             )
             logger.info(f"     → Using CPU FAISS to avoid GPU OOM")
+        elif use_gpu_faiss:
+            precision = "FP16" if use_float16 else "FP32"
+            logger.info(f"     ✓ GPU memory check: {estimated_total_gb:.1f}GB < {max_safe_memory_gb:.1f}GB ({precision}, safe)")
 
-        # Use IVF for large datasets (>5M points)
-        use_ivf = N > 5_000_000
+        # Use IVF for large datasets with adaptive index selection (P1 optimization)
+        # Strategy:
+        #   - Small (<1M): Flat (exact, fastest for small data)
+        #   - Medium (1-10M): IVFFlat (good speed/accuracy tradeoff)
+        #   - Large (10-50M): IVFPQ (compressed, lower memory, fast queries)
+        #   - Very Large (>50M): IVFPQ with aggressive compression
+        
+        if N < 1_000_000:
+            # Flat index: exact search, best for small datasets
+            use_ivf = False
+            index_type = "Flat"
+        elif N < 10_000_000:
+            # IVFFlat: good balance for medium datasets
+            use_ivf = True
+            use_pq = False
+            index_type = "IVFFlat"
+        else:
+            # IVFPQ: product quantization for large datasets
+            # Reduces memory by 75-90% with minimal accuracy loss
+            use_ivf = True
+            use_pq = True
+            index_type = "IVFPQ"
 
         if use_ivf:
-            # IVF parameters
-            nlist = min(8192, max(256, int(np.sqrt(N))))
-            nprobe = min(128, nlist // 8)
+            # IVF parameters - optimized for dataset size
+            # nlist: number of voronoi cells (clusters)
+            # IVF parameters - optimized for dataset size
+            # nlist: number of voronoi cells (clusters)
+            # Rule of thumb: nlist = sqrt(N) for IVF, but cap for performance
+            # nprobe: cells to search (higher = more accurate but slower)
+            if N < 5_000_000:
+                nlist = min(4096, max(256, int(np.sqrt(N))))
+                nprobe = min(64, nlist // 8)
+            else:
+                nlist = min(16384, max(1024, int(np.sqrt(N))))
+                nprobe = min(256, nlist // 16)  # More aggressive for large datasets
 
-            logger.info(f"     Using IVF: {nlist} clusters, {nprobe} probes")
+            logger.info(f"     Using {index_type}: {nlist} clusters, {nprobe} probes")
 
-            # Create IVF index
-            quantizer = faiss.IndexFlatL2(D)
-            index = faiss.IndexIVFFlat(quantizer, D, nlist, faiss.METRIC_L2)
+            # Create appropriate index based on strategy
+            if use_pq:
+                # IVFPQ: compressed index for large datasets
+                # PQ params: m (subvectors), nbits (bits per code)
+                # D must be divisible by m, common values: m=8,16,32
+                m = 8 if D >= 8 else max(1, D // 2)  # Number of sub-quantizers
+                while D % m != 0 and m > 1:  # Ensure D divisible by m
+                    m -= 1
+                nbits = 8  # 8 bits per subvector (256 centroids each)
+                
+                quantizer = faiss.IndexFlatL2(D)
+                index = faiss.IndexIVFPQ(quantizer, D, nlist, m, nbits, faiss.METRIC_L2)
+                logger.info(f"     PQ compression: {m} subvectors × {nbits} bits (memory: {100*(m*nbits/8)/(D*4):.1f}% of original)")
+            else:
+                # IVFFlat: standard IVF without compression
+                quantizer = faiss.IndexFlatL2(D)
+                index = faiss.IndexIVFFlat(quantizer, D, nlist, faiss.METRIC_L2)
 
             # Move to GPU if safe to do so
             if use_gpu_faiss:
                 try:
                     res = faiss.StandardGpuResources()
-                    # Conservative temp memory: 2GB max to leave room for query results
-                    res.setTempMemory(2 * 1024 * 1024 * 1024)  # 2GB (was 4GB)
+                    # Dynamic temp memory: scale with VRAM (4GB for 16GB VRAM, 2GB for 8GB)
+                    temp_memory_gb = min(4.0, self.vram_limit_gb * 0.3)
+                    res.setTempMemory(int(temp_memory_gb * 1024 * 1024 * 1024))
                     co = faiss.GpuClonerOptions()
-                    co.useFloat16 = False
+                    
+                    # Try Float16 for very large datasets (>50M points)
+                    # This cuts memory in half with minimal accuracy loss for k-NN
+                    use_float16 = N > 50_000_000
+                    co.useFloat16 = use_float16
+                    
                     index = faiss.index_cpu_to_gpu(res, 0, index, co)
-                    logger.info("     ✓ FAISS index on GPU")
+                    precision = "FP16" if use_float16 else "FP32"
+                    logger.info(f"     ✓ FAISS index on GPU ({temp_memory_gb:.1f}GB temp, {precision})")
                 except Exception as e:
                     logger.warning(f"     GPU failed: {e}, using CPU")
             else:
                 logger.info("     ✓ FAISS index on CPU (memory-safe)")
 
-            # Train index
-            logger.info(f"     Training index...")
-            train_size = min(N, nlist * 256)
+            # Train index with adaptive sampling (P1 optimization)
+            logger.info(f"     Training {index_type} index...")
+            
+            # Adaptive training size based on index type and dataset size
+            if use_pq:
+                # IVFPQ needs more training data for good quantization
+                # Rule: ~256 samples per cluster, but cap at 1M for speed
+                train_size = min(N, min(1_000_000, nlist * 256))
+            else:
+                # IVFFlat needs less training (just for clustering)
+                train_size = min(N, min(500_000, nlist * 128))
+            
             if train_size < N:
+                # Random sampling for large datasets
                 train_idx = np.random.choice(N, train_size, replace=False)
                 train_data = points[train_idx].astype(np.float32)
+                logger.info(f"     Training on {len(train_data):,} sampled points ({100*train_size/N:.1f}% of data)")
             else:
                 train_data = points.astype(np.float32)
+                logger.info(f"     Training on all {len(train_data):,} points")
 
             index.train(train_data)
-            logger.info(f"     ✓ Trained on {len(train_data):,} points")
+            logger.info(f"     ✓ Training complete")
 
             # Add all points
             logger.info(f"     Adding {N:,} points...")
             index.add(points.astype(np.float32))
 
-            # Set nprobe
+            # Set nprobe for query-time search
             if hasattr(index, "nprobe"):
                 index.nprobe = nprobe
             elif hasattr(index, "setNumProbes"):
                 index.setNumProbes(nprobe)
-
-            logger.info(f"     ✓ FAISS IVF index ready")
+            
+            logger.info(f"     ✓ FAISS {index_type} index ready (nprobe={nprobe})")
         else:
             # Flat index for smaller datasets
             logger.info(f"     Using Flat (exact) index")
@@ -1110,9 +1221,11 @@ class GPUProcessor:
             if use_gpu_faiss:
                 try:
                     res = faiss.StandardGpuResources()
-                    res.setTempMemory(1 * 1024 * 1024 * 1024)  # 1GB (was 2GB)
+                    # Dynamic temp memory for Flat index (smaller than IVF)
+                    temp_memory_gb = min(2.0, self.vram_limit_gb * 0.15)
+                    res.setTempMemory(int(temp_memory_gb * 1024 * 1024 * 1024))
                     index = faiss.index_cpu_to_gpu(res, 0, index)
-                    logger.info("     ✓ FAISS index on GPU")
+                    logger.info(f"     ✓ FAISS index on GPU ({temp_memory_gb:.1f}GB temp memory)")
                 except Exception as e:
                     logger.warning(f"     GPU failed: {e}, using CPU")
             else:

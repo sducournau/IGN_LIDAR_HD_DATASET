@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Optional, Tuple
 import numpy as np
 
+from ..utils.normalization import normalize_rgb
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -349,7 +351,7 @@ def add_rgb_to_patch(
     rgb = ortho_fetcher.augment_points_with_rgb(points_abs, bbox=bbox)
     
     # Normalize to [0, 1] for consistency with other features
-    patch['rgb'] = rgb.astype(np.float32) / 255.0
+    patch['rgb'] = normalize_rgb(rgb, use_gpu=False)
     
     return patch
 

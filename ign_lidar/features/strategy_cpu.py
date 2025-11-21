@@ -17,6 +17,7 @@ import numpy as np
 
 from .compute.features import compute_all_features_optimized
 from .strategies import BaseFeatureStrategy
+from ..utils.normalization import normalize_rgb
 
 logger = logging.getLogger(__name__)
 
@@ -268,8 +269,8 @@ class CPUStrategy(BaseFeatureStrategy):
         Returns:
             Dictionary with RGB features
         """
-        # Normalize to [0, 1]
-        rgb_normalized = rgb.astype(np.float32) / 255.0
+        # Normalize to [0, 1] using utility
+        rgb_normalized = normalize_rgb(rgb, use_gpu=False)
 
         # Basic RGB statistics
         rgb_mean = np.mean(rgb_normalized, axis=1)

@@ -8,6 +8,8 @@ from typing import Optional
 import click
 import numpy as np
 
+from ...utils.normalization import normalize_rgb, normalize_nir
+
 logger = logging.getLogger(__name__)
 
 
@@ -156,8 +158,8 @@ def ground_truth_command(
                 rgb_fetcher = IGNOrthophotoFetcher(cache_dir=cache_dir)
                 rgb = rgb_fetcher.augment_points_with_rgb(points, resolution=0.2)
                 if rgb is not None:
-                    # Normalize RGB from [0, 255] to [0, 1]
-                    rgb = rgb.astype(np.float32) / 255.0
+                    # Normalize RGB using utility
+                    rgb = normalize_rgb(rgb, use_gpu=False)
                     features['rgb'] = rgb
                     logger.info(f"  Fetched RGB for {len(rgb)} points")
                 
@@ -165,8 +167,8 @@ def ground_truth_command(
                 nir_fetcher = IGNInfraredFetcher(cache_dir=cache_dir)
                 nir = nir_fetcher.augment_points_with_infrared(points, resolution=0.2)
                 if nir is not None:
-                    # Normalize NIR from [0, 255] to [0, 1]
-                    nir = nir.astype(np.float32) / 255.0
+                    # Normalize NIR using utility
+                    nir = normalize_nir(nir, use_gpu=False)
                     features['nir'] = nir
                     logger.info(f"  Fetched NIR for {len(nir)} points")
                 

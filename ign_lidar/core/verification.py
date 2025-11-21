@@ -408,18 +408,33 @@ class FeatureVerifier:
         else:
             return
 
-        # Count feature presence
+        # Count feature presence - Vectorized implementation (P1 optimization)
         logger.info(f"Files verified: {total_files}\n")
         logger.info("Feature presence:")
 
-        for feat_name in feature_names:
-            present_count = sum(1 for r in all_results if r[feat_name].present)
-            artifact_count = sum(
-                1
-                for r in all_results
-                if r[feat_name].present and r[feat_name].has_artifacts
-            )
-
+        # Pre-compute boolean matrices for vectorized operations
+        n_files = len(all_results)
+        n_features = len(feature_names)
+        
+        # Create boolean matrices: presence[i, j] = feature j present in file i
+        presence_matrix = np.zeros((n_files, n_features), dtype=bool)
+        artifacts_matrix = np.zeros((n_files, n_features), dtype=bool)
+        
+        for i, result in enumerate(all_results):
+            for j, feat_name in enumerate(feature_names):
+                feat_stats = result[feat_name]
+                presence_matrix[i, j] = feat_stats.present
+                artifacts_matrix[i, j] = feat_stats.present and feat_stats.has_artifacts
+        
+        # Vectorized counting - much faster than nested loops
+        present_counts = presence_matrix.sum(axis=0)  # Sum over files for each feature
+        artifact_counts = artifacts_matrix.sum(axis=0)
+        
+        # Report per feature
+        for j, feat_name in enumerate(feature_names):
+            present_count = int(present_counts[j])
+            artifact_count = int(artifact_counts[j])
+            
             status = "✓" if present_count == total_files else "⚠️"
             line = f"  {status} {feat_name:15s}: {present_count}/{total_files} files"
 
@@ -428,15 +443,12 @@ class FeatureVerifier:
 
             logger.info(line)
 
-        # Count total artifacts
-        total_artifacts = sum(
-            sum(1 for s in r.values() if s.has_artifacts) for r in all_results
-        )
+        # Count total artifacts - vectorized
+        total_artifacts = int(artifacts_matrix.sum())
 
         if total_artifacts > 0:
-            files_with_artifacts = sum(
-                1 for r in all_results if any(s.has_artifacts for s in r.values())
-            )
+            # Files with at least one artifact
+            files_with_artifacts = int((artifacts_matrix.sum(axis=1) > 0).sum())
             logger.info(f"\n⚠️  Total features with artifacts: {total_artifacts}")
             logger.info(f"  Files with artifacts: {files_with_artifacts}/{total_files}")
         else:

@@ -20,6 +20,8 @@ from typing import Dict, List, Optional, Tuple, Any
 
 import numpy as np
 
+from ...utils.normalization import normalize_rgb, normalize_nir
+
 # Optional dependency handling
 try:
     import laspy
@@ -139,8 +141,8 @@ def fetch_rgb_colors(
         rgb = rgb_fetcher.augment_points_with_rgb(points, bbox=tile_bbox)
         
         if rgb is not None:
-            # Normalize to [0, 1]
-            rgb = rgb.astype(np.float32) / 255.0
+            # Normalize to [0, 1] using utility
+            rgb = normalize_rgb(rgb, use_gpu=False)
             log.info(f"  ✓ RGB fetched from orthophotos")
             return rgb
         else:
@@ -187,8 +189,8 @@ def fetch_infrared(
         nir = infrared_fetcher.augment_points_with_infrared(points, bbox=tile_bbox)
         
         if nir is not None:
-            # Normalize to [0, 1]
-            nir = nir.astype(np.float32) / 255.0
+            # Normalize to [0, 1] using utility
+            nir = normalize_nir(nir, use_gpu=False)
             log.info(f"  ✓ NIR fetched from orthophotos")
             return nir
         else:

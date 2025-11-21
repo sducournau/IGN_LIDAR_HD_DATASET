@@ -241,6 +241,179 @@ class ConfigurationError(ProcessingError):
         )
 
 
+class FeatureComputationError(ProcessingError):
+    """Error during feature computation."""
+    
+    @staticmethod
+    def create(
+        feature_name: str,
+        error: Exception,
+        num_points: Optional[int] = None,
+        stage: str = "computation"
+    ) -> 'FeatureComputationError':
+        """Create error for feature computation failure."""
+        context = {
+            'Feature': feature_name,
+            'Stage': stage,
+            'Error Type': type(error).__name__,
+            'Error Message': str(error)
+        }
+        
+        if num_points is not None:
+            context['Number of Points'] = f"{num_points:,}"
+        
+        suggestions = [
+            "Check point cloud has sufficient density",
+            "Verify k_neighbors parameter is appropriate",
+            "Try reducing feature complexity",
+            "Check for NaN or Inf values in input data",
+            "Enable verbose logging for more details"
+        ]
+        
+        # Add specific suggestions based on error type
+        error_str = str(error).lower()
+        if "memory" in error_str:
+            suggestions.insert(0, "Reduce chunk size or use GPU chunked mode")
+        elif "index" in error_str or "dimension" in error_str:
+            suggestions.insert(0, "Verify point cloud dimensions and format")
+        
+        return FeatureComputationError(
+            message=f"Failed to compute feature: {feature_name}",
+            suggestions=suggestions,
+            context=context
+        )
+
+
+class CacheError(ProcessingError):
+    """Error with caching system."""
+    
+    @staticmethod
+    def create(
+        cache_type: str,
+        operation: str,
+        error: Exception,
+        cache_path: Optional[str] = None
+    ) -> 'CacheError':
+        """Create error for cache operation failure."""
+        context = {
+            'Cache Type': cache_type,
+            'Operation': operation,
+            'Error Type': type(error).__name__,
+            'Error Message': str(error)
+        }
+        
+        if cache_path:
+            context['Cache Path'] = cache_path
+        
+        suggestions = [
+            "Clear cache and retry: rm -rf cache_directory",
+            "Check disk space availability",
+            "Verify write permissions for cache directory",
+            "Disable caching temporarily to proceed",
+            "Check for corrupted cache files"
+        ]
+        
+        # Permission-specific suggestions
+        if "permission" in str(error).lower():
+            suggestions.insert(0, "Grant write permissions: chmod 755 cache_dir")
+        
+        return CacheError(
+            message=f"Cache {operation} failed for {cache_type}",
+            suggestions=suggestions,
+            context=context
+        )
+
+
+class DataFetchError(ProcessingError):
+    """Error fetching external data (RGB, NIR, ground truth)."""
+    
+    @staticmethod
+    def create(
+        data_type: str,
+        error: Exception,
+        url: Optional[str] = None,
+        retry_count: int = 0
+    ) -> 'DataFetchError':
+        """Create error for data fetching failure."""
+        context = {
+            'Data Type': data_type,
+            'Error Type': type(error).__name__,
+            'Error Message': str(error),
+            'Retry Count': retry_count
+        }
+        
+        if url:
+            context['URL'] = url
+        
+        suggestions = [
+            "Check internet connectivity",
+            "Verify service is available (IGN WFS, orthophoto)",
+            "Try again later if service is temporarily down",
+            "Check firewall/proxy settings",
+            "Use cached data if available"
+        ]
+        
+        # Network-specific suggestions
+        error_str = str(error).lower()
+        error_type = type(error).__name__.lower()
+        if "timeout" in error_str or "timeout" in error_type:
+            suggestions.insert(0, "Increase timeout value in configuration")
+        elif "404" in error_str or "not found" in error_str:
+            suggestions.insert(0, "Verify data is available for this region")
+        elif "connection" in error_str:
+            suggestions.insert(0, "Check network connection and DNS resolution")
+        
+        return DataFetchError(
+            message=f"Failed to fetch {data_type} data",
+            suggestions=suggestions,
+            context=context
+        )
+
+
+class InitializationError(ProcessingError):
+    """Error during component initialization."""
+    
+    @staticmethod
+    def create(
+        component: str,
+        error: Exception,
+        dependencies: Optional[list] = None
+    ) -> 'InitializationError':
+        """Create error for initialization failure."""
+        context = {
+            'Component': component,
+            'Error Type': type(error).__name__,
+            'Error Message': str(error)
+        }
+        
+        if dependencies:
+            context['Required Dependencies'] = ', '.join(dependencies)
+        
+        suggestions = [
+            "Check all required dependencies are installed",
+            "Verify configuration is valid",
+            "Check system resources are available",
+            "Review error logs for details",
+            "Try using default configuration"
+        ]
+        
+        # Import-specific suggestions
+        if isinstance(error, ImportError):
+            suggestions.insert(
+                0, 
+                "Install missing dependencies: pip install -r requirements.txt"
+            )
+            if dependencies:
+                dep_str = ' '.join(dependencies)
+                suggestions.insert(1, f"Install specific packages: pip install {dep_str}")
+        
+        return InitializationError(
+            message=f"Failed to initialize {component}",
+            suggestions=suggestions,
+            context=context
+        )
+
+
 def get_gpu_memory_info() -> Dict[str, float]:
     """Get current GPU memory information."""
     if not GPU_AVAILABLE or cp is None:
