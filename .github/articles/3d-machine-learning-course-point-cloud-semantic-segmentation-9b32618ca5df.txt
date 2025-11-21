@@ -1,0 +1,760 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+TDS Archive
+TDS Archive
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+Follow publication
+
+
+1
+
+Member-only story
+
+3D Machine Learning 201 Guide: Point Cloud Semantic Segmentation
+Complete python tutorial to create supervised learning AI systems for semantic segmentation of unstructured 3D LiDAR point cloud data
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+24 min read
+·
+Jun 29, 2022
+461
+
+
+6
+
+
+
+
+
+3D Machine Learning tutorial: How to develop a Semantic Segmentation Framework for 3D LiDAR Point Cloud Data by Florent Poux
+3D Machine Learning tutorial: How to develop a Semantic Segmentation Framework for 3D LiDAR Point Cloud Data. © F. Poux
+Having the skills and the knowledge to attack every aspect of point cloud processing opens up many ideas and development doors. 🤖 It is like a toolbox for 3D research creativity and development agility. And at the core, there is this incredible Artificial Intelligence space that targets 3D scene understanding. 🏡
+
+It is particularly relevant due to its importance for many applications, such as self-driving cars, autonomous robots, 3D mapping, virtual reality, and the Metaverse. And if you are an automation geek like me, it is hard to resist the temptation to have new paths to answer these challenges!
+
+This tutorial aims to give you what I consider the essential footing to do just that: the knowledge and code skills for developing 3D Point Cloud Semantic Segmentation systems.
+
+But actually, how can we apply semantic segmentation? And how challenging is 3D Machine Learning?
+
+Let me present a clear, in-depth 201 hands-on course focused on 3D Machine Learning. In this tutorial, I will cover precisely what is 3D Machine Learning and how we can leverage efficient python code to produce semantic predictions for unstructured 3D point clouds.
+
+Table of Contents
+3D Scene Perception
+✔️ 3D Sensors
+✔️ 3D Scene Understanding
+✔️ Classification
+Semantics Addition Methods for 3D data
+✔️ 3D Object Detection
+✔️ 3D Semantic Segmentation
+✔️ 3D Instance Segmentation
+3D Predictions with Supervised learning
+3D Python Workflow
+✔️ Step 1: Definition and Data Curation
+✔️ Step 2. Environment Set-up
+✔️ Step 3. 3D Feature Engineering
+✔️ Step 4. 3D Machine Learning
+✔️ Step 5. Performance Analysis
+Conclusion
+Let us dive right in! 🤿
+
+3D Scene Perception: AI Foreword
+Recognizing 3D objects in LiDAR (which stands for Light Detection and Ranging) is a great challenge due to the complex nature of the 3D captured data. The raw point clouds acquired via 3D scanning techniques are unstructured, unrefined, unordered, and prone to irregular sampling making the 3D Scene understanding task challenging. So, what should we do? Is it feasible at all? Ha, that is what we like! A true challenge!😉
+
+Press enter or click to view image in full size
+3D Scene Understanding Representation of point cloud data. Florent Poux
+Example of a 3D Scene Understanding Representation that combines the knowledge of the different houses in a relational local context. © F. Poux
+👀 3D sensors
+Let us start with the input to our system. 3D sensors (LiDAR, Photogrammetry, SAR, RADAR, and Depth-Sensing Cameras) will essentially describe a scene through many 3D points in space. These can then host useful information and enable machine learning systems that use these inputs (E.g. autonomous cars and robots) to operate in the real world and create an improved Metaverse experience. Ok, so we have a base input from the sensory information, what is next?
+
+🏕️ 3D Scene Understanding
+You guessed it: Scene understanding. It describes the process that perceives, analyzes, and elaborates an interpretation of the 3D scene observed through one or more of these sensors (The Scene can even be dynamic!). Down the line, this procedure consists mainly in matching signal information from the sensors observing the Scene with “models” we use to understand the Scene. Depending on how fluffy is the magic 🧙‍♂️, the models will permit a pertinent “scene understanding”. On a low-level view, techniques are extracting and adding semantics from the input data characterizing a scene. Do these techniques have a name?
+
+🦘/🐈‍⬛ Classification
+Well, what we classically cover in 3D Scene Understanding framework is the task of Classification. The main goal of this step is to understand the input data and to interpret what different parts of the sensor data are. For example, we have a point cloud of an outdoor scene, such as a highway, collected by an autonomous robot or a car. The goal of Classification is to figure out the main constituting parts of the Scene, so knowing which parts of this point cloud are roads, which parts are buildings, or where are the humans. It is, in this sense, an overall category that aims at extracting specific semantic meaning from our sensor data. And from there, we want to add the semantics at different granularities. 👇
+
+Classical Semantics Addition Methods for 3D data
+As you can see below, adding semantics to the 3D scenes can be done through various strategies. These are not necessarily independent designs, and we can often rely on a hybrid assembly when needed.
+
+Press enter or click to view image in full size
+3D Machine Learning Methods Workflow: 3D Object Detection, 3D Semantic Segmentation and 3D Instance Segmentation. © Florent Poux and the 3D Geodata Academy
+3D Machine Learning Methods: Data is fed to a model that will output either 3D Bounding Boxes, Labels for each point, or labels for each point plus an instance pointer for each object per class. © F. Poux
+Let me describe with a bit more texture each of these techniques.
+
+📦 3D Object Detection
+The first one would enclose the 3D object detection techniques. It is a vital component for a lot of applications. Basically, it enables the system to capture objects' sizes, orientations, and positions in the world. As a result, we can use these 3D detections in real-world scenarios such as Augmented Reality Applications, Self-driving cars, or robots which perceive the world through limited spatial/visual cues. Nice, 3D cubes that contain different objects. But what if we want to fine-tune the contours of objects?
+
+🏘️ 3D Semantic Segmentation
+Well, this is where we will attack the problem with Semantic Segmentation techniques. It is one of the most challenging tasks that assigns semantic labels to every base unit (i.e., every point in a point cloud) that belongs to the objects of interest. Essentially, 3D semantic segmentation aim at better delineation of objects present in a scene. A 3D Bounding Box Detection on steroïd if you will. Therefore, it means having semantic information per point. We can go deep there. But still, a limitation remains: we cannot directly handle different objects per category (class) we attack. Do we have techniques for this as well?
+
+🏠 3D Instance Segmentation
+Yes! And it is called 3D instance segmentation. It has even broader applications, from 3D perception in autonomous systems to 3D reconstruction in mapping and digital twinning. For example, we could imagine an inventory robot that identifies chairs, is able to count how many there are, and then move them by grasping them by the fourth leg. Achieving this goal requires distinguishing different semantic labels as well as different instances with the same semantic label. I would qualify Instance segmentation as a Semantic Segmentation step on Mega-Steroïds 😁.
+
+Now that you have a base understanding and a taxonomy of the current methods for different outputs, the question remains: Which strategy should we follow to inject semantic predictions? 🤔
+
+3D Predictions with Supervised Learning
+If you are still there, then you have passed the mumble bumble 3D charabia, and are ready to grasp the mission by its uni-horn.🦄 We want to extract semantic information and inject it into our 3D data in the form of point clouds. To do just that, we will deepen one strategy that helps us derive such information from the sensor. We will focus on one algorithm family, supervised learning methods — as opposed to unsupervised methods shown below.
+
+Fundamentals to clustering high-dimensional data (3D point clouds)
+Why is unsupervised segmentation & clustering the "bulk of AI"? Illustrated concepts to grasp subtilities and apply…
+towardsdatascience.com
+
+With supervised learning methods, we essentially show particular classified examples to the systems from the past. It means that we need somehow to label these examples. And for this, you have the following tutorial:
+
+3D Point Cloud Clustering Tutorial with K-means and Python
+A complete hands-on python guide for creating 3D semantic segmentation datasets. Learn how to transform unlabelled…
+towardsdatascience.com
+
+Then, we use the labels for each considered element in the Scene to be able to predict labels about future data. Thus the goal is to be able to infer data that has not been seen yet, as illustrated below.
+
+Press enter or click to view image in full size
+Supervised Learning Theory for 3D point cloud and 3D Machine Learning. Florent Poux and 3D Geodata Academy
+The supervised learning workflow. The training phase permits obtaining a Machine Learning Model that is used to predict labels over unseen data. © F. Poux
+But how can we assess how well the trained model performs? Is a visual analysis enough (is this an actual question? 🙃)
+
+Well, a visual analysis — let us call it qualitative analysis — is only one part of the answer. The other large block is held through a quantitative analysis evaluated using a variety of metrics that will highlight specific performances of our method. It will help us characterize how well a particular classification system works and give us tools to choose between different classifiers for the application.
+
+And now, the (light) theory is over! Let us dive into a fun python code implementation in five steps🤲! I recommend having an excellent 🫐 bowl.
+
+1. 3D Machine Learning Workflow Definition
+Aerial LiDAR Point Cloud Dataset Sourcing
+You know the drill? The first step we make is to dive into the web and source some fun 3D data! This time, I want to deep dive a French (sorry for being such a snob 😆) place to find chilled LiDAR datasets: The National Geography Institute (IGN) of France. With the LiDAR HD campaign, France starts an OpenData gathering where you can get crisp 3D point clouds of some regions of France! And on top, some have labels that make it easy not to start from scratch, as you will find in the link below.
+
+LIDAR HD
+Les nuages de points 3D acquis dans le cadre du programme LIDAR HD sont d'abord classifiés en plusieurs classes (sol…
+geoservices.ign.fr
+
+But to make the tutorial straightforward, I went on the portal above, selected the data covering part of the city of Louhans (71), deleted the georeferencing information, computed some extra attributes (that I will explain in another tutorial 😜), and then made it available in my Open Data Drive Folder. The data you are interested in are 3DML_urban_point_cloud.xyz and 3DML_validation.xyz. You can jump at the Flyvast WebGL extract if you want to visualize it online.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+A view of the Aerial LiDAR point cloud data from the city of Louhans that is provided by IGN. On the left side we see the point cloud with RGB colors, and on the right are the three classes of interest (ground, vegetation, and buildings) we will study. © F. Poux
+The overall loop strategy
+I propose to follow a simple procedure that you can quickly replicate to train a 3D machine learning model and use it on real-world applications, as illustrated below.
+
+Press enter or click to view image in full size
+The Complete 3D Machine Learning Workflow: Point Cloud Semantic Segmentation
+3D Machine Learning Workflow: Point Cloud Semantic Segmentation. © F. Poux and the 3D Geodata Academy
+🤓 Note: The strategy is a little extract from one of the documents given on the online courses I host at the 3D Geodata Academy. This tutorial will cover steps 4 to 8 + 10 + 11, the other ones covered in depth in the course, or by following one of the tutorials through this support link.
+
+2. Setting up our 3D python context
+In this hands-on point cloud tutorial, I focus on efficient and minimal library usage. For the sake of mastering python, we will do it all with only two libraries: Pandas, and ScikitLearn. And we will do wonders 😁. Five lines of code to start your script:
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import MinMaxScaler
+🤓 Note: As you can see, I import functions and modules from the libraries in different ways. For pandas, I use import module, which demands less maintenance of the import statements. However, when you want more control over which items of a module can be accessed, I recommend using from module import foo, which permits less typing to use foo.
+
+Nice! from there, I propose that we relatively express our paths, separating the data_folder containing our datasets from the dataset name to switch easily on the fly:
+
+data_folder=”../DATA/”
+dataset="3DML_urban_point_cloud.xyz"
+Now, we can quickly load the dataset in the pcd variable using Pandas. And because the original file is not clean and contains NaN values, we will use the very handy dropna method inplace to ensure we start with a filtered dataframe with only complete rows. However, this means we will drop some points along the way (<1% of records), but this time we are okay with that.
+
+pcd=pd.read_csv(data_folder+dataset,delimiter=' ')
+pcd.dropna(inplace=True)
+🤓 Note: The inplace argument set to True allows to directly replace the python object instead of making a dataframe copy.
+
+3. Feature Selection and Preparation (Step 4)
+To understand what we do when using Machine Learning frameworks, you have to understand that we rely on feature sets or vectors of features that are variably representative. In our approach, the trick is to know very well the context in which we evolve and to be creative with ways to engineer features that we believe will be excellent descriptors of the variance in our data. Or at least help us distinguish between the classes of interest.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Aerial LiDAR Point Cloud Training feature set from Up Left to Down Right: (1) RGB colors, (2) Normals, (3) Planarity, (4) Verticality, (5) Omnivariance, (6) Normals Change Rate. © F. Poux
+I decided to create another focused tutorial on just the preparatory steps to obtain such features. But for the sake of simplicity, I already computed a bunch of them for you, filtered with the primary intention to be pertinent for subsequent semantic segmentation tasks.
+
+Press enter or click to view image in full size
+
+Extract of the dataframe. © F. Poux
+To get started on a solid base, we will organize our features between labels, i.e., what we will try to predict, and the features, i.e., what we will use to make our predictions. With Pandas, we can easily do that in two lines of code:
+
+labels=pcd['Classification']
+features=pcd[['X','Y','Z','R','G','B']]
+This dataframe structuration permits quickly switching to a specific set of pertinent features without using numeric indexes. Thus feel free to return at this step and change the features vector set.
+
+Selecting the features
+Feature Selection is the method of reducing the input variable fed to your model by using only the most relevant ones and eliminating noise in data. It is the process of choosing relevant features for your machine learning model based on the type of problem you are trying to solve. If done automatically, this falls under the AutoML process of automating the tasks of applying machine learning to real-world problems.
+
+You have two directions here. You either go fully unsupervised (E.g., reducing correlations within your features) or in a supervised fashion (E.g., looking to increase the final score of the model after changing features and parameters).
+
+For the sake of simplicity, we will manually adjust the selection of our current feature vector through the supervised direction: we will run experiments and adjust if the results are not good enough. Ready? 🙂
+
+Preparing the features
+Once our initial feature vector is ready, we can rush into processing!💨 or can we? Be wary! Depending on the Machine Learning Model we use, we may encounter some surprises! Indeed, let us take a simple scenario.
+
+Let us imagine that our selected feature vector is the following:
+
+features=pcd[['X','Y']]
+Here, if we would use that to train our algorithm, then we would be stuck to the seen range, e.g., X varying between 0 and 100. If, after training on this range, the model is fed with future data with a similar distribution but a different range, e.g., X from 1100 to 1200, then we could get catastrophic results, even if it is the same dataset, just having a translation in between. Indeed, for some models, the X value, which is above 100, can make the model predict an erroneous value, whereas if beforehand we ensured that we translated the data to the same range seen in training. The predictions would have better chances of making sense.
+
+I turned to the concept of feature scaling and normalization. It is a crucial part of the data preprocessing stage, but I have seen many beginners overlook it (to the detriment of their machine learning model). A mistake we will not make! 💪
+
+Because we are in a spatial-heavy context, a good way of avoiding generalization problems is to reduce to what we call the Min-Max normalization. For this, we will use the MinMaxScaler function:
+
+from sklearn.preprocessing import MinMaxScaler
+features_scaled = MinMaxScaler().fit_transform(features)
+💡 Hint: The MinMaxScaler() transforms features by scaling and translating each feature individually to be in the given range, e.g., between zero and one. If your data is normally distributed, then you may use StandardScaler.
+
+3D Machine Learning Training set-up
+Okay, we have a labels vector and a proper features vector. Now, we need to prepare a set-up for the training phase. For starting, we will split both vectors — while keeping the proper index match between labels and features — to use a portion for training the machine learning model and another portion only for looking at the performances. We use 60% of the data for training, and 40% for looking at the performances, both taken from the same distribution randomly. It is made using the train_test_split function from scikitlearn:
+
+X_train, X_test, y_train, y_test = train_test_split(features_scaled, labels, test_size=0.4)
+🤓 Note: We use naming conventions when dealing with data for Machine Learning tasks. X denotes the features (or data) fed to a model and y denotes the labels. Each is decomposed into _train or _test depending on their finality.
+
+We then create a "classifier object" through:
+
+rf_classifier = RandomForestClassifier()
+🤓 Note: The classifier above is a Random Forest classifier. In one sentence, it fits several decision tree classifiers on various sub-samples of the features and uses averaging to improve the predictive accuracy and control over-fitting. Compelling stuff 😁.
+
+After classifier initialization, we fit the classifier to the training data to adjust its core parameters. This phase is the training phase, which can take some minutes depending on the hyperparameters (i.e., the parameters that define the Machine Learning model architecture) that we used beforehand (number of trees, depth):
+
+rf_classifier.fit(X_train, y_train)
+And at the end, voilà! We have a trained model! Yes, it is that easy! So it is also that easy to take shortcuts. 😉
+
+For the prediction phase, whether you have labels or not, you need to do the following:
+
+rf_predictions = rf_classifier.predict(X_test)
+you can then visualize results and differences with the following code block that will create three subplots: the 3D point cloud data ground truth, the predictions, and the difference between both:
+
+fig, axs = plt.subplots(1, 3, figsize=(20,5))
+axs[0].scatter(X_test['X'], X_test['Y'], c =y_test, s=0.05)
+axs[0].set_title('3D Point Cloud Ground Truth')
+axs[1].scatter(X_test['X'], X_test['Y'], c = rf_predictions, s=0.05)
+axs[1].set_title('3D Point Cloud Predictions')
+axs[2].scatter(X_test['X'], X_test['Y'], c = y_test-rf_predictions, cmap = plt.cm.rainbow, s=0.5*(y_test-rf_predictions))
+axs[2].set_title('Differences')
+and if you want to check out some metrics, we can print a classification report with a bunch of numbers using the classification_report function of scikit-learn:
+
+print(classification_report(y_test, rf_predictions))
+But should we not understand what each metric means? 🤔
+
+4. 3D Machine Learning Tuning (Step 5)
+Performances and Metrics
+We can use several quantitative metrics for assessing semantic segmentation and classification outcomes. I will introduce to you four metrics that are very useful for 3D point cloud semantic segmentation assessment: precision, recall, F1-score, and overall accuracy. They all depend on what we call true positive and true negative:
+
+True Positive (TP): Observation is positive and is predicted to be positive.
+False Negative (FN): Observation is positive but is predicted negative.
+True Negative (TN): Observation is negative and is predicted to be negative.
+False Positive (FP): Observation is negative but is predicted positive.
+The Overall Accuracy is a general measure on all observations about the classifier's performance to predict labels correctly. The precision is the ability of the classifier not to label as positive a sample that is negative; the recall is intuitively the ability of the classifier to find all of the positive samples. Therefore, you can see the precision as an excellent measure to know if your model is precise and the recall to know with which exhaustivity you find all objects per class (or globally). The F1-score can be interpreted as a weighted harmonic mean of the precision and recall, thus giving a good measure of how well the classifier performs with one number.
+
+🤓 Note: Other global accuracy metrics are not appropriate evaluation measures when class frequencies are unbalanced, which is the case in most scenarios, both in natural indoor and outdoor scenes, since the dominant classes bias them. Henceforth, the F1-score in our experiments indicates the average performance of a proposed classifier.
+
+Model Selection
+It is time to select a specific 3D Machine Learning Model. For this tutorial, I limited the choice to three Machine Learning models: Random Forests, K-Nearest Neighbors, and a Multi-Layer Perceptron that falls within the Deep Learning category. To use them, we will first import the necessary functions with the following:
+
+from sklearn.neighbors import RandomForestClassifier
+rf_classifier = RandomForestClassifier()
+from sklearn.neighbors import KNeighborsClassifier
+knn_classifier = KNeighborsClassifier()
+from sklearn.neural_network import MLPClassifier
+mlp_classifier = MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(15, 2), random_state=1)
+Then, you just have to replace XXXClassifier() in the following code block by the wanted algorithm stack:
+
+XXX_classifier = XXXClassifier()
+XXX_classifier.fit(X_train, y_train)
+XXX_predictions = XXXclassifier.predict(X_test)
+print(classification_report(y_test, XXX_predictions, target_names=['ground','vegetation','buildings']))
+🤓 Note: For simplicity, I passed to the classification_report the list of the tree classes that correspond to the ground, vegetation, and buildings present in our datasets.
+
+And now, to the tests phase on using the three classifiers above with the following parameters:
+
+Train / Test Data: 60%/40% 
+Number of Point in the test set: 1 351 791 / 3 379 477 pts
+Features selected: ['X','Y','Z','R','G','B'] - With Normalization
+Random Forests
+
+We start with Random Forests. Some sort of magical trees conjuration through an ensemble algorithm that combines the multiple decision trees to give us the final result: an overall accuracy of 98%, based on a support of 1.3 million points. It is further decomposed as follows:
+
+╔════════════╦══════════════╦══════════╦════════════╦═════════╗
+║  classes   ║    precision ║   recall ║   f1-score ║ support ║
+╠════════════╬══════════════╬══════════╬════════════╬═════════╣
+║ ground     ║         0.99 ║     1.00 ║       1.00 ║  690670 ║
+║ vegetation ║         0.97 ║     0.98 ║       0.98 ║  428324 ║
+║ buildings  ║         0.97 ║     0.94 ║       0.96 ║  232797 ║
+╚════════════╩══════════════╩══════════╩════════════╩═════════╝
+Press enter or click to view image in full size
+Results of the Supervised Machine Learning Random Forest Approach on 3D Aerial LiDAR point Cloud. © F. Poux
+Results of the Supervised Machine Learning Random Forest Approach on 3D Aerial LiDAR point Cloud. © F. Poux
+🤓 Note: Nothing much to say here, rather than it provides impressive results. The ground points are almost perfectly classified: the 1.00 recall means that all points that belong to the ground were found, and the 0.99 precision means that there is still a tiny margin of improvement to ensure no False Positive. Auqlitqtivelym ze see that the errors are distributed a bit everywhere, which could be problematic if this would have to be corrected manually.
+
+K-NN
+
+The K-Nearest Neighbors classifier uses proximity to make predictions about an individual data point grouping. We obtain a 91% global accuracy, further decomposed as follows:
+
+╔════════════╦══════════════╦══════════╦════════════╦═════════╗
+║  classes   ║    precision ║   recall ║   f1-score ║ support ║
+╠════════════╬══════════════╬══════════╬════════════╬═════════╣
+║ ground     ║         0.92 ║     0.90 ║       0.91 ║  690670 ║
+║ vegetation ║         0.88 ║     0.91 ║       0.90 ║  428324 ║
+║ buildings  ║         0.92 ║     0.92 ║       0.92 ║  232797 ║
+╚════════════╩══════════════╩══════════╩════════════╩═════════╝
+Press enter or click to view image in full size
+The Supervised Machine Learning K-Nearest Neighbors Approach results on 3D Aerial LiDAR point Cloud. © F. Poux
+The Supervised Machine Learning K-Nearest Neighbors Approach results on 3D Aerial LiDAR point Cloud. © F. Poux
+🤓 Note: The results are lower than Random Forests, which is expected because we are more subject to local noise in the current vector space. We have a homogeneous precision/recall balance over all classes, which is a good sign that we avoid overfitting problematics. At least in the current distribution 😁.
+
+3D Deep Learning with a Multi-Layer Perceptron
+
+The Multi-Layer Perceptron (MLP) is a Neural Network algorithm that learns linear and non-linear data relationships. The MLP requires tuning several hyperparameters, such as the number of hidden neurons, layers, and iterations, making it hard to get high performances out of the box. For example, with the hyperparameters set, we have a global accuracy of 64% further decomposed as follows:
+
+╔════════════╦══════════════╦══════════╦════════════╦═════════╗
+║  classes   ║    precision ║   recall ║   f1-score ║ support ║
+╠════════════╬══════════════╬══════════╬════════════╬═════════╣
+║ ground     ║         0.63 ║     0.76 ║       0.69 ║  690670 ║
+║ vegetation ║         0.69 ║     0.74 ║       0.71 ║  428324 ║
+║ buildings  ║         0.50 ║     0.13 ║       0.20 ║  232797 ║
+╚════════════╩══════════════╩══════════╩════════════╩═════════╝
+Press enter or click to view image in full size
+The Supervised Deep Learning MLP Approach results on 3D Aerial LiDAR point Cloud. © F. Poux
+The Supervised Deep Learning MLP Approach results on 3D Aerial LiDAR point Cloud. © F. Poux
+🤓 Note: On purpose, the MLP metrics provide a good example of what is considered poor metrics. We have an accuracy score lower than 75%, which is often the first-hand metric to target, and then we see significant differences between Intra and inter classes. Notably, the buildings class is very far from being robust, and we may have an overfitting problem. Visually, this is found as well, as we can see that it is the primary source of confusion about the Deep Learning model.
+
+At this step, we will not improve through feature selection, but we could always have this possibility. We decided to go with the best performing model at this step, the Random Forest approach. And now, we have to investigate if the currently trained model performs well under challenging unseen scenarios, ready? 😄
+
+5. 3D Machine Learning Performance: Towards Generalization
+Now it gets tricky. Looking at what we have above, we could be well under massive trouble if we wanted to scale the current model to real-world applications that extend the scope of the current sample dataset. So let us go into a fully-fledged deployment of the model.
+
+The validation dataset
+It is a critical concept that I propose to ensure avoiding overfitting problematics. Instead of using only a training dataset and a testing dataset from the same distribution, I believe it is vital to have another unseen dataset with different characteristics to measure real-world performances. As such, we have:
+
+Training Data: The sample of data used to fit the model.
+Test Data: The sample of data used to provide an unbiased evaluation of a model fitted on the training data but used to tune the model hyperparameters and feature vector. The evaluation thus becomes a bit biased as we used that to tune input parameters.
+Validation Data: The uncorrelated sample of data is used to provide an unbiased evaluation of a final model fitted to the training data.
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Visual renders of the 3D point cloud constituting the validation data. It is captured from an Aerial LiDAR IGN HD Campaign, over the city of Manosque (04). It presents a different context and object characteristics. © F. Poux
+Below are some additional clarifying notes:
+
+The test dataset may also play a role in other forms of model preparation, such as feature selection.
+The final model could be fit on the aggregate of the training and validation datasets, but we decided not to.
+The chosen validation data is from the city of Manosque (04), which presents a different urban context, with different topography and a widely different urban context, for example, as seen below. This way, we increase the challenge of coping with Generalization 😆.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+On the left, we have the dataset from which we trained and evaluated on the test side (40% unseen). On the right, you have a different validation dataset, which will be a significant mark of real-world possibilities given by our model.
+You can download the 3DML_validation.xyz dataset from my Open Data Drive Folder if not done already. As explained below, you will also find the labels to study metrics and potential gains on the different iterations I made.
+
+Improving the Generalization results
+Our goal will be to check the validation dataset results and see if we bypassed some possibilities.
+
+First, we import the validation data in our script with the following three lines of code:
+
+val_dataset="3DML_validation.xyz"
+val_pcd=pd.read_csv(data_folder+dataset,delimiter=' ')
+val_pcd.dropna(inplace=True)
+Then, we prepare the feature vector to have the same features as the one used to train the model: no less, no more. We further normalize our feature vector to be in the same condition as our training data.
+
+val_labels=val_pcd['Classification']
+val_features=val_pcd[['X','Y','Z','R','G','B']]
+val_features_scaled = MinMaxScaler().fit_transform(val_features)
+Then we apply the already trained model to the validation data, and we print the results:
+
+val_predictions = rf_classifier.predict(val_features_scaled)
+print(classification_report(val_labels, val_predictions, target_names=['ground','vegetation','buildings']))
+That leaves us with a final accuracy of 54% for 3.1 million points (against 98% for the test data containing 1.3 million points) present in the validation dataset. It is decomposed as follows:
+
+╔════════════╦══════════════╦══════════╦════════════╦═════════╗
+║  classes   ║    precision ║   recall ║   f1-score ║ support ║
+╠════════════╬══════════════╬══════════╬════════════╬═════════╣
+║ ground     ║         0.65 ║     0.16 ║       0.25 ║ 1188768 ║
+║ vegetation ║         0.59 ║     0.85 ║       0.70 ║ 1315231 ║
+║ buildings  ║         0.43 ║     0.67 ║       0.53 ║  613317 ║
+╚════════════╩══════════════╩══════════╩════════════╩═════════╝
+Press enter or click to view image in full size
+Random Forest Classifier Results over 3D point cloud data from Aerial LiDAR. Python implementation with Matplotlib by Florent Poux
+Qualitative results of the Random Forest Classifier over the validation point cloud dataset. Only spatial coordinates and R, G, B channels were used as input features. © F. Poux
+You just witnessed the true dark side power of Machine Learning: overfitting a model to a sample distribution and having massive trouble generalizing. Because we have already ensured that we normalized our data, we can investigate the possibility that this low-performance behavior may be due to features not distinctive enough. I mean, we used some of the most common/basic features. So let us improve with a better feature selection, for example, the one below:
+
+features=pcd[['Z','R','G','B','omnivariance_2','normal_cr_2','NumberOfReturns','planarity_2','omnivariance_1','verticality_1']]
+val_features=val_pcd[['Z','R','G','B','omnivariance_2','normal_cr_2','NumberOfReturns','planarity_2','omnivariance_1','verticality_1']]
+Great, we now restart the training phase on the test data, we check out the performance of the model, and then we check out how it behaves on the validation dataset:
+
+features_scaled = MinMaxScaler().fit_transform(features)
+X_train, X_test, y_train, y_test = train_test_split(features_scaled, labels, test_size=0.3)
+rf_classifier = RandomForestClassifier(n_estimators = 10)
+rf_classifier.fit(X_train, y_train)
+rf_predictions = rf_classifier.predict(X_test)
+print(classification_report(y_test, rf_predictions, target_names=['ground','vegetation','buildings']))
+val_features_scaled = MinMaxScaler().fit_transform(val_features)
+val_rf_predictions = rf_classifier.predict(val_features_scaled)
+print(classification_report(val_labels, val_rf_predictions, target_names=['ground','vegetation','buildings']))
+Let us study the results. We now have 97% accuracy on the test data, further decomposed as follows:
+
+╔════════════╦══════════════╦══════════╦════════════╦═════════╗
+║  classes   ║    precision ║   recall ║   f1-score ║ support ║
+╠════════════╬══════════════╬══════════╬════════════╬═════════╣
+║ ground     ║         0.97 ║     0.98 ║       0.98 ║  518973 ║
+║ vegetation ║         0.97 ║     0.98 ║       0.97 ║  319808 ║
+║ buildings  ║         0.95 ║     0.91 ║       0.93 ║  175063 ║
+╚════════════╩══════════════╩══════════╩════════════╩═════════╝
+Adding features introduced a slight drop in performance compared to using only the base X, Y, Z, R, G, B set, which shows that we added some noise. But this was worth it for the sake of Generalization! We now have a global accuracy of 85% on the validation set, so an increase of 31%, only through feature selection! It is massive. And as you can notice, the buildings are the central aspect that hurt the performances. It is explained mainly by the fact that they are very different from the one in the test set and that the feature set cannot truly represent them in an uncorrelated context.
+
+╔════════════╦══════════════╦══════════╦════════════╦═════════╗
+║  classes   ║    precision ║   recall ║   f1-score ║ support ║
+╠════════════╬══════════════╬══════════╬════════════╬═════════╣
+║ ground     ║         0.89 ║     0.81 ║       0.85 ║ 1188768 ║
+║ vegetation ║         0.92 ║     0.92 ║       0.92 ║ 1315231 ║
+║ buildings  ║         0.68 ║     0.80 ║       0.73 ║  613317 ║
+╚════════════╩══════════════╩══════════╩════════════╩═════════╝
+Press enter or click to view image in full size
+Random Forest Classifier Results over 3D point cloud data from Aerial LiDAR. Python implementation with Matplotlib by Florent Poux
+Qualitative results of the Random Forest Classifier over the validation point cloud dataset. A feature set was selected. © F. Poux
+This is very, very good! We now have a model that outperforms most of what you can find, even using deep learning architectures!
+
+Suppose we would like to scale even more. In that case, it may be interesting to inject some data from the validation distribution to check if that is what is needed in the model, at the cost that our validation loses its stature and becomes part of the test set. We take 10% of the validation dataset and 60% of the initial dataset to train a Random Forest Model. We then use it and check the results on the remaining 40% constituting the test data, and the 90% of the validation data:
+
+val_labels=val_pcd['Classification']
+val_features=val_pcd[['Z','R','G','B','omnivariance_2','normal_cr_2','NumberOfReturns','planarity_2','omnivariance_1','verticality_1']]
+val_features_sampled, val_features_test, val_labels_sampled, val_labels_test = train_test_split(val_features, val_labels, test_size=0.9)
+val_features_scaled_sample = MinMaxScaler().fit_transform(val_features_test)
+labels=pd.concat([pcd['Classification'],val_labels_sampled])
+features=pd.concat([pcd[['Z','R','G','B','omnivariance_2','normal_cr_2','NumberOfReturns','planarity_2','omnivariance_1','verticality_1']],val_features_sampled])
+features_scaled = MinMaxScaler().fit_transform(features)
+X_train, X_test, y_train, y_test = train_test_split(features_scaled, labels, test_size=0.4)
+rf_classifier = RandomForestClassifier(n_estimators = 10)
+rf_classifier.fit(X_train, y_train)
+rf_predictions = rf_classifier.predict(X_test)
+print(classification_report(y_test, rf_predictions, target_names=['ground','vegetation','buildings']))
+val_rf_predictions_90 = rf_classifier.predict(val_features_scaled_sample)
+print(classification_report(val_labels_test, val_rf_predictions_90, target_names=['ground','vegetation','buildings']))
+And to our great pleasure, we see that our metrics are bumped by at least 5% while losing only 1% on the test set, thus, at the expense of minimal feature noise as shown below:
+
+40% Test Predicitions - Accuracy = 0.96    1476484
+
+╔════════════╦══════════════╦══════════╦════════════╦═════════╗
+║  classes   ║    precision ║   recall ║   f1-score ║ support ║
+╠════════════╬══════════════╬══════════╬════════════╬═════════╣
+║ ground     ║         0.97 ║     0.98 ║       0.97 ║  737270 ║
+║ vegetation ║         0.97 ║     0.97 ║       0.97 ║  481408 ║
+║ buildings  ║         0.94 ║     0.90 ║       0.95 ║  257806 ║
+╚════════════╩══════════════╩══════════╩════════════╩═════════╝
+90% Validation Predicitions - Accuracy = 0.90    2805585
+╔════════════╦══════════════╦══════════╦════════════╦═════════╗
+║  classes   ║    precision ║   recall ║   f1-score ║ support ║
+╠════════════╬══════════════╬══════════╬════════════╬═════════╣
+║ ground     ║         0.88 ║     0.92 ║       0.90 ║  237194 ║
+║ vegetation ║         0.93 ║     0.94 ║       0.94 ║  263364 ║
+║ buildings  ║         0.87 ║     0.79 ║       0.83 ║  122906 ║
+╚════════════╩══════════════╩══════════╩════════════╩═════════╝
+Press enter or click to view image in full size
+Qualitative results of the Random Forest Classifier over the validation point cloud dataset. Some data from the validation was used for training. © F. Poux
+Qualitative results of the Random Forest Classifier over the validation point cloud dataset. Some data from the validation was used for training. © F. Poux
+What is usually interesting is to check the final results with different models and the same parameters and then go through a final phase of hyperparameter tuning. But that is for another time 😉. Are you not exhausted? I think our brain energy needs a recharge; let us leave the rest for another time and finalize the project. 😁
+
+Exporting the labeled dataset
+The title says it all: it is time to export the results to use them in another application. Let us export it as an Ascii file with the following lines:
+
+val_pcd['predictions']=val_rf_predictions
+result_folder="../DATA/RESULTS/"
+val_pcd[['X','Y','Z','R','G','B','predictions']].to_csv(result_folder+dataset.split(".")[0]+"_result_final.xyz", index=None, sep=';')
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Zoom in final results of the Point Cloud Semantic Segmentation Machine Learning workflow. From left to right: The ground truth, the difference in red, the predictions. © F. Poux
+Exporting the 3D Machine Learning Model
+And, of course, if you are satisfied with your model, you can permanently save it and then put it somewhere to use in production for unseen/unlabelled datasets. We can use the pickle module to do just that. Three little code lines:
+
+import pickle
+pickle.dump(rf_classifier, open(result_folder+"urban_classifier.poux", 'wb'))
+And when you need to reuse the model:
+
+model_name="urban_classifier.poux"
+loaded_model = pickle.load(open(result_folder+model_name, 'rb'))
+predictions = loaded_model.predict(data_to_predict)
+print(classification_report(y_test, loaded_predictions, target_names=['ground','vegetation','buildings']))
+You can access the complete code directly in your browser with this Google Colab notebook.
+
+Conclusion
+That was a crazy journey! A complete 201 course with a hands-on tutorial on 3D Machine Learning! 😁 You learned a lot, especially how to import point clouds with features, choose, train, and tweak a supervised 3D machine learning model, and export it to detect outdoor classes with an excellent generalization to large Aerial Point Cloud Datasets! Massive Congratulations! But this is only part of the equation for 3D Machine Learning. To extend the learning journey outcomes, future articles will deep dive into semantic and instance segmentation [2–4], animation, and deep learning [1]. We will look into managing big point cloud data as defined in the article below.
+
+The Future of 3D Point Clouds: a new perspective
+Discrete spatial datasets known as point clouds often lay the groundwork for decision-making applications. But can they…
+towardsdatascience.com
+
+My contributions aim to condense actionable information so you can start from scratch to build 3D automation systems for your projects. You can get started today by taking a course at the Geodata Academy.
+
+References
+1. Poux, F., & J.-J Ponciano. (2020). Self-Learning Ontology For Instance Segmentation Of 3d Indoor Point Cloud. ISPRS Int. Arch. of Pho. & Rem. XLIII-B2, 309–316; https://doi.org/10.5194/isprs-archives-XLIII-B2–2020–309–2020
+
+2. Poux, F., & Billen, R. (2019). Voxel-based 3D point cloud semantic segmentation: unsupervised geometric and relationship featuring vs. deep learning methods. ISPRS International Journal of Geo-Information. 8(5), 213; https://doi.org/10.3390/ijgi8050213
+
+3. Poux, F., Neuville, R., Nys, G.-A., & Billen, R. (2018). 3D Point Cloud Semantic Modelling: Integrated Framework for Indoor Spaces and Furniture. Remote Sensing, 10(9), 1412. https://doi.org/10.3390/rs10091412
+
+4. Poux, F., Neuville, R., Van Wersch, L., Nys, G.-A., & Billen, R. (2017). 3D Point Clouds in Archaeology: Advances in Acquisition, Processing, and Knowledge Integration Applied to Quasi-Planar Objects. Geosciences, 7(4), 96. https://doi.org/10.3390/GEOSCIENCES7040096
+
+Machine Learning
+3d
+Hands On Tutorials
+Point Cloud
+Deep Dives
+461
+
+
+6
+
+
+
+
+TDS Archive
+Published in TDS Archive
+829K followers
+·
+Last published Feb 3, 2025
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (6)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Cem Tutum
+Cem Tutum
+
+Feb 7, 2023
+
+
+dataset
+
+Florent, thanks for the amazing tutorial!
+Just a small typo: "dataset" needs to be "val_dataset" if I am not wrong.
+3
+
+
+1 reply
+
+Reply
+
+Jenny Choi
+Jenny Choi
+
+Sep 14, 2022
+
+
+Amazing work! This has been extremely helpful.
+One question about the implementing part segmentation though, in order to perform part segmentation (i.e classifying different parts of a single object) how would we have to alter the model and training…more
+6
+
+Reply
+
+Ammar Jamshed
+Ammar Jamshed
+
+Jun 30, 2022
+
+
+This is truly fantastic, I will use this for my coding work as well. Thankyou so much for sharing
+2
+
+
+1 reply
+
+Reply
+
+See all responses
+More from Florent Poux, Ph.D. and TDS Archive
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Francesco Casalegno
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+Leveraging data to help users discovering new contents
+Nov 25, 2022
+542
+5
+
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Ketan Doshi
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+A Gentle Guide to the inner workings of Self-Attention, Encoder-Decoder Attention, Attention Score and Masking, in Plain English.
+Jan 17, 2021
+3K
+35
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from TDS Archive
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+Google Earth and Earth Engine
+In
+
+Google Earth and Earth Engine
+
+by
+
+Google Earth
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+By Alicia Sullivan, Earth Engine Product Manager; Kel Market, Cloud Geographer; and Gena Donchyts, Cloud Geographer
+Jun 17
+109
+2
+
+
+AlphaEarth Foundations: Implications for Cities and Urban Planners
+Urban AI
+Urban AI
+
+AlphaEarth Foundations: Implications for Cities and Urban Planners
+How Embeddings And GeoAI Are Transforming Urban Planning
+Oct 14
+22
+
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+Point Cloud Data
+Sujeeth Kumaravel
+Sujeeth Kumaravel
+
+Point Cloud Data
+Point cloud data is 3D because each point in the cloud represents a position in three-dimensional space using three coordinates:
+Jun 10
+
+
+High-performance SAM2 inference framework with TensorRT
+TIER IV MEDIA
+In
+
+TIER IV MEDIA
+
+by
+
+TIER IV
+
+High-performance SAM2 inference framework with TensorRT
+Keywords: SAM2, Instance Segmentation, TensorRT, ONNX Runtime, Optimization
+Jun 25
+4
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

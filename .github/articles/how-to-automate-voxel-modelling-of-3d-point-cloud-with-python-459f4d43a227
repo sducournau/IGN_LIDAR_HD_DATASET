@@ -1,0 +1,485 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+TDS Archive
+TDS Archive
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+Follow publication
+
+Member-only story
+
+Hands-on Tutorials, 3D Python
+How to Automate Voxel Modelling of 3D Point Cloud with Python
+Hands-on tutorial to turn large point clouds into 3D voxels 🧊 with Python and open3d. Unlock an automation workflow for efficient 3D voxelization
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+12 min read
+·
+Dec 13, 2021
+312
+
+
+6
+
+
+
+
+
+Press enter or click to view image in full size
+
+A voxel 3D model, the result of the current open-source python tutorial. It is automatically extracted from a large point cloud accessible in the article. © F. Poux
+What if we had a quick way to transform point clouds captured from reality into 3D meshes? And what if these 3D meshes were a voxel-based assembly? Is this something that makes sense? How can this help you for creative or professional purposes? 🤔
+
+Let us dive in with a small lego story before exploring the python automation tips and tricks 😎.
+
+A quick Lego, Voxel, and Point Cloud story
+Well, If your childhood was cradled by Lego (nowadays Minecraft), then it should not be too hard to corrupt you 😊. Do you remember how fun it is to assemble these tiny blocks to form 3D representations that we can use to create new stories or simulate our favorite movies?
+
+No, my goal is not to push you to buy a huge stack of Lego but rather appeal to the coolness of these simplistic physical blocks. And how much we can do with them.
+
+
+Example of Lego model animated by © Guillermo Momplet.
+But what is the actual link with the current voxel talk? Well, simply put, voxels are the 3D analog of 2D pixels (some say 3D pixels, but that sounds weird). It is a simple way to structure a 3D dataset that is unordered initially (like point clouds). You then get this assembly of primitive blocks that can easily be linked to lego assemblies. The primary difference — apart from the physical vs. digital property 😊 — is that voxels only play with one type of base element (a cube 🧊), whereas Legos let you play with various pieces of different dimensions. But if we adopt a multi-scale vision and reasoning theoretically, as put by Dassault Systèmes, Spatial Corp in Source:
+
+voxels are the perfect modeling technique for replicating reality and can go far beyond what we take them for.
+
+Press enter or click to view image in full size
+
+Illustrating the multi-scale view permits representing the base data capturing the world geometry with an adapted refinement. © F. Poux
+Indeed, our 3D world is made of stuff that super tiny voxels could approximate in vast quantities. Thus, if you have a high enough density coupled with the proper rendering techniques:
+
+you can use voxels to replicate real-world objects that would be impossible to differentiate from the real thing — in both appearance and behavior.
+
+And this is a significant benefit compared to raw point clouds: you get a behavioral possibility to simulate real-world physics that would be either impossible or hair-loss techniques with other modeling methods 😆.
+
+Press enter or click to view image in full size
+
+Voxels can store a true “matter” volumetry. They are thus convenient to unlock new simulation techniques that would be tricky with other methods. © F. Poux
+💡 Hint: If you want to understand better how to represent 3D data and the technical differences between each approach, I encourage you to read the article below.
+
+How to represent 3D data?
+A visual guide to help choose data representations among 3D point clouds, meshes, parametric models, depth-maps, RGB-D…
+towardsdatascience.com
+
+Press enter or click to view image in full size
+
+The main advantages of voxels as a 3D representation, seen by © Dassault Systèmes, Spatial Corp. Source
+Now that you are a true corrupted voxel 🥑, it is time to get your hands dirty and learn how to quickly turn 3D point cloud into voxel assemblies in an automated fashion. Ready?
+
+Point Cloud Processing Online Course - 3D Geodata Academy
+Formation to learn advanced point cloud processing and 3D automation. Develop new python geodata skills and open-source…
+learngeodata.eu
+
+Step 1: Coding choices
+Disclaimer: there is no one and unique direction when coding to solve an identified problem. The solution that I will give you relies on some clever tricks using open3d and the function stack available. But if you want to rely on a minimal number of libraries, you can also follow the article below and adapt the voxel sampling strategy to a voxel creation strategy.
+
+How to automate LiDAR point cloud processing with Python
+The ultimate guide on point cloud sub-sampling from scratch, with Python. It covers LiDAR I/O, 3D voxel grid processing…
+towardsdatascience.com
+
+In this tutorial, we will rely on only three functional libraries: laspy (pip install laspy), open3d (conda install -c open3d-admin open3d) and numpy (conda install numpy), with a python version 3.8. For this, these three simple lines:
+
+import laspy as lp
+import numpy as np
+import open3d as o3d
+🤓 Note: The current experiments run using Python 3.8.12, laspy version: 2.0.3, numpy version 1.21.2 and open3d version 0.11.2. That way, if debugging is needed, you have some first checks to make :).
+
+Perfect, all is left now is to identify a point cloud that we would like voxelized. Luckily, I created one pretty nice for you, that you can retrieve from my drive folder: Download the dataset (.las), or visualize in your web browser using Flyvast.
+
+
+The provided point cloud to carry on the python tutorial. © F. Poux
+Once set up, we can start loading the data in our environment.
+
+💡 Hint: If you are starting from scratch and want to follow a recipe to be up and running on Python within 5 minutes, I propose that you follow the article below that gives all the details for setting up your environment. If you do not want to install anything, you can also run it all on the cloud using the Google Colab notebook I provide at the end of the article.
+
+Discover 3D Point Cloud Processing with Python
+Tutorial to simply set up your python environment, start processing and visualize 3D point cloud data.
+towardsdatascience.com
+
+Step 2: Loading the data
+First, we create two variables to handle the input path (that you should adapt to your case) and the dataname, as follows:
+
+input_path=”C:/DATA/”
+dataname=”heerlen_table.las”
+Now, it is time to load the data in our program. We first store the point cloud as a laspy.lasdata.LasData in a point_cloud variable.
+
+point_cloud=lp.read(input_path+dataname)
+Then, to use the data stored in the point_cloud variable, we will transform it into the open3d point cloud format. If you remember from previous tutorials, we separate what color is from the spatial coordinates (X, Y, and Z).
+
+pcd = o3d.geometry.PointCloud()
+pcd.points = o3d.utility.Vector3dVector(np.vstack((point_cloud.x, point_cloud.y, point_cloud.z)).transpose())
+pcd.colors = o3d.utility.Vector3dVector(np.vstack((point_cloud.red, point_cloud.green, point_cloud.blue)).transpose()/65535)
+🤓 Note: If you look closely, you can see a weird 65535. This is because, in the laspy format, the colors are integers coded in a 16 Bit Unsigned fashions, which means that numbers range from 0 to +65535, that we want to scale to an [0,1] Interval. How crazy these maths hun 😆?
+
+Step 3: Creating the voxel grid
+We have a point cloud, and we want to fit an assembly of voxel cubes to approximate it. For this, we actually generate voxels only in parts where there are points on an established 3D grid.
+
+Press enter or click to view image in full size
+
+To get the voxel unit, we first need to compute the bounding box of the point cloud which delimit the spatial extent of our dataset. only then can we discretize the bounding box into an assembly of small 3D cubes: the voxels.
+
+In our case, we will simply compute the voxel size by giving a relative value linked to the initial bounding box to “generalize” the approach if you switch the input point cloud. For this, you can see below that we extract the bounding box of the point cloud, we take the maximum edge, and we decide to set up the voxel size to 0.5% of its value (this is absolutely arbitrary). Finally, we round up the obtained value to 4 digits without suffering from imprecise calculation thereafter.
+
+v_size=round(max(pcd.get_max_bound()-pcd.get_min_bound())*0.005,4)
+voxel_grid=o3d.geometry.VoxelGrid.create_from_point_cloud(pcd,voxel_size=v_size)
+🤓 Note: This is perhaps one of the most borderline code line that I wrote, but it gives a good example of what can be achieved with quick empirical statements. A lot can be improved there, especially concerning rounding errors and arbitrary thresholds.😉
+
+
+Example of the result obtained on the dataset with the proposed value and other values that will change the Level of Detail. © F. Poux
+Now that we have our voxel unit defined, we will actually switch to a much more efficient “representation” linked to the spatial information, but more efficient: a binary table (False or True, 0 or 1). For this, the first trick, using open3d, will be to generate the voxel grid using this command line:
+
+voxel_grid=o3d.geometry.VoxelGrid.create_from_point_cloud(pcd,voxel_size=v_size)
+Awesome, you now are the owner of a voxel representation of your point cloud, which you can visualize (if outside jupyter environments) with:
+
+o3d.visualization.draw_geometries([voxel_grid])
+
+Our voxel_grid variable is visualized within open3d. Each non-empty voxel holds color information averaged from the underlying points. © F. Poux
+This is great! But if we stopped there, we would be stuck in a minimal scope of utilization. Indeed, there you would be limited to using the open3d library to play with the voxel structure, with a limited number of functions, that, depending on your need, will or not fit your application. Therefore, let us dive into the process of creating a 3D mesh from this data structure 😆, that we can export in an open format (.ply or .obj) and load into other pieces of software among which MeshLab, Blender, CloudCompare, MagickaVoxels, Unity, Unreal Engine and more.
+
+Step 4: Generating the voxel cubes (3D meshes)
+Now that we have the voxel_grid, we will extract the filled voxels for having the possibility to use them as separate entities later.
+
+voxels=voxel_grid.get_voxels()
+If we would check what our new voxels variable looks like; we get a list containing open3d.cpu.pybind.geometry.Voxel types that hold the voxel information: Voxel with grid_index: (19, 81, 57), color: (0.330083, 0.277348, 0.22266).
+
+Okay, we will translate this into an assembly of 3D cubic meshes (8 vertices and 12 triangles describing the six faces). See the trick that we are trying to achieve 🙃? So first, let us initialize our triangle mesh entity that will hold this cube assembly:
+
+vox_mesh=o3d.geometry.TriangleMesh()
+Now, we will iterate over all voxels with for v in voxels, and for each voxel, we will generate a cube of size one, stored in the variable cube. We then paint it with the voxel color at hand, and we finally position the voxel on the grid using the index provided by the method grid_index. Finally, we add our newly colored and positioned cube to the mesh entity with vox_mesh+=cube.
+
+for v in voxels:
+   cube=o3d.geometry.TriangleMesh.create_box(width=1, height=1,
+   depth=1)
+   cube.paint_uniform_color(v.color)
+   cube.translate(v.grid_index, relative=False)
+   vox_mesh+=cube
+🤓 Note: The translation method takes as an argument whether or not the translation should be done relative to the first argument given (the position). In our case, because we set it to False, the first argument v.grid_index acts as the absolute coordinates in our system.
+
+
+An illustration of a Z-progression of the point cloud voxelization at a predefined voxel size. © F. Poux
+Step 5: Export the mesh object (.ply or .obj)
+We now have a 3D mesh object ready for the I/O operation… or almost. Indeed, we are yet in an arbitrary system with arbitrary integer units. To situate ourselves in the initial frame of reference imposed by the input point cloud, we must apply a rigid transformation (translation, rotation, and scale) to get back to the original position. For clarity, I decompose this ambition into three code lines. 🤓
+
+First, we relatively translate the 3D mesh (voxel assembly) by half the voxel unit. This is explained by the fact that when we created our initial voxel grid, the reference was the lowest left point of the voxel instead of the barycenter (which is positioned at [0.5,0.5,0.5] relatively in the unit cube).
+
+vox_mesh.translate([0.5,0.5,0.5], relative=True)
+Then, we scale our model by the voxel size, to transform each cube unit into its real size. This makes use of the scale method that takes two arguments. The first is the scaling factor, and the second is the center used when scaling.
+
+vox_mesh.scale(voxel_size, [0,0,0])
+Finally, we need to translate our voxel assembly to its true original position by translating using the voxel grid origin relatively.
+
+vox_mesh.translate(voxel_grid.origin, relative=True)
+Press enter or click to view image in full size
+
+The 3D mesh results from the set of tricks above, the voxel-based assembly. © F. Poux
+Great, now we have our final cube assembly positioned correctly. An optional command is to merge close vertices. Whenever we generate a cube, we can be in a configuration where one of the corner vertices is overlapping another cube-corner vertice. Thus, it is better to clean that up while preserving the topology.
+
+vox_mesh.merge_close_vertices(0.0000001)
+And finally, 🥁 the last element in our pipeline is to simply export our .ply (or .obj depending on the extension you prefer) file to the folder of choice in your OS browser.
+
+o3d.io.write_triangle_mesh(input_path+”voxel_mesh_h.ply”, vox_mesh)
+From there, you are free to use the output file in the software of your choosing. If, when importing, you get a rotated file, you can also add the following lines to your python code and change the exported variable to vox_mesh.transform(T):
+
+T=np.array([[1, 0, 0, 0],[0, 0, 1, 0],[0, -1, 0, 0],[0, 0, 0, 1]])
+o3d.io.write_triangle_mesh(input_path+”4_vox_mesh_r.ply”, vox_mesh.transform(T))
+What this does, is simply creating a transform matrix T, that defines a rotation counterclockwise around the Y-axis, which usually shows inverted Z and Y-axis in some software afterward. This way, if that happens to you, you will have another trick up your sleeve.
+
+You can access the code directly in your browser with this Google Colab notebook.
+
+Some last words
+Do you remember that we praised the versatility and simplicity of voxels at the beginning of our article? Well, I wanted to give you a bit of visual context as well. You will see below what can be achieved by playing on their representation. What is interesting with voxels is that you get an ordered structure that you can better handle.
+
+Press enter or click to view image in full size
+
+Voxel representation of a point cloud. The scene is represented as an assembly of cubes, mold, spheres, legos, cylinders, or weirdos. © F. Poux
+Of course, this is just a foretaste of what you will be able to do very shortly. 😉
+
+Conclusion
+You just learned how to import point clouds, turn them into a voxel grid, trick the system into making them 3D meshes, and then export them fully automatedly! Well done! Interestingly, having the ability to use voxels in Python will also permit to grasp better the relationships and topology of any point cloud scene, as shown in [2]. To extend the learning journey outcomes, future articles will deep dive into voxel processing, point cloud file formats, 3D data structures, semantic and instance segmentation [2–4], animation as well as deep learning [1]. We will look into managing big point cloud data as defined in the article below.
+
+The Future of 3D Point Clouds: a new perspective
+Discrete spatial datasets known as point clouds often lay the groundwork for decision-making applications. But can they…
+towardsdatascience.com
+
+My contributions aim to condense actionable information so you can start from scratch to build 3D automation systems for your projects. You can get started today by taking a formation at the Geodata Academy.
+
+Point Cloud Processing Online Course - 3D Geodata Academy
+Formation to learn advanced point cloud processing and 3D automation. Develop new python geodata skills and open-source…
+learngeodata.eu
+
+References
+1. Poux, F., & J.-J Ponciano. (2020). Self-Learning Ontology For Instance Segmentation Of 3d Indoor Point Cloud. ISPRS Int. Arch. of Pho. & Rem. XLIII-B2, 309–316; https://doi.org/10.5194/isprs-archives-XLIII-B2–2020–309–2020
+
+2. Poux, F., & Billen, R. (2019). Voxel-based 3D point cloud semantic segmentation: unsupervised geometric and relationship featuring vs deep learning methods. ISPRS International Journal of Geo-Information. 8(5), 213; https://doi.org/10.3390/ijgi8050213
+
+3. Poux, F., Neuville, R., Nys, G.-A., & Billen, R. (2018). 3D Point Cloud Semantic Modelling: Integrated Framework for Indoor Spaces and Furniture. Remote Sensing, 10(9), 1412. https://doi.org/10.3390/rs10091412
+
+4. Poux, F., Neuville, R., Van Wersch, L., Nys, G.-A., & Billen, R. (2017). 3D Point Clouds in Archaeology: Advances in Acquisition, Processing and Knowledge Integration Applied to Quasi-Planar Objects. Geosciences, 7(4), 96. https://doi.org/10.3390/GEOSCIENCES7040096
+
+About the author
+Florent Poux has been at the forefront of automation in 3D Tech for more than 15 years. He authored 100+ papers and patents on 3D Recognition. He holds an award-winning Ph.D. in Sciences and is recognized as an outstanding researcher through the once-every-4-year ISPRS Jack Dangermond 2019 award.
+
+Florent Poux is a Senior 3D Tech Executive that shares knowledge and research for 3D Data Science
+He bridges high-level research & knowledge transmission as a Professor (3D Data Academy), a Senior Scientist (OpenClassrooms, UTwente, ULiège) as well as a 3D Tech Senior Executive.
+
+3D Innovator Newsletter
+Weekly practical content, insights, code and resources to master 3D Data Science. I write about Point Clouds, AI…
+learngeodata.eu
+
+Voxel
+Point Cloud
+3d
+Editors Pick
+Hands On Tutorials
+312
+
+
+6
+
+
+
+
+TDS Archive
+Published in TDS Archive
+829K followers
+·
+Last published Feb 3, 2025
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (6)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Franklin Heng
+Franklin Heng
+
+Dec 1, 2022 (edited)
+
+
+Hey Florent, really appreciate this blog post! I have a couple of clarifying questions -
+1. Is the result of vox_mesh in step 4 a filled voxel representation? Based on open3d documentation…more
+Reply
+
+Angelaseibert
+Angelaseibert
+
+Jun 23, 2022
+
+
+Hi Dr. Poux,
+I am working on calculating LAD and LAI using a voxel slicing technique. I was wondering if there is a way to export a list of the null voxels (0s) of the binary list? I can export the voxels with returns but need the ones without returns too.
+Thank you.
+
+1 reply
+
+Reply
+
+Denis Potapov
+Denis Potapov
+
+May 4, 2022 (edited)
+
+
+Hi! Thank you for your work. It's very useful!
+
+1 reply
+
+Reply
+
+See all responses
+More from Florent Poux, Ph.D. and TDS Archive
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Francesco Casalegno
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+Leveraging data to help users discovering new contents
+Nov 25, 2022
+542
+5
+
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Ketan Doshi
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+A Gentle Guide to the inner workings of Self-Attention, Encoder-Decoder Attention, Attention Score and Masking, in Plain English.
+Jan 17, 2021
+3K
+35
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from TDS Archive
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+Point Cloud Data
+Sujeeth Kumaravel
+Sujeeth Kumaravel
+
+Point Cloud Data
+Point cloud data is 3D because each point in the cloud represents a position in three-dimensional space using three coordinates:
+Jun 10
+
+
+Colab VSCode Extension: A New Way of Working.
+Ifeanyi Idiaye
+Ifeanyi Idiaye
+
+Colab VSCode Extension: A New Way of Working.
+Nov 13
+201
+
+
+A Python-Based Workflow for Land Cover Classification Using Geemap, Rasterio, Geopandas, Numpy…
+Dr.Preethi Balaji
+Dr.Preethi Balaji
+
+A Python-Based Workflow for Land Cover Classification Using Geemap, Rasterio, Geopandas, Numpy…
+If you’ve read my previous articles, you’ll know I’m a long-time connoisseur of Google Earth Engine (GEE) — especially its JavaScript API…
+
+Jul 23
+105
+1
+
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+Google Earth and Earth Engine
+In
+
+Google Earth and Earth Engine
+
+by
+
+Google Earth
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+By Alicia Sullivan, Earth Engine Product Manager; Kel Market, Cloud Geographer; and Gena Donchyts, Cloud Geographer
+Jun 17
+109
+2
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

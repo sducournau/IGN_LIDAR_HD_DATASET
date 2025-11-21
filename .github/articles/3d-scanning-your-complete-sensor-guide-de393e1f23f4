@@ -1,0 +1,618 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+Towards AI
+Towards AI
+Making AI accessible to 100K+ learners. Find the most practical, hands-on and comprehensive AI Engineering and AI for Work certifications at academy.towardsai.net - we have pathways for any experience level. Monthly cohorts still open — use COHORT10 for 10% off!
+
+Follow publication
+
+Member-only story
+
+3D Scanning: Your Complete Sensor Guide
+Comprehensive 3D Scanning manual explaining Active/Passive sensors such as LiDAR and photogrammetry for 3D Reconstruction.
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+19 min read
+·
+Mar 8, 2025
+78
+
+
+1
+
+
+
+
+
+Press enter or click to view image in full size
+Dynamic workflow visualization showing the progression of 3D sensor topics from introduction through active and passive sensors to future trends
+Complete visual guide to 3D sensor technologies, from basic principles to future trends, showing relationships between different sensing methods. © F. Poux
+“3D sensing” can sound a bit… dry, right? But strip away the jargon, and it’s about capturing the world as it truly is.
+
+Moving past flat images to real spatial data.
+
+Professionals often struggle to choose the right 3D sensor.
+
+Believe me, I get it. The sheer number of options is overwhelming.
+
+Why should you care as a geospatial expert? Because 3D data adds a whole new dimension (literally!) to your work. It enables more precise analysis, better visualizations, and completely new applications.
+
+Let me make sure that you know how various sensors work and which ones are right for you.
+
+1. 3D Scanning with sensors
+This isn’t just about tech; it’s about solving real problems. From smart city planning to environmental monitoring, 3D sensors can have a massive impact.
+
+And you can start with your pocket buddy, i.e. your smartphone
+
+🦊 
+Florent Poux, Ph.D.
+: Don’t be afraid to start small! Experimenting with basic 3D scanning apps on your phone is a great way to get a feel for the technology before diving into more complex setups.
+
+Let’s demystify this.
+
+Accurate 3D perception is critical for a wide range of applications, and 3D sensors are the key to unlocking this potential. This guide offers a comprehensive overview of the underlying technologies, focusing on the strengths and limitations of different active and passive sensing methods. I designed
+
+Table of Contents
+
+1. Introduction: Why You Should Care About 3D Sensor Technology
+2. Active vs. Passive 3D Sensors: Choosing the Right Approach
+3. Active 3D Sensors: Taking Charge of Depth Measurement
+- LiDAR Systems: The King of 3D Scanning
+- Pulsed ToF, Continuous Wave, and Phase-Shift ToF Sensors
+- Structured Light Projectors: Patterns for 3D Scanning
+- Sonar/Ultrasound and Radar Systems: Seeing Beyond the Visual
+4. Passive 3D Sensors: Efficiently Leveraging Ambient Data
+- Stereo Vision Systems: Depth Perception with Two Eyes
+- Photogrammetry: Turning Photos into Detailed 3D Models
+- Depth from Focus/Defocus: Creating Depth from Blurriness
+- Shape from Shading: Inferring 3D Form from Shadows
+5. Hybrid 3D Systems: Combining Active and Passive for Optimal Accuracy
+6. Choosing the Right 3D Sensor: Matching Tech to Your Project
+7. Challenges and Limitations of 3D Sensors: What to Watch Out For
+8. Future Trends in 3D Sensing: Innovation on the Horizon
+- AI-Powered Sensors
+- Real-Time Processing
+- Smaller, Cheaper Sensors
+🦊 
+Florent Poux, Ph.D.
+: If you are new to my (3D) writing world, welcome! We are going on an exciting adventure that will allow you to master an essential 3D Python skill. Before diving, I like to establish a clear scenario, the mission brief.
+
+Once the scene is laid out, we embark on the Python journey. Everything is given. You will see Tips (🦚Notes and 🌱Growing) to help you get the most out of this article. Thanks to the 3D Geodata Academy for supporting the endeavor.
+
+2. Active vs. Passive 3D Sensors
+Picture this: you’re in a completely dark room. You can either (a) use a flashlight (active sensor) or (b) wait for someone to open a window (passive sensor). That’s the core difference.
+
+Active 3D sensors do something—emit a signal (light, sound, or whatever) and measure how it returns. Think sonar on a submarine or the laser scanner on a self-driving car using LiDAR technology.
+
+Passive 3D sensors are more like photographers. They capture existing energy (light) to create a 3D picture. This includes stereo vision systems or clever software inferring shape from shadows.
+
+The choice boils down to your needs. Do you need precise measurements, regardless of lighting? Go active. Limited budget and good lighting? Passive might be better.
+
+🌱 Growing Note: Active sensors are generally more robust in challenging environments (low light, bad weather), but they can also be more expensive and power-hungry. For a deep dive into sensor characteristics, explore the resources at the National Instruments (NI) website.
+
+Press enter or click to view image in full size
+Comparison diagram of active and passive 3D sensor technologies showing signal emission versus ambient light capture
+Comparison of active and passive 3D sensors: active sensors emit signals and measure reflections while passive sensors use existing environmental signals. © F. Poux
+Active sensors emit their own signals, while passive sensors rely on existing light to capture 3D data.
+
+3. Active 3D Sensors: Taking Charge of Depth Measurement
+Active 3D sensors are the straightforward tools for capturing 3D data.
+
+LiDAR Systems (Lasers, Glorious Lasers! The King of 3D
+LiDAR is the rockstar, especially for autonomous vehicles and large-scale mapping. It’s all about lasers! Check out this Wikipedia entry on LiDAR for a technical deep dive.
+
+LiDAR (Light Detection and Ranging) functions based on the time-of-flight principle. A laser emits pulses of light, and a sensor measures the time it takes for the light to return after reflecting off an object. This time measurement, combined with the known speed of light, allows for precise calculation of the distance to the object.
+
+The accuracy of LiDAR systems depends on several factors, including the quality of the laser, the precision of the timing mechanism, and atmospheric conditions. Advanced LiDAR systems also incorporate inertial measurement units (IMUs) and GPS to compensate for the sensor’s motion, allowing for accurate 3D mapping even from moving platforms like drones or vehicles.
+
+Different types of LiDAR exist, including those that use pulsed lasers and those that use continuous wave lasers, each with its own advantages and disadvantages in terms of range, accuracy, and power consumption.
+
+LiDAR data is typically represented as a point cloud, where each point corresponds to a measurement of the distance to a specific location. The density of the point cloud, or the number of points per unit area, determines the level of detail in the 3D representation. Processing these point clouds often involves complex algorithms to filter noise, remove outliers, and extract meaningful features such as ground elevation, building outlines, and vegetation height.
+
+How It Works: Shoots laser pulses, times their return. Simple in theory, complex in practice!
+Applications: self-driving cars, drone mapping, city-scale 3D models.
+Advantages: Super accurate, fast, can “see” through some foliage.
+Challenges: Pricey, affected by weather, requires synchronized camera inputs for perfect point clouds.
+LiDAR demos provides some insane details—you can see down to leaves in forests! The downside? The equipment can quickly get pricier than your car. If you want to learn more, check this resource on Lidar principles.
+
+Press enter or click to view image in full size
+Illustration of vehicle-mounted LiDAR 3D sensor with laser beams and resulting point cloud
+LiDAR system mounted on a vehicle creating a 3D point cloud by emitting laser beams and measuring their reflections. © F. Poux
+LiDAR systems in action for autonomous vehicle navigation, creating detailed 3D point clouds.
+
+🦊 
+Florent Poux, Ph.D.
+: LiDAR systems come in different wavelengths. Shorter wavelengths (e.g., green) are better for underwater applications, while longer wavelengths (e.g., near-infrared) are better for penetrating foliage. Explore the applications of different LiDAR wavelengths at https://www.asprs.org/ (American Society for Photogrammetry and Remote Sensing).
+
+Pulsed ToF, Continuous Wave, and Phase-Shift ToF Sensors
+Time-of-Flight (ToF) sensors are like LiDAR’s smaller, more approachable cousins. They measure light travel time, but differently.
+
+Time-of-Flight (ToF) sensors, like LiDAR, measure the distance to an object by measuring the time it takes for light to travel to the object and back. However, unlike LiDAR, ToF sensors typically use lower-power light sources and are designed for shorter ranges, making them suitable for gesture recognition and proximity sensing applications. The main difference between the various ToF sensor types lies in modulating the light signal and measuring the time delay.
+
+Pulsed Time-Of-Flight
+The Pulsed ToF sensors emit short pulses of light and measure the time it takes for the pulse to return.
+
+Continuous Wave
+The Continuous Wave (CW) ToF sensors, on the other hand, emit a continuous beam of light modulated with a specific frequency. The distance is then determined by measuring the phase shift between the emitted and received signals.
+
+Phase-shift ToF
+The phase-shift ToF sensors also use modulated light, but they are particularly sensitive to the phase difference, offering high-precision distance measurements.
+
+Choosing a ToF
+The choice between these different ToF techniques depends on the specific application requirements. Pulsed ToF is generally more straightforward to implement but can be less accurate. CW and Phase-Shift ToF offer higher precision but require more complex signal processing. All ToF sensors are susceptible to errors caused by ambient light and surface reflectivity, so careful calibration and filtering are often necessary to achieve accurate distance measurements.
+
+How It Works: Varying light emission/timing. Pulsed ToF sends pulses, Continuous Wave sends a continuous wave, and Phase-Shift measures phase differences.
+Applications: Smart homes (automatic faucets), gesture control, proximity sensors.
+Advantages: low power, small, easy integration.
+Challenges: shorter range than LiDAR, less accurate over distance.
+Think about portrait mode on phones—many use ToF sensors to determine what’s close/far.
+
+Press enter or click to view image in full size
+Comparison diagram of three types of Time-of-Flight 3D sensor technologies
+Different types of Time-of-Flight (ToF) 3D sensors: Pulsed ToF, Continuous Wave ToF, and Phase-Shift ToF, showing their distinct measurement methods. © F. Poux
+Different types of ToF sensors utilize varying methods to measure distance based on light signal timing or phase differences.
+
+🦊 
+Florent Poux, Ph.D.
+: ToF sensors are highly susceptible to interference from infrared light sources (e.g., sunlight, incandescent bulbs). Careful filtering and shielding are essential for reliable performance. For detailed information on mitigating interference in ToF sensors, consult research papers on the subject in IEEE Xplore.
+
+Structured Light Projectors (Patterns for 3D Scanning)
+Structured light gets artistic. Instead of just distance, it projects light patterns.
+
+Structured light projectors determine the 3D shape of an object by projecting a known pattern of light onto it and observing how the object’s surface deforms the pattern. The pattern can be a grid, a series of stripes, or a more complex arrangement of dots or shapes. A camera, typically positioned at a known distance and angle from the projector, captures an image of the projected pattern.
+
+The key to the technique lies in the precise calibration of the projector and camera. Once calibrated, the system can use triangulation to calculate the 3D coordinates of points on the object’s surface. By analyzing the deformation of the projected pattern, the system can determine the depth of each point relative to a reference plane. The density of the projected pattern and the resolution of the camera determine the level of detail that can be captured.
+
+Structured light systems are highly sensitive to ambient light and surface reflectivity. Intense ambient light can wash out the projected pattern, making it difficult to determine its deformation accurately. Highly reflective surfaces can cause specular reflections, which can also interfere with the pattern analysis. As a result, structured light systems typically work best in controlled lighting environments and with objects that have diffuse surfaces.
+
+How It Works: Projects known patterns (grids, stripes). The camera sees distortion and calculates the 3D shape.
+Applications: quality control (spotting defects), reverse engineering, and object 3D modeling.
+Advantages: high resolution, good for fine details, relatively inexpensive.
+Challenges: Requires controlled lighting (ambient light interferes), needs synchronized camera inputs.
+Ever see 3D scanners projecting a barcode onto your face? That’s structured light in action.
+
+Press enter or click to view image in full size
+Diagram of structured light 3D sensor system showing pattern projection and distortion measurement
+Structured light system projecting patterns onto an object and capturing the distortion to calculate 3D points. © F. Poux
+Structured light systems project patterns onto objects, and cameras capture the distortion to calculate 3D points.
+
+Sonar/Ultrasound and Radar Systems
+These don’t use light at all. They use sound (sonar/ultrasound) or radio waves (radar) to “see.”
+
+Sonar, ultrasound, and radar systems all rely on the principle of emitting a wave and measuring the time it takes for the wave to return after reflecting off an object. The main difference between these systems is the type of wave they use: sonar uses sound waves in water, ultrasound uses high-frequency sound waves in air or tissue, and radar uses radio waves in air or space. Each type of wave has its own advantages and disadvantages in terms of range, resolution, and penetration.
+
+The distance to the object is calculated using the same time-of-flight principle as LiDAR and ToF sensors. The accuracy of the distance measurement depends on the wave’s speed and the timing mechanism’s precision. However, unlike light waves, sound and radio waves are significantly affected by the medium through which they travel. Factors like temperature, humidity, and atmospheric pressure can affect the speed of sound and radio waves, requiring careful calibration and compensation.
+
+Sonar, ultrasound, and radar systems are used in a wide range of applications where light-based sensors are not suitable. Sonar is used for underwater navigation and mapping, ultrasound is used for medical imaging, and radar is used for weather forecasting and air traffic control. These systems are particularly useful in environments where visibility is limited, such as underwater, in fog, or in darkness.
+
+How It Works: Sends a signal, measures return time.
+Applications: Underwater navigation (sonar), medical imaging (ultrasound), weather forecasting (radar).
+Advantages: Can “see” through things light can’t (water, clouds), relatively inexpensive.
+Challenges: Lower resolution than light-based sensors, affected by the environment.
+Think about how bats navigate—they’re using sonar!
+
+Press enter or click to view image in full size
+
+Applications of sonar, radar, and ultrasound 3D sensing systems across different environments: underwater, air, and medical imaging. © F. Poux
+Applications of sonar, radar, and ultrasound 3D sensing systems range from underwater navigation to medical imaging.
+
+4. Passive 3D Sensors
+Passive 3D sensors are observant. They don’t emit; they analyze existing light and information.
+
+Stereo Vision Systems (Depth Perception)
+Trying to mimic human vision with stereo vision systems uses two or more cameras to capture slightly different views of the same scene. The cameras are positioned at a known distance from each other, and their images are processed to determine the disparity, or the difference in the location of an object in the two images. This disparity is directly related to the depth of the object, allowing the system to reconstruct a 3D representation of the scene.
+
+The accuracy of stereo vision systems depends on several factors, including the baseline distance between the cameras, the resolution of the cameras, and the accuracy of the camera calibration. A more considerable baseline distance provides greater depth sensitivity but also increases the risk of occlusion, where one camera cannot see a part of the scene visible to the other camera. Accurate camera calibration is essential to ensure the system can correctly determine the image disparity.
+
+Processing stereo images involves several steps, including rectification, which corrects for lens distortions and aligns the images to a common plane; matching, which identifies corresponding points in the two images; and triangulation, which calculates the 3D coordinates of the matched points. The matching step is often the most challenging, as it requires robust algorithms to handle variations in lighting, texture, and viewpoint.
+
+How It Works: Uses two or more cameras capturing slightly different views. The difference (disparity) calculates depth.
+Applications: Robotics, autonomous navigation, 3D map creation.
+Advantages: Relatively inexpensive (just cameras), works in various lighting.
+Challenges: Requires synchronized cameras, complex processing, and struggles in low-light or featureless areas.
+Think about your phone’s 3D effect, shifting images slightly. That’s stereo vision!
+
+Press enter or click to view image in full size
+
+Stereo vision system using two cameras to capture overlapping images, with depth calculated from the disparity between them. © F. Poux
+Stereo vision systems use two cameras to capture overlapping images, and depth is calculated from the disparity between them.
+
+Photogrammetry (Turning Photos into Detailed 3D Models)
+Photogrammetry is like magic, turning 2D photos into 3D models. Learn more about this resource on photogrammetry.
+
+Photogrammetry reconstructs 3D models from a series of 2D images taken from different viewpoints. The process involves identifying common features in the images and using these features to estimate the camera positions and orientations. Once the camera parameters are known, the system can use triangulation to calculate the 3D coordinates of points on the object’s surface. The more images that are used and the more diverse the viewpoints, the more accurate the resulting 3D model will be.
+
+The accuracy of photogrammetry depends on several factors, including the quality of the images, the number of images, the overlap between images, and the accuracy of the feature detection and matching algorithms. High-resolution images with good lighting and minimal distortion are essential for accurate results. The images should also have sufficient overlap to ensure that common features can be identified in multiple images.
+
+Processing photogrammetric data involves several steps, including feature detection, feature matching, camera calibration, and 3D reconstruction. Feature detection algorithms identify distinctive points or regions in the images. Feature matching algorithms find corresponding features in different images. Camera calibration estimates the camera positions and orientations. 3D reconstruction uses the camera parameters and matched features to calculate the 3D coordinates of points on the object’s surface.
+
+How It Works: Takes multiple overlapping photos from different angles. Software analyzes them to create a 3D model.
+Applications: Archaeology (artifact 3D models), surveying, building 3D models.
+Advantages: High accuracy with consumer cameras, relatively inexpensive.
+Challenges: Requires many photos, is computationally intensive, and is affected by lighting/shadows.
+I recently used photogrammetry to create a 3D model of a Roman ruin. Seeing simple photos transform into a detailed 3D representation is amazing.
+
+Press enter or click to view image in full size
+
+Photogrammetry process showing how multiple overlapping photographs are used to reconstruct a 3D model. © F. Poux
+Photogrammetry reconstructs 3D models from multiple overlapping photographs.
+
+Depth from Focus/Defocus (Blurring the Lines, Creating Depth)
+This technique infers depth from image blurriness.
+
+Depth from focus and defocus techniques exploit the relationship between the amount of blur in an image and the distance to the object. When an object is in focus, it appears sharp. When it is out of focus, it appears blurred. The amount of blur is directly related to the distance between the object and the focal plane of the lens. By capturing images at different focal lengths and measuring the amount of blur in each image, the system can estimate the depth of different points in the scene.
+
+The accuracy of depth from focus and defocus depends on several factors, including the precision of the lens control, the sensitivity of the blur measurement, and the complexity of the scene. Precise lens control is essential to ensure that the images are captured at known focal lengths. Sensitive blur measurement is necessary to accurately estimate the amount of blur in each image. Complex scenes with significant variations in depth can be challenging for these techniques.
+
+These techniques typically require a sequence of images captured with varying focus settings. The amount of blur in each image is then analyzed to determine the depth map. The method is relatively simple to implement using standard optical equipment, but it can be sensitive to noise and requires careful calibration to achieve accurate depth estimates.
+
+How It Works: Captures images at different focal lengths. The amount of blur in each estimate's depth.
+Applications: Microscope imaging, creating 3D effects in photography.
+Advantages: Simple setup, usable with existing cameras.
+Challenges: Requires precise camera control, limited range.
+Ever notice things get blurrier further away? This uses that effect for 3D information.
+
+Press enter or click to view image in full size
+
+Depth from focus technique inferring depth by capturing images at different focal lengths and measuring sharpness. © F. Poux
+Depth from focus techniques infer depth by capturing images at different focal lengths.
+
+Shape from Shading
+This gets really clever. Shape from shading infers 3D shape from light and shadows.
+
+Shape from shading is a technique that infers the 3D shape of an object from the variations in light intensity across its surface. The basic idea is that the brightness of a point on the surface depends on the angle between the surface normal and the light source direction. By analyzing the shading patterns in an image, the system can estimate the surface normals and reconstruct the 3D shape.
+
+The accuracy of shape from shading depends on several assumptions, including the assumption that the surface is Lambertian, meaning that it reflects light equally in all directions. It also assumes that the light source direction is known and that the surface albedo (reflectivity) is constant. In practice, these assumptions are often violated, which can lead to errors in the reconstructed shape.
+
+Shape from shading is a challenging problem in computer vision, and there are many different algorithms for solving it. Some algorithms are based on local analysis of the shading patterns, while others are based on global optimization techniques. The choice of algorithm depends on the specific application and the characteristics of the images.
+
+How It Works: Analyzes light intensity variations across a surface. These variations provide clues about 3D shape.
+Applications: Computer graphics, medical imaging.
+Advantages: Usable with a single image, no special equipment needed.
+Challenges: Highly dependent on lighting, requires assumptions about surface properties.
+Think about how artists use shading to create depth in paintings. This does the same with computers.
+
+Press enter or click to view image in full size
+
+Shape from shading technique inferring 3D structure from variations in light reflection on a surface. © F. Poux
+Shape from shading infers 3D structure from variations in light reflection on a surface.
+
+5. Hybrid 3D Systems: The Best of Both Worlds
+Why choose one when you can have both? Hybrid 3D systems combine active and passive sensors for the best results.
+
+Think: LiDAR gives accurate depth but no color/texture. Stereo vision provides color but isn’t as accurate. Combining them creates a complete picture.
+
+Examples:
+
+LiDAR + stereo vision for autonomous vehicles = safer, more accurate driving.
+Structured light + photogrammetry for detailed object 3D models = accurate detail and realism.
+Press enter or click to view image in full size
+
+Hybrid 3D sensing system combining LiDAR and camera data with AI processing for enhanced results. © F. Poux
+Hybrid systems combine data from different sensors, like LiDAR and stereo vision, enhanced by AI processing.
+
+6. Choosing the Right 3D Sensor: It Depends! (Sorry, But It’s true.)
+There’s no “best” sensor—it depends on your application. This resource from Autodesk gives a good overview of scanning tech.
+
+Press enter or click to view image in full size
+
+Consider these factors:
+
+Accuracy: How precise do you need to be?
+Range: How far away do you need to sense?
+Lighting: Good lighting or complete darkness?
+Budget: How much can you spend?
+Processing Power: How much computing power do you have?
+Mission: Scanning the Museum (A Practical Example — Choosing Your Tech)
+
+You’re digitizing artifacts in a local museum for online exhibits. Choose the right 3D scanning solution.
+
+Assess the artifacts: size, shape, material. Consider the museum: lighting, space. Weigh your options: LiDAR for large sculptures? Structured light for intricate details? Maybe both?
+
+Press enter or click to view image in full size
+Decision tree flowchart for 3D sensor technology selection based on project criteria
+Decision flowchart for selecting the appropriate 3D sensor technology based on environment, range, and application requirements. © F. Poux
+Selecting the right 3D sensor involves considering factors like accuracy, range, and application requirements.
+
+The key is matching the tech to the specific needs of the project for optimal 3D data acquisition.
+
+Making decisions without thorough consideration can lead to disastrous outcomes. You need a clear understanding of your specific requirements. What level of accuracy do you actually need? How far away do you need to “see”? Is it a bright outdoor scene or a dimly lit room? What’s your budget? It is important to realistically assess the project. Don’t forget to factor in the computational resources required to process the data.
+
+A high-resolution LiDAR dataset is useless if you don’t have the processing power to handle it. It is also important to consider the skill set of the team as well.
+
+7. Challenges and Limitations of 3D Sensors: It’s Not All Perfect
+3D sensing is amazing, but not flawless. Too often, the marketing glosses over the very real limitations and challenges that come with using these technologies. Being aware of these pitfalls is crucial to avoiding costly mistakes and ensuring realistic expectations. It’s important to have a realistic expectation so you are not disappointed down the line.
+
+Most, if not all, sensors are highly susceptible to environmental interference. Rain, fog, and snow can wreak havoc on LiDAR signals. Sunlight and shadows can confuse stereo vision systems. Vibration can blur structured light patterns. You cannot simply plug in and expect perfect results; careful calibration, filtering, and error correction are essential.
+
+On top of that, processing 3D data is expensive. High-resolution point clouds, dense stereo images, and complex photogrammetric models require significant computing power and specialized software.
+
+Real-time processing, like what’s needed for autonomous vehicles, pushes the limits of even the most powerful hardware. There is not one magic box that can solve these problems.
+
+Keep these challenges in mind:
+
+Data Noise: Sensors can be affected by weather/lighting.
+Computational Demands: Processing 3D data can be intensive.
+Occlusion: Sensors can’t see behind objects.
+Calibration: Sensors need careful calibration for accurate measurements.
+🦊 Florent’s Note: As 3D sensors become more ubiquitous, ethical considerations become increasingly important. What are the implications of constantly scanning and mapping public spaces? How do we protect people’s privacy in a world where everything is being digitized in 3D? Do we have the right to create a digital twin of someone’s home without their consent? These are tough questions that we need to address as a society.
+
+8. Future Trends in 3D Sensing: What’s Coming Next?
+The future of 3D sensing is undoubtedly exciting, but it’s crucial to separate the genuine advancements from the marketing hype. While we can expect progress in areas like AI-powered sensors and real-time processing, it’s important to approach these trends with a critical eye.
+
+I see three major trends currently.
+
+AI-Powered Sensors
+The idea of using AI to enhance sensor data is tantalizing. AI could correct for distortions, fill in missing data, and even identify objects in real-time. However, AI is only as good as the data it’s trained on. Biased training data can lead to inaccurate or even discriminatory results. We need to be careful about the datasets we use to train these algorithms and ensure that they are representative of the real world. Be careful what data sets you use; bias can cause problems down the line!
+
+Real-Time Processing
+The promise of real-time 3D reconstruction is driving innovations in areas like virtual reality and augmented reality. Imagine wearing a VR headset that can perfectly map your surroundings in real-time, allowing you to interact with virtual objects in a truly immersive way. However, achieving truly low-latency processing requires not only faster hardware but also clever algorithms and efficient data structures. This is also very demanding on the hardware.
+
+Smaller, Cheaper Sensors
+Miniaturization is undoubtedly making 3D sensing more accessible and opening up new applications in areas like mobile devices and wearable technology. But smaller sensors often come with trade-offs in terms of accuracy, range, and resolution. We need to be realistic about these limitations and focus on developing applications that are well-suited to the capabilities of these smaller sensors. Not all sensors are equal; the size and price often reflect their abilities.
+
+Press enter or click to view image in full size
+
+Future trends in 3D sensing technology including AI-driven fusion, miniaturization, low-latency processing, and advanced materials. © F. Poux
+Future trends in 3D data science include AI-driven fusion, low-latency processing, and miniaturization.
+
+The true potential of 3D sensing lies not just in developing new technologies but in thoughtfully addressing the ethical, social, and practical challenges that come with them. It’s about more than just creating fancy 3D models; it’s about building a future where 3D data is used to solve real problems and improve people’s lives.
+
+Conclusion: Beyond the Sensors
+We’ve journeyed through the world of 3D sensors, dissecting the technologies, understanding the limitations, and glimpsing the possibilities that lie ahead.
+
+But the true power lies in how we leverage the data they provide—how we analyze it, visualize it, and ultimately, use it to solve real-world problems.
+
+🍓 Florent: These are skills that you develop through the Segmentor OS Program at the 3D Geodata Academy.
+
+About the author
+Florent Poux, Ph.D.
+ is a Scientific and Course Director focused on educating engineers on leveraging AI and 3D Data Science. He leads research teams and teaches 3D Computer Vision at various universities. His current aim is to ensure humans are correctly equipped with the knowledge and skills to tackle 3D challenges for impactful innovations.
+
+Resources
+🏆Awards: Jack Dangermond Award
+📕Book: 3D Data Science with Python
+📜Research: 3D Smart Point Cloud (Thesis)
+🎓Courses: 3D Geodata Academy Catalog
+💻Code: Florent’s Github Repository
+💌3D Tech Digest: Weekly Newsletter
+3d
+Lidar
+Point Cloud
+Sensors
+78
+
+
+1
+
+
+
+
+Towards AI
+Published in Towards AI
+93K followers
+·
+Last published 2 hours ago
+Making AI accessible to 100K+ learners. Find the most practical, hands-on and comprehensive AI Engineering and AI for Work certifications at academy.towardsai.net - we have pathways for any experience level. Monthly cohorts still open — use COHORT10 for 10% off!
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (1)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Ev Yemini
+Ev Yemini
+
+Mar 23
+
+
+Great article! Thorough and well written.
+Reply
+
+More from Florent Poux, Ph.D. and Towards AI
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+We Spent $47,000 Running AI Agents in Production. Here’s What Nobody Tells You About A2A and MCP.
+Towards AI
+In
+
+Towards AI
+
+by
+
+Teja Kusireddy
+
+We Spent $47,000 Running AI Agents in Production. Here’s What Nobody Tells You About A2A and MCP.
+Multi-agent systems are the future. Agent-to-Agent (A2A) communication and Anthropic’s Model Context Protocol (MCP) are revolutionary. But…
+
+Oct 16
+3.7K
+123
+
+
+The Real Tech Stack Behind AI Startups: A 200-Company Analysis
+Towards AI
+In
+
+Towards AI
+
+by
+
+Teja Kusireddy
+
+The Real Tech Stack Behind AI Startups: A 200-Company Analysis
+Three weeks of network monitoring revealed the truth: 73% of funded AI startups are running $33M valuations on $1,200/month in OpenAI…
+
+Nov 3
+2.9K
+86
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from Towards AI
+Recommended from Medium
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+Google Earth and Earth Engine
+In
+
+Google Earth and Earth Engine
+
+by
+
+Google Earth
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+By Alicia Sullivan, Earth Engine Product Manager; Kel Market, Cloud Geographer; and Gena Donchyts, Cloud Geographer
+Jun 17
+109
+2
+
+
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+I Don’t Use Microsoft Word for Math Anymore. Gemini’s LaTeX Upgrade Changed Everything.
+Data And Beyond
+In
+
+Data And Beyond
+
+by
+
+Adham Khaled
+
+I Don’t Use Microsoft Word for Math Anymore. Gemini’s LaTeX Upgrade Changed Everything.
+I tried Gemini’s new LaTeX features — here’s how they fix math for students, engineers, and creators (and why you should care).
+
+Oct 23
+570
+16
+
+
+A Python-Based Workflow for Land Cover Classification Using Geemap, Rasterio, Geopandas, Numpy…
+Dr.Preethi Balaji
+Dr.Preethi Balaji
+
+A Python-Based Workflow for Land Cover Classification Using Geemap, Rasterio, Geopandas, Numpy…
+If you’ve read my previous articles, you’ll know I’m a long-time connoisseur of Google Earth Engine (GEE) — especially its JavaScript API…
+
+Jul 23
+105
+1
+
+
+The Controversy of YOLOv13
+Zain Shariff
+Zain Shariff
+
+The Controversy of YOLOv13
+YOLOv13 is under controversy on whether it is a brand new and novel model that brings advantages and performance boosts. Read to learn…
+Jul 19
+18
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

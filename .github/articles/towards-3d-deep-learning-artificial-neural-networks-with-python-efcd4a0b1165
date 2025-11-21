@@ -1,0 +1,509 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+Towards AI
+Towards AI
+Making AI accessible to 100K+ learners. Find the most practical, hands-on and comprehensive AI Engineering and AI for Work certifications at academy.towardsai.net - we have pathways for any experience level. Monthly cohorts still open — use COHORT10 for 10% off!
+
+Follow publication
+
+Top highlight
+
+Member-only story
+
+Towards 3D Deep Learning: Artificial Neural Networks with Python
+A Hands-on Beginner's Guide to Unlock the Power of Artificial Neural Networks in Python
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+11 min read
+·
+Sep 14, 2023
+173
+
+
+2
+
+
+
+
+
+Press enter or click to view image in full size
+
+Artificial Neural Networks Applications for Raster, Vector and 3D Point Clouds. © F. Poux
+In the realm of Artificial Intelligence, few technologies have garnered as much attention and achieved groundbreaking success as Artificial Neural Networks. Inspired by the human brain's complex interconnectedness (sorry for the swear word), these robust algorithmic structures have revolutionized, for real, the field of deep learning, propelling us into an era of unprecedented machine intelligence.
+
+Press enter or click to view image in full size
+
+The “depth levels” of several AI technologies: Machine Learning, Artificial Networks, Deep Learning. © F. Poux
+Now, my task is to ensure you can move on to the 3D stuff, one of the top difficulty levels in Deep Learning (DL)!
+
+Press enter or click to view image in full size
+
+It is like a video game. You have to choose a difficulty level so that it is fun! © F. Poux
+But on this quest, I also need to ensure that you can work as a standalone app (yes, you are a life app 😁), where you have all the ingredients to create the next big things: the DL concepts, the coding know-how, the 3D vision, and the ultimate fun guide to guide you through this journey.
+
+In this session, we embark on an exhilarating journey to make the fundamentals of artificial neural networks work on a simple task: image classification. This is the perfect pragmatic playground to demystify core concepts (architecture, layers, and activation functions) to train, then a working neural network model touching on backpropagation, optimization algorithms, and loss functions.
+
+Press enter or click to view image in full size
+
+The power of combining ANN concepts with Python and an image classification objective. © F. Poux
+I decomposed this tutorial into four main steps, which we will follow as illustrated below.
+
+Press enter or click to view image in full size
+
+The workflow that we are following to use ANN for this mission efficiently. © F. Poux
+I know, you are more ready than ever, then free some HDD space in your clever brain to download the first stepping stone. 🪨
+
+🎵 Note to Readers: This hands-on guide is inspired by one of my 3D Online Courses, and co-authored with my dear friend Dr. Jean-Jacques Ponciano. All images are © F. Poux. The Code is provided within Colab at the end of the guide, and accessible on GitHub.
+
+Our Scenario
+It is the year 2345; you are the last non-gendered (I need to be careful now because you can identify as a plant in this year😁) animal on earth, but by chance, you got your hands onto a piece of exquisite computer machinery, with limited access to something call outernet (like the internet but, it is not in anymore). It has been ten years that you struggled to differentiate a frog from a car these days, and frog attacks are becoming more frequent than ever.
+
+Press enter or click to view image in full size
+
+I guess this speaks for itself? © F. Poux
+Therefore, you want to create a robot that can differentiate between them. Are you ready?
+
+Step 1: Data Preparation
+Press enter or click to view image in full size
+
+All right then, time to activate the seriousness, level 20%. The data preparation consists of constituting two distinguished sets: a training dataset to train a model to classify images and a test dataset to check how the model would perform in natural conditions.
+
+These datasets must be adapted to the ANN input layer for a functioning model. Let us move on to the practical side. We are going to develop an artificial neural network in Python. Woohoo!
+
+You should set up a development environment if you start from scratch. This is covered in other guides, such as this one that provides a simple Anaconda + JupyterLab setup:
+
+3D Python Workflows for LiDAR City Models: A Step-by-Step Guide
+The Ultimate Guide to unlocking a streamlined workflow for 3D City Modelling Applications. The tutorial covers Python…
+towardsdatascience.com
+
+Alternatively, you can use PyCharm directly, a free IDE in the community edition with excellent documentation. The installation of libraries with PyCharm is reduced to a simple right-click on the imports, selecting “show context action” and then “install the package”.
+
+Library setup
+In this guide, we use four libraries: Numpy (a computational library, the base layer of Python), Matplotlib (to plot things), TensorFlow (a library developed by Google primarily for deep learning applications), and the Keras library. Keras is used by CERN, NASA, NIH, and many more scientific organizations worldwide (and yes, Keras is used at the LHC). Keras has the low-level flexibility to implement arbitrary research ideas while offering optional high-level convenience features to speed up experimentation cycles.
+
+Let us go on the coding side. To use these libraries in our application, we write these lines in our script:
+
+import numpy as np
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from tensorflow import keras
+Dataset download
+We can then download and set up our dataset. For our example, we take the dataset cifar10, which consists of images representing ten classes (airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck).
+
+
+An extract of CIFAR10 dataset that we are going to use. © F. Poux
+First, let us import a submodule from the Keras library:
+
+from tensorflow.keras import datasets
+As it is embedded in the Keras library, This allows us to get our hands on the dataset with one line of code instead of organizing a manual download:
+
+#We load the data into training and testing sets
+from tensorflow.keras import datasets
+(x_train, y_train), (x_test, y_test) = keras.datasets.cifar10.load_data()
+By loading this dataset, we get four sets: x_train represents the training data and y_train represents the classes corresponding to each image of x_train. The same goes for x_test and y_test, which are the sets allowing us to test the neural network. One final step is normalizing our features to a range of [0;1]. As our colors are 8 bits (coded between 0 and 255) we can do the following:
+
+#We Normalize
+x_train, x_test = x_train / 255.0, x_test / 255.0
+Let us take a look at a sample of the first nine images in the test dataset using Matplotlib:
+
+plt.figure(figsize=(5, 5))
+for i in range(0, 25):
+    plt.subplot(5, 5, i + 1)
+    plt.imshow(x_test[i])
+    plt.axis("off")
+plt.show()
+This allows us to plot 25 images from the test set, and we obtain the following views:
+
+
+The result of the 25 best images. © F. Poux
+Step 2: Artificial Neural Network (ANN) Set Up
+Press enter or click to view image in full size
+
+We can now move on to the serious work of creating the neural network. We initialize the neural network with the Sequential function and create our input layer, by specifying the size of our images (height, width in pixels, and number of channels) to process (here 32*32*3, 3 because we have Red, Blue, and Green channels, each 32 by 32 pixels).
+
+model = tf.keras.models.Sequential([
+    tf.keras.layers.Flatten(input_shape=(32, 32, 3)),
+    # We will fill here with the sequence of layers
+])
+This new model variable is now composed of one layer initialized to process images with an input shape as defined. We can then stack any number of hidden perceptron layers by defining the perceptron (or neurons) number (n = 256), the type of connection (Dense for fully connected layer), and the type of activation function (here ReLu) for each layer. Let us say we want our model to have three hidden layers with, several neurons divided by two every time; this would mean that we write the following three lines:
+
+tf.keras.layers.Dense(256, activation='relu'),
+tf.keras.layers.Dense(128, activation='relu'),
+tf.keras.layers.Dense(64, activation='relu'),
+🦚 Note: This is a basic setup where each neuron in the dense layer receives input from all neurons of its previous layer. The dense layer is the most commonly used in DL models and performs a matrix-vector multiplication.
+
+Press enter or click to view image in full size
+
+A simple representation of the difference between dense layers and not dense layers. © F. Poux
+The last floating concern is the activation function ReLu that we use. An activation function is specific to each layer and allows the data to be transformed non-linearly. To simplify, it allows the neuron of a layer to have a different point of view on the data, and ReLu is a great starting point.
+
+We then use a dropout layer (Dropout(0.2)) to avoid overfitting.
+
+Press enter or click to view image in full size
+
+This clearly illustrates how overfitting and underfitting influence the results. © F. Poux
+We stack this layer just after our last hidden layer:
+
+tf.keras.layers.Dropout(0.2),
+🦚 Note: This exclusion layer randomly sets the input units to 0 with the given rate frequency at each training period step. Experiments show that the dropout value should range from 20% to 50%. Thus, we choose 20%.
+
+You can duplicate these two layers to a certain extent, but, in general, one or two hidden layers are enough for low dimensions or low numbers of features (under five features). Three to five hidden layers can increase performance for datasets with large dimensions or feature numbers.
+
+To finish the creation of our network, we set up the output layer, this time composed of 10 neurons corresponding to the number of classes we expect:
+
+tf.keras.layers.Dense(10)
+This brings the model's entire creation process to these eight lines of code:
+
+#Definition of our model
+model = tf.keras.models.Sequential([
+        tf.keras.layers.Flatten(input_shape=(32, 32, 3)),
+        tf.keras.layers.Dense(256, activation='relu'),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(10)
+        ])
+We can see all the interest in deep learning, which is stacking layers on top of each other until everything falls apart 😁. This is a(funny) joke, except if you want to experiment with burning computer grids (true story).
+
+Press enter or click to view image in full size
+
+The architecture that we are setting up. © F. Poux
+Step 3: ANN Learning phase
+Press enter or click to view image in full size
+
+Now that the ANN is configured, we must train it to determine the value of all perceptron parameters.
+
+Before starting the learning phase, we need to “compile ” the ANN model by defining “how ” to calculate critical values. For this, we use an Optimizer, an algorithm to find the value of the parameters that minimize the error when mapping inputs and outputs (see a list of 4 valuable optimizers in the table below).
+
+Press enter or click to view image in full size
+
+A selection of 4 of the most useful optimizers. © F. Poux
+We also need to determine a cost function to calculate the difference between the predicted and current values (see the list of cost functions in the table below). In a multi-class classification problem like ours, cross-entropy (using SparseCategoricalCrossentropy) is a good choice as it will generate a score that summarizes the mean difference between actual and anticipated probability distribution.
+
+Finally, we define the evaluation metric used by the model during training. At this stage, accuracy is an excellent way to assess how often the model is correct.
+
+All of this mumbo jumbo is passed to our model with one single line of code:
+
+model.compile(optimizer='adam',
+              loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+              metrics=['accuracy'])
+In addition to defining these, we need to determine the number of training periods (epochs) corresponding to the number of times the training is performed on the test data set.
+
+We usually experiment with different epochs and analyze the loss metric to determine the best number to choose (trial and error kind of approach). In our case, we define a stopping criterion that will stop the training when the number of epochs with no improvement exceeds our patience value, set to 5 epochs:
+
+# Defining a early stopping criterion
+from keras import callbacks
+earlystopping = callbacks.EarlyStopping(monitor="loss", patience=5)
+Awesome! We are going at a superb pace! You earn the right to eat a cookie 🍪, a fruit slice 🍉, or have a glass of water 🥛, whichever most appeals to you!
+
+Then, we train the ANN by passing the training data variable (x_train), the corresponding class labels (y_train), the maximum number of epochs we can tolerate, and the callbacks function previously defined.
+
+model.fit(x_train, y_train, epochs=50, callbacks =[earlystopping])
+🦚 Note: You can expect to have around 20 seconds per epoch. Therefore, with advanced mathematics, training over 25 epochs brings a total training time of around 8 minutes and 30 seconds.
+
+You will get an output that looks like this:
+
+Press enter or click to view image in full size
+
+As you can see, in every epoch that follows the backpropagation scheme, we slightly improved the score using our accuracy metric and decreased our loss over our training dataset. Let us now turn to some friendly experiments.
+
+Step 4: Experiments
+Press enter or click to view image in full size
+
+That is it! Our network is finally ready to process data. To retrieve the results of the classification as probabilities, we need to embed our model in the following way:
+
+probability_model = tf.keras.Sequential([model,tf.keras.layers.Softmax()])
+The softmax function is used to transform the data into a vector of probabilities, indicating the probability that a data entity belongs to each of the output classes. Then, we can predict the results on the test data set:
+
+predictions = probability_model.predict(x_test)
+It is that easy! So, what does this give as a quantitative result:
+
+# show metrics
+loss_and_metrics = model.evaluate(x_test, y_test)
+print(loss_and_metrics)
+We now raise the curtains: our loss is 1.5518 with an accuracy of 0.4824 on our test set of 10,000 images. This is a good start when considering how simple our architecture is defined! But, Still, we have some things that could be improved hindering our process. A good model should yield above 80%. So, let us view the results by iterating on the predictions with a piece of magickal 🪄code that I give below:
+
+plt.figure(figsize=(10, 10))
+for i in range(0, 9):
+    plt.subplot(3, 3, i + 1)
+    plt.imshow(x_test[i])
+    prediction = np.argmax(predictions[i])
+    plt.title(int(prediction))
+    plt.axis("off")
+plt.show()
+This permits the display of the result of the labeling phase with the classification of each image, as shown below.
+
+
+At this stage, I am thrilled to see that our network predicted a picture of a frog to be a frog 🐸, and a picture of a car is a car 🚗(ok, automobile, potato — potato 🥔). But we have some labeling mismatches, which means our mission needs to push the frontier of possibilities! He thought a frog was a deer, a horse a frog, or a car a dog! And that would be very dangerous for our mission! So we need to improve our performance drastically!
+
+But more on that in the next episode. (Have you heard of convolutions😉?)
+
+Now you have an ANN that is set up and working! Feel free to enjoy it on other datasets without forgetting to pre-process the data so that it corresponds as much as possible to the training data features. Some examples of datasets that are available and good practice are below:
+
+MyNursingHome: The dataset contains 37,500 digital images from 25 indoor object categories.
+Mnist: A database of handwritten digits
+from tensorflow.keras.datasets import mnist
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+Press enter or click to view image in full size
+
+🔮 Conclusion
+This article gave you a quick hands-on feel of Deep Learning with Artificial Neural Networks: how to define the basic architecture, explain different layers, and implement a ready-to-work ANN. This is the first stepping stone 🪨 to your 3D Deep Learning journey! Of course, to quickly and robustly gain expertise, do not hesitate to go through one or more of these shortcuts below:
+
+💻 Get Access to the Code here: Google Colab
+👨‍🏫3D Data Processing and AI Courses: 3D Data Academy
+📖 Subscribe to get early access to 3D Tutorials: 3D AI Automation
+💁 Support my work with Medium 🤟: Medium Subscription
+3d
+Deep Learning
+Python
+Neural Networks
+Tutorial
+173
+
+
+2
+
+
+
+
+Towards AI
+Published in Towards AI
+93K followers
+·
+Last published 3 hours ago
+Making AI accessible to 100K+ learners. Find the most practical, hands-on and comprehensive AI Engineering and AI for Work certifications at academy.towardsai.net - we have pathways for any experience level. Monthly cohorts still open — use COHORT10 for 10% off!
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (2)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Cem Tutum
+Cem Tutum
+
+Sep 14, 2023
+
+
+I thought you were a pytorch-person :)
+2
+
+
+1 reply
+
+Reply
+
+Michael J. Rivard
+Michael J. Rivard
+
+Jan 21, 2024
+
+
+Hi Florent, are the illustrations in this article hand-drawn, or did you create them using software that mimics a hand-drawn style? I'm asking because there is a very highly regarded physicist, Nima Arkani-Hamed, whose presentation slides appear to…more
+Reply
+
+More from Florent Poux, Ph.D. and Towards AI
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+We Spent $47,000 Running AI Agents in Production. Here’s What Nobody Tells You About A2A and MCP.
+Towards AI
+In
+
+Towards AI
+
+by
+
+Teja Kusireddy
+
+We Spent $47,000 Running AI Agents in Production. Here’s What Nobody Tells You About A2A and MCP.
+Multi-agent systems are the future. Agent-to-Agent (A2A) communication and Anthropic’s Model Context Protocol (MCP) are revolutionary. But…
+
+Oct 16
+3.7K
+123
+
+
+The Real Tech Stack Behind AI Startups: A 200-Company Analysis
+Towards AI
+In
+
+Towards AI
+
+by
+
+Teja Kusireddy
+
+The Real Tech Stack Behind AI Startups: A 200-Company Analysis
+Three weeks of network monitoring revealed the truth: 73% of funded AI startups are running $33M valuations on $1,200/month in OpenAI…
+
+Nov 3
+2.9K
+86
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from Towards AI
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+YOLO26: Not as Good as YOLO12
+Zain Shariff
+Zain Shariff
+
+YOLO26: Not as Good as YOLO12
+YOLO26 release came with new preliminary data, however further digestion of the data sort of reveals how YOLO12 might be better, read…
+Sep 30
+17
+2
+
+
+Real-Time Face Tracking in the Browser with MediaPipe
+Chris McKenzie
+Chris McKenzie
+
+Real-Time Face Tracking in the Browser with MediaPipe
+On-device ML with zero latency, no servers, and full control over the UI
+Jul 21
+11
+
+
+YOLOv12 Object Detection with OpenCV and Java
+Javarevisited
+In
+
+Javarevisited
+
+by
+
+Tsvetan Tsvetkov
+
+YOLOv12 Object Detection with OpenCV and Java
+In this article, we will look at object detection using YOLOv12, OpenCV, and Java.
+
+Sep 12
+11
+
+
+Wait… YOLO11 to YOLO26?! Here’s what actually changed.
+Towards Deep Learning
+In
+
+Towards Deep Learning
+
+by
+
+Sumit Pandey
+
+Wait… YOLO11 to YOLO26?! Here’s what actually changed.
+YOLO11 to YOLO26?! Ultralytics skips ahead: NMS-free, edge-first, export-friendly vision model. Hype or real? My take. Yep
+
+Sep 26
+31
+1
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

@@ -1,0 +1,525 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+TDS Archive
+TDS Archive
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+Follow publication
+
+Top highlight
+
+Member-only story
+
+3D Ideas
+How to represent 3D Data?
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+15 min read
+·
+May 11, 2020
+238
+
+
+1
+
+
+
+
+
+A visual guide to help choose data representations among 3D point clouds, meshes, parametric models, depth-maps, RGB-D, multi-view images, voxels…
+
+Press enter or click to view image in full size
+
+Different data representation of a 3D point cloud dataset
+The 3D datasets in our computerized ecosystem — of which an increasing number comes directly from reality capture devices — are found in different forms that vary in both the structure and the properties. Interestingly, they can be somehow mapped with success to point clouds thanks to its canonical nature. This article gives you the main 3D data representations modes to choose from when bindings point clouds to your application.
+
+3D Point Clouds
+Press enter or click to view image in full size
+
+A 3D Point Cloud of an Abbey acquired in 2014 using photogrammetry (Gerpho), next to my hometown in the South of France 🙂. The Resolution is 1 cm, expressed as the Ground Sampling Distance.
+A point cloud is a set of data points in a three-dimensional coordinate system. These points are spatially defined by X, Y, Z coordinates and often represent the envelope of an object. Reality capture devices obtain the external surface in its three dimensions to generate the point cloud. These are commonly obtained through Photogrammetry (example above), LiDAR (Terrestrial Laser Scanning, Mobile Mapping, Aerial LiDAR as simulated below), depth sensing, and more recently deep learning through Generative Adversarial Networks.
+
+Press enter or click to view image in full size
+
+An aerial LiDAR simulated point cloud. See how this is mostly 2.5D from top-down sensing.
+Each technique holds several specificities influencing the quality and completeness of the data, and you can already see the difference between a full 360° capture vs a classical aerial LiDAR acquisition. This extends the scope of this specific article and will be covered in another issue, or in the formation from the 3D Geodata Academy:
+
+Point Cloud Processing Online Course - 3D Geodata Academy
+Formation to learn advanced point cloud processing and 3D automation. Develop new python geodata skills and open-source…
+learngeodata.eu
+
+Point clouds provide simple yet efficient 3D data representations, and I summarize below the main operations, benefits, and disadvantages that come with them.
+
+Main Operations
+
+Transformations: You can multiply the points in the point list with linear transformation matrices.
+Combinations: “Objects” can be combined by merging points list together.
+Rendering: Projects and draws the points onto an image plane
+Main Benefits
+
+Fast rendering
+Exact representation
+Fast transformations
+Main Disadvantages
+
+Numerous points (obj. curve, exact representation)
+High memory consumption
+Limited combination operations
+While fast rendering and transformations make a direct inspection of a point cloud handy, they often are not directly integrated into commonly used three-dimensional applications. However, recent developments show a trend for better support even within pure mesh-based rendering platforms with a recent example within the Unreal 4 game engine.
+
+A common process is to derive a mesh using a suitable surface reconstruction technique. There are several techniques for transforming point cloud into a three-dimensional explicit surface, some of which are covered in the article below.
+
+5-Step Guide to generate 3D meshes from point clouds with Python
+Tutorial to generate 3D meshes (.obj, .ply, .stl, .gltf) automatically from 3D point clouds using python. (Bonus)…
+towardsdatascience.com
+
+Let us further dive into 3D models as a representation to better grasp the range of possibilities.
+
+3D Models
+Almost all 3D models can be divided into two categories.
+
+Solid: These models define the volume of the object they represent. Solid models are mostly used for engineering and medical simulations and are usually built with Constructive Solid Geometry or voxels assemblies.
+Press enter or click to view image in full size
+
+Example of a solid 3D model through voxelization.
+Shell or boundary (B-Reps): These models represent the surface, i.e. the boundary of the object, not its volume. Almost all visual models used in reality capture workflows, games and film are boundary representations.
+Press enter or click to view image in full size
+
+Example of a shell representation of the Abbey.
+Solid and shell modeling can create functionally identical objects. Differences between them are mostly variations in the way they are created and edited and conventions of use in various fields and differences in types of approximations between the model and reality.
+
+Three main strategies permit to describe a point cloud through a 3D models. Constructive Solid Geometry, Implicit surfaces (+Parametric modeling), and Boundary representations (B-Reps). While Constructive Solid Geometry is very interesting and will be shortly discussed, the most common 3D models are B-Reps as 3D meshes. Let us first extend on theses.
+
+3D Mesh
+A mesh is a geometric data structure that allows the representation of surface subdivisions by a set of polygons. Meshes are particularly used in computer graphics, to represent surfaces, or in modeling, to discretize a continuous or implicit surface. A mesh is made up of vertices (or vertex), connected by edges making faces (or facets) of a polygonal shape. When all faces are triangles, we speak of triangular meshing. These are the most common in Reality Capture workflows.
+
+Press enter or click to view image in full size
+
+From top to bottom: The vertices of the mesh; the edges linking vertices together; the faces filling formed by vertices and edges, mostly triangular.
+Quadrilateral meshes are also very interesting but often obtained through mesh optimizations techniques to get more compact representations. It is also possible to use volumetric meshes, which connect the vertices by tetrahedrons, hexahedrons (cuboids), and prisms. These so-called meshes are based on the boundary representation, which depends on the wire-frame model (The object is simplified by 3D lines, each edge of the object is represented by a line in the model). Let us extend the theory.
+
+Boundary Representation
+
+The Boundary representation of 3D models is mainly composed of two parts: the topology (organization of elements) and the geometry (surfaces, curves, and points). The main topological items are faces, edges, and vertices and I schematized below a simple B-Rep for a cube.
+
+Press enter or click to view image in full size
+
+The schematization of the boundary representation underlying structure
+Operations
+
+Transformations: All points are transformed as with the wire-frame model (Multiply the points in the point list with linear matrices), besides, the surface equations or normal vectors can be transformed.
+Combinations: Objects can be combined by grouping point lists and edges to each other; Operations on polygons (Divide based on intersections, Remove the redundant polygons, Combine them …
+Rendering: Hidden surface or line algorithms can be used because the surfaces of the objects are known so that visibility can be calculated.
+Benefits
+
+Well-adopted representation
+Model generation via “new-gen scanning”
+Transformations are quick and easy
+Disadvantages
+
+High memory requirements
+Expensive combinations
+Curved objects are approximated
+Meshes are a great way to explicit the geometry of a point cloud, and often permits to widely reduce the number of needed points as vertices. On top, it permits to get a sense of the relationship between objects through the faces connectivities. However, meshing is an interpolation of the base point cloud geometry, and can only represent the data to a certain degree, linked to the complexity of the mesh. There exist a multitude of strategies to best mesh a point cloud, but this often demands to have some theoretical background and to know which parameter’s to adjust for an optimal result.
+
+Press enter or click to view image in full size
+
+Example of a 2.5D Delaunay triangulation of the point cloud.
+Voxel-based models
+A voxel can be seen as a 3D base cubical unit that can be used to represent 3D models. Its 2D analogy is the pixel, the smallest raster unit. As such, a voxel-based model is a discretized assembly of “3D pixels”, and is most often associated with solid modeling.
+
+Press enter or click to view image in full size
+
+In the case of point cloud data, one can represent each point as a voxel of size x, to get a “filled” view of empty spaces between points. It is mostly associated with data structures such as octrees, and permit to average a certain amount of points per voxel unit depending on the level of refinement needed (see example in the image below). This is very interesting, and I will cover the theory as well as the implementation in another dedicated article.
+
+Press enter or click to view image in full size
+
+Example of voxel generalization based on an octree subdivision of the space occupied by the point cloud data.
+While this is practical for rendering and smooth visualization, it comes to approximating the initial geometry coupled with aliasing artifacts and can give false information if the volume information is used unproperly. However, due to the very structured grid layout of voxel models, it can be very handy for processing tasks such as classification through 3D convolutional neural networks.
+
+Parametric Model (CAD)
+“Parametric” is used to describe a shape’s ability to change by setting a parameter to a targeted value that modifies the underlying geometry. This is e.g. very handy if you want to model “walls” by just setting up their orientation, length, width, and height.
+
+
+Example of modeling a wall by setting the parameter’s interactively to create a BIM model (Building Information Modelling)
+Parametric modeling is then suited to using computing capabilities that can model component attributes with an aim of real-world behavior. Parametric models use a composition of feature-based (parametric, as describe in a later section), solid and surface modeling to allow the manipulation of the model’s attributes.
+
+Press enter or click to view image in full size
+
+This is an automatically generated CAD model without a topology fix.
+One of the most important features of parametric modeling is that interlinked attributes can automatically change values. In other words, parametric modeling allows defining entire “classes of shapes”, not just specific instances. This however often demands a very “smart” structuration of the underlying point cloud geometry, to decompose the model entity into sub-entities (E.g. segments) that are aggregated in classes.
+
+
+Example of automatic segmentation as described in this award-winning Open Access Article [0]
+This process immensely benefits from object detection scenarios and the Smart Point Cloud Infrastructure as defined in the following article.
+
+The Future of 3D Point Clouds: a new perspective
+Discrete spatial datasets known as point clouds often lay the groundwork for decision-making applications. But can they…
+towardsdatascience.com
+
+Often, these parametric models can also be combined or extracted by combining 2D CAD drawings that interpolate the point cloud shape, and layers it depending on the class of elements.
+
+Press enter or click to view image in full size
+
+Example of several raw CAD sections from the initial point cloud before layering.
+These parametric models are oftentimes consuming to create but are the ones that give the most value to the 3D point cloud data. These come through massive semantic enrichment and additional triggers on the relations between objects constituting the scene.
+
+Depth map
+Now, we jump to raster-based point cloud representation. The first one is the depth-map.
+
+Press enter or click to view image in full size
+
+Depth-map of the point cloud based on a top-bottom view
+A depth map is an image or an “image channel” that contains information relating to the distance of the points constituting the scene from a single viewpoint. While we are used to working with RGB images, the simplest form of expressing the depth is to color-code on one channel, with intensity values. Bright pixels then have the highest value and dark pixels have the lowest values. And that is it. A depth image just presents values according to how far are objects, where pixels color gives the distance from the camera.
+
+💡 Hint: The depth map is related to the Z-buffer, where the “Z” relates to the direction of the central axis of view of a camera and not to the absolute Z scene coordinate.
+
+This form of point cloud representation is fine if you just need surface information linked to a known point of view. This is the case for autonomous driving scenarios where you can very quickly map the environment at each position through a 360 projected depth map. However, the big counterpart is that you are not working with 3D data, rather 2.5D as you cannot represent 2 different values for on line sight. Here are operations, benefits, and disadvantages depth-map come with:
+
+Operations
+
+Transformations: Multiply the pixels in the image with linear transformation matrices
+Combinations: Objects can be combined by merging the points lists.
+Rendering: Draws pixels on the image plane
+Benefits
+
+Low memory requirements
+Very well know Raster format
+Transformations are quick and easy
+Disadvantages
+
+Essentially a 2.5-D representation
+Cannot describe a full 3D scene on its own
+Weak topology
+Special case: RGB-D
+Third, representing 3D data as RGB-D images have become popular in recent years thanks to the popularity of RGB-D sensors. RGB-D data provides a 2,5D information about the captured 3D object by attaching the depth map along with 2D color information (RGB).
+
+
+This is the RGB raster imagery
+
+This is the depth channel associated
+Besides being inexpensive, RGB-D data are simple yet effective representations for 3D objects to be used for different tasks such as identity recognition [1], pose regression [2], and correspondence [1]. The number of available RGB-D datasets is huge compared to other 3D datasets such as point clouds or 3D meshes and as such is the preferred way of training deep learning models through extensive training datasets.
+
+Special case: Projections
+Secondly, projecting 3D data into another 2D space is another representation of raw 3D data where the projected data encapsulates some of the key properties of the original 3D shape [3].
+
+Press enter or click to view image in full size
+
+Example of widely deformed cylindrical projection of the point cloud
+Multiple projections exist where each of them converts the 3D object into a 2D grid with specific information. Projecting 3D data into the spherical and cylindrical domains (e.g. [4]) has been a common practice for representing the 3D data in such format. Such projections help the projected data to be invariant to rotations around the principal axis of the projection and ease the processing of 3D data due to the Euclidean grid structure of the resulting projections. However, such representations are not optimal for complicated 3D computer vision tasks such as dense correspondence due to the information loss in projection [5].
+
+Implicit representation
+Now, we move to what is the lesser visual component of point clouds: implicit representation. It just is a way to represent point clouds by a set of shape descriptors as described in the articles provided in [6,7].
+
+Press enter or click to view image in full size
+
+Color-based visualization of the verticality feature extracted to characterize the point cloud
+These can be seen as a signature of the 3D shape to provide a compact representation of 3D objects by capturing some key properties to ease processing and computations (E.g. expressed as a.csv file)
+
+x      y      z   surface   volume   omn.  ver.       
+9.9   30.5   265.3   334.5   103.3   4.6   0.0       
+-27.0   71.6   274.2   18.2   12.5   1.3   0.4       
+-11.8   48.9   273.8   113.2   620.4   3.7   0.7       
+26.9   43.8   266.1   297.1   283.6   3.9   0.0       
+42.9   61.7   273.7   0.1   0.0   0.3   0.8       
+-23.1   36.5   263.3   26.3   14.8   1.6   0.0       
+-9.5   73.1   268.2   24.0   11.4   2.2   0.0       
+32.2   70.9   284.0   36.0   139.1   1.7   0.8       
+-20.5   20.7   263.2   34.0   3.4   1.8   0.8       
+-2.3   73.6   262.2   28.2   15.6   2.6   1.0
+The nature and the meaning of this signature depend on the characteristic of the shape descriptor used and its definition. For example, global descriptors provide a concise yet informative description for the whole 3D shape while local descriptors provide a more localized representation for smaller patches in the shape. The work of Kazmi et al. [6], Zhang et al. [7] and more recently Rostami et al. [8] provide comprehensive surveys about such 3D shape descriptors.
+
+Implicit representation is very handy as part of a processing pipeline, and to ease data transfer among different infrastructures. It is also very useful for advanced processes that benefit from informative features hard to visually represent.
+
+Multi-View
+Press enter or click to view image in full size
+
+Fifth, we can access 3D information from a multi-view image, which is a 2D-based 3D representation where one accesses the information by matching several 2D images for the same object from different points of view. Representing 3D data in this manner can lead to learning multiple feature sets to reduce the effect of noise, incompleteness, occlusion, and illumination problems on the captured data. However, the question of how many views are enough to model the 3D shape is still open, and linked to the acquisition methodology for photogrammetric reconstructions: a 3D object with an insufficiently small number of views might not capture the properties of the whole 3D shape (especially for 3D scenes) and might cause an over-fitting problem. Both volumetric and multi-view data are more suitable for analyzing rigid data where the deformations are minimal.
+
+What about Machine Learning and Deep Learning?
+3D Data has a tremendous potential for building Machine Learning systems, especially Deep Learning. However, currently, true 3D data representations such as 3D meshes need to be considered regarding another Deep Learning paradigm.
+
+Indeed, the vast majority of deep learning is performed on Euclidean data. This includes datatypes in the 1-dimensional and 2-dimensional domain. Images, text, audio, and many others are all euclidean data. Of this, particularly the RGB-D datasets are then nowadays able to build on to of massive labeled libraries if one seeks to automatically detect objects in the scene. But meshes or structured point clouds could benefit from exploiting their rich underlying relationships. This is achieved for example by embedding them in a graph structure (a data structure that consists of nodes (entities) that are connected with edges (relationships)), but this makes them Non-Euclidean (which meshes are by nature), thus non-usable by classical Machine Learning architectures.
+
+For this, an emerging field called Geometric Deep Learning (GDL) aims to build neural networks that can learn from non-euclidean data.
+
+As nicely put by a fellow scientist Flawnson Tong in this recommend article (here):
+
+The notion of relationships, connections, and shared properties is a concept that is naturally occurring in humans and nature. Understanding and learning from these connections is something we take for granted. Geometric Deep Learning is significant because it allows us to take advantage of data with inherent relationships, connections, and shared properties.
+
+Thus, every 3D Data Representation can be used within a Machine Learning project, but some will be for more experimental projects (non-euclidean representations), whereas euclidean data can directly be ingested in your application
+
+Conclusion
+If you read up until now, kudos to you 😆 ! To summarize, the 3D data representation world is super flexible, and you now have the knowledge to make an informed decision for choosing your data representation:
+
+3D Point clouds are simple and efficient but lack connectivity;
+3D models found as 3D meshes, Parametric models, voxel assemblies propose dedicated levels of additional information but approximate the base data;
+Depth maps are well known and compact but essentially deal with 2.5D data;
+Implicit representation encompasses all of the above but is hardly visual;
+Multi-view is complimentary and leverage Raster imagery but is prone to failure case for optimal viewpoint selection.
+And as always, if you want to go beyond, you will find several references below. You can also start the journey to excellence today by taking a formation at the Geodata Academy.
+
+Point Cloud Processing Online Course - 3D Geodata Academy
+Formation to learn advanced point cloud processing and 3D automation. Develop new python geodata skills and open-source…
+learngeodata.eu
+
+References
+0. Poux, F.; Billen, R. Voxel-Based 3D Point Cloud Semantic Segmentation: Unsupervised Geometric and Relationship Featuring vs Deep Learning Methods. ISPRS International Journal of Geo-Information 2019, 8, 213.
+
+1. Erdogmus, N.; Marcel, S. Spoofing in 2D face recognition with 3D masks and anti-spoofing with Kinect. In Proceedings of the 6th International Conference on Biometrics: Theory, Applications and Systems (BTAS); IEEE, 2013; pp. 1–6.
+
+2. Fanelli, G.; Weise, T.; Gall, J.; Gool, L. Van Real-Time Head Pose Estimation from Consumer Depth Cameras. 2011, 101–110.
+
+3. Houshiar, H. Documentation and mapping with 3D point cloud processing, University of Würzburg, 2012.
+
+4. Cao, Z.; Huang, Q.; Ramani, K. 3D Object Classification via Spherical Projections. 2017.
+
+5. Sinha, A.; Bai, J.; Ramani, K. Deep learning 3D shape surfaces using geometry images. In Proceedings of the European Conference on Computer Vision (ECCV); Amsterdam, Germany, 2016; pp. 223–240.
+
+6. Kazmi, I.K.; You, L.; Zhang, J.J. A survey of 2D and 3D shape descriptors. In Proceedings of the 10th International Conference Computer Graphics, Imaging, and Visualization (CGIV); IEEE, 2013; pp. 1–10.
+
+7. Shin, D.; Fowlkes, C.C.; Hoiem, D. Pixels, voxels, and views: A study of shape representations for single-view 3D object shape prediction. 2018.
+
+8. Rostami, R.; Bashiri, F.S.; Rostami, B.; Yu, Z. A Survey on Data-Driven 3D Shape Descriptors. Computer Graphics Forum 2018, 00, 1–38.
+
+About the author
+Florent Poux has been at the forefront of automation in 3D Tech for more than 15 years. He authored 100+ papers and patents on 3D Recognition. He holds an award-winning Ph.D. in Sciences and is recognized as an outstanding researcher through the once-every-4-year ISPRS Jack Dangermond 2019 award.
+
+Florent Poux is a Senior 3D Tech Executive that shares knowledge and research for 3D Data Science
+He bridges high-level research & knowledge transmission as a Professor (3D Data Academy), a Senior Scientist (OpenClassrooms, UTwente, ULiège) as well as a 3D Tech Senior Executive.
+
+3D Innovator Newsletter
+Weekly practical content, insights, code and resources to master 3D Data Science. I write about Point Clouds, AI…
+learngeodata.eu
+
+3d
+Model
+Visualization
+Point Cloud
+Deep Learning
+238
+
+
+1
+
+
+
+
+TDS Archive
+Published in TDS Archive
+829K followers
+·
+Last published Feb 3, 2025
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (1)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Mehdi Maboudi
+Mehdi Maboudi
+
+May 25, 2021
+
+
+Hi Florent,
+Did you also share the notebook?
+Reply
+
+More from Florent Poux, Ph.D. and TDS Archive
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Francesco Casalegno
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+Leveraging data to help users discovering new contents
+Nov 25, 2022
+542
+5
+
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Ketan Doshi
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+A Gentle Guide to the inner workings of Self-Attention, Encoder-Decoder Attention, Attention Score and Masking, in Plain English.
+Jan 17, 2021
+3K
+35
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from TDS Archive
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+AlphaEarth Foundations: Implications for Cities and Urban Planners
+Urban AI
+Urban AI
+
+AlphaEarth Foundations: Implications for Cities and Urban Planners
+How Embeddings And GeoAI Are Transforming Urban Planning
+Oct 14
+22
+
+
+Point Cloud Data
+Sujeeth Kumaravel
+Sujeeth Kumaravel
+
+Point Cloud Data
+Point cloud data is 3D because each point in the cloud represents a position in three-dimensional space using three coordinates:
+Jun 10
+
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+Google Earth and Earth Engine
+In
+
+Google Earth and Earth Engine
+
+by
+
+Google Earth
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+By Alicia Sullivan, Earth Engine Product Manager; Kel Market, Cloud Geographer; and Gena Donchyts, Cloud Geographer
+Jun 17
+109
+2
+
+
+A Python-Based Workflow for Land Cover Classification Using Geemap, Rasterio, Geopandas, Numpy…
+Dr.Preethi Balaji
+Dr.Preethi Balaji
+
+A Python-Based Workflow for Land Cover Classification Using Geemap, Rasterio, Geopandas, Numpy…
+If you’ve read my previous articles, you’ll know I’m a long-time connoisseur of Google Earth Engine (GEE) — especially its JavaScript API…
+
+Jul 23
+105
+1
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

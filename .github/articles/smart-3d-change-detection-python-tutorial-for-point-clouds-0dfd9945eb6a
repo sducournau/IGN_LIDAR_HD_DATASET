@@ -1,0 +1,1295 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+Data Science Collective
+Data Science Collective
+Advice, insights, and ideas from the Medium data science community
+
+Follow publication
+
+Member-only story
+
+3D Python
+Smart 3D Change Detection: Python Tutorial for Point Clouds
+Learn to detect missing building components and structural changes using Python point cloud analysis. Complete tutorial with Open3D and real-world examples.
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+30 min read
+·
+Jul 28, 2025
+235
+
+
+3
+
+
+
+
+
+Press enter or click to view image in full size
+3D Change Detection for Point Clouds: the tutorial by Florent Poux
+The 3D Change Detection Tutorial: How to identify zones in a 3D point cloud that showcase a major change. © F. Poux
+The hardest part of infrastructure monitoring isn’t collecting the data…
+
+It’s knowing what changed between scans.
+
+Let me explain…
+
+Every construction site tells a story of transformation.
+
+🎁 Gift: Read the complete tutorial for free with my friend’s link.
+
+Buildings rise from foundations, structures evolve, and environments change daily. And sometimes, these changes come from natural disasters, such as illustrated below.
+
+Press enter or click to view image in full size
+Side-by-side point cloud comparison of Toulouse castle at different time periods for change detection analysis
+Before and after comparison of a castle structure showing temporal changes between T0 and T1 epochs. © F. Poux
+To assess what has changed, how would you proceed here?
+
+Is playing the “7 differences game” enough?
+
+It might well be, at least, it is fun!
+
+But in a professional context, and at scale, traditional methods of tracking these changes remain painfully manual, error-prone, and time-consuming:
+
+Manually comparing point clouds in visualization software
+Eyeballing differences between temporal datasets
+Creating subjective reports based on visual inspection
+Spending weeks analyzing what should take minutes
+This is not optimal.
+
+Press enter or click to view image in full size
+High-resolution 3D point cloud of medieval castle structure processed for infrastructure monitoring
+Detailed view of castle point cloud data captured using terrestrial laser scanner for temporal analysis. © F. Poux
+It showcases a fundamental challenge that has plagued the construction industry (and not only it!!!) for decades: the inability to detect and quantify changes in complex 3D environments efficiently.
+
+But what if there was a better way?
+
+What if you could automate the detection of every structural change + retain only the meaningful geometric differences?
+
+Yes, I have something for you!
+
+The answer lies in what I call: “Smart 3D change detection.”
+
+a powerful fusion of spatial algorithms, statistical analysis, and computational geometry that transforms raw point cloud data into actionable intelligence.
+
+But the real breakthrough comes when you realize that 3D change detection isn’t about finding differences .
+
+It’s about finding meaningful differences while filtering out everything else.
+
+🌱 Florent’s Note: I’ve seen teams spend months building change detection systems that work perfectly in controlled lab environments but fail catastrophically with real-world construction noise. The key is designing for messy data from day one.
+
+Your detection system can only be as reliable as your algorithmic foundation.
+
+If this sounds exciting, let us build a Python systems that never sleep, never miss a detail, and never make subjective judgments.
+
+Let us develop algorithms that can accurately detect the removal of a single structural beam, the addition of new building elements, or the subtle shift of foundation components.
+
+By the end of this tutorial, you will have created a system that automatically identifies, quantifies, and visualizes changes with scientific precision.
+
+Let us dive right in!
+
+3D Data Science with Python
+Our physical world is grounded in three dimensions. To create technology that can reason about and interact with it…
+www.oreilly.com
+
+🦚
+Florent Poux, Ph.D.
+: If you are new to my (3D) writing world, welcome! We are embarking on an exciting adventure that enables you to master a crucial 3D Python skill. Before diving, I like to establish a clear scenario, the mission brief.
+
+Once the scene is laid out, we embark on the Python journey. Everything is given. You will see Tips (🌱Growing Notes, 📈Market Insights, and 🦥Geeky Notes), the code (Python), and 🗺️diagrams to help you get the most out of this article.
+
+→ The download link for all the resources 📦 is at the end of the article. Thanks to the 3D Geodata Academy for their support of this endeavor.
+
+3D Change Detection: The Mission
+You’re standing in front of a construction site at 6 AM, coffee in hand, staring at a massive building that should be complete by now. Your job is to verify that everything was built according to plan, but the structure spans 50,000 square meters across multiple floors.
+
+Press enter or click to view image in full size
+Technical illustration showing traditional vs automated approaches to construction quality control and monitoring
+Construction site workflow diagram illustrating complex building inspection challenges requiring automated solutions (Thanks to Gemini for this!)
+Traditional inspection methods are failing you.
+
+Manual walkthroughs take weeks and miss critical details hidden in complex geometries. 2D photographs can’t capture the spatial relationships needed to identify missing components. Even experienced inspectors struggle with the scale and complexity of modern infrastructure projects.
+
+The real problem isn’t what you can see — it’s what you’re missing.
+
+Missing structural elements. Incomplete facades. Components installed incorrectly. Changes that could compromise safety or violate building codes. Each oversight represents thousands of dollars in rework and potential liability.
+
+But what if you could see through time?
+
+What if you could overlay last month’s laser scan with today’s reality and instantly spot every discrepancy? What if missing components highlighted themselves automatically, saving you weeks of manual comparison work?
+
+This is exactly what Smart Point Cloud Change Detection delivers.
+
+By the end of this guide, you’ll command a Python-powered system that:
+
+Automatically aligns multi-temporal 3D scans with millimeter precision
+Identifies missing or damaged building components in seconds
+Generates reports that stakeholders understand
+Scales from single buildings to entire infrastructure networks
+The Complete Workflow
+Alright, now, let me detail the complete workflow that we want to build.
+
+The architecture of effective 3D change detection follows eight critical stages, as illustrated below:
+
+Press enter or click to view image in full size
+Complete pipeline flowchart for point cloud change detection including preprocessing, registration, and analysis steps
+Eight-stage workflow diagram for effective 3D change detection from data loading to production export. © F. Poux
+Understanding this workflow prevents the most common implementation mistakes. Each stage builds upon previous results while maintaining data integrity throughout the pipeline. Missing any stage compromises the entire analysis.
+
+The workflow emphasizes preprocessing quality over raw computational power.
+
+🦚
+Florent Poux, Ph.D.
+: The biggest mistake I see is rushing to the change detection algorithm without proper preprocessing. Spend 60% of your time on steps 1–3, and the rest becomes straightforward.
+
+How It Works
+Let me be honest with you — spatial change detection can feel overwhelming when you first encounter it.
+
+I remember staring at my first pair of construction site point clouds, massive datasets, wondering how anyone could possibly make sense of such complexity.
+
+But here’s what I learned: change detection is really about teaching computers to do what humans do naturally — notice when something is different.
+
+When you walk through a construction site, your brain automatically identifies what’s new, what’s missing, and what’s moved.
+
+Press enter or click to view image in full size
+Conceptual diagram linking human perception to algorithmic change detection in 3D environments
+Human brain illustration connected to change detection concepts showing intuitive vs computational processing
+Our algorithm replicates this intuitive process using mathematical precision.
+
+The core logic flows like a conversation between datasets.
+
+First, we ask: “Are these two point clouds looking at the same space?”
+
+3D Data Science with Python
+Our physical world is grounded in three dimensions. To create technology that can reason about and interact with it…
+www.oreilly.com
+
+Registration algorithms answer this question by rotating and translating one dataset until it aligns perfectly with the other — like adjusting camera angles until two photographs show the exact same view.
+
+Next comes the crucial question: “For every point in the first dataset, where is the closest corresponding point in the second dataset?”
+
+This is where spatial indexing becomes essential. A KD-tree data structure organizes millions of 3D points into a searchable hierarchy, transforming what could be billions of distance calculations into manageable queries.
+
+The distances themselves tell the story of change. Small distances suggest stability — points that haven’t moved significantly between time periods.
+
+Large distances indicate change — new construction, demolition, or structural modifications.
+
+But raw distances contain noise, so statistical analysis separates genuine changes from measurement uncertainty.
+
+🌱 Growing’s Note: The beauty of this approach is its scalability. Whether you’re analyzing a single room renovation or an entire city district, the fundamental logic remains the same. Master these concepts with small datasets, and you’ll confidently handle any scale of change detection.
+
+Now that you understand the logic behind this idea, let us create our lab environment to put our solution to the test.
+
+The 3D Data, Python Code, and Environment Setup
+Excellence demands precision in preparation.
+
+Your environment must be configured correctly before you can achieve reliable results. I recommend that you follow the solution from the book:
+
+3D Data Science with Python
+Our physical world is grounded in three dimensions. To create technology that can reason about and interact with it…
+www.oreilly.com
+
+We will mainly leverage 5 packages:
+
+numpy>=1.21.0 - Array operations and linear algebra
+scipy>=1.7.0 - KDTree spatial indexing
+matplotlib>=3.5.0 - Visualization and plotting
+open3d>=0.17.0 - Point cloud processing and visualization
+laspy>=2.3.0 - LAS/LAZ file format support
+You can use pip in your environment to install them:
+
+pip install open3d numpy scipy matplotlib laspy
+To set up a real-world-ready solution, we want our system to accept LAS/LAZ files (the industry standard for LiDAR data) and PLY files (commonly used for photogrammetry).
+
+Any point cloud should contain at a minimum XYZ coordinates. RGB color information is optional but enhances visualization.
+
+🐦 Material Access: I provide the code, data, and bonus material (cheat sheet, …) in the link at the end of the article. For the dataset, I selected one from a neighboring castle in Toulouse, France.
+
+Minimal System Specifications:
+
+Python 3.8–3.10
+8GB RAM (16GB recommended for large datasets)
+Multi-core processor (spatial algorithms are CPU-intensive)
+2GB free disk space for intermediate processing files
+🦚
+Florent Poux, Ph.D.
+: I’ve tested this setup extensively on both Windows 11 and MacOS. The key is to ensure that your Python version aligns with Open3D’s compatibility requirements. Don’t skip the system-specific build tools — they’re essential for optimal performance.
+
+Now that everything is ready, you can import the libraries in your Python script:
+
+import open3d as o3d
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.spatial import KDTree
+import laspy
+import os
+And of course, use your favorite IDE to go through the various phases:
+
+Press enter or click to view image in full size
+Screenshot of integrated development environment configured for Open3D and point cloud processing
+IDE interface showing Python environment setup for 3D change detection development. © F. Poux
+Now, let us load our dataset.
+
+Step 1: Load Point Cloud Data
+Press enter or click to view image in full size
+Workflow diagram emphasizing LAS/LAZ and PLY file loading for temporal point cloud analysis
+Step 1 workflow icon highlighting data loading phase in the change detection pipeline
+From the 📂 repository, you have two point clouds of a castle, each captured at a different epoch using a terrestrial Laser Scanner (A Z+F 6010).
+
+Let us define a function that can serve as the gateway between raw survey data and computational analysis.
+
+We want to make sure this function automatically identifies file types based on extensions and applies appropriate loading strategies for each format:
+
+#%% Load Point Cloud Data - handles LAS/LAZ and PLY formats
+def load_point_cloud(file_path):
+    """
+    Load point cloud data from LAS/LAZ or PLY files
+    """
+    if file_path.endswith('.las') or file_path.endswith('.laz'):
+        # Load LAS/LAZ file
+        las = laspy.read(file_path)
+        points = np.vstack((las.x, las.y, las.z)).transpose()
+        # Create Open3D point cloud
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+    elif file_path.endswith('.ply'):
+        # Load PLY file directly with Open3D
+        pcd = o3d.io.read_point_cloud(file_path)
+    else:
+        raise ValueError(f"Unsupported file format: {file_path}")
+    
+    print(f"Loaded {len(pcd.points)} points from {file_path}")
+    return pcd
+As you can see, for LAS and LAZ files, we use coordinate extraction and Open3D point cloud construction, while PLY files benefit from direct Open3D integration.
+
+Indeed, LAS files store coordinates as separate arrays, requiring explicit matrix construction to create the unified point array that Open3D expects.
+
+This transformation bridges the gap between surveying conventions and the requirements of 3D processing. PLY files offer faster loading but may lack geospatial metadata essential for infrastructure applications.
+
+🦥 Geeky Note: The numpy.vstack operation followed by .transpose() efficiently reorganizes coordinate data from column-major (x[], y[], z[]) to row-major ([[x,y,z], [x,y,z]...]) format. This transformation optimizes memory layout for subsequent spatial operations and aligns with Open3D's internal data structures.
+
+Now, you can test the function for toulouse_lt0.las
+
+pcd = load_point_cloud("../DATA/toulouse_lt0.las")
+o3d.visualization.draw_geometries([pcd])
+And visualize the data with Open3D:
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Full 3D visualization of Toulouse castle point cloud with rainbow height-based coloring. © F. Poux
+Step 2: Preprocess Point Clouds with Intelligent Filtering
+Press enter or click to view image in full size
+Technical workflow diagram showing voxel downsampling and outlier removal for point cloud optimization
+Step 2 preprocessing workflow highlighting intelligent filtering and noise removal techniques. © F. Poux
+If you investigate closely, our raw point cloud data contains noise, outliers, and unnecessary density that can compromise the accuracy of change detection.
+
+Thus, we create a preprocessing pipeline that applies systematic filtering to develop clean, analysis-ready datasets without losing essential structural information. It downsamples the point cloud, extracts features, and removes outliers:
+
+#%% Step 2. Preprocess Point Clouds - downsampling and outlier removal
+def preprocess_point_cloud(pcd, voxel_size=0.05, remove_outliers=True):
+    """
+    Preprocess point cloud: downsampling and outlier removal
+    """
+    # Downsample using voxel grid
+    pcd_down = pcd.voxel_down_sample(voxel_size)
+    
+    # Estimate normals for the downsampled point cloud
+    pcd_down.estimate_normals(
+        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=voxel_size*2, max_nn=30))
+    
+    # Remove outliers if requested
+    if remove_outliers:
+        # Statistical outlier removal
+        pcd_down, _ = pcd_down.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+    
+    print(f"Preprocessed cloud has {len(pcd_down.points)} points")
+    return pcd_down
+Let us test our nice little function:
+
+pcd_processed = preprocess_point_cloud(pcd, voxel_size=0.1)
+o3d.visualization.draw_geometries([pcd_processed])
+This returns the following:
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Downsampled castle point cloud showing reduced density while maintaining geometric accuracy. © F. Poux
+Let me share some words on the downsampling approach: voxel grid downsampling. It represents a sophisticated approach to data reduction that preserves spatial relationships while dramatically reducing computational complexity.
+
+The algorithm divides the 3D space into uniform voxels and replaces all points within each voxel with their centroid, maintaining geometric fidelity while ensuring a uniform density distribution, as shown above.
+
+Press enter or click to view image in full size
+Technical diagram illustrating voxel-based point cloud downsampling methodology for computational efficiency
+Four-stage voxel grid downsampling process from dense to uniform point distribution. © F. Poux
+🦥 Geeky Note: The voxel size parameter directly affects detection sensitivity. Smaller voxels (0.01–0.05m) capture fine details but increase computational cost. Larger voxels (0.1–0.2m) improve processing speed but may miss small missing components. Start with 0.05m for building-scale applications.
+
+Then, we extract one feature: Point’s Normals. This serves a dual purpose in our pipeline.
+
+Press enter or click to view image in full size
+Detailed process diagram for calculating point normals using PCA analysis and neighborhood search
+Point normal estimation workflow showing surface analysis and geometric context extraction. © F. Poux
+Primarily, it enables advanced visualization and surface analysis. Additionally, normal vectors provide geometric context that improves registration accuracy and change detection sensitivity for surface-oriented modifications.
+
+🦚
+Florent Poux, Ph.D.
+: After years of processing construction site data, I’ve found that the 2:1 ratio between normal estimation radius and voxel size provides optimal balance between accuracy and computational efficiency. Smaller ratios miss important surface details, while larger ratios introduce noise from distant geometric features.
+
+Finally, our statistical outlier removal applies probabilistic filtering to eliminate measurement errors and environmental noise. The algorithm calculates the mean distance to neighboring points for each point, then removes points whose mean distances exceed statistical thresholds.
+
+3D Data Science with Python
+Our physical world is grounded in three dimensions. To create technology that can reason about and interact with it…
+www.oreilly.com
+
+This preserves legitimate geometric features while eliminating isolated noise points that could generate false change signals.
+
+🦥 Geeky Note: The radius=voxel_size*2 parameter for normal estimation creates a search radius proportional to the downsampling resolution. This ensures normal calculation uses appropriate geometric context regardless of point cloud density. The max_nn=30 parameter prevents excessive computation while providing sufficient neighbors for robust normal estimation.
+
+Great, now, let us test that on the secomd point cloud.
+
+Load Secondary Temporal Dataset
+Change detection requires at least two temporal datasets representing different periods.
+
+This step demonstrates systematic handling of multiple temporal acquisitions while maintaining consistent preprocessing parameters across datasets.
+
+🦚
+Florent Poux, Ph.D.
+: Consistent preprocessing parameters ensure comparable analysis conditions between temporal datasets. Using identical voxel sizes and filtering parameters eliminates systematic biases that could masquerade as genuine changes. This methodological rigor is essential for reliable change detection.
+
+#%% Load the second temporality and align visualization
+pcd_t1 = load_point_cloud("../DATA/toulouse_lt1.las")
+pcd_processed_t1 = preprocess_point_cloud(pcd_t1, voxel_size=0.1)
+
+#visualize to ensure alignement
+pcd_processed.paint_uniform_color([0,1,0])
+pcd_processed_t1.paint_uniform_color([1,0,0])
+o3d.visualization.draw_geometries([pcd_processed, pcd_processed_t1])
+This results in the following:
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Dual-colored visualization showing temporal alignment between red and green point cloud datasets
+The color-coded visualization technique provides immediate visual feedback about dataset alignment and relative positioning. Assigning distinct colors to each temporal dataset enables rapid identification of spatial relationships and potential registration requirements.
+
+🌱 Growing’s Note: Consider establishing preprocessing parameter standards for different project types. Construction monitoring might use 0.1m voxel sizes, while architectural detail analysis could require 0.01m resolution. Documenting these standards ensures consistency across projects and enables meaningful comparison of results.
+
+Step 3. Registration for Temporal Consistency
+Press enter or click to view image in full size
+Technical diagram showing iterative closest point registration process for temporal point cloud alignment
+Step 3 registration workflow emphasizing point-to-plane ICP alignment for temporal consistency. © F. Poux
+If you look very closely, you can see that it looks like we have a kind of shift between the two point clouds.
+
+Press enter or click to view image in full size
+
+Registration between temporal point clouds requires more “sophistication” than standard point cloud alignment.
+
+Temporal data often contains genuine changes that must be preserved while eliminating alignment errors that create false positives.
+
+The challenge is distinguishing between registration errors and real structural changes.
+
+Point-to-plane ICP works well for building facades and structured environments where planar surfaces provide stable alignment references.
+
+The algorithm iteratively minimizes distances between corresponding points while taking into account surface normals that indicate geometric orientation.
+
+Press enter or click to view image in full size
+Step-by-step illustration of point-to-plane ICP algorithm for optimal temporal point cloud registration
+Four-stage ICP registration process from initial misalignment to converged transformation. © F. Poux
+Unlike point-to-point variants, this algorithm considers surface orientation through normal vectors, providing superior accuracy for architectural surfaces and structural elements.
+
+🦚
+Florent Poux, Ph.D.
+: ICP registration assumes significant geometric overlap between datasets. For construction sites with major structural changes, consider using feature-based registration methods that identify stable reference points like existing building corners or permanent survey markers.
+
+Registration quality has a direct impact on change detection accuracy. Minor alignment errors amplify into large false-positive regions, especially near building edges where geometric complexity is highest. Here is our register_point_clouds function:
+
+#%% Step 3: Register Point Clouds if necessary
+def register_point_clouds(source, target, voxel_size=0.05, max_iter=100):
+    """
+    Register source point cloud to target using point-to-plane ICP
+    """
+    # Initialize transformation with identity matrix
+    init_transformation = np.identity(4)
+    
+    # Set convergence criteria
+    criteria = o3d.pipelines.registration.ICPConvergenceCriteria(
+        relative_fitness=1e-6,
+        relative_rmse=1e-6,
+        max_iteration=max_iter
+    )
+    
+    # Point-to-plane ICP registration
+    result = o3d.pipelines.registration.registration_icp(
+        source, target, voxel_size*2, init_transformation,
+        o3d.pipelines.registration.TransformationEstimationPointToPlane(),
+        criteria
+    )
+    
+    # Apply transformation to source
+    source_transformed = source.transform(result.transformation)
+    
+    print(f"Registration finished with fitness: {result.fitness}, RMSE: {result.inlier_rmse}")
+    return source_transformed, result.transformation
+
+# Let us test our nice little function:
+target_pcd = pcd_processed
+
+source_pcd = preprocess_point_cloud(load_point_cloud("../DATA/toulouse_lt1.las"), voxel_size=0.1)
+source_aligned, transformation = register_point_clouds(source_pcd, target_pcd, voxel_size=0.1)
+
+target_pcd.paint_uniform_color([1,0,0])
+source_pcd.paint_uniform_color([0,0,1])
+source_aligned.paint_uniform_color([0,1,0])
+
+o3d.visualization.draw_geometries([source_pcd, source_aligned, target_pcd])
+Let us put that to the test:
+
+target_pcd = pcd_processed
+
+source_pcd = preprocess_point_cloud(load_point_cloud("../DATA/toulouse_lt1.las"), voxel_size=0.1)
+source_aligned, transformation = register_point_clouds(source_pcd, target_pcd, voxel_size=0.1)
+
+target_pcd.paint_uniform_color([1,0,0])
+source_pcd.paint_uniform_color([0,0,1])
+source_aligned.paint_uniform_color([0,1,0])
+
+o3d.visualization.draw_geometries([source_pcd, source_aligned, target_pcd])
+This returns the following:
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Successfully registered point clouds showing improved alignment after ICP processing
+As you can visually see, we are now much tighter, and it looks like we do not have a dataset that suffers from “double skins” issues.
+
+Press enter or click to view image in full size
+Three-dataset comparison showing original, target, and registered point clouds for quality assessment
+Multi-colored point cloud visualization showing source, target, and aligned datasets
+But quantitatively, we also benefit from validation metrics that indicate the quality of alignment:
+
+Fitness scores above 0.95 indicate excellent alignment
+Scores below 0.8 suggest potential problems that may require manual intervention.
+Also, ensure that RMSE values remain consistent with the expected measurement accuracy.
+
+🦥 Geeky Note: The max_iteration parameter balances accuracy with computational time. 100 iterations work well for most building applications. Increase to 500 for complex geometries or decrease to 50 for simple structures. Monitor the convergence criteria to avoid over-processing. Also, The max_distance=voxel_size*2 parameter defines correspondence search radius for point matching. This distance should relate to point cloud resolution—too small and legitimate correspondences are missed; too large and incorrect matches are established. The 2x multiplier accommodates normal point spacing variations while preventing spurious long-distance correspondences.
+
+If I may share another piece of advice: Transformation matrices provide insight into the spatial relationship between temporal scans. Large translation or rotation values may indicate systematic collection differences rather than registration problems.
+
+Great, we are now correctly set up for a coherent change detection analysis.
+
+Step 4. Compute Cloud-to-Cloud Distances
+Press enter or click to view image in full size
+Process diagram highlighting statistical thresholding and significance testing for change identification
+Step 5 statistical analysis workflow emphasizing threshold-based change detection methods. © F. Poux
+Distance computation forms the mathematical foundation of change detection. We have many methods that we can leverage. Today, I want to highlight one of the best ones: cloud-to-cloud distance.
+
+For each point in the source dataset, we aim to identify its nearest neighbor in the target dataset, thereby creating a distance field that reveals spatial modifications between epochs.
+
+Press enter or click to view image in full size
+Color-mapped point cloud showing distance-based change detection with intuitive thermal color scheme
+Distance heatmap visualization showing blue-to-red gradient representing spatial changes
+Here is our function:
+
+#%% Step 4. Compute Cloud-to-Cloud Distance using KD-Tree spatial indexing
+def compute_cloud_distances(source, target):
+    """
+    Compute point-to-point distances between source and target clouds
+    """
+    # Convert target points to numpy array for KDTree
+    target_points = np.asarray(target.points)
+    source_points = np.asarray(source.points)
+    
+    # Build KDTree from target points
+    tree = KDTree(target_points)
+    
+    # Query the tree for nearest neighbor distances
+    distances, _ = tree.query(source_points)
+    
+    print(f"Computed distances for {len(source_points)} points")
+    return distances
+As you can see, we leverage KD-Tree spatial indexing to transform potentially quadratic distance computation into logarithmic complexity.
+
+This data structure organizes 3D points into a binary tree, enabling efficient nearest neighbor searches and making change detection tractable for large-scale datasets.
+
+For our point cloud, we computed distances for 193513 points:
+
+source_aligned = pcd_processed
+target_pcd = pcd_processed_t1
+
+distances = compute_cloud_distances(source_aligned, target_pcd)
+The query operation returns both distances and indices for nearest neighbors. Distance values directly indicate spatial separation between temporal datasets, while indices enable correlation analysis and geometric validation of correspondence relationships.
+
+3D Data Science with Python
+Our physical world is grounded in three dimensions. To create technology that can reason about and interact with it…
+www.oreilly.com
+
+🦥 Geeky Note: SciPy’s KD-Tree implementation optimizes memory layout and search algorithms for 3D spatial data. The query method automatically handles edge cases like duplicate points and numerical precision issues that could compromise distance accuracy in naive implementations.
+
+Additionally, Distance calculations must account for variations in point cloud density that occur naturally in laser scanning. Areas with higher point density appear artificially closer, creating a systematic bias in change detection results.
+
+The distance array contains the core information needed for change analysis. Values near zero indicate unchanged areas, while larger distances suggest potential modifications.
+
+However, raw distances require statistical interpretation to distinguish meaningful changes from measurement noise.
+
+Step 5. Statistical Analysis of Changes
+Press enter or click to view image in full size
+Advanced workflow diagram showing spatial clustering and connected component analysis for change regions
+Step 6 object-based change detection workflow highlighting region-growing algorithms. © F. Poux
+Let us employ a statistical analysis algorithm to apply mathematical rigor in identifying significant modifications while filtering out environmental and measurement artifacts.
+
+Here is the function I propose:
+
+#%% Step 5. Statistical Analysis of Changes with threshold-based detection
+def analyze_changes(distances, threshold=0.1):
+    """
+    Analyze distances to identify significant changes
+    """
+    # Identify points with distance greater than threshold
+    change_indices = np.where(distances > threshold)[0]
+    change_distances = distances[change_indices]
+    
+    # Calculate statistics
+    if len(change_distances) > 0:
+        mean_change = np.mean(change_distances)
+        max_change = np.max(change_distances)
+        total_volume_change = len(change_indices) / len(distances)  # Approximate as percentage of points
+        
+        print(f"Detected {len(change_indices)} points with significant change")
+        print(f"Mean change: {mean_change:.3f}m, Max change: {max_change:.3f}m")
+        print(f"Approximate volume change: {total_volume_change*100:.2f}%")
+        
+        return change_indices, {
+            "mean_change": mean_change,
+            "max_change": max_change,
+            "volume_change_percentage": total_volume_change*100
+        }
+    else:
+        print("No significant changes detected")
+        return [], {"mean_change": 0, "max_change": 0, "volume_change_percentage": 0}
+Threshold-based classification provides the primary mechanism for distinguishing change from noise.
+
+The threshold value should reflect measurement accuracy, point cloud resolution, and expected change magnitudes for specific applications.
+
+🦚
+Florent Poux, Ph.D.
+: Construction monitoring typically uses thresholds between 0.05m and 0.20m depending on required sensitivity.
+
+If we use the function in our scenario:
+
+change_indices, stats = analyze_changes(distances, threshold=0.1)
+We obtain the following:
+
+Detected 46869 points with significant change
+Mean change: 2.577m, Max change: 8.739m
+Approximate volume change: 24.22%
+
+🌱 Growing’s Note: Develop threshold selection strategies based on project requirements and data characteristics. Tighter thresholds increase sensitivity to small changes but may generate false positives from noise. Looser thresholds reduce false alarms but may miss subtle modifications that could be structurally significant.
+
+The threshold selection balances sensitivity against false positive rates based on your application requirements.
+
+🦥 Geeky Note: Distance thresholds depend on point cloud accuracy and required detection sensitivity. For millimeter-accurate scanners, use 0.05–0.1m thresholds. For drone-based systems, increase to 0.2–0.5m. Always validate thresholds against known ground truth changes.
+
+Mean change values indicate typical modification magnitudes, while maximum values reveal the extent of alterations.
+
+🦥 Geeky Note: The volume change calculation len(change_indices) / len(distances) approximates volumetric changes based on point density assumptions. For precise volumetric analysis, consider voxel-based methods that account for actual spatial extents rather than point counts.
+
+But this quantitative extract is a bit blend don’t you think?
+
+Let us propose a small improvement with Distance heatmaps visualization.
+
+Create Distance Heatmaps for Visualization
+Now, let us improve our visual communication. Distance heatmaps provide immediate insight into spatial change patterns while maintaining the mathematical precision of underlying calculations.
+
+#%% Create Distance Heatmap with gradient color mapping
+def create_distance_heatmap(source, distances):
+    """
+    Visualize the entire point cloud as a heatmap based on distance values
+    """
+    # Create a copy of the source cloud
+    heatmap_pcd = o3d.geometry.PointCloud()
+    heatmap_pcd.points = o3d.utility.Vector3dVector(np.asarray(source.points))
+    
+    # Normalize distances for visualization
+    min_dist = np.min(distances)
+    max_dist = np.max(distances)
+    
+    # Create a colormap (blue=close, red=far)
+    if max_dist > min_dist:
+        normalized_dists = (distances - min_dist) / (max_dist - min_dist)
+    else:
+        normalized_dists = np.ones_like(distances) * 0.5
+    
+    # Create color array using a gradient from blue to red
+    colors = np.zeros((len(distances), 3))
+    colors[:, 0] = normalized_dists  # Red channel increases with distance
+    colors[:, 2] = 1 - normalized_dists  # Blue channel decreases with distance
+    
+    # Add green component for a more dynamic color range
+    colors[:, 1] = np.where(normalized_dists < 0.5, 
+                           normalized_dists * 2, 
+                           (1 - normalized_dists) * 2)
+    
+    heatmap_pcd.colors = o3d.utility.Vector3dVector(colors)
+    
+    print(f"Heatmap color scale: Blue = {min_dist:.3f}m, Red = {max_dist:.3f}m")
+    
+    return heatmap_pcd
+Color mapping algorithms translate distance values into visually perceptible representations. To use our new function:
+
+heatmap_pcd = create_distance_heatmap(source_aligned, distances)
+o3d.visualization.draw_geometries([heatmap_pcd])
+which results in:
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+The blue-to-red gradient provides an intuitive interpretation where cool colors indicate stability and warm colors highlight significant changes. This convention aligns with human color perception, facilitating rapid pattern recognition.
+
+🦥 Geeky Note: The color array construction colors[:, 0] = normalized_dists directly assigns normalized distances to the red channel, creating a linear relationship between distance magnitude and red intensity. The blue channel assignment colors[:, 2] = 1 - normalized_dists creates inverse correlation, ensuring maximum visual contrast between stable and changed regions.
+
+We could stop here, we have a working solution for 3D change detection, at the point level!
+
+But would it not be much more effective if we could output regions where we identify a change, instead of this continuous field?
+
+🐦 My recommendation: For researchers or engineers serious about 3D innovation, the 3D Segmentor OS Course is your most direct path to mastering complex segmentation and accelerating your results. For the complete experience, the 3D Master Bundle is unbeatable.
+
+Step 6: Advanced Object-Based Change Detection
+Press enter or click to view image in full size
+Advanced workflow diagram showing spatial clustering and connected component analysis for change regions
+Step 6 object-based change detection workflow highlighting region-growing algorithms. © F. Poux
+This is where we take our idea to the next level. Visionary almost.
+
+Point-based analysis provides precise spatial information but may fragment coherent structural changes across multiple individual points.
+
+3D Data Science with Python
+Our physical world is grounded in three dimensions. To create technology that can reason about and interact with it…
+www.oreilly.com
+
+Object-based detection groups spatially connected changes into meaningful regions that correspond to real-world construction activities.
+
+This means that we need to propose a “clustering” solution that can work with temporal datasets as well.
+
+In previous, you may have seen me use DBSCAN, K-Means Clustering and other unsupervised machine learning approach. Today, I want to showcase one of the best tool out there: region-growing.
+
+Starting from individual change points, the algorithm grows regions by incorporating nearby points that also exceed change thresholds, creating connected components that represent unified construction modifications, as shown below.
+
+Press enter or click to view image in full size
+Technical illustration of region-growing algorithm for spatially coherent change detection
+Four-stage region growing process from initial detection to filtered change regions
+This approach naturally handles the irregular boundaries typical of missing building components.
+
+Now that you get the idea, let me share the region-growing algorithm implementation that identifies spatially coherent change areas through iterative neighborhood expansion.
+
+#%% Step 6. Object-based Change-detection using region growing algorithms
+def detect_missing_regions(source, target, distances, distance_threshold=0.1, region_size_threshold=10):
+    """
+    Detect regions in source that have no correspondence in target using distance thresholding and region growing
+    """
+    source_points = np.asarray(source.points)
+    
+    # Find points that are far from any point in the target (potentially missing)
+    missing_indices = np.where(distances > distance_threshold)[0]
+    
+    if len(missing_indices) == 0:
+        print("No significant differences detected")
+        return [], [], []
+    
+    # Create a KDTree of the source points
+    source_tree = KDTree(source_points)
+    
+    # Initialize variables for region growing
+    all_regions = []
+    processed = np.zeros(len(source_points), dtype=bool)
+    
+    # Process each unprocessed missing point
+    for idx in missing_indices:
+        if processed[idx]:
+            continue
+            
+        # Start a new region with this point
+        current_region = [idx]
+        processed[idx] = True
+        
+        # Grow the region
+        i = 0
+        while i < len(current_region):
+            # Get current point in the growing region
+            current_idx = current_region[i]
+            
+            # Find neighbors within the 3D neighborhood (using KDTree)
+            neighbors_dist, neighbors_idx = source_tree.query(
+                source_points[current_idx].reshape(1, -1), 
+                k=20  # Consider 20 nearest neighbors
+            )
+            
+            # Add unprocessed neighbors that are also missing
+            for neighbor_idx in neighbors_idx[0][1:]:  # Skip the point itself
+                if not processed[neighbor_idx] and neighbor_idx in missing_indices:
+                    current_region.append(neighbor_idx)
+                    processed[neighbor_idx] = True
+            
+            i += 1
+        
+        # Store region if it's large enough (to filter out noise)
+        if len(current_region) >= region_size_threshold:
+            all_regions.append(current_region)
+    
+    # Flatten all regions into a single list of indices
+    all_missing_indices = []
+    region_labels = np.zeros(len(source_points), dtype=int)
+    
+    for region_idx, region in enumerate(all_regions, 1):
+        all_missing_indices.extend(region)
+        # Label each point with its region number
+        for point_idx in region:
+            region_labels[point_idx] = region_idx
+    
+    print(f"Detected {len(all_regions)} missing regions with total {len(all_missing_indices)} points")
+    
+    # Return missing regions, all missing indices, and region labels
+    return all_regions, np.array(all_missing_indices), region_labels
+Starting from individual change points, the algorithm grows regions by incorporating nearby points that also exceed change thresholds, creating connected components that represent unified construction modifications.
+
+This approach naturally handles the irregular boundaries typical of missing building components.
+
+regions, missing_indices, region_labels = detect_missing_regions(source_aligned, target_pcd, distances, distance_threshold=0.15)
+This, in our case return that we detected 71 missing regions with total of 42117 points.
+
+🦥 Geeky Note: The neighbors_idx[0][1:] slice excludes the query point itself from neighbor consideration, preventing self-referential region growth. The max_distance parameter controls spatial connectivity tolerance—smaller values create tighter regions but may fragment large changes, while larger values merge distant change areas that should remain separate.
+
+Now, I leave it up to you to plot the point cloud like this:
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Segmented point cloud showing distinct colored regions representing identified changes
+Fantastic isn’t it?
+
+If we dive a bit into the working principles, you should be aware that the region size threshold filters noise and isolated measurement errors that appear as single-point changes.
+
+Indeed, legitimate structural modifications typically affect multiple nearby points, while random noise creates isolated changes that region-growing algorithms can effectively eliminate.
+
+Also, something worth mentioning is that I am using (again) KD-Tree neighborhood searches to determine point relationships within growing regions.
+
+The k-nearest neighbor approach with k=20 provides sufficient spatial sampling to identify genuine connectivity while avoiding computationally expensive exhaustive distance calculations.
+
+🦥 Geeky Note: The region_size_threshold parameter controls noise sensitivity. Values of 10–20 points work well for building applications. Increase to 50+ for large infrastructure projects or decrease to 5–10 for detailed component analysis. Monitor false positive rates when adjusting.
+
+This approach is excellent at pinpointing exactly where things have changed. Instead of just a general idea, you get distinct, colored zones that immediately draw your eye to the alterations.
+
+This creates a real sense of spatial coherence — it doesn’t just see individual points that moved, but rather groups them into meaningful, connected regions. This makes it much easier to grasp the extent and location of a change, turning raw data into recognizable “change events.” It also sets a fantastic foundation for deeper analysis, allowing you to easily measure the size of a change or feed these clusters into more advanced systems.
+
+Plus, it shows a good degree of robustness to missing data, using neighboring information to fill in gaps.
+
+Where can it improve?
+
+However, it’s not without its quirks. The outcome is sensitive to its settings; if the algorithm isn’t perfectly tuned, changes might be either clumped together too broadly or broken into too many tiny pieces.
+
+And while it tells you that something is different, it doesn’t inherently explain what that change is — was something added, removed, or just moved?
+
+3D Data Science with Python
+Our physical world is grounded in three dimensions. To create technology that can reason about and interact with it…
+www.oreilly.com
+
+That interpretation still needs a human touch or further automated steps.
+
+Lastly, dealing with dynamic elements like swaying trees can be tricky; it’s hard to tell if it’s a significant structural change or just a temporary movement.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Side-by-side comparison of traditional point-based vs region-based change detection
+Ultimately, this method excels because it transforms “a sea of data points” into clearly defined, spatially grouped change areas. It’s a crucial step in giving computers a more human-like ability to “notice when something is different” in the 3D world.
+
+🦚
+Florent Poux, Ph.D.
+: Region growing parameters require tuning for different construction scenarios. Building demolition creates large connected regions, while equipment installation might generate smaller, isolated changes. Developing parameter sets for common construction activities improves automated analysis reliability.
+
+Step 7: Upsampling Results to Original Resolution
+Press enter or click to view image in full size
+Technical diagram showing color transfer methodology for full-resolution change detection results
+Step 7 upsampling workflow highlighting resolution transfer from processed to original data
+Downsampled analysis provides computational efficiency but may not capture fine-scale details required for final deliverables.
+
+Upsampling techniques transfer change detection results from processed datasets back to the original high-resolution point clouds.
+
+But how do we do that?
+
+Yes, this is a very nice trick that I am sharing with you, that will save you dozens of hours and headaches. Let me define the transfer_colors_to_original function:
+
+#%% Step 7. Upsampling predictions to full point cloud resolution
+def transfer_colors_to_original(original_pcd, colored_downsampled_pcd):
+
+    # Create a copy of the original point cloud to add colors to
+    colored_original = o3d.geometry.PointCloud()
+    colored_original.points = o3d.utility.Vector3dVector(np.asarray(original_pcd.points))
+    
+    # Get numpy arrays of points
+    original_points = np.asarray(original_pcd.points)
+    downsampled_points = np.asarray(colored_downsampled_pcd.points)
+    downsampled_colors = np.asarray(colored_downsampled_pcd.colors)
+    
+    # Build KDTree from downsampled points for nearest neighbor search
+    tree = KDTree(downsampled_points)
+    
+    # For each point in the original cloud, find the nearest neighbor in the downsampled cloud
+    _, indices = tree.query(original_points)
+    
+    # Transfer colors based on nearest neighbor relationship
+    original_colors = downsampled_colors[indices]
+    colored_original.colors = o3d.utility.Vector3dVector(original_colors)
+    
+    print(f"Transferred colors from downsampled cloud ({len(downsampled_points)} points) to original cloud ({len(original_points)} points)")
+    
+    return colored_original
+
+Nearest neighbor interpolation provides the most robust method for transferring discrete change classifications from downsampled datasets to their original counterparts.
+
+To use, you can type:
+
+original_colored = transfer_colors_to_original(pcd, colored_source)
+Each original point receives the change status of its closest representative in the processed dataset, preserving spatial accuracy while retaining full-resolution detail.
+
+And now, let us plot, with normals:
+
+original_colored.estimate_normals()
+o3d.visualization.draw_geometries([original_colored])
+which results in the following:
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+High-resolution change detection results showing upsampled analysis at original point density
+The upsampling process maintains analysis integrity by using the same KD-Tree approach employed throughout the pipeline.
+
+This consistency ensures that spatial relationships remain mathematically coherent across resolution transitions.
+
+Also, the color transfer preserves visual interpretation while providing full-resolution deliverables suitable for detailed inspection and professional presentation:
+
+Press enter or click to view image in full size
+
+Comparative view showing downsampled analysis transferred to full-resolution dataset
+🦥 Geeky Note: The indices = tree.query(original_points) operation returns closest point indices for efficient color lookup. This approach scales linearly with original point count and logarithmically with downsampled point count, maintaining computational tractability even for very high-resolution datasets.
+
+At this stage, all that is left for me is to say: Congrats!!
+
+You have the complete solution working for Smart 3D Change Detection!
+
+Now, all that is left is to export your results.
+
+Step 8. 3D Change Detection Production
+Press enter or click to view image in full size
+Final workflow stage showing various export formats and deliverable generation options
+Step 8 production export workflow highlighting output generation and result packaging. © F. Poux
+Great, so what can we do now?
+
+Well, let us create a production export step that integrates permits to leverage the results outside of Python.
+
+For this, I propose various export stages and possibilities based on what you want to have:
+
+def save_results(colored_source, missing_pcd, heatmap_pcd, regions, stats, output_dir="./output"):
+    """
+    Save all visualization and analysis results
+    """
+    # Create output directory if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # Save the colored point cloud
+    if colored_source is not None:
+        o3d.io.write_point_cloud(f"{output_dir}/colored_source.ply", original_colored)
+        print(f"Saved colored source point cloud to {output_dir}/colored_source.ply")
+    
+    # Save the missing regions point cloud
+    if missing_pcd is not None and len(missing_pcd.points) > 0:
+        o3d.io.write_point_cloud(f"{output_dir}/missing_regions.ply", missing_pcd)
+        print(f"Saved missing regions point cloud to {output_dir}/missing_regions.ply")
+    
+    # Save the heatmap point cloud
+    if heatmap_pcd is not None:
+        o3d.io.write_point_cloud(f"{output_dir}/distance_heatmap.ply", heatmap_pcd)
+        print(f"Saved distance heatmap to {output_dir}/distance_heatmap.ply")
+    
+    # Save region statistics
+    if regions:
+        with open(f"{output_dir}/region_stats.txt", "w") as f:
+            f.write(f"Total number of detected regions: {len(regions)}\n\n")
+            for i, region in enumerate(regions):
+                f.write(f"Region {i+1}: {len(region)} points\n")
+        print(f"Saved region statistics to {output_dir}/region_stats.txt")
+    
+    # Save overall statistics
+    with open(f"{output_dir}/change_stats.txt", "w") as f:
+        for key, value in stats.items():
+            f.write(f"{key}: {value}\n")
+    print(f"Saved overall statistics to {output_dir}/change_stats.txt")
+
+# Let us test our nice little function:
+save_results(colored_source, missing_pcd, heatmap_pcd, regions, stats)
+As you can see, it is pretty straightforward: this saves various outputs from a 3D point cloud analysis to a specified output directory.
+
+Also, it centralizes and organizes the storage of diverse analysis results (visualizations and statistics).
+
+🌱 Growing Note: Additionally, incorporating an automated parameter selection step would reduce the expertise required for routine analysis while maintaining flexibility for exceptional cases. This means that the system adapts thresholds based on data characteristics rather than requiring manual tuning for each dataset.
+
+And that is it! you are now the proud owner of a complete 3D Change Detection solution!
+
+When your algorithm finishes processing, you’re left with something remarkable: a complete mathematical map of change that reveals insights impossible to detect through traditional inspection methods.
+
+Here is an example of little web app that packages all of that (built through the Segmentor OS Course):
+
+Press enter or click to view image in full size
+Professional web interface demonstrating productionized change detection system with interactive controls
+Web application interface showing integrated 3D change detection tool with user controls. © F. Poux
+🦚 Florent’s Note: The most powerful moment comes when you first show these results to a construction manager who’s been manually tracking progress for decades. The precision and clarity of automated analysis often reveals changes they missed entirely, while confirming observations they made intuitively. It’s the perfect fusion of human expertise and computational power.
+
+But now, let us spin off our grey matter to study the edge cases and limitations.
+
+3D Data Science with Python
+Our physical world is grounded in three dimensions. To create technology that can reason about and interact with it…
+www.oreilly.com
+
+The Algorithm: Edge Cases & Limitations
+Now let’s think again about what could go wrong, because acknowledging limitations builds better systems than pretending they don’t exist.
+
+I have to highlight four main ones, as illustrated below:
+
+Press enter or click to view image in full size
+Technical infographic summarizing key limitations and edge cases in point cloud change detection
+Four-category limitation diagram highlighting registration, noise, complexity, and quality challenges. © F. Poux
+The Registration dependency represents our most significant vulnerability.
+
+If point clouds aren’t properly aligned, every subsequent analysis becomes meaningless. Poor GPS accuracy, different scanning positions, or coordinate system mismatches can introduce systematic errors that masquerade as genuine changes. The algorithm assumes perfect alignment, but reality rarely cooperates.
+
+Then, Noise sensitivity challenges our statistical thresholds.
+
+Construction environments contain dust, moving equipment, and temporary objects that create false change signals. Your algorithm might detect a parked excavator as “new construction” or interpret wind-blown debris as structural modification. Parameter tuning becomes an art as much as a science.
+
+Third, Computational complexity scales non-linearly with dataset size. A building scan with 10 million points requires exponentially more processing time than one with 1 million points. Memory requirements can exhaust system resources, and processing times can extend from minutes to hours for large-scale projects.
+
+Finally, point cloud quality variations affect reliability.
+
+Different scanners, varying point densities, and inconsistent coverage create datasets that look similar but behave differently under analysis. An algorithm tuned for high-density LiDAR data might fail completely with lower-resolution photogrammetry point clouds.
+
+🦚 Florent’s Note: I’ve learned to embrace these limitations rather than fight them. The most robust systems acknowledge their boundaries and provide clear indicators when results might be unreliable. Users need to understand when to trust the algorithm and when to apply human judgment.
+
+Understanding these constraints doesn’t weaken your system — it strengthens it by enabling informed decision-making and appropriate application boundaries.
+
+🐦 My recommendation: For researchers or engineers serious about 3D innovation, the 3D Segmentor OS Course is your most direct path to mastering complex segmentation and accelerating your results. For the complete experience, the 3D Master Bundle is unbeatable.
+
+The Discussion, Future, and Perspectives
+When you step back from the technical details and consider the broader implications of automated change detection, you’re participating in a fundamental shift in how humans perceive and interact with the built environment.
+
+We’re witnessing the emergence of what I call “temporal vision” — the ability to see through time using computational tools.
+
+Traditional human perception captures single moments, but these algorithms reveal the flow of change across days, weeks, and years. Buildings become dynamic entities with quantifiable lifecycles rather than static structures.
+
+This capability connects to deeper human drives for understanding and control. Throughout history, we’ve sought tools that extend our sensory capabilities — telescopes to see distant objects, microscopes to examine the microscopic world, and now computational systems to perceive temporal change with mathematical precision.
+
+Change detection algorithms represent another step in this progression of augmented perception.
+
+The future trajectory points toward real-time change monitoring systems that continuously process streaming 3D data. Imagine construction sites where every modification is automatically documented, compliance violations are flagged immediately, and progress updates flow continuously to project stakeholders.
+
+The technology foundation exists today — we’re primarily limited by computational infrastructure and integration complexity.
+
+Machine learning integration promises to automate parameter tuning and pattern recognition that currently requires human expertise. Neural networks could learn to distinguish genuine structural changes from environmental noise, automatically calibrate thresholds for different project types, and even predict future changes based on historical patterns.
+
+🌱 Growing’s Note: The philosophical implications extend beyond construction and surveying. As our built environment becomes increasingly monitored and quantified, we gain unprecedented insight into how human activities reshape physical space. This data could inform urban planning, environmental impact assessment, and infrastructure resilience planning in ways we’re only beginning to imagine.
+
+The elegance of change detection lies in its universality — the same mathematical principles that track building construction also monitor glacier retreat, forest deforestation, and urban sprawl.
+
+You’re not just learning a technical skill; you’re mastering a fundamental tool for understanding change in complex systems.
+
+📦 Resources
+Here’s a curated list of references that I recommend for deepening your understanding of the techniques we’ve covered:
+
+I created a special standalone episode, accessible in this Open-Access Course. You will find:
+
+The complete tutorial with under-the-hood tricks📜
+The whole dataset to download️ 📂
+The code implementation with a permissive license💻
+Additional resources (cheat sheet, paper …)🌍
+🦚Florent: This is all offered 🎁, and based on the book below. Feel free to get it to support this knowledge sharing initiative.
+
+3D Data Science with Python
+Our physical world is grounded in three dimensions. To create technology that can reason about and interact with it…
+www.oreilly.com
+
+3D Change Detection: Next Steps
+You now possess the theoretical foundation and practical techniques to build sophisticated change detection systems.
+
+But knowledge without application remains purely academic.
+
+Your immediate next step: Choose a real project that matters to you.
+
+Don’t wait for perfect data or ideal conditions. Find two point cloud datasets from any source — construction progress photos converted to 3D, building scans from different periods, or even simple geometric models you create yourself.
+
+Apply these techniques to something tangible.
+
+🦚 Florent’s Note: The best way to truly understand these algorithms is to break them. Try processing misaligned data, experiment with extreme threshold values, and observe how the system fails under stress. Understanding failure modes builds intuition that no amount of theoretical study can provide. I recommend following the Segmentor OS Journey to obtain marketable results.
+
+Start small and build systematically.
+
+Process a single room before attempting an entire building. Master the visualization techniques before optimizing computational performance. Each successful analysis builds confidence and reveals new possibilities for application.
+
+📈Market Insight: The construction and surveying industries urgently require professionals who can bridge the gap between traditional methods and advanced computational capabilities. Your expertise in automated change detection positions you to solve real problems while advancing your career in a rapidly evolving field.
+
+Take action today. Download point cloud data, set up your environment, and begin processing. Your future self will thank you for starting this journey toward computational mastery of 3D change detection.
+
+About the author
+Florent Poux, Ph.D.
+ is a Scientific and Course Director focused on educating engineers on leveraging AI and 3D Data Science. He leads research teams and teaches 3D Computer Vision at various universities. His current aim is to ensure humans are correctly equipped with the knowledge and skills to tackle 3D challenges for impactful innovations.
+
+3d
+Python
+Hands On Tutorials
+Data Science
+AI
+235
+
+
+3
+
+
+
+
+Data Science Collective
+Published in Data Science Collective
+879K followers
+·
+Last published 12 hours ago
+Advice, insights, and ideas from the Medium data science community
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (3)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Anthony Klemm
+Anthony Klemm
+
+Jul 31
+
+
+Thank you for sharing not only the basic steps, but nuanced insights that only come from spending hours working with data like this. Honestly one of the best articles on Medium I’ve ever read.
+5
+
+
+1 reply
+
+Reply
+
+Rex
+Rex
+
+Aug 18
+
+
+Excellent article!! Step 3 and Step 4 is a bit confusing because of the following
+I noticed that for Step 3 source and target were switched:
+target_pcd = pcd_processed
+source_pcd = preprocess_point_cloud(load_point_cloud(filepath1), voxel_size=0.1)
+sourc…more
+Reply
+
+Trung Pham
+Trung Pham
+
+Aug 4
+
+
+I love the notes. Thank for sharing. Keep up with the great work.
+Reply
+
+More from Florent Poux, Ph.D. and Data Science Collective
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Agentic AI: Single vs Multi-Agent Systems
+Data Science Collective
+In
+
+Data Science Collective
+
+by
+
+Ida Silfverskiöld
+
+Agentic AI: Single vs Multi-Agent Systems
+Building with a structured data source in LangGraph
+
+Oct 28
+879
+16
+
+
+It Took Me 6 Years to Find the Best Metric for Classification Models
+Data Science Collective
+In
+
+Data Science Collective
+
+by
+
+Samuele Mazzanti
+
+It Took Me 6 Years to Find the Best Metric for Classification Models
+How I realized that the best calibration metric is none of the ones you’d expect (ROC, Log-loss, Brier score, etc.)
+
+Nov 8
+839
+16
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from Data Science Collective
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+Google Earth and Earth Engine
+In
+
+Google Earth and Earth Engine
+
+by
+
+Google Earth
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+By Alicia Sullivan, Earth Engine Product Manager; Kel Market, Cloud Geographer; and Gena Donchyts, Cloud Geographer
+Jun 17
+109
+2
+
+
+Python Map Algebra Cookbook: Raster Operations for Spatial Analysis
+Stacy Mwangi
+Stacy Mwangi
+
+Python Map Algebra Cookbook: Raster Operations for Spatial Analysis
+Essential recipes for transforming, combining, and analyzing gridded spatial data
+
+6d ago
+52
+
+
+Detecting Stress in Fish Using YOLO Computer Vision
+Ann Abramova
+Ann Abramova
+
+Detecting Stress in Fish Using YOLO Computer Vision
+Computer vision has become a highly used technology and is used in many fields today, for instance, in security cameras, autonomous…
+Oct 6
+10
+
+
+YOLO26: Not as Good as YOLO12
+Zain Shariff
+Zain Shariff
+
+YOLO26: Not as Good as YOLO12
+YOLO26 release came with new preliminary data, however further digestion of the data sort of reveals how YOLO12 might be better, read…
+Sep 30
+17
+2
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

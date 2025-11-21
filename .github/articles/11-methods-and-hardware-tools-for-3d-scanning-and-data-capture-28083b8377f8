@@ -1,0 +1,638 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+TDS Archive
+TDS Archive
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+Follow publication
+
+Member-only story
+
+3D Tools
+11 Methods and Hardware Tools for 3D Scanning and Data Capture
+The toolbox for data curation and 3D scanning: LiDAR, mesh, city models, 3D assets, hardware recommendations, photogrammetry, and AI methods for 3D reconstruction.
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+15 min read
+·
+Jan 31, 2025
+235
+
+
+5
+
+
+
+
+
+Press enter or click to view image in full size
+The 3D Master Toolbox Chapter 1: Which Hardware? Which Methods? Which Data Sources? by Florent Poux
+The 3D Master Toolbox Chapter 1: Which Hardware? Which Methods? Which Data Sources? © F. Poux
+I’ve been spending a lot of time lately thinking about the tools we use in 3D data processing and how they shape both our work and our thinking. I was reminded of a quote I love:
+
+“A good tool improves the way you work. A great tool improves the way you think.” — Jeff Duntemann
+
+I think this is particularly true for 3D and its vast, often confusing, landscape of software, hardware, and AI solutions. It’s like having access to all of the tools for an amazing project but not knowing where to start.
+
+Many of us, myself included, struggle with that at times. It’s hard to know which tools to select, which workflows to follow, and which 3D tech is actually worth the investment. It can feel overwhelming!
+
+So, if you were about to enter the field of 3D, what should you put in your “3D backpack”?
+
+I’ve been working in the 3D R&D space for over 15 years now and have experimented a lot with tools, methods, and approaches. So, let me share with you what I’ve learned: my “3D Master Toolbox,” a framework that I use daily.
+
+It consists of 47 carefully selected tools, methods, and AI solutions that can make a difference for all of your projects.
+
+Now, a list of 47 things can be overwhelming. This is why I have broken it down into 9 manageable categories, which I call “buckets.”
+
+Press enter or click to view image in full size
+The 9 buckets of the 3D Master Toolbox by Florent Poux
+The 9 buckets of the 3D Master Toolbox. © F. Poux
+These buckets form a proven strategy I’ve used with my teams: the 3D Master Toolbox. And it actually works!
+
+Altogether, they provide a practical way to create anything, from reconstructing an entire city to designing an intricate product. But to make the learning more manageable, I have broken down the 3D Master Toolbox into three chapters, as illustrated below.
+
+Press enter or click to view image in full size
+workflow of the three chapters and 9 buckets of the 3D master toolbox by Florent Poux
+The three chapters of the 3D Master Toolbox. © F. Poux
+Let me guide you through Chapter 1, which includes the first two buckets of that process: getting data and reconstructing it.
+
+🦊 
+Florent Poux, Ph.D.
+: It is important to understand that these 9 buckets—from data curation and reconstruction to coding, AI, and communication—cover the entire 3D data science spectrum. By structuring all of your workflows this way, you are sure that you have the required toolkits, workflows, skills, and strategies that you need to approach a project in a clear and structured way. It is not just about selecting the right tools but about understanding the logic that ties them all together. Chapters 2 and 3 will be linked at the end of the article.
+
+The 3D Master Toolbox: Chapter 1
+Let me show you my curated list of best practices so that you can navigate the field of 3D with confidence.
+
+Press enter or click to view image in full size
+The two first buckets covered in Chapter 1: 3D Data Curation and 3D Reconstruction Methods
+The two first buckets covered in Chapter 1: 3D Data Curation and 3D Reconstruction Methods. © F. Poux
+Which data sources do I use? Should I use photogrammetry or LiDAR? Which hardware do I invest in? How do I put it all together?
+
+Let me start with the mission statement.
+
+🦊 
+Florent Poux, Ph.D.
+: If you are new to my (3D) writing world, welcome! We are going on an exciting adventure that will allow you to master the complete list of 3D data + AI tools. Before diving, I like to establish a clear overview.
+
+Once the scene is laid out, we embark on the journey. Everything is given. You will see tips (🦚Notes, 🧪 R&D, and 🌱Growing) to help you get the most out of this article. Thanks to the 3D Geodata Academy for supporting the endeavor.
+
+The Mission 🎯
+You are a curious engineer tasked with an amazing project: You must create a digital twin of your favorite city from a few old photographs. On top of that, a friend who wants to build a startup asked if you think it is possible to generate a 3D model of an entire neighborhood.
+
+You know that you will need to explore a variety of tools and methods. How do you even start?
+
+Press enter or click to view image in full size
+The essentials of any 3D Data Science Project by Florent Poux
+The essentials of any 3D Data Science Project. © F. Poux
+Armed with this article, you explore the sources for data acquisition and all the different approaches to generating new 3D models. It is the first step to building your own “3D Master Toolbox.” It is here to guide you on sourcing data and reconstructing the world.
+
+It is now clear: You uncover how to get your hands on various 3D datasets, all while learning the essentials of photogrammetry, LiDAR, and generative AI-based 3D models. Then, you will be ready to develop a strategy to select the best hardware for the job, whether you want to use your phone or your next-generation laser scanners.
+
+Let us dive right in!
+
+Bucket 1. 3D Dataset Curation (Tools 1 to 4)
+The first step in the 3D data journey is how you source the relevant data, and this is critical because it dictates the outcome of all downstream processes.
+
+Press enter or click to view image in full size
+The 3D Master ToolBox: Chapter 1. 3D Dataset Curation by Florent Poux
+The 3D Master ToolBox: Chapter 1. 3D Dataset Curation. © F. Poux
+The goal is to obtain high-quality, relevant datasets to drive meaningful results. This process entails identifying data sources, evaluating their suitability, managing data formats, and guaranteeing data integrity, all while closely monitoring data licenses and privacy policies.
+
+To start small, let me share four data sources where you can get your hands on 3D data (or relevant data). Let me share some tools and solutions for each 3D Data Curation Method.
+
+🦚 Note: I have a professional deformation. I am very touchy on ethics. Hence, any recommendation for a tool and method is certified independent of any personal interests. I am affiliated with none, and I do not know the founders of these applications. Also, I made sure to limit myself to only the services and tools I use regularly, with a keen eye for open-source and fighting against too much information.
+
+1. 3D City Models (3DCityLoader)
+Getting our hands on 3D city models is not the easiest road. But we are getting there, thanks to the strategic plans of our nations and 3DCityLoader (among others).
+
+Press enter or click to view image in full size
+Sourcing 3D City Models
+Sourcing 3D City Models. © F. Poux
+This is an excellent service that I recently started using as part of my scientific activities. 3Dcityloader converts 3D city data from public sources into practical file formats like CityGML, STL, or OBJ. As mentioned by 3DcityLoader:
+
+“The service’s data comes directly from the respective cities, which usually provide it as CityGML. The detail level is, therefore, much higher than with other sources, like OpenStreetMap.”
+
+It allows me to build new experiments fast, where 3D geospatial elements can be easily integrated into various software (see Bucket 3: Chapter 2).
+
+2. 3D LiDAR Data (Point Clouds)
+This is my favorite data modality: a bunch of 3D points that describe a scene. I love 3D point clouds, mainly thanks to their ability to describe with an unlimited depth (you can describe an entire country or a single object with points). And you can get a lot of 3D point clouds from the web.
+
+Press enter or click to view image in full size
+A 3D LiDAR Point Cloud from Florence as it was
+A 3D LiDAR Point Cloud from Florence as it was. © F. Poux
+For example, my core objective when using OpenTopography (or Opendata repositories) is to find and get access to large-scale LiDAR datasets for geospatial analysis. I use this service when I want to leverage point clouds for scientific research, from terrain analysis to mapping. It offers a vast collection of LiDAR data that I often need to understand the dynamics of the earth's surface. It helps to streamline my research by providing all of the data I need in one place.
+
+You can also source national open data initiatives; here are some of my favorites:
+
+The LidarHD in France (2025), with 10 pts/m2 (points per square meter) and a vertical accuracy of 10 cm (which is very interesting).
+The City of Vancouver LiDAR data (Canada, 2022). You have some nice class information as well
+The AHN LiDAR Campaigns (AHN1 to 5 currently), that you can view on the official AHN LiDAR Viewer (Netherlands, 2025).
+But aside from Aerial LiDAR, you can also explore other sources such as Openheritage3d to get your hands on terrestrial laser scanner data of heritage sites (among other things) or a little gem (close to my heart): Florence As It Was.
+
+Usually, you will gather point clouds in the. LAZ (Aerial LiDAR, comrpessed), .e57 (for terrestrial laser scanner, may include panoramas) or the. PLY file format (more generic open format, common in the research community).
+
+Now, what about getting our hands on 3D assets?
+
+3. 3D Assets (Sketchfab / TurboSquid)
+When I visit Sketchfab or TurboSquid, my main goal is to find specific, high-quality 3D models or assets for my projects, where I can find a massive number of options.
+
+Press enter or click to view image in full size
+Downloading 3D Assets from Sketchfab
+Downloading 3D Assets from Sketchfab. © F. Poux
+I usually go there when I need a unique asset with a particular format and texture. The best thing about these platforms is that they provide different categories and licensing options, and they also allow for direct integration into many 3D software. I can find anything, from a simple component to an entire3D scene.
+
+4. External Data Sources
+You often need external information from other non-3D modalities for spatial applications. This is where I tap into external sources such as Mappillary, OpenStreetMap, or the Google Dataset Search engine. From there, you can get access to a range of data that is not easily available on other dedicated platforms.
+
+Press enter or click to view image in full size
+External data sources such as mappillary (360° imagery), google datasets (to develop machine learning systems) or OpenStreet maps (vector data) by Florent Poux
+External data sources such as mappillary (360° imagery), google datasets (to develop machine learning systems) or OpenStreet maps (vector data). © F. Poux
+I use Mappillary for 360 imagery, OpenStreetMap for vector data, and Google Dataset Search for diverse research datasets. This is very interesting, as I can use this to create “data-rich” urban scenarios, sourcing all the relevant information for my research (e.g., roads as vectors, raster imagers, etc.).
+
+These external sources thus serve as complementary sources to my core databases of 3D datasets and usually allow me to extend the scope of possibilities through multi-modal processes.
+
+🎁 Bonus: This would not be complete without citing my various tutorials on Medium, which share 3D datasets with open licenses, such as the one below (you can play around with the 3D point cloud on the web: WebGL Real-Time 3D).
+
+Press enter or click to view image in full size
+Example of a 3D dataset that you can get from the various tutorials on Medium
+Example of a 3D dataset that you can get from the various tutorials on Medium. © F. Poux
+🌱Growing: Current research is particularly interested in building automated systems for organizing data. Of course, the main aim is to lessen the manual work involved while improving the data quality. But underlying this also involves using AI tools to tidy up data, verify its quality, adjust its structure, etc.
+
+I want to share some words on the current trends and extraordinary innovations around these aspects. The first element is that I saw some admirable R&D efforts to push the development storage solutions for 3D assets. This is interesting because it provides straightforward data descriptions to help locate the assets more efficiently.
+
+On top, and with the rise of generative AI, there is a strong emphasis on creating datasets to train new kinds of AI architecture, which needs well-designed and specific datasets.
+
+These constitute your four ideal sources for 3D data and are illustrated below.
+
+Press enter or click to view image in full size
+The Core Components of 3D Data Curation: 3D City Models, 3D LiDAR, 3D Assets and External sources
+The Core Components of 3D Data Curation: 3D City Models, 3D LiDAR, 3D Assets and External sources. © F. Poux
+Of course, these sources can also be generated on your own when what you need is not accessible through online repositories. Therefore, let us talk about the 3D reconstruction methods or how to generate these 3D datasets.
+
+Bucket 2. 3D Reconstruction Methods (Tools 5 to 11)
+3D reconstruction involves creating 3D models of physical objects from sensors (images, laser scanners, lidar) and other techniques (such as 3D generative AI).
+
+Press enter or click to view image in full size
+Bucket 2 of the 3D Master Toolbox: 3D Reconstruction (and 3D Scanning) Methods
+Bucket 2 of the 3D Master Toolbox: 3D Reconstruction (and 3D Scanning) Methods. © F. Poux
+In modern 3D data capture, the central two concepts are image-based methods (photogrammetry), which leverage several images to derive a 3D model, and laser-based methods (LiDAR), which measure distance and angles to reconstruct 3D shapes. You can see two examples of 3D point clouds resulting from these techniques from projects (companies or universities) I supervise:
+
+Press enter or click to view image in full size
+Example of two datasets with two different methodologies
+Example of two datasets with two different methodologies. © F. Poux
+🦚 Note: You do not see it, but I am sweating, fighting against my desire to share a 200-page long course, supported by a 40-hour class on LiDAR and photogrammetry. But I will spare you. at least in here. Just now, these are two “techniques” that leverage either a passive sensor (photogrammetry) or an active one (lasergrammetry) to generate 3D datasets in the form of point clouds.
+
+The hardware used includes cameras, laser scanners, or range cameras. These systems capture the physical measurements, while software algorithms work in the background to reconstruct the subject’s geometry and appearance. With a very simplified view, you can then consider a 3D Data Capture job as shown in the following workflow.
+
+Press enter or click to view image in full size
+A simple workflow for the capture of entire 3D scenes, with photogrammetry or LiDAR
+A simple workflow for the capture of entire 3D scenes, with photogrammetry or LiDAR. © F. Poux
+With modern surveying, the main differences are essentially attached to the level of accuracy, visual fidelity, and production setup.
+
+Another approach is 3D generative modeling. With new AI advances, you can use tools like Microsoft Trellis to generate data with image or text prompts. This is usually pure inference work and is not directly measured like LiDAR. Below is an example I made using Python and this 3D Master Toolbox, which I will explain in future chapters.
+
+Press enter or click to view image in full size
+Example of a 3D Generative AI Workflow developed with Python, to generate a 3D Mesh from a monocular image
+Example of a 3D Generative AI Workflow developed with Python, to generate a 3D Mesh from a monocular image. © F. Poux
+To summarize, you can get powerful systems working with these 3 main categories:
+
+Press enter or click to view image in full size
+Which method/tool to use for 3D data processing
+Which method/tool to use for 3D data processing? © F. Poux
+Now, I would like to share some hardware recommendations (tools 5 to 9) for your 3D reconstruction projects, sorted by affordability, and two bonus ones to increase the quality of your deliverables as well as the range of application (tools 10 and 11).
+
+5. Smartphone Cameras for Photogrammetry
+Let us start with the most simple 3D data capture device: smartphones. They usually come with built-in cameras that are enough for a quick 3D reconstruction when accuracy is not the most critical factor.
+
+Press enter or click to view image in full size
+A Smartphone camera for photogrammetry.
+A Smartphone camera for photogrammetry. © F. Poux
+These cameras are enough for a quick 3D reconstruction when accuracy is not the most critical factor. I use them for small, simple objects or quick initial scans. They are the best options for simple home-based prototyping or creating quick 3D models of small objects for documentation.
+
+Recommended Material List:
+
+Smartphone with a good quality camera
+Basic tripod or stabilizer for stable images
+Scale bar (if accuracy is needed)
+Photogrammetry software (e.g., Meshroom, 3DF Zephyr Lite)
+Price Range:
+
+Smartphone: $300 — $1,500
+Tripod: $20 — $100
+Software: Free — $500+
+6. DSLR Cameras for Photogrammetry
+DSLR cameras are best for projects requiring high-resolution, detailed texture mapping on objects and environments.
+
+Press enter or click to view image in full size
+A DSLR Camera for Photogrammetry
+A DSLR Camera for Photogrammetry. © F. Poux
+I use them when the project needs flexibility, portability, and accuracy. They are ideal for small to medium-sized objects or structures where precise color information is required or where a high degree of freedom is needed for image capture. I use them for archeological sites, building facades, or product design.
+
+Recommended Material List:
+
+DSLR Camera (e.g., Canon EOS series, Nikon D series)
+Lenses with varying fixed focal lengths (wide-angle + standard (8 mm > 24 mm)
+Tripod for stable image acquisition
+Camera calibration targets (checkerboard patterns)
+Scale bars (for accurate measurements)
+Image processing software (e.g., Agisoft Metashape, Reality Capture).
+Price Range:
+
+Camera: $500 — $3,000
+Lenses: $200 — $2,000+ per lens
+Tripod: $50 — $300
+Targets and scale bars: $50 — $200
+Software: $0 — $5,000+ (perpetual license or subscription)
+7. Handheld LiDAR Scanners
+Handheld LiDAR scanners are great for scanning objects and indoor spaces, where flexibility and speed are essential.
+
+Press enter or click to view image in full size
+A hand-held laser scanner
+A hand-held laser scanner. © F. Poux
+I use them when I need to quickly collect data from an area, such as building interiors, historical structures, or industrial equipment. I also use them for medium-scale models.
+
+Recommended Material List:
+
+Handheld LiDAR scanner (e.g., Leica BLK series, Lixel-XGrids )
+Calibration targets (for precise measurements)
+Data acquisition software
+Post-processing software
+Price Range:
+
+Handheld LiDAR scanner: $15,000 — $50,000+
+Calibration targets: $50 — $500
+Software: $5000 — $20,000+ (perpetual or subscription)
+8. Terrestrial Laser Scanners (TLS)
+Terrestrial laser scanners are my go-to when I need highly accurate, detailed 3D point cloud data for indoor industrial projects.
+
+Press enter or click to view image in full size
+A terrestrial laser scanner.
+A terrestrial laser scanner. © F. Poux
+I use them for surveying, architectural documentation, civil engineering, or large industrial sites. They are precise, and they can provide excellent data quality, along with very high-density data.
+
+Recommended Material List:
+
+Terrestrial laser scanner (e.g., Leica ScanStation P20+, Trimble, Faro Focus series)
+Tripod for a stable setup
+Calibration targets (spheres, checkerboards)
+Data processing software (e.g., Cyclone, Scene)
+Price Range:
+
+Laser scanner: $30,000 — $100,000+
+Tripod and targets: $200 — $1,000
+Software: $5,000 — $50,000+
+9. Mobile Mapping Systems (MLS)
+Mobile mapping systems are my preferred solution when I need to capture 3D data over large areas efficiently.
+
+Press enter or click to view image in full size
+A mobile mapping system
+A mobile mapping system. © F. Poux
+I use them for road surveys, urban mapping, railway asset management, and other large-scale infrastructure projects. These systems include both LiDAR and other sensors, all synchronized to deliver a very precise 3D model.
+
+Recommended Material List:
+
+Mobile mapping system (LiDAR, cameras, GPS/IMU)
+Data processing software
+Price Range:
+
+Mobile mapping system: $100,000 — $300,000+
+Software: $10,000 — $50,000+
+10. GNSS Receivers for Precise Positioning (Photogrammetry and TLS)
+GNSS receivers enhance the positional accuracy of 3D models in photogrammetry and TLS projects.
+
+Press enter or click to view image in full size
+A GNSS Receiver
+A GNSS Receiver. © F. Poux
+I use them when I need precise georeferencing and high accuracy of the 3D datasets. The primary use case is for large-scale projects requiring very high accuracy, such as urban mapping or surveying. I use it with scale bars and targets.
+
+Recommended Material List:
+
+GNSS receiver (e.g., Trimble, Leica, Topcon)
+Tripod or mounting hardware
+Post-processing software
+Price Range:
+
+GNSS receiver: $2,000 — $30,000+
+Software: $0 — $5,000+
+11. RADAR (Radio Detection and Ranging) Systems
+I know, this is a bit out of the classical view on 3D data acquisition solutions. But RADAR systems are beneficial when other systems present limitations.
+
+Press enter or click to view image in full size
+A RADAR Sensor
+A RADAR Sensor. © F. Poux
+These are best suited for low-visibility situations such as nighttime, foggy weather, or areas with limited light. They can also penetrate through some materials, making them ideal for certain subsurface investigations. These sensors are mostly used for long-distance scanning or large-area mapping.
+
+Recommended Material List:
+
+RADAR system
+Processing software
+Price Range:
+
+RADAR system: $20,000 — $500,000+ ( depending on resolution and range)
+Software: $1,000 — $50,000+
+🦚 Note: Keep in mind that these prices can vary depending on several factors: the brand, the features, the resolution, the accuracy, your location, ... The software costs can also change depending if you are subscribing or purchasing a perpetual license.
+
+Press enter or click to view image in full size
+The price ranges of 3D mapping technologies presented.
+The price ranges of 3D mapping technologies presented. © F. Poux
+If you look at the industry, you will find that methods to reduce the cost of 3D scanners are constantly being investigated to enable easier access to the technology (which is a good thing in my opinion).
+
+🌱 Growing: The current production-ready R&D is focused on two main aspects: (1) improving reconstruction accuracy and efficiency (e.g., by combining different sensor types through data fusion) and also answering a growing interest in real-time reconstruction using embedded devices and mobile systems. Also, and you may be familiar with this, we have a new wave of advancements in AI algorithms touching on neural radiation fields (NeRFs). Without going too much into details, these are making it possible to reconstruct complex scenes with much higher detail or visual fidelity (see 3D Gaussian Splatting).
+
+Okay, you now have your data and can reconstruct your 3D models, and you have a way to select the best tool for the job, as seen below.
+
+Press enter or click to view image in full size
+The workflow to choose a photogrammetry anf 3D Scanning hardware solution
+The workflow to choose a photogrammetry anf 3D Scanning hardware solution. © F. Poux
+Conclusion
+So, you now have access to the first two buckets for your journey in 3D data processing. You have access to various data sources and understand how to reconstruct them using different hardware.
+
+Press enter or click to view image in full size
+The Chapter 1 (Buckets 1 and 2, including 11 tools) of the 3D Master Toolbox. by Florent Poux
+The Chapter 1 (Buckets 1 and 2, including 11 tools) of the 3D Master Toolbox. © F. Poux
+You also know how to select the best tool based on your use case and budget. This article provides the initial backbone of a strong and reliable “3D Master Toolbox.”.
+
+Remember, it is not only about selecting the tools but also understanding the “why” and how all of the tools connect. This approach empowers you with the know-how and the conceptual understanding to master this exciting field.
+
+🪴Next: Follow 
+Florent Poux, Ph.D.
+ to get notified when the next chapter is ready, with a deep dive into 3D software and local computing resources. In the meantime, feel free to read the following article:
+
+Transform Point Clouds into 3D Meshes: A Python Guide
+Learn how to generate 3D meshes from point cloud data with Python. This tutorial culminates in a 3D Modelling app with...
+towardsdatascience.com
+
+About the author
+Florent Poux, Ph.D.
+ is a Scientific and Course Director focused on educating engineers on leveraging AI and 3D Data Science. He leads research teams and teaches 3D Computer Vision at various universities. His goal is to ensure you are equipped with the knowledge and skills to tackle 3D challenges for impactful innovations.
+
+Resources
+🏆Awards: Jack Dangermond Award
+📕Book: 3D Data Science with Python
+📜Research: 3D Smart Point Cloud (Thesis)
+🎓Courses: 3D Geodata Academy Catalog
+💻Code: Florent’s Github Repository
+💌3D Tech Digest: Weekly Newsletter
+3d
+Point Cloud
+Data
+Tools
+Deep Dives
+235
+
+
+5
+
+
+
+
+TDS Archive
+Published in TDS Archive
+829K followers
+·
+Last published Feb 3, 2025
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (5)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+codewithtls
+codewithtls
+
+Feb 1
+
+
+If you're looking to enhance your programming skills and stay ahead of the curve, CodeWithTLS is an excellent platform for learning. With a variety of high-quality courses in languages like Python, Java, and the MERN stack, you can acquire…more
+2
+
+Reply
+
+Johannes Killinger
+Johannes Killinger
+
+Feb 7
+
+
+Thank you for the article. I saw the preview version of your book on O’Reilly. I’m looking forward to reading the whole book.
+1
+
+Reply
+
+Online education
+Online education
+
+Jan 31
+
+
+https://www.profitablecpmrate.com/abvu4u9cub?key=9bc42945586bca82b1023572af2003a1
+1
+
+Reply
+
+See all responses
+More from Florent Poux, Ph.D. and TDS Archive
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Francesco Casalegno
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+Leveraging data to help users discovering new contents
+Nov 25, 2022
+542
+5
+
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Ketan Doshi
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+A Gentle Guide to the inner workings of Self-Attention, Encoder-Decoder Attention, Attention Score and Masking, in Plain English.
+Jan 17, 2021
+3K
+35
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from TDS Archive
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+Google Earth and Earth Engine
+In
+
+Google Earth and Earth Engine
+
+by
+
+Google Earth
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+By Alicia Sullivan, Earth Engine Product Manager; Kel Market, Cloud Geographer; and Gena Donchyts, Cloud Geographer
+Jun 17
+109
+2
+
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+Finding Groundwater Using Google Earth Engine and Gemini
+Google Cloud - Community
+In
+
+Google Cloud - Community
+
+by
+
+Greg Sommerville
+
+Finding Groundwater Using Google Earth Engine and Gemini
+Remote Sensing and Infrared images make it possible
+Jul 16
+16
+2
+
+
+Notebook Wars: Jupyter Notebooks with Cursor Agent
+Alex Hruska
+Alex Hruska
+
+Notebook Wars: Jupyter Notebooks with Cursor Agent
+For part one of my Notebook Wars exploration of the various modern notebook options I will start with Jupyter Notebooks in Cursor. This is…
+Jun 22
+3
+
+
+A Python-Based Workflow for Land Cover Classification Using Geemap, Rasterio, Geopandas, Numpy…
+Dr.Preethi Balaji
+Dr.Preethi Balaji
+
+A Python-Based Workflow for Land Cover Classification Using Geemap, Rasterio, Geopandas, Numpy…
+If you’ve read my previous articles, you’ll know I’m a long-time connoisseur of Google Earth Engine (GEE) — especially its JavaScript API…
+
+Jul 23
+105
+1
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

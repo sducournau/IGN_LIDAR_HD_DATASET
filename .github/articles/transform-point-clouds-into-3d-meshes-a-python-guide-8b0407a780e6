@@ -1,0 +1,656 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+TDS Archive
+TDS Archive
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+Follow publication
+
+Member-only story
+
+3D Python
+Transform Point Clouds into 3D Meshes: A Python Guide
+Learn how to generate 3D meshes from point cloud data with Python. This tutorial culminates in a 3D Modelling app with the Marching Cubes algorithm.
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+15 min read
+·
+Nov 1, 2024
+573
+
+
+5
+
+
+
+
+
+Press enter or click to view image in full size
+How to transform any point cloud into a sound 3D Mesh?
+How to transform any point cloud into a sound 3D Mesh? © Florent Poux
+The world of 3D data is often a fragmented landscape.
+
+There are point clouds, which are rich in detail but lack surface information.
+
+There are 3D meshes, which define surfaces explicitly but are often complex to create.
+
+Converting point clouds to meshes bridges this gap and unlocks many possibilities, from realistic simulations to 3D Digital Environment Design.
+
+Even if you do not use mesh for the rendering part, having it allows us to ensure that we can efficiently simulate collision effects, compute the walkable space in a 3D building, or handle occlusion culling for large scenes.
+
+But how do we do that? How do we take ANY point cloud (from photogrammetry, 3D Gaussian Splatting, or Laser Scanning methods) and generate a sound 3D Mesh?
+
+Let’s code a powerful technique for meshing 3D point clouds using Python and make it a Micro-Saas App with a GUI.
+
+Press enter or click to view image in full size
+Our web app to transform any point cloud in a 3D mesh. It contextualizes the 3D meshing tutorial by Florent Poux.
+The tutorial results: A Web-App that transforms any point cloud in a 3D mesh. © Florent Poux
+🦊 Florent: If you feel like a 3D coder’s soul is taking over you, let us master the art of mesh generation using the powerful Marching Cubes algorithm.
+
+Press enter or click to view image in full size
+The happy marching cube. It contextualizes the 3D meshing tutorial by Florent Poux.
+The happy marching cube. © Florent Poux
+🎯 Mission Objectives
+You are the last 3D-enginartist not fired yet due to the impossible task at hand. You need to create a new Star Wars game as a 3D Gaussian Splatting Scene. The player is a Hutt that shoots at a jumping Jedi based on a user uploading scene to a platform.
+
+The problem is that you must bake in if the Jedi is behind objects that intercept the ray and find a way to generalize processing.
+
+Press enter or click to view image in full size
+The Jedi is hiding behind a rock. It contextualizes the 3D meshing tutorial by Florent Poux.
+The Jedi is hiding behind a rock! © Florent Poux
+At this stage, you have established a workflow.
+
+You first aim to develop a robust and efficient method for meshing point clouds. You want to control the meshing process through crucial parameters like voxel size and iso level, tailoring the output to your needs.
+
+Beyond mere conversion, you strive for a second goal: automation. You want to empower non-programmers to generate meshes effortlessly through an intuitive web interface.
+
+🦊 Florent: The success of this mission depends on your understanding of the underlying principles. You must grasp the essence of the Marching Cubes algorithm, visualizing how it extracts a surface from a point cloud by cleverly analyzing a virtual grid. You must learn to wield Python libraries like NumPy, Open3D, scikit-image, and SciPy, bending them to your will. Finally, you must embrace the power of Gradio, crafting a user-friendly interface to democratize access to this powerful technology.
+
+Our method should bypass the limitations of other reconstruction techniques, such as Poisson reconstruction, Ball pivoting, and Delaunay triangulation (you can find them in this other tutorial).
+
+5-Step Guide to generate 3D meshes from point clouds with Python
+Tutorial to generate 3D meshes (.obj, .ply, .stl, .gltf) automatically from 3D point clouds using python. (Bonus)…
+towardsdatascience.com
+
+Also, you want to get as close as possible to the “point cloud” shape, and thus decide to steer away from beloved voxels (but you can find more on them at the end of the article). Let us delve into the deep conceptual holes of the 3D Mesh Algorithm: Let us uncover the intricacies of the Marching Cubes, and detail a Python implementation for converting point clouds to meshes, such as the one below.
+
+Press enter or click to view image in full size
+The 3D Mesh Result of our 3D Modeling App. It contextualizes the 3D meshing tutorial by Florent Poux.
+The Result of our 3D Modeling App. © Florent Poux
+🗝️ 5 Keys to 3D Meshing
+Point clouds represent 3D shapes as collections of points with spatial coordinates and optional attributes.
+Meshes represent 3D shapes as connected triangles, defining surfaces explicitly.
+The Marching Cubes algorithm bridges the gap, creating meshes from point clouds.
+Parameter tuning and automation are crucial for optimal mesh generation.
+Building a Web App democratizes access to this technology.
+From Point Clouds to 3D Meshes
+Imagine capturing an object’s 3D shape, with an approach that involves scanning its surface with a laser scanner, generating a point cloud.
+
+Press enter or click to view image in full size
+illustration of the sampling on a surface from the laser scanner of our point cloud. It contextualizes the 3D meshing tutorial by Florent Poux.
+The sampling on a surface from the laser scanner of our point cloud. © Florent Poux
+This point cloud is a collection of millions or even billions of individual points, and permit to obtain 3D datasets such as the one below.
+
+Press enter or click to view image in full size
+An example of a 3D point cloud from a mobile laser scanner. It contextualizes the 3D meshing tutorial by Florent Poux.
+An example of a 3D point cloud from a mobile laser scanner. © Florent Poux
+Each point holds its spatial coordinates (x, y, z) and potentially other attributes like color, intensity, or classification labels. Point clouds are raw and direct representations of 3D shapes, preserving fine details but lacking explicit surface information.
+
+This is where we can play on 3D Data Representation: you can represent the object’s shape as a mesh. A mesh constructs the surface using interconnected triangles.
+
+Each triangle is defined by three vertices, and their connections form a network that approximates the object’s surface.
+
+Press enter or click to view image in full size
+The definition of a 3D Mesh component. It contextualizes the 3D meshing tutorial by Florent Poux.
+The definition of a 3D Mesh component. © Florent Poux
+Meshes explicitly define the surface, enabling calculations like surface area and volume and facilitating rendering with realistic lighting and shading.
+
+However, creating meshes directly can be complex and often relies on algorithms that infer surface connections from point clouds.
+
+Let us use the Marching Cubes algorithm to bridge the gap between these two representations and obtain results on any point cloud, such as the one below.
+
+Press enter or click to view image in full size
+
+Let us go from 1, a point cloud, to 2, a 3D Mesh. © Florent Poux
+Deep Dive into the Marching Cubes Algorithm for 3D Mesh
+The Marching Cubes algorithm, developed by Lorensen and Cline in 1987, is a clever technique for creating a mesh from a volumetric dataset.
+
+Think of the point cloud as embedded within a virtual grid, similar to a 3D chessboard.
+
+The algorithm examines each voxel in this grid. It works by imagining an implicit surface flowing through this grid. The values of a scalar field at the corners of each voxel imply this surface but do not directly define it.
+
+Press enter or click to view image in full size
+. It contextualizes the 3D meshing tutorial by Florent Poux. It contextualizes the 3D meshing tutorial by Florent Poux.
+Illustration of surfaces with the same scalar field based on the values of our voxels. © Florent Poux
+In our case, the scalar field represents the distance from each grid point (voxel corner) to the nearest point in the input point cloud.
+
+The crucial concept here is the iso level or iso surface. Imagine contour lines on a topographic map. Each contour line connects points of equal elevation.
+
+Press enter or click to view image in full size
+The parallel to topographic maps and isolines. It contextualizes the 3D meshing tutorial by Florent Poux.
+The parallel to topographic maps and isolines. © Florent Poux
+The isosurface in Marching Cubes works similarly but in 3D. It connects points in the grid where the scalar field has the same value. This iso-surface represents the “boundary” of our mesh.
+
+For each voxel, the algorithm checks the values of the scalar field at its eight corners. If a corner’s value is above the iso level, it’s considered “outside” the surface; if below, it’s “inside.”
+
+The algorithm determines how the iso surface intersects the voxel based on the combination of “inside” and “outside” corners. One or more triangles then represent this intersection and contribute to the final mesh.
+
+By repeating this process for every voxel in the grid, the algorithm creates a complete mesh that approximates the surface defined by the point cloud.
+
+Press enter or click to view image in full size
+Turning a 3D Point Cloud into a 3D Mesh with the Marching Cube algorithm. It contextualizes the 3D meshing tutorial by Florent Poux.
+Turning a 3D Point Cloud into a 3D Mesh with the Marching Cube algorithm. © Florent Poux
+The choice of iso level is critical. A low iso level generates a tight mesh, closely following the point cloud, potentially capturing noise and fine details. A high iso level creates a smoother, more generalized mesh.
+
+🦚 Note: The iso_level_percentile parameter in our Python implementation controls this level, expressed as a percentile of the distances computed in the scalar field. The size of the voxels, determined by voxel_size, also affects the result. Smaller voxels yield finer meshes, capable of capturing more details but requiring more computation. Larger voxels create coarser meshes, faster to compute but potentially missing subtle features.
+
+Step 1: 3D Python Setup
+Let us make sure you have everything that is needed to start working.
+
+Libraries Import
+This stage involves importing the necessary Python libraries: NumPy for numerical operations, Open3D for point cloud and mesh handling, scikit-image for the Marching Cubes implementation, and SciPy for spatial data structures and computations.
+
+import numpy as np
+import open3d as o3d
+from skimage import measure
+from scipy.spatial import cKDTree
+Gathering 3D Point Clouds
+Here, you collect the point cloud data you want to process. This might involve reading files from disk (e.g., .ply, .las, .xyz formats) or acquiring data from other sources. Each point cloud is typically represented as a data structure containing each point’s x, y, and z coordinates, along with any additional attributes like color or intensity.
+
+Press enter or click to view image in full size
+The point cloud dataset that illustrates our 3D meshing pipeline, that I use. It contextualizes the 3D meshing tutorial by Florent Poux.
+The point cloud dataset that illustrates our 3D meshing pipeline, that I use. © Florent Poux
+🦚 Note: I recommend starting with a small point cloud to test the approach’s parameters.
+
+3D Python Libraries, Software, Tools and Resources
+Below, I have listed all the various tools and libraries that we are going to leverage in this tutorial.
+
+Anaconda: https://www.anaconda.com/ — A popular Python distribution platform for data science and machine learning, providing package management and environment control.
+Then, a set of 5 python libraries that can be installed via pip (package installer for Python) within your Anaconda environment or any other Python environment.
+
+NumPy: https://numpy.org/ — Fundamental library for numerical computing in Python, providing powerful array operations.
+Open3D: https://www.open3d.org/ — Library designed for 3D data processing, including point cloud and mesh manipulation, visualization, and algorithms.
+scikit-image: https://scikit-image.org/ — Image processing library built on top of NumPy, providing tools for image analysis, segmentation, and more (including the Marching Cubes implementation).
+SciPy: https://scipy.org/ — Library built on NumPy, providing advanced scientific computing capabilities, including spatial data structures like KD-Trees.
+Gradio: https://gradio.app/ — Python library for creating user interfaces for machine learning models, allowing you to build interactive web demos.
+And to finish, one Open-Source Software:
+
+CloudCompare: https://www.danielgm.net/cc/ — Open-source 3D point cloud and mesh processing software, useful for visualizing, analyzing, and editing 3D data. It also has a command-line interface for batch processing.
+Beautiful; once you have set up your environment to your liking, we can dive onto the second stage: the Marching Cube implementation.
+
+Step 2: The Marching Cubes 3D Meshing Function
+This is the core of the process, where the magic of Marching Cubes happens.
+
+Let me detail the core components of the point cloud to 3D mesh strategy. We move into 7 stages (a to g) as illustrated below.
+
+Press enter or click to view image in full size
+Our function internal working for creating a Marching cube 3D Mesh of a point cloud. It contextualizes the 3D meshing tutorial by Florent Poux.
+Our function internal working for creating a Marching cube 3D Mesh of a point cloud. © Florent Poux
+These stages are part of our function, which takes in the two parameters below:
+
+voxel_size=0.1 
+iso_level_percentile=20
+Great, I will not create more traction there, but let me detail all the seven steps that happen within the 3D Marching Cubes Function:
+
+a. Open3D to PCD
+We load our point cloud with Open3D, and then we can put that as a numpy array.
+
+pcd = o3d.io.read_point_cloud(dataset)
+
+# Convert Open3D point cloud to numpy array
+points = np.asarray(pcd.points)
+This ensures compatibility with downward processes.
+
+b. Bounds Computation
+Let us determine the minimum and maximum extents of the point cloud along each axis (x, y, z). This defines the bounding box that will enclose our voxel grid.
+
+# Compute the bounds of the point cloud
+mins = np.min(points, axis=0)
+maxs = np.max(points, axis=0)
+Beautiful! Now what?
+
+c. Creating a 3D Grid for the 3D Point Cloud
+Let us create a regular 3D grid, or voxel grid, within the bounding box.
+
+The voxel_size parameter determines the spacing between grid points; each cell in this grid is a voxel.
+
+# Create a 3D grid
+x = np.arange(mins[0], maxs[0], voxel_size)
+y = np.arange(mins[1], maxs[1], voxel_size)
+z = np.arange(mins[2], maxs[2], voxel_size)
+x, y, z = np.meshgrid(x, y, z, indexing='ij')
+🦚 Note: This code creates a three-dimensional grid for spatial computations. It starts by generating three separate 1D arrays (x, y, and z) using np.arange(), which creates evenly spaced values from mins to maxs with steps of voxel_size in each dimension. Then, np.meshgrid() takes these 1D arrays and transforms them into three 3D arrays of the same shape, where each point (i,j,k) in the grid contains its corresponding x, y, and z coordinates. The indexing=’ij’ parameter ensures the array indexing follows the matrix convention. The result is three arrays that together define all points in a 3D grid, allowing you to access any point’s coordinates using the same indices across all three arrays: (x[i,j,k], y[i,j,k], z[i,j,k]).
+
+d. KD-Tree for Efficiency
+It is time to construct a KD-Tree (k-dimensional tree) from the point cloud data. Shortly, KD-Trees are efficient spatial data structures that facilitate fast nearest-neighbor searches. But at this stage, you should have that in mind. 😉
+
+# Create a KD-tree for efficient nearest neighbor search
+tree = cKDTree(points)
+Yes, it is that simple. Our tree is constructed; let us leverage this beautiful tree.
+
+e. Scalar Field: Distance to Nearest Point
+For each grid point (corner of a voxel), we are going to calculate the distance to the nearest point in the point cloud using the KD-Tree.
+
+This distance value becomes the scalar field value at that grid point, as shown below:
+
+# Compute the scalar field (distance to nearest point)
+grid_points = np.vstack([x.ravel(), y.ravel(), z.ravel()]).T
+distances, _ = tree.query(grid_points)
+scalar_field = distances.reshape(x.shape)
+🦚 Note: This code transforms the three 3D coordinate arrays into a 2D array of points. The ravel() function first flattens each 3D array into 1D arrays, then np.vstack() stacks these flattened arrays vertically to create a 3×N array where N is the total number of points (nx * ny * nz). Finally, the .T transposes this array to get an N×3 array where each row represents a point with its (x,y,z) coordinates.
+
+f. Determine the Iso Level
+All right, it is time to focus on the ISO level. The ISO level defines the surface threshold for the Marching Cubes algorithm. It’s calculated as a percentile of the distances computed in the previous step. The iso_level_percentile parameter controls this, and I illustrate it below.
+
+Press enter or click to view image in full size
+
+The isolines on our voxel grid. © Florent Poux
+# Determine iso-level based on percentile of distances
+iso_level = np.percentile(distances, iso_level_percentile)
+With this little snippet, we leverage the np.percentile() function to find the value below which a given percentage (iso_level_percentile) of distances fall.
+
+For example, if iso_level_percentile is 50, it finds the median distance value; if it's 75, it finds the value where 75% of distances are lower.
+
+🌱 Growing: I commonly use this in surface reconstruction to decide where to place the surface; points with distances below this threshold will be considered "inside" the surface, while points above it will be "outside.". It's a way of automatically determining a good cutoff value based on the distribution of your distance measurements rather than setting an arbitrary fixed threshold.
+
+g. Apply Marching Cubes
+We are almost there: we can now call our marching cube function. The skimage.measure.marching_cubes function takes the scalar field and iso level as input.
+
+# Apply Marching Cubes
+verts, faces, _, _ = measure.marching_cubes(scalar_field, level=iso_level)
+This function analyzes each voxel and generates triangles based on how the isosurface intersects the voxel.
+
+We are finally ready to go onto 3D Mesh Post-Processing.
+
+Step 3. 3D Mesh Post-Processing
+At this stage, our mesh is almost ready. We want her (why not?) to return to his original position and generate the 3D mesh object. Let us first address the 3D transformations.
+
+3D Transformations: Scale and Translate
+The vertices of the generated triangles are initially in voxel grid coordinates. This step scales and translates the vertices back to the original point cloud coordinate system. We can move as illustrated below.
+
+Press enter or click to view image in full size
+
+3D Transformations illustration: Scaling (Red)and translation (green). © Florent Poux
+which means with Python code:
+
+# Scale and translate vertices back to original coordinate system
+verts = verts * voxel_size + mins
+Beautiful! Now, we can generate our 3D Mesh from our point cloud.
+
+Creating our 3D Mesh
+Let us create an Open3D TriangleMesh object with scaled and translated vertices and triangle connectivity information (faces). We can use Open3D to do just that, as shown below.
+
+# Create mesh
+mesh = o3d.geometry.TriangleMesh()
+mesh.vertices = o3d.utility.Vector3dVector(verts)
+mesh.triangles = o3d.utility.Vector3iVector(faces)
+From there, we can leverage an additionnal step: Normals.
+
+Computing 3D Mesh Normals
+To populate the 3D mesh with normals, let us compute Vertex normals. These normals are crucial for proper lighting and shading during rendering, making the mesh appear smooth.
+
+# Compute vertex normals
+mesh.compute_vertex_normals()
+Beautiful! At this stage, we are ready to move on to visualizing our 3D mesh.
+
+🦚 Note: The full process depends on the two defined parameters, the voxel size and iso percentile choice. The first parameter, the voxel size, will highly influence the computing time, especially for big point clouds. The second will also affect computing time but have a lower impact. However, its geometric impact is significant.
+
+Step 4. 3D Mesh Visualization
+The moment you have been waiting for is there: we can now visualize our 3D mesh with the following command:
+
+# Visualize the result
+o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True)
+This results in the following:
+
+Press enter or click to view image in full size
+Several results of our 3D Mesh of a tree from the point cloud with various parameters. It contextualizes the 3D meshing tutorial by Florent Poux.
+Several results of our 3D Mesh of a tree from the point cloud with various parameters. © Florent Poux
+Displaying the generated mesh using Open3D’s visualization functions allows us to inspect the results. As you can see, the 3D Tree Mesh is very interestingly well-meshed.
+
+🦚 Note: You can save the mesh to a file (e.g., .ply, .obj, .stl) for use in other applications, such as Blender as illustrated below.
+
+Press enter or click to view image in full size
+The result in Blender of our 3D mesh of the entire point cloud of an indoor cathedral in Milan. It contextualizes the 3D meshing tutorial by Florent Poux.
+The result in Blender of our 3D mesh of the entire point cloud of an indoor cathedral in Milan. © Florent Poux
+Step 5. Automatic Parameters Estimation
+To automate the meshing process, you can estimate suitable values for voxel_size and iso_level_percentile. If you remember, we initialized them right at the beginning to these values without much explanation:
+
+voxel_size=0.1 
+iso_level_percentile=20
+But let us actually discuss a way to automatically find the best parameters.
+
+🦚 Note: These are advanced techniques. On top, large-scale optimization is also paramount for big datasets, like chunking (processing the point cloud in smaller blocks), parallelization, and efficient data structures to improve performance significantly. These techniques are taught in the 3D Segmentor OS.
+
+To guide you on this path, I recommend first estimating the voxel size. You can use the average distance to k-nearest neighbors in the point cloud to define the voxel size using some heuristics.
+
+Then, to estimate the isolevel percentile, you can use the distribution of distances from the scalar field to determine a suitable percentile. This entails calculating a Coefficient of Variation (CV) from the distances (standard deviation / mean).
+
+Finally, you can adjust the percentage based on your CV. Higher CV values (more spread-out points) generally lead to lower percentiles and vice versa.
+
+Step 6. Creating a web-app with Gradio
+Let us build a user-friendly web interface using Gradio. This interface can allow users to upload point cloud files, adjust parameters (voxel size, iso level), and visualize the generated meshes directly in their browser. This democratizes access to the meshing process, making it accessible even to non-programmers.
+
+To use Gradio to build a simple GUI, we usually follow a pattern:
+
+import gradio as gr
+with gr.Blocks() as app:
+    # ... (Gradio interface setup)
+Our goal is to create a drag-and-drop interface to upload a point cloud and generate the mesh directly in the browser, as shown below.
+
+Press enter or click to view image in full size
+Our web app to transform any point cloud in a 3D mesh. It contextualizes the 3D meshing tutorial by Florent Poux.
+Our web app to transform any point cloud in a 3D mesh. © Florent Poux
+To get such a result, with the 3D Model View, you can use the code below:
+
+# Create Gradio interface
+iface = gr.Interface(
+    fn=point_cloud_to_mesh,
+    inputs=gr.File(
+        label="Upload Point Cloud",
+        file_types=[".pcd", ".ply", ".xyz", ".pts"],
+    ),
+    outputs=gr.Model3D(
+        clear_color=[0.0, 0.0, 0.0, 0.0],  label="3D Model"),
+    title="Point Cloud to Mesh Converter",
+    examples=[],
+    cache_examples=False,
+    )
+This code creates a web-based user interface using Gradio, designed to convert point cloud files into 3D meshes. The interface is configured with a file upload component that expressly accepts point cloud files (in .pcd, .ply, .xyz, or .pts formats) and displays them in a 3D model viewer with a transparent background.
+
+The processing is handled by the function called point_cloud_to_mesh which contains the actual conversion logic we explained before. You can add these lines to our Python file:
+
+# Launch the interface
+if __name__ == "__main__":
+    iface.launch()
+When the script is run directly, it launches our web page titled “Point Cloud to Mesh Converter,” where users can upload their point cloud files and view the resulting 3D mesh in an interactive viewer.
+
+🦚 Note: The interface is streamlined, with no example files and disabled caching, focusing on providing a straightforward conversion service.
+
+🎯 Conclusion
+Your mission is a success! You have explored the foundational concepts of point clouds and meshes, provided a comprehensive explanation of the Marching Cubes algorithm, and demonstrated its practical application using Python.
+
+By understanding the interplay of parameters like voxel_size and iso_level_percentile, you can fine-tune the mesh generation process to achieve desired levels of detail and smoothness.
+
+On top, you built a Gradio web app to democratize access to this technology, enabling users without programming expertise to interact with and visualize 3D data effectively.
+
+Your little Jedi game 🕹️ is now a true success. Congratulation!
+
+🦊 My Final Words: This workflow empowers you to bridge the gap between point clouds and meshes, opening doors to various applications in various fields. For delving deeper into point cloud processing, mesh optimization, and related topics, consider exploring resources and other tutorials, such as the next step.
+
+Next Step 👞
+Why not dive into the world of 3D Voxels?
+
+How to Automate Voxel Modelling of 3D Point Cloud with Python
+Hands-on tutorial to turn large point clouds into 3D voxels 🧊 with Python and open3d. Unlock an automation workflow…
+towardsdatascience.com
+
+🐦 In Brief: This tutorial demonstrates a comprehensive workflow for meshing point clouds with the Marching Cubes algorithm. The approach is flexible, allows for parameter tuning and automation, and culminates in a user-friendly web app. This method provides a robust and accessible way to generate 3D meshes from point cloud data.
+
+3d Modeling
+Point Cloud
+Python
+Hands On Tutorials
+Mesh
+573
+
+
+5
+
+
+
+
+TDS Archive
+Published in TDS Archive
+829K followers
+·
+Last published Feb 3, 2025
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (5)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Cem Tutum
+Cem Tutum
+
+Nov 1, 2024
+
+
+Great tutorial!! Thank you for sharing!!! Just a tiny question: Are there any connections between marching cubes and signed distance fields (SDF) which are used for implicit modeling?
+23
+
+Reply
+
+Matthieu Straub
+Matthieu Straub
+
+Dec 13, 2024
+
+
+Amazing tutorial ! 👏
+2
+
+
+1 reply
+
+Reply
+
+Nehdiii
+Nehdiii
+
+Nov 20, 2024
+
+
+great article !!
+1
+
+
+1 reply
+
+Reply
+
+See all responses
+More from Florent Poux, Ph.D. and TDS Archive
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Francesco Casalegno
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+Leveraging data to help users discovering new contents
+Nov 25, 2022
+542
+5
+
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Ketan Doshi
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+A Gentle Guide to the inner workings of Self-Attention, Encoder-Decoder Attention, Attention Score and Masking, in Plain English.
+Jan 17, 2021
+3K
+35
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from TDS Archive
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+Google Earth and Earth Engine
+In
+
+Google Earth and Earth Engine
+
+by
+
+Google Earth
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+By Alicia Sullivan, Earth Engine Product Manager; Kel Market, Cloud Geographer; and Gena Donchyts, Cloud Geographer
+Jun 17
+109
+2
+
+
+Learn how to create a functional computer vision application using classical techniques and modern tools.
+Daniel García
+Daniel García
+
+Build Your First Computer Vision App in a Day: A Practical Guide
+
+Oct 9
+19
+
+
+Wait… YOLO11 to YOLO26?! Here’s what actually changed.
+Towards Deep Learning
+In
+
+Towards Deep Learning
+
+by
+
+Sumit Pandey
+
+Wait… YOLO11 to YOLO26?! Here’s what actually changed.
+YOLO11 to YOLO26?! Ultralytics skips ahead: NMS-free, edge-first, export-friendly vision model. Hype or real? My take. Yep
+
+Sep 26
+31
+1
+
+
+The Controversy of YOLOv13
+Zain Shariff
+Zain Shariff
+
+The Controversy of YOLOv13
+YOLOv13 is under controversy on whether it is a brand new and novel model that brings advantages and performance boosts. Read to learn…
+Jul 19
+18
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

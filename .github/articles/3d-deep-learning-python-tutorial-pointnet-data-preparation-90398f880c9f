@@ -1,0 +1,928 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+TDS Archive
+TDS Archive
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+Follow publication
+
+Top highlight
+
+Member-only story
+
+Hands-On Tutorial, Deep Dive, 3D Python
+3D Deep Learning Python Tutorial: PointNet Data Preparation
+The Ultimate Python Guide to structure large LiDAR point cloud for training a 3D Deep Learning Semantic Segmentation Model with the PointNet Architecture.
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+30 min read
+·
+May 31, 2023
+830
+
+
+7
+
+
+
+
+
+Press enter or click to view image in full size
+This creative human-made illustration visually highlights how 3D Deep Learning could represent a top-down scene in a way it is easy to separate between classes. If you like these, contact Marina Tünsmeyer.
+This creative illustration visually highlights how 3D Deep Learning could represent a top-down scene in a way it is easy to separate between classes. If you like these, contact Marina Tünsmeyer.
+The application field of 3D deep learning has snowballed in recent years. We have superb applications in various areas, including robotics, autonomous driving & mapping, medical imaging, and entertainment. When we look at the results, we are often awed (but not all the time 😁), and we may think: “I will use this model right now for my application!”. But unfortunately, the nightmare begins: 3D Deep Learning implementation. Even if new coding libraries aim at simplifying the process, implementing an end-to-end 3D Deep Learning model is a feat, especially if you are isolated in a dark corner of some gloomy cave.
+
+Press enter or click to view image in full size
+This is how it feels to code 3D Deep Learning. © F. Poux
+This is how it feels to code 3D Deep Learning. © F. Poux
+One of the most overlooked pain points in 3D deep learning frameworks is preparing the data to be usable by a selected learning architecture. I do not mean a nice research dataset but an actual (messy) data silo on which you want to develop an application. This is even steeper in the case of large and complex 3D point cloud datasets.
+
+Oh, but do you see where we are going with this article? You dreamed it (Don’t hide it, I know 😉), and we will cover it at the proper coding depth. This hands-on tutorial explores how to efficiently prepare 3D point clouds from an Aerial LiDAR campaign to be used with the most popular 3D deep learning point-based model: the PointNet Architecture.
+
+We cover the entire data preparation pipeline, from 3D data curation to feature extraction and normalization. It provides the knowledge and practical Python skills to tackle real-world 3D Deep Learning problems.
+
+Press enter or click to view image in full size
+The PointNet Data Preparation Workflow for 3D Semantic Segmentation. © F. Poux
+The PointNet Data Preparation Workflow for 3D Semantic Segmentation. © F. Poux
+By following this tutorial, you will be able to apply these techniques to your own 3D point cloud datasets and use any of them to train a PointNet Semantic Segmentation model. Are you ready?
+
+Theory. 3D Deep Learning Essentials
+Step 1. Preparing the Environment
+Step 2. 3D Data Curation
+Step 3. 3D Data Analysis
+Step 4. 3D Data labelling
+Step 5. Feature Selection
+Step 6. Data Structuration
+Step 7. 3D Python I/O
+Step 8. 3D Data Normalization
+Step 9. 3D Interactive Vizualisation
+Step 10. Tensor Creation
+🎵 Note to Readers: This hands-on guide is part of a UTWENTE joint work with my dear colleague Prof. Sander Oude Elberink. We acknowledge the financial contribution from the digital twins @ITC -project granted by the ITC faculty of the University of Twente.
+
+3D Deep Learning Essentials
+3D Semantic Segmentation VS Classification
+The fundamental difference between 3D semantic segmentation and classification for 3D point clouds is that segmentation aims to assign a label to each point in the point cloud. In contrast, classification seeks to assign a single label to the entire cloud.
+
+Press enter or click to view image in full size
+The difference between the classification model and the semantic segmentation model. In both cases, we pass a point cloud, but for the classification task, the whole point cloud is the entity, whereas, in the Semantic Segmentation case, each point is an entity to classify. © F. Poux
+The difference between the classification model and the semantic segmentation model. In both cases, we pass a point cloud, but for the classification task, the whole point cloud is the entity, whereas, in the Semantic Segmentation case, each point is an entity to classify. © F. Poux
+For example, using the PointNet architecture, 3D point cloud classification involves passing the entire point cloud through the Network and outputting a single label representing the entire cloud. In contrast, the semantic segmentation “header” will assign a label to each point in the cloud. The difference in approach is because segmentation requires a more detailed understanding of the 3D space represented, as it seeks to identify and label individual objects or regions within the point cloud. In contrast, classification only requires a high-level understanding of the overall shape or composition of the point cloud.
+
+Overall, while 3D semantic segmentation and classification are essential tasks for analyzing 3D point cloud data, the main difference is the level of detail and granularity required in the labeling process.
+
+And as you guessed it, we will attack semantic segmentation because it requires a more detailed understanding of the space being analyzed, which is so much fun 😁.
+
+But before that, let us take a tiny step back to better grasp how PointNet Architecture works, shall we?
+
+PointNet: A Point-based 3D Deep Learning Architecture
+Turning complex topics into small chunk-wise bits of knowledge is my specialty. But I must admit that, when touching upon 3D Deep Learning, the complexity of the function learned through the different processes within the neural Network and the empirical nature of hyper-parameter determination are important challenges. To overcome, hun? 😁
+
+First, let us recap what PointNet is. PointNet is one of the pioneers in Neural Networks for 3D deep learning. If you understand PointNet, you can use all the other advanced models. But, of course, understanding is only a part of the equation.
+
+Press enter or click to view image in full size
+The PointNet Architecture has the ability to attack three semantization applications: Classification, Part-Segmentation, and Semantic Segmentation. © F. Poux
+The PointNet Architecture has the ability to attack three semantization applications: Classification, Part-Segmentation, and Semantic Segmentation. © F. Poux
+The other part is making the scary thing work and extending it to use it with your data! And this is a challenging feat! Even for seasoned coders. Therefore, we divide into several parts the process. Today, it is about preparing the data so that we are sure we have something that works in real conditions.
+
+To prepare the data correctly, it is essential to understand the building block of the Network. Let me give you the critical aspects of what to consider when preparing your data with the Network below.
+
+Press enter or click to view image in full size
+
+The PoinNet Model Architecture as described by the authors of the paper: ArXiv Paper.
+The architecture of PointNet consists of several layers of neural networks that process the point cloud data. The input to PointNet is a simple set of points, each represented by its 3D coordinates and additional features such as color or intensity. These points are fed into successive shared Multi-Layer Perceptron (MLP) network that learns to extract local features from each point.
+
+Press enter or click to view image in full size
+
+The MLP in the PointNet Architecture as described by the authors of the paper: ArXiv Paper.
+🦚 Note: An MLP is a neural network of multiple layers of connected nodes or neurons. Each neuron in the MLP receives input from the neurons in the previous layer, applies a transformation to this input using weights and biases, and then passes the result to the neurons in the next layer. The weights and biases in the MLP are learned during training using backpropagation, which adjusts them to minimize the difference between the Network’s predictions and the true output.
+
+These MLPs are fully connected layers, each followed by what we call “a non-linear activation function” (such as ReLU). The number of neurons in each layer (E.g., 64) and the number of layers themselves (E.g., 2) can be adjusted depending on the specific task and the complexity of the input point cloud data. As you can guess, the more neurons and layers, the more complex the targeted problem can be because of the combinatorial possibilities given by the architecture plasticity. If we continue to explore the PointNet architecture, we see that we describe the original n input points, with 1024 features that span from the initial ones provided (X, Y, and Z). This is where the architecture provides a global description of the input point cloud by using a max-pooling operation to the locally learned features to get a global feature vector that summarizes the entire point cloud. This global feature vector is then fed through several fully connected layers to produce the final output of the Classification head, i.e., the score for k classes.
+
+Press enter or click to view image in full size
+
+The MaxPool and MLP of PoinNet Model Architecture as described by the authors of the paper: ArXiv Paper.
+If you notice closely, the semantic segmentation head in PointNet is a fully connected network that concatenates the global feature vector and the local feature vectors to produce a per-point score or label for each point in the input point cloud data. The semantic segmentation head consists of several fully connected layers with ReLU activation functions and a final softmax layer. The output of the final softmax layer represents the per-point probability distribution over the different semantic labels or classes.
+
+Press enter or click to view image in full size
+
+The Segmentation Head of the PoinNet Model Architecture as described by the paper's authors: ArXiv Paper.
+The PointNet Architecture can capture important geometric and contextual information for tasks such as object classification and segmentation in 3D data by learning local and global features from each point in the input point cloud. One of the critical innovations of PointNet is using a symmetric function in the max-pooling operation, which ensures that the output is invariant to the order of the input points. This makes PointNet robust to variations in the ordering of the input points, which is essential in 3D data analysis.
+
+Now, we are ready to attack heads on preparing the data for PointNet. Which point cloud do we mean in the beginning? Do we feed a complete point cloud?
+
+PointNet: Data preparation key aspects
+On a high-level view, if we study the original paper published, we can see that PointNet functions in a very straightforward manner:
+
+We take a point cloud and normalize the data to a canonical space.
+We compute a bunch of features (without ingesting our knowledge but by leveraging the network capabilities to create cool ones)
+We aggregate these features into a global signature for the considered cloud.
+Option 1: we use this global signature to classify the point cloud
+Option 2: we combine this global signature with the local signature and build even sharper features for Semantic Segmentation.
+Press enter or click to view image in full size
+The five steps of PointNet towards either Semantic Segmentation or Classification tasks. © F. Poux
+The five steps of PointNet towards either Semantic Segmentation or Classification tasks. © F. Poux
+It is all about features, meaning the chunk we provide the Network should be very relevant. E.g., giving the entire point cloud will not work, giving a tiny sample will not work, and giving structured samples with a different distribution than what will be fed will not work. So how do we do that?
+
+Let us follow a linear ten-steps process to obtain well-thought 3D point cloud training/inference-ready datasets.
+
+Press enter or click to view image in full size
+The PointNet Data Preparation Workflow for 3D Semantic Segmentation. © F. Poux
+The PointNet Data Preparation Workflow. © F. Poux
+Step 1: Prepare your working environment
+Press enter or click to view image in full size
+
+In this article, we use two main components: CloudCompare and JupyterLab IDE (+ Python). For a detailed view of the best possible setup, I strongly encourage you to follow this article which goes into well-needed detail:
+
+3D Python Workflows for LiDAR City Models: A Step-by-Step Guide
+The Ultimate Guide to unlocking a streamlined workflow for 3D City Modelling Applications. The tutorial covers Python…
+towardsdatascience.com
+
+We will have a specific stack of libraries organized into main libraries, plotting libraries, and utility libraries.
+
+🦚 Note: If you work in a local environment, I recommend for this tutorial to run pip for your package management (pip install library_name)
+
+The two main libraries that we will use are NumPy and Pytorch:
+
+Numpy: NumPy is a Python library for working with numerical data, and it provides functions for manipulating arrays and matrices, mathematical operations, and linear algebra functions.
+Pytorch: Pytorch is a popular deep learning framework in Python. It provides tools for building and training neural networks and optimizing and evaluating models.
+Then, we support these with two plotting libraries:
+
+Matplotlib: Matplotlib is a Python library for creating visualizations such as plots, charts, and graphs.
+Plotly: Plotly is a Python library for creating interactive visualizations.
+And finally, we will also use three utility modules:
+
+os: The os module in Python provides a way of using operating system-dependent functionality. It provides functions for interacting with the file system, such as creating, deleting, and renaming files and directories.
+glob: The glob module in Python provides a way of matching files and directories using patterns. For example, it can find all files with a specific extension in a directory.
+random (Optional): The random library is a built-in module that provides functions for generating random numbers, selecting random items from a list, and shuffling sequences.
+Once this is done, we are ready to get to the second aspect: Getting our hands on new 3D point cloud datasets!
+
+Step 2: 3D Data Curation
+Press enter or click to view image in full size
+
+For this tutorial, we go east of the Netherlands, near Enschede, where the University of Twente shines 🌞. Here, we select a part of the AHN4 dataset, which would have a good proportion of trees, ground, buildings, and a bit of water as well 🚿. Let us say enough in a tile to have sufficient points for each class!
+
+🦚 Note: We will train on imbalanced datasets, with a high predominance of ground points compared to the other classes. This is not an ideal scenario, where the MLP and semantic segmentation head may be biased towards predicting the majority class labels and ignore the minority class labels. This can result in inaccurate segmentation and misclassification of minority class points. Still, several techniques can be used to mitigate the effects of imbalanced classes, such as data augmentation, oversampling or undersampling of the minority class, and using weighted loss functions. This is for another time. 😉
+
+To gather the dataset, we access the open data portal geotiles.nl. We zoom in onto a part of interest waiting to have the _XX (to have a data size coherent), and then, we download the .laz dataset, as illustrated below:
+
+Gathering a Point Cloud Dataset from the AHN4 LiDAR Campaign in the Netherlands. © F. Poux
+Gathering a Point Cloud Dataset from the AHN4 LiDAR Campaign in the Netherlands. © F. Poux
+Also, we can prepare some compelling use cases where you would like to test your model on tile(s) of interest later. This can be, for example, where you live if some open data is available there.
+
+🦚 Note: If you want to put later on your model to a true challenge, downloading a tile in another land is a great generalization test! For example, you could download a LiDAR HD point cloud tile to see the differences/improvements if used for training or testing.
+
+Now that you have your point cloud in the .laz file format let us explore the characteristics given by the info file that you can also view or download:
+
+Press enter or click to view image in full size
+
+A Selected informational document on the selected 3D LiDAR Point Cloud dataset. © F. Poux
+This permits a good grasp of the data content, a crucial first step when building qualitative datasets.
+
+Press enter or click to view image in full size
+
+This shows the content of the additional information on the point cloud. © F. Poux
+As you scroll through the various information points, several fields are interesting to note:
+
+number of point records:    32080350
+offset x y z:               205980 464980 0
+min x y z:                  205980.000 464980.000 4.101
+max x y z:                  207019.999 466269.999 53.016
+intensity          56       5029
+classification      1         26
+Color R 17 255
+      G 39 255
+      B 31 255
+    NIR 0 255
+This small file selection hints that we will deal with around 32 million data points for our experiments, which have colors, intensity, and a Near Infrared Field if we want to steepen our model later on.
+
+Very nice! Now that we have the software stack installed and the 3D point cloud downloaded, we can jump onto a 3D Data Analysis to ensure the input fed to our model holds its promises.
+
+Step 3: 3D Data Analysis (CloudCompare)
+Press enter or click to view image in full size
+
+It is time to load the 3D aerial point cloud file into the software CloudCompare. First, open CloudCompare on your computer until an empty GUI appears, which functions as shown below.
+
+Press enter or click to view image in full size
+The GUI of CloudCompare. Source: learngeodata.eu
+The GUI of CloudCompare. Source: learngeodata.eu
+From there, we load the .laz file we downloaded by drag-drop and select some attributes from the menu that pops out on import, as illustrated below.
+
+Press enter or click to view image in full size
+Importing a 3D Point Cloud in CloudCompare. We make sure to select relevant features to load. © F. Poux
+Importing a 3D Point Cloud in CloudCompare. We make sure to select relevant features to load. © F. Poux
+🦚 Note: We unselect all fields to pre-select some features that bring uncorrelated or low-correlated information and the labels for each point that hint at possible ground truth. We will thus only keep the intensity and classification field. Indeed, as we target Aerial point clouds, we want something that can generalize quite efficiently. Therefore, we aim at features likely found in unlabelled data that we want our model to perform on later. On top, the point cloud has RGB information, which is also a sound choice.
+
+At this stage, the seven selected features are the following: X, Y, and Z (spatial), R, G, B (radiometry), and intensity. On top, we keep the AHN4 labels per point from the Classification field of the .laz file. Once your 3D aerial point cloud is successfully imported into CloudCompare, we are ready for analysis and visualization. We can quickly review the two extra fields (intensity and classification) from the “Object Properties panel (3)”. If we study the intensity, we notice some outlier points that shift our feature vector a bit, as shown below.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+The Intensity-colored point cloud and the histogram of the repartition. © F. Poux
+This is the first observation we must address if we want to use this as an input feature for PointNet.
+
+Concerning the color values (Red, Green, Blue), they are obtained from another sensor, possibly at another time. Therefore, as they are merged from the available ortho imagery on the zone, we may have some precision/reprojection issues. But as you can imagine, having the ability to separate green elements from red ones should give us a clear indication of the probability a point belong to the vegetation class😁.
+
+Press enter or click to view image in full size
+
+The LiDAR dataset is colored with the ortho imagery to get R, G,B features. © F. Poux
+We have a point cloud, with 32 million points expressed in a cartesian system (X, Y, Z), each having an intensity feature and colors (Red, Green, and Blue).
+
+🦚 Note: You can save this stage for later, as you may have a vast choice of features such as the one illustrated below, which is the Near InfraRed (NIR) Channel available on the dataset. For example, this is a convenient field that can highlight healthy (or not) vegetation. 😉
+
+Press enter or click to view image in full size
+
+The Near Infrared feature. © F. Poux
+We have another last scalar field if you scroll the available ones. The Classification field, of course! And this is very handy to help us create a labeled dataset to avoid going from scratch (thank you OpenData ! 👌)
+
+Press enter or click to view image in full size
+
+The provided classification. © F. Poux
+🦚 Note: For the sake of pedagogical training, we will consider the classification the ground truth for the rest of the tutorial. However, know that the classification was achieved with some uncertainty and that if you want the best-performing model, have to be fixed. Indeed, there is a famous saying with 3D Deep Learning: Garbage in = Garbage out. Therefore, the quality of your data should be paramount.
+
+Let’s focus on refining the labeling phase.
+
+Step 4. 3D Data Labelling (Labels Concatenation)
+Press enter or click to view image in full size
+
+Okay, so before jumping in on this step, I must say something. 3D point cloud labeling to train a supervised 3D semantic segmentation learning model is a (painfully) manual process. The goal is to assign labels to individual points in a 3D point cloud. The main critical objective of this process includes identifying the target objects in the point cloud, selecting the appropriate labeling technique, and ensuring the accuracy of the labeling process.
+
+Press enter or click to view image in full size
+
+An example of a labeling process: labeling clusters VS labeling individual points. © F. Poux
+To identify the objects or regions in the point cloud that require labeling, we manually inspect the cloud or by using algorithms that automatically detect particular objects or regions based on their features, such as size, shape, or color.
+
+3D Academy - Point Cloud Online Course
+The best 3D Online Courses for Teachers, Researchers, Developers, and Engineers. Master 3D Point Cloud Processing and…
+learngeodata.eu
+
+In our case, we start with an advantage: the point cloud is already classified. The first step is thus to extract each class as an independent point cloud, as illustrated below.
+
+Press enter or click to view image in full size
+
+First, we select the point cloud and switch the “colors” property from RGB to Scalar Field. We then ensure we visualize the Classification Scalar Field. From there, we go to EDIT > Scalar Field > Split Cloud by Integer Value, resulting in one point cloud per class in the point cloud.
+From the various classes that we get as clouds, we see that :
+
+class 1 = vegetation + clutter
+class 2 = ground
+class 6 = buildings
+class 9 = water
+class 26 = bridge. 
+From there, we can rework class 1 = vegetation + clutter.
+
+The appropriate labeling technique must be selected based on the specific task and the available data. For example, we can use an unsupervised technique for more exploratory analysis and iteratively take some color thresholding by selecting candidate points in the vegetation, as illustrated below.
+
+Press enter or click to view image in full size
+
+Segmenting the point cloud based on color information, in order to create sharper labels in a semi-automatic fashion. © F. Poux
+This will give inaccurate results but may speed up manually selecting any point that belongs to the vegetation.
+
+Finally, ensuring the accuracy of the labeling process is critical for producing reliable results. This can be achieved through manual verification or quality control techniques such as cross-validation or inter-annotator agreement.
+
+🦚 Note: It is good to grasp the jargon, but do not be scared. These concepts can be covered at a later stage. One thing at a time. 😉
+
+Ultimately, the labeling process’s accuracy will directly impact subsequent tasks’ performance, incl. 3D Semantic Segmentation. In our case, we organize the data as follows:
+
+Class 1 = ground
+Class 2 = Vegetation
+Class 3 = Buildings
+Class 4 = Water
+Class 0 = unannotated (All the remaining points)
+We execute this within CloudCompare.
+
+Press enter or click to view image in full size
+
+Organization of the various classes within CloudCompare. © F. Poux
+After renaming for clarity our different clouds (initialization), we will (1) fuse the clutter in one single cloud, (2) delete the Classification field for all the clouds, (3) recreate a classification field with the new numbering, (4) clone all the clouds and (5) merge the cloned clouds, as shown below.
+
+Press enter or click to view image in full size
+
+Initial preparation of our labels into the new point cloud. © F. Poux
+Press enter or click to view image in full size
+
+The Data Preparation Phase is Executed within CloudCompare. © F. Poux
+Now, we have a labeled dataset with a specific point label repartition.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+We notice that out of our 32,080,350 points, 23,131,067 belong to the ground (72%), 7,440,825 to the vegetation (23%), 1,146,575 to buildings (4%), 191,039 to water (less than 1%), and the remaining 170,844 are not labeled (class 0). This will be very interesting because we are in this specific imbalance case with predominant classes.
+
+Now that we have analyzed what our point cloud contains and refined the labels, we can dive into feature selection.
+
+Step 5. 3D Feature Selection
+Press enter or click to view image in full size
+
+When using the PointNet architecture for 3D point cloud semantic segmentation, feature selection is essential in preparing the data for training.
+
+In traditional machine learning methods, feature engineering is often required to select and extract relevant features from the data. However, this step can be avoided with deep learning methods like PointNet since the model can learn to extract features from the data automatically.
+
+However, ensuring that the input data contains the necessary information for the model to learn relevant and deducted features is still essential. We use seven features: X, Y, Z (spatial attributes), R, G, B (radiometric attributes), and the intensity I (LiDAR-derived).
+
+X                Y              Z          R  G   B  INTENSITY
+205980.49800000 465875.02398682 7.10500002 90 110 98 1175.000000
+205980.20100001 465875.09802246 7.13500023 87 107 95 1115.000000
+205982.29800010 465875.00000000 7.10799980 90 110 98 1112.000000
+This is our reference. It means that we will build our model with this input, and any other dataset we would like to process with the trained PointNet model must contain these same features. Before moving within Python, the last step is to structure the data according to the Architecture specifications.
+
+Step 6. Data Structuration (Tiling)
+Press enter or click to view image in full size
+
+For several reasons, structuring a 3D point cloud into square tiles is essential when processing it with the neural network architecture PointNet.
+
+Press enter or click to view image in full size
+
+The tile definition within this workflow is to train PointNet 3D Deep Learning Architecture. © F. Poux
+First, PointNet requires the input data to be of fixed size, meaning that all input samples should have the same number of points. By dividing a 3D point cloud into square tiles, we can ensure that each tile has a more homogeneous number of points, allowing PointNet to process them consistently and effectively without the extra overhead or unreversible loss when sampling to the final fixed-point number.
+
+Press enter or click to view image in full size
+
+Example of the impact of sampling strategies on the 3D Point Cloud dataset. © F. Poux
+🌱 Growing: With PointNet, we need to have the input tile to a fixed number of points, recommended at 4096 points by the original paper’s authors. This means that a sampling strategy will be needed (which is not done in CloudCompare). As you can see from the illustration above, sampling the point cloud with different strategies will yield different results and object identification capabilities (E.,g. the electrical pole on the right). Do you think this impacts the 3D Deep Learning architecture performances?
+
+Secondly, PointNet’s architecture involves a shared multi-layer perceptron (MLP) applied to each point independently, which means that the Network processes each point in isolation from its neighbors. By structuring the point cloud into tiles, we can preserve the local context of each point within its tile while still allowing the Network to process points independently, enabling it to extract some meaningful features from the data.
+
+Press enter or click to view image in full size
+
+The resulting 3D point cloud tile. © F. Poux
+Finally, structuring the 3D point cloud into tiles can also improve the computational efficiency of the neural Network, as it allows for parallel processing of the tiles, reducing the overall processing time required to analyze the entire point cloud (on GPU).
+
+We use the “Cross Section” tool (1) to achieve this feat. We set up the size to 100 meters (2), we then shift along X and Y (minus) to get as close as possible to the lowest corner of the initial tile (3), we use the multiple slice button (4), we repeat along and Y axis (5) and get the resulting square tiles (6), as shown below.
+
+Press enter or click to view image in full size
+
+The process to automate the tile creation within CloudCompare. © F. Poux
+Press enter or click to view image in full size
+
+The live process to automate the tile creation within CloudCompare. © F. Poux
+This allows defining tiles of approximately one hundred meters by one hundred meters along X and Y axes. We obtain 143 tiles, from which we discard the last 13 tiles, as they could be more representative of what we want our input to be (i.e., they are not square because they are on the edge). With the remaining 130 tiles, we choose a good (around 20%) of representative tiles (holding Shift + Selection), as shown below.
+
+Press enter or click to view image in full size
+
+Selection and manual split into training and testing set for PointNet. © F. Poux
+🌱 Growing: We split our data between training and testing following an 80/20 percent scheme. At this stage, what do you think about this approach? What would be, in your opinion, a good strategy?
+
+At the end of this process, we have around 100 tiles in the train set and 30 tiles in the test set, each holding the original number of points. We then select one folder and export each tile as an ASCII file, as shown below.
+
+Press enter or click to view image in full size
+
+Exporting the point cloud tiles to use with PointNet
+🦚 Note: CloudCompare allows to export all the point clouds independently within a directory when choosing to export as an ASCII file. He will automatically indent after the last character, using a “_” character to ensure consistency. This is very handy and can be used/abused.
+
+Structuring a 3D point cloud into square tiles is an essential preprocessing step when using PointNet. It allows for consistent input data size, preserves local context, and improves computational efficiency, all of which contribute to more accuracy and efficient processing of the data. This is the final step before moving on to 3D Python 🎉.
+
+Step 7. 3D Python Data Loading
+Press enter or click to view image in full size
+
+It is time to ingest the point cloud tiles in Python.
+
+For this, we import the libraries that we need. If you use the Google Colab version accessible here: 💻 Google Colab Code, then it is important to run the first line as shown below:
+
+from google.colab import drive
+drive.mount('/content/gdrive')
+For any setup, we have to import the various libraries as illustrated below:
+
+#Base libraries
+import numpy as np
+import random
+import torch
+#Plotting libraries
+%matplotlib inline
+from mpl_toolkits import mplot3d
+import matplotlib.pyplot as plt
+import plotly
+import plotly.graph_objects as go
+#Utilities libraries
+from glob import glob
+import os
+Great! From there, we split the datafile names in our respective folders in pointcloud_train_files, and pointcloud_test_files
+
+#specify data paths and extract filenames
+project_dir="gdrive/My Drive/_UTWENTE/DATA/AHN4_33EZ2_12"
+pointcloud_train_files = glob(os.path.join(project_dir, "train/*.txt"))
+pointcloud_test_files = glob(os.path.join(project_dir, "test/*.txt"))
+🦚 Note: we have two folders in our explorer: the train folder, and the test folder, both in the AHN4_33EZ2_12 folder. What we do here is first to give the path to the root folder, and then, we will collect with glob all the files in train and test with the * that means “select all.” A convenient way to deal with multiple files!
+
+At this step, two variables hold the paths to all the tiles we prepared. To ensure that this is correct, we can print one element taken randomly from a 0 to 20 random distribution:
+
+print(pointcloud_train_files[random.randrange(20)])
+>> gdrive/My Drive/_UTWENTE/DATA/AHN4_33EZ2_12/train/AHN4_33EZ2_12_train_000083.txt
+Great, so what we can do, is thus to split further our dataset into three variables:
+
+valid_list: This holds the validation data paths. The validation split helps to improve the model performance by fine-tuning the model after each epoch.
+train_list: This holds the training data paths, which is the data set on which the training takes place.
+test_list: This holds the test data paths. The test set informs us about the final accuracy of the model after completing the training phase
+This is done using the friendly numpy functions that work on the array indexes from the list. Indeed, we randomly extract 20% from the pointcloud_train_files, then split what is retained for validation vs. what is not retained and constitutes the train_list variable.
+
+#Prepare the data in a train set, a validation set (to tune the model parameters), and a test set (to evaluate the performances)
+#The validation is made of a random 20% of the train set.
+valid_index = np.random.choice(len(pointcloud_train_files),int(len(pointcloud_train_files)/5), replace=False)
+valid_list = [pointcloud_train_files[i] for i in valid_index]
+train_list = [pointcloud_train_files[i] for i in np.setdiff1d(list(range(len(pointcloud_train_files))),valid_index)]
+test_list = pointcloud_test_files
+print("%d tiles in train set, %d tiles in test set, %d files in valid list" % (len(train_list), len(test_list), len(valid_list)))
+We then randomly study the properties of one data file by looking at the median, the standard deviation, and the min-max values with the following snippet:
+
+tile_selected=pointcloud_train_files[random.randrange(20)]
+print(tile_selected)
+temp=np.loadtxt(tile_selected)
+print('median\n',np.median(temp,axis=0))
+print('std\n',np.std(temp,axis=0))
+print('min\n',np.min(temp,axis=0))
+print('max\n',np.max(temp,axis=0))
+Which gives:
+
+gdrive/My Drive/_UTWENTE/DATA/AHN4_33EZ2_12/train/AHN4_33EZ2_12_train_000083.txt 
+median [2.068e+05 4.659e+05 6.628e+00 1.060e+02 1.210e+02 1.030e+02 1.298e+03 1.000e+00] 
+std [ 28.892 30.155 0.679 29.986 21.4 17.041 189.388 0.266] 
+min [2.068e+05 4.659e+05 5.454e+00 3.600e+01 6.200e+01 5.700e+01 7.700e+01 0.000e+00] 
+max [2.068e+05 4.660e+05 1.505e+01 2.510e+02 2.470e+02 2.330e+02 1.625e+03 4.000e+00]
+As we can notice, there is one central element that we have to address: data normalization. Indeed, so to avoid any mismatch, we need to be in this “canonical space,” which means we can replicate the same experimental context in the feature space. Using a T-Net would be like killing a fly 🪰 with a bazooka. This is fine, but if we can avoid and use an actual coherent approach, it would be smarter 😁.
+
+Step 8. 3D Python Normalization
+Press enter or click to view image in full size
+
+Normalizing a 3D point cloud tile before feeding it to the PointNet architecture is crucial for three main reasons. First, normalization ensures that the input data is centered around the origin, which is essential for PointNet’s architecture which applies an MLP to each point independently. The MLP is more effective when the input data is centered around the origin, which allows for more meaningful feature extraction and better overall performance.
+
+Press enter or click to view image in full size
+
+Illustration of the normalization impact on the results of training 3D Deep Learning Models. © F. Poux
+🌱 Growing: Some sort of intuition is also good before normalizing bluntly. For example, we predominantly use gravity-based scenes, meaning that the Z-axis is almost always colinear to the Z-axis. Therefore, how would you approach this normalization?
+
+Secondly, normalization scales the point cloud data to a consistent range, which helps prevent saturation of the activation functions within the MLP. This allows the Network to learn from the entire range of input values, improving its ability to accurately classify or segment the data.
+
+Press enter or click to view image in full size
+
+The problem with [0,1] scaling illustrated on the intensity field of 3D point clouds. © F. Poux
+Finally, normalization can help reduce the impact of different scales in the point cloud data, which can be caused by differences in sensor resolutions or distances from the scanned objects (which is a bit flattened in the case of Aerial LiDAR data). This improves the consistency of the data and the Network’s ability to extract meaningful features from it.
+
+Okay, let us get on it. For our experiments, we will first capture the minimum value of the features in min_f, and the average in mean_f:
+
+cloud_data=temp.transpose()
+min_f=np.min(cloud_data,axis=1)
+mean_f=np.mean(cloud_data,axis=1)
+🦚 Note: We transposed our dataset to handle the data and the indexes much more efficiently and conveniently. Therefore, to take the X-axis elements of the point cloud, we can just pass cloud_data[0] instead of cloud_data[:,0], which involves a bit of overhead.
+
+We will now normalize the different features to use in our PointNet networks. First, the spatial coordinates X, Y, and Z. We will center our data on the planimetric axis (X and Y) and ensure that we subtract the minimal value of Z to account for discrimination between roofs and ground, for example:
+
+n_coords = cloud_data[0:3]
+n_coords[0] -= mean_f[0]
+n_coords[1] -= mean_f[1]
+n_coords[2] -= min_f[2]
+print(n_coords)
+Great, now we can scale our colors by ensuring we are in a [0,1] range. This is done by dividing the max value (255) for all our colors:
+
+colors = cloud_data[3:6]/255
+Finally, we will attack the normalization of the intensity feature. Here, we will work with quantiles to obtain a normalization robust to outliers, as we saw when exploring our data. This is done in a three-stage process. First, we compute the interquartile difference IQR, which is the difference between the 75th and 25th quantile. Then we subtract the median from all the observations and divide by the interquartile difference. Finally, we subtract the minimum value of the intensity to have a significant normalization:
+
+# The interquartile difference is the difference between the 75th and 25th quantile
+IQR = np.quantile(cloud_data[-2],0.75)-np.quantile(cloud_data[-2],0.25)
+# We subtract the median to all the observations and then divide by the interquartile difference
+n_intensity = ((cloud_data[-2] - np.median(cloud_data[-2])) / IQR)
+#This permits to have a scaling robust to outliers (which is often the case)
+n_intensity -= np.min(n_intensity)
+print(n_intensity)
+Wonderful! At this stage, we have a point cloud normalized and ready to be fed to a PointNet architecture. But automating this process is the next logical step to execute this on all the tiles.
+
+Creating a Point Cloud Tile Load and Normalize function
+We create a function cloud_loader that takes as input the path to a tile tile_path, and a string of features used, features_used, and outputs a cloud_data variable, which holds the normalized features, along with its ground-truth variable gt that holds the labels of each point. The function will act as follows:
+
+Press enter or click to view image in full size
+
+The definition of a cloud loading function to process point cloud datasets and make them ready for training. © F. Poux
+This translates into a simple cloud_loader function, as shown below:
+
+# We create a function that loads and normalize a point cloud tile
+def cloud_loader(tile_path, features_used):
+  cloud_data = np.loadtxt(tile_path).transpose()
+  min_f=np.min(cloud_data,axis=1)
+  mean_f=np.mean(cloud_data,axis=1)
+  features=[]
+  if 'xyz' in features_used:
+    n_coords = cloud_data[0:3]
+    n_coords[0] -= mean_f[0]
+    n_coords[1] -= mean_f[1]
+    n_coords[2] -= min_f[2]
+    features.append(n_coords)
+  if 'rgb' in features_used:
+    colors = cloud_data[3:6]/255
+    features.append(colors)
+  if 'i' in features_used:
+    IQR = np.quantile(cloud_data[-2],0.75)-np.quantile(cloud_data[-2],0.25)
+    n_intensity = ((cloud_data[-2] - np.median(cloud_data[-2])) / IQR)
+    n_intensity -= np.min(n_intensity)
+    features.append(n_intensity)
+
+  gt = cloud_data[-1]
+  gt = torch.from_numpy(gt).long()
+
+  cloud_data = torch.from_numpy(np.vstack(features))
+return cloud_data, gt
+This function is now used to obtain both point cloud features and labels as follows:
+
+pc, labels = cloud_loader(tile_selected, ‘xyzrgbi’)
+🌱 Growing: As you can see, we pass a string for the features. This is very convenient for our different ‘if’ tests indeed. However, note that we do not return errors if what is fed to the function is not expected. This is not a standard code practice, but this extends the scope of this tutorial. I recommend checking out PEP-8 guidelines if you want to start with beautiful code writing.
+
+Step 9. 3D Python Interactive Visualization
+Press enter or click to view image in full size
+
+If we want to parallel a previous article, accessible here:
+
+3D Python Workflows for LiDAR City Models: A Step-by-Step Guide
+The Ultimate Guide to unlocking a streamlined workflow for 3D City Modelling Applications. The tutorial covers Python…
+towardsdatascience.com
+
+We can visualize our dataset with Open3D. First, we need to install a specific version (if working on a Jupyter Notebook environment, such as Google Colab or the CRIB platform) and load it in our script:
+
+!pip install open3d==0.16
+import open3d as o3d
+🦚 Note: The “!” before pip is used when you work on Google Colab to say it should use the environment console directly. If you work locally, you should delete this character and use pip install open3d==0.16 directly.
+
+Then we run the following successive steps :
+
+Press enter or click to view image in full size
+
+The drawing function to plot interactive 3D scenes directly within Google Colab. © F. Poux
+Which translates into the following code lines:
+
+pc, gt = cloud_loader(tile_selected, ['xyz','rgb','i'])
+pcd=o3d.geometry.PointCloud()
+pcd.points=o3d.utility.Vector3dVector(np.array(pc)[0:3].transpose())
+pcd.colors=o3d.utility.Vector3dVector((np.array(pc)[3:6]).transpose())
+o3d.visualization.draw_plotly([pcd],point_sample_factor=0.5, width=600, height=400)
+🦚Note: As our pc variable capturing the cloud_data output of our cloud_loader function is transposed, we must not forget to transpose it back when plotting with open3d.
+
+The previous code snippet will output the following visualization:
+
+Press enter or click to view image in full size
+
+The results of plotting scenes with plotly and R,G,B fields. © F. Poux
+🦚 Note: when using the draw_plotly function, we do not have a direct hand in the scaling of the plot, and we can notice that we have non-equal scales for X, Y, and Z, which emphasizes the Z largely in that case. 😁
+
+Due to the limitations that you can notice, we create a custom visualization function to visualize a random tile so that running the function: visualize_input_tile outputs an interactive plotly visualization that lets us switch the rendering mode.
+
+To test the provided function, we first need to define the class names in our experiments: class_names = [‘unclassified’, ‘ground’, ‘vegetation’, ‘buildings’, ‘water’]. Then, we provide the cloud features cloud_features=’xyzi’, randomly select a point cloud captured in the variable selection, and visualize the tile. This translates into the following code snippet:
+
+class_names = ['unclassified', 'ground', 'vegetation', 'buildings', 'water']
+cloud_features='xyzi'
+selection=pointcloud_train_files[random.randrange(len(pointcloud_train_files))]
+visualize_input_tile(selection, class_names, cloud_features, sample_size=20000)
+which outputs the interactive scene below.
+
+Press enter or click to view image in full size
+
+interactive 3D scene within Google Colab. © F. Poux
+🦚 Note: You can use the button to switch rendering modes between the feature intensity and the labels from the loaded features of interest.
+
+We have a working solution for loading, normalizing, and visualizing a single tile in Python. The last step is to create what we call a tensor for use with the PointNet Architecture.
+
+Step 10. Tensor Creation
+Press enter or click to view image in full size
+
+I want to show you how we can use PyTorch as an initiation. For clarity concerns, let me quickly define the primary Python object type we manipulate with this library: a tensor.
+
+A PyTorch tensor is a multi-dimensional array used for storing and manipulating data in PyTorch. It is similar to a NumPy array but with the added benefit of being optimized for use with deep learning models. Tensors can be created using the torch.tensor() function and initialized with data or created as an empty tensor with a specified shape. For example, to create a 3x3 tensor with random data:
+
+import torch
+
+x = torch.tensor([[1.0, 2.0, 3.0],
+                  [4.0, 5.0, 6.0],
+                  [7.0, 8.0, 9.0]])
+
+print(x)
+which will output:
+
+tensor([[1., 2., 3.],
+        [4., 5., 6.],
+        [7., 8., 9.]])
+Pretty straightforward, hun? Now, to make things easier for us, there is also a tiny Pytorch library that we can use to prepare lists of datasets. This library is called TorchNet. TorchNet is designed to simplify the process of building and training complex neural network architectures by providing a set of predefined modules and helper functions for everyday tasks such as data loading, validation, and testing.
+
+One of the main advantages of TorchNet is its modular design, which allows users to easily construct complex neural network architectures by combining a series of pre-built modules. This can save significant time and effort compared to building neural networks from scratch, especially when new to deep learning.
+
+🦚 Note: Besides its modular design, TorchNet provides several helper functions for common deep learning tasks, such as data augmentation, early stopping, and model checkpointing. This can help users to achieve better results and optimize their neural network architectures more efficiently.
+
+To install torchnet version 0.0.4 and import it into our script, we can do the following:
+
+!pip install torchnet==0.0.4
+import torchnet as tnt
+We also import another utility module called functools. This module is for higher-order functions that act on or return other functions. For this, add to the import statements import functools.
+
+In general, any callable object can be treated as a function for the purposes of this module. From this additional setup, it is straightforward to generate the train, validation, and test sets with the following four lines of code:
+
+cloud_features='xyzrgbi'
+test_set = tnt.dataset.ListDataset(test_list,functools.partial(cloud_loader, features_used=cloud_features))
+train_set = tnt.dataset.ListDataset(train_list,functools.partial(cloud_loader, features_used=cloud_features))
+valid_set = tnt.dataset.ListDataset(valid_list,functools.partial(cloud_loader, features_used=cloud_features))
+Now, if we would like to explore, you can use indexes like a classical numpy array to retrieve a tensor on a specific position, such as train_set[1], which outputs:
+
+Press enter or click to view image in full size
+
+Finally, we have to save our results to a Python object to use straight out of the box for the following steps, such as PointNet training. We are using the library pickle, which is handy for saving Python objects. To save an object, just run the following:
+
+import pickle
+f = open(project_dir+"/data_prepared.pckl", 'wb')
+pickle.dump([test_list, test_set, train_list, train_set, valid_list, valid_set], f)
+f.close()
+If you want to test your setup, you can also run the following lines of code and ensure that you retrieve back what you intend:
+
+f = open(project_dir+"/data_prepared.pckl", 'rb')
+test_list_t, test_set_t, train_list_t, train_set_t, valid_list_t, valid_set_t = pickle.load(f)
+f.close()
+print(test_list_t)
+💻 Get Access to the Code here: Google Colab
+🍇 Get Access to the Data here: 3D Datasets
+👨‍🏫3D Data Processing and AI Courses: 3D Academy
+📖 Subscribe to get early access to 3D Tutorials: 3D AI Automation
+💁 Support my work with Medium 🤟: Medium Subscription
+Press enter or click to view image in full size
+
+🔮 Conclusion
+Congratulations! In this hands-on tutorial, we explored the critical steps in preparing 3D point cloud data from aerial LiDAR scans for use with the PointNet architecture.
+
+Press enter or click to view image in full size
+The PointNet Data Preparation Workflow for 3D Semantic Segmentation. © F. Poux
+The 3D Deep Learning Data Preparation Workflow for PointNet. © F. Poux
+By following this step-by-step guide, you have learned how to clean, process LiDAR point clouds, extract relevant features, and normalize the data for 3D deep learning models. We have also discussed some key considerations in working with 3D point cloud data, such as tile size, normalization, and data augmentation. You can apply these techniques to your 3D point cloud datasets and use them for training and testing PointNet models for object classification and segmentation. The field of 3D deep learning is rapidly evolving, and this tutorial is a cornerstone that provides a solid foundation for you to explore this exciting area further.
+
+🤿 Going Further
+But the learning journey does not end here. Our lifelong search begins, and future steps will dive into deepening 3D Voxel work, Artificial Intelligence for 3D data, exploring semantics, and digital twinning. On top, we will analyze point clouds with deep learning techniques and unlock advanced 3D LiDAR analytical workflows. A lot to be excited about!
+
+References
+Qi, C. R., Su, H., Mo, K., & Guibas, L. J. (2017). Pointnet: Deep learning on point sets for 3d classification and segmentation. In Proceedings of the IEEE conference on computer vision and pattern recognition (pp. 652–660).
+Poux, F., & Billen, R. (2019). Voxel-based 3D point cloud semantic segmentation: Unsupervised geometric and relationship featuring vs deep learning methods. ISPRS International Journal of Geo-Information, 8(5), 213.
+Xu, S., Vosselman, G., & Elberink, S. O. (2014). Multiple-entity based classification of airborne laser scanning data in urban areas. ISPRS Journal of photogrammetry and remote sensing, 88, 1–15.
+Deep Learning
+3d
+Point Cloud
+Deep Dives
+Editors Pick
+830
+
+
+7
+
+
+
+
+TDS Archive
+Published in TDS Archive
+829K followers
+·
+Last published Feb 3, 2025
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (7)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Dmytro Iakubovskyi
+Dmytro Iakubovskyi
+
+Jun 1, 2023
+
+
+Thank you for sharing, much appreciated!
+2
+
+
+1 reply
+
+Reply
+
+Mitesh Garg
+Mitesh Garg
+
+Aug 16, 2023
+
+
+Hi Florent,
+Amazing Article, I am working on a similar problem (Semantic Segmentation of Point Cloud) and followed the steps to prepare the input data for Pointnet using the article.
+I am looking for the implementation of the next steps where this…more
+1
+
+
+1 reply
+
+Reply
+
+Hossein Chegini
+Hossein Chegini
+
+Jun 2, 2023
+
+
+Hi Florent,
+Great Article!
+I started following you.
+I do appreciate it if you read my texts on computer vision and follow me.
+Cheers.
+1
+
+
+1 reply
+
+Reply
+
+See all responses
+More from Florent Poux, Ph.D. and TDS Archive
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Francesco Casalegno
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+Leveraging data to help users discovering new contents
+Nov 25, 2022
+542
+5
+
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Ketan Doshi
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+A Gentle Guide to the inner workings of Self-Attention, Encoder-Decoder Attention, Attention Score and Masking, in Plain English.
+Jan 17, 2021
+3K
+35
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from TDS Archive
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+YOLO26: Not as Good as YOLO12
+Zain Shariff
+Zain Shariff
+
+YOLO26: Not as Good as YOLO12
+YOLO26 release came with new preliminary data, however further digestion of the data sort of reveals how YOLO12 might be better, read…
+Sep 30
+17
+2
+
+
+Wait… YOLO11 to YOLO26?! Here’s what actually changed.
+Towards Deep Learning
+In
+
+Towards Deep Learning
+
+by
+
+Sumit Pandey
+
+Wait… YOLO11 to YOLO26?! Here’s what actually changed.
+YOLO11 to YOLO26?! Ultralytics skips ahead: NMS-free, edge-first, export-friendly vision model. Hype or real? My take. Yep
+
+Sep 26
+31
+1
+
+
+Detecting Stress in Fish Using YOLO Computer Vision
+Ann Abramova
+Ann Abramova
+
+Detecting Stress in Fish Using YOLO Computer Vision
+Computer vision has become a highly used technology and is used in many fields today, for instance, in security cameras, autonomous…
+Oct 6
+10
+
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+Google Earth and Earth Engine
+In
+
+Google Earth and Earth Engine
+
+by
+
+Google Earth
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+By Alicia Sullivan, Earth Engine Product Manager; Kel Market, Cloud Geographer; and Gena Donchyts, Cloud Geographer
+Jun 17
+109
+2
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

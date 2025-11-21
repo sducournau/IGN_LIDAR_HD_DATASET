@@ -1,0 +1,579 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+TDS Archive
+TDS Archive
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+Follow publication
+
+
+1
+
+Member-only story
+
+Hands-on Tutorials, 3D Python
+3D Point Cloud Clustering Tutorial with K-means and Python
+A complete hands-on python guide for creating 3D semantic segmentation datasets. Learn how to transform unlabelled point cloud data through unsupervised segmentation with K-Means clustering.
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+15 min read
+·
+Apr 20, 2022
+453
+
+
+6
+
+
+
+
+
+3D point cloud unsupervised segmentation of an Airport from Aerial LiDAR data. Example of the combination of clustering schemes such as K-Means Clustering. © F. Poux
+3D point cloud unsupervised segmentation of an Airport from Aerial LiDAR data. Example of the combination of clustering schemes such as K-Means Clustering. © F. Poux
+If you are on the quest for a (Supervised) Deep Learning algorithm for semantic segmentation — keywords alert 😁 — you certainly have found yourself searching for some high-quality labels + a high quantity of data points.
+
+In our 3D data world, the unlabelled nature of the 3D point clouds makes it particularly challenging to answer both criteria: without any good training set, it is hard to “train” any predictive model.
+
+Should we explore python tricks and add them to our quiver to quickly produce awesome 3D labeled point cloud datasets?
+
+Let us dive right in! 🤿
+
+Foreword on clustering for unsupervised workflows
+Why unsupervised segmentation & clustering is the “bulk of AI”?
+
+Deep Learning (DL) through supervised systems is extremely useful. DL architectures have profoundly changed the technological landscape in the last years. However, if we want to create brilliant machines, Deep learning will need a qualitative renewal — rejecting the notion that bigger is better. Several approaches exist today to achieve this milestone, and on top of it all, unsupervised or self-supervised directions are game-changers.
+
+Several strategies of clustering at different levels of detail of the point cloud. © F. Poux
+Several strategies of clustering at different levels of detail of the point cloud. © F. Poux
+Clustering algorithms are often used for exploratory data analysis. They also constitute the bulk of the processes in AI classification pipelines to create nicely labeled datasets in an unsupervised/self-learning fashion.
+
+This sentence extracted from the previous article, “Fundamentals to clustering high-dimensional data” summarizes our driver to quickly explore a hands-on way to create your semi-automated labeling pipeline. Exciting! But of course, if you feel like you need some quick refreshers on the theory, you can find the full explanation in the article below.
+
+Fundamentals to clustering high-dimensional data (3D point clouds)
+Why is unsupervised segmentation & clustering the “bulk of AI”? Illustrated concepts to grasp subtilities and apply…
+towardsdatascience.com
+
+How to define Clustering?
+In one sentence, clustering means grouping similar items or data points together. K-means is a specific algorithm to compute such a clustering.
+
+So what are those data points that we may want to cluster? These can be arbitrary points, such as 3D points recorded with a LiDAR scanner.
+
+Example of point grouping in the 3D point cloud to try and find main Euclidean proximity zones with K-Means. © F. Poux
+Example of point grouping in the 3D point cloud to try and find main euclidean zones with K-Means. © F. Poux
+But they can also represent spatial coordinates, color values in your dataset (image, point cloud, …), or other features such as keypoint descriptors extracted from an image to build a bag of words dictionary.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+SIFT Feature points were extracted from 2 stereo images, and the corresponding 3D Point Cloud was reconstructed using Photogrammetry after a clustering step. More info to learn how to do this with Open-Source software at the 3D Geodata Academy. © F. Poux
+3D Reconstruction Course with Photogrammetry - 3D Geodata Academy
+The formation includes a number of private techniques little known to clients but highly appreciated by experts…
+learngeodata.eu
+
+You can see them as arbitrary vectors in space, each holding a set of attributes. Then, we gather many of those vectors in a defined “feature space”, and we want to represent them with a small number of representatives. But the big question here is, what should those representatives look like?
+
+K-Means Clustering
+K-Means is a very simple and popular algorithm to compute such a clustering. It is typically an unsupervised process, so we do not need any labels, such as in classification problems.
+
+The only thing we need to know is a distance function. A function that tells us how far two data points are apart from each other. In the simplest form, this is the Euclidean distance. But depending on your application, you may also want to select a different distance function. Then, we can decide if two data points are similar to one another, thus if they belong to the same cluster.
+
+How does K-Means work?
+It represents all the data points with K representatives, which gave the algorithm its name. So K is a user-defined number that we put into the system. For example, take all the data points and represent them with three points in space.
+
+The way K-Means work. First we have some data points in a feature space (here X,Y,Z in the Euclidean space). Then, we compute K representative, and run K-Means to assign data points to a cluster represented by the representative. © F. Poux
+The way K-Means work. First, we have some data points in feature space (X, Y, and Z in the euclidean space). Then, we compute the K representative and run K-Means to assign data points to a cluster represented by the representative. © F. Poux
+So in the example above, the blue points are the input data points, and we set K=3. That means we want to represent those data points with three different representatives. Then those representatives illustrated by the colored red points orient the corresponding assignments of data points to the “best” representatives. We then obtain three clusters of points, green, purple, and yellow.
+
+And K-means does it in a way that minimizes the squared distance between the data point and its closest representative. The algorithmic part that achieves this is constructed in two simple steps iteratively remade: the initialization and the assignment:
+
+We randomly initialize K centroids points as representatives, and we compute a data association of every data point to the closest centroid. So it is a nearest neighbor query that we are doing here.
+Every data point gets assigned to its closest centroid, and then we reconfigure the location of each centroid in our space. It is done by computing the primary vector out of all the data points assigned to that centroid, which changes its location.
+So in the next iteration of the algorithm, we will get a new assignment and then a new centroid location, and we repeat this process until convergence.
+
+How does K-Means work? Visual explanation on 3D point clouds. © F. Poux
+How does K-Means work? Visual explanation. © F. Poux
+💡Hint: We should note that K-Means is not an optimal algorithm. This means that K-Means tries to minimize the distance function, but we are not guaranteed to find a global minimum. So depending on your starting location, you may end up with a different result for your K-Means clustering. Suppose we want to implement K-Means in a fast manner. In that case, we typically need to have an approximate nearest neighbor function in our space because this is the most time-consuming operation done with this algorithm. Good news, I will hint k-means++ later on 😉.
+
+K-Means is thus a relatively simple two-step iterative approach to finding representatives for a potentially large number of data points in high dimensional spaces. Now that the theory is over let us dive into a fun python code implementation in five steps🤲!
+
+1. The Point Cloud Workflow definition
+Aerial LiDAR Point Cloud Dataset
+The first step of our hands-on tutorial is to gather a nice dataset! This time, I want to share another excellent place to find cool LiDAR datasets: the Geoservices of the National Geography Institute of France. The LiDAR HD campaign of the IGN in France starts an OpenData gathering where you can get crisp 3D point clouds of some regions of France!
+
+LIDAR HD
+Les nuages de points 3D acquis dans le cadre du programme LIDAR HD sont d'abord classifiés en plusieurs classes (sol…
+geoservices.ign.fr
+
+I went on the portal above, selected one tile, extracted a sub-tile from it, deleted the georeferencing information, prepared some extra attributes part of a LiDAR file, and then made it available in my Open Data Drive Folder. The data you are interested in are KME_planes.xyz and KME_cars.xyz. You can jump at the Flyvast WebGL extract if you want to visualize them online.
+
+The overall loop strategy
+I propose to follow a simple procedure that you can replicate to label your point cloud datasets, as illustrated below quickly.
+
+Press enter or click to view image in full size
+Semi-supervised workflow to label 3D point cloud datasets. © F. Poux
+Semi-supervised workflow to label 3D point cloud datasets. © F. Poux
+🤓 Note: The strategy is a little extract from one of the documents given on the online courses that I host at the 3D Geodata Academy. This tutorial will cover steps 7 to 10, the other ones covered in depth in the course, or by following the coding guide below.
+
+How to automate 3D point cloud segmentation and clustering with Python
+towardsdatascience.com
+
+2. Setting up our 3D python context
+In this hands-on point cloud tutorial, I focused on efficient and minimal library usage. We could do all with other libraries like open3d, pptk, pytorch3D … But for the sake of mastering python, we will do it all with NumPy, Matplotlib, and ScikitLearn. Six lines of code to start your script:
+
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
+from sklearn.cluster import KMeans
+from sklearn.cluster import DBSCAN
+Nice, from there, I propose that we relatively express our paths, separating the data_folder containing our datasets from the dataset name to switch easily on the fly:
+
+data_folder=”../DATA/”
+dataset=”KME_planes.xyz”
+From there, I want to illustrate a nice trick to load your point cloud with Numpy. The intuitive way would be to load everything in a pcd point cloud variable, such as pcd=np.loadtxt(data_folder+dataset). But because we will play a bit with the features, let us save some time by unpacking on the fly each column in a variable. How cool is Numpy? 😆
+
+x,y,z,illuminance,reflectance,intensity,nb_of_returns = np.loadtxt(data_folder+dataset,skiprows=1, delimiter=’;’, unpack=True)
+Nice! We now have everything to play around with! Because of the essence of K-Means, we have to be careful with the ground element omnipresence, which would provide something weird like the below:
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Some K-Means results on 3D point clouds, based on various attributes, without brainpower injection. Notice the regular triangular separation on the first image when using only spatial attributes. Not ideal, hun? © F. Poux.
+To avoid weird results, we should handle what we consider outliers, the ground. Below is a direct trick for this, without injecting too much-constraining knowledge.
+
+3. Point Cloud quick selection
+Let me illustrate how to handle this with a tiny supervision step through Matplotlib. It also allows me to give you pieces of code that always come in handy with subplot creation and line layering. We will check on a 2D plot on both views, where falls the mean value of our points, and see if this can be useful to filter out the ground in a later step.
+
+First, let us make a subplot element that will hold our points on an X, Z view and also plot the mean value of pour spatial coordinates:
+
+plt.subplot(1, 2, 1) # row 1, col 2 index 1
+plt.scatter(x, z, c=intensity, s=0.05)
+plt.axhline(y=np.mean(z), color=’r’, linestyle=’-’)
+plt.title(“First view”)
+plt.xlabel(‘X-axis ‘)
+plt.ylabel(‘Z-axis ‘)
+💡Hint: If you look within the lines, I use the intensity field as the coloring element for our plot. I can do this because it is already normalized at an [0,1] interval. The s stands for size and permits us to give a size to our points. 😉
+
+Then, let us do the same trick, but this time on the Y, Z axis:
+
+plt.subplot(1, 2, 2) # index 2
+plt.scatter(y, z, c=intensity, s=0.05)
+plt.axhline(y=np.mean(z), color=’r’, linestyle=’-’)
+plt.title(“Second view”)
+plt.xlabel(‘Y-axis ‘)
+plt.ylabel(‘Z-axis ‘)
+From there, we can draw the plot using the following command:
+
+plt.show()
+Press enter or click to view image in full size
+
+Haha, nice, hun? The red line, which represents the mean value, looks like it will allow us to filter out nicely the ground element! So, let us use it!
+
+4. Point Cloud Filtering
+Okay, we want to find a mask that permits us to get rid of points that do not satisfy a query. The query that we are interested in only considers points with a Z value above the mean, with z>np.mean(z). We will store the results in our variable spatial_query:
+
+pcd=np.column_stack((x,y,z))
+mask=z>np.mean(z)
+spatial_query=pcd[z>np.mean(z)]
+💡Hint: The column_stack function of Numpy is super handy, but be careful with it because it can create overheads if applied on too big vectors. Nevertheless, it makes it super handy to play around with a set of feature vectors.
+
+Then, you can quickly verify if it worked by looking at the number of points after filtering:
+
+pcd.shape==spatial_query.shape 
+[Out] False
+Now, let us plot the results, this time in 3D, with the following commands:
+
+#plotting the results 3D
+ax = plt.axes(projection=’3d’)
+ax.scatter(x[mask], y[mask], z[mask], c = intensity[mask], s=0.1)
+plt.show()
+And again, if you want a top view well adapted with our LiDAR HD data:
+
+#plotting the results 2D
+plt.scatter(x[mask], y[mask], c=intensity[mask], s=0.1)
+plt.show()
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Very nice, we got rid of annoying outlier points, and we can now focus on these two planes and try to attach semantics to each one.
+
+5. K-Means Clustering Implementation
+The construction of the high-level Scikit-learn library will make you happy. In as little as one line of code, we can fit the clustering K-Means machine learning model. I will emphasize the standard notation, where our dataset is usually denoted Xto train or fit on. In this first case, let us create a feature space holding only the X, Y features after masking:
+
+X=np.column_stack((x[mask], y[mask]))
+from there, we will run our k-means implementation, with K=2, to see if we can retrieve the two planes automatically:
+
+kmeans = KMeans(n_clusters=2).fit(X)
+plt.scatter(x[mask], y[mask], c=kmeans.labels_, s=0.1)
+plt.show()
+💡Hint: We retrieve the ordered list of labels from the k-means implementation by calling the .labels_ method on the sklearn.cluster._kmeans.KMeans kmeans object. This means that we can directly pass the list to the color parameter of the scatter plot.
+
+As seen below, we retrieve the two planes correctly in two clusters! Increasing the number of clusters (K) will provide different results that you can experiment on.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+3D Point Cloud Instance segmentation vs. part segmentation possible workflows, given by K-Means parametrization. © F. Poux
+Choosing the correct number of clusters may not be initially so obvious. We can use the Elbow method if we want to have some heuristics that help decide this process in an unsupervised fashion. We are playing with the parameter K in the Elbow method, thus the number of clusters we want to extract.
+
+To implement the method, we will loop K for example, over a range of [1:20], execute our K-Means clustering with the K parameter, and compute a WCSS (Within-Cluster Sum of Square) value that we will store in a list.
+
+💡Hint: The init argument is the method for initializing the centroid, which here we set to k-means++ for clustering with an emphasis to speed up convergence. then, the wcss value through kmeans.inertia_ represent the sum of squared distance between each point and the centroid in a cluster.
+
+X=np.column_stack((x[mask], y[mask], z[mask]))
+wcss = [] 
+for i in range(1, 20):
+ kmeans = KMeans(n_clusters = i, init = ‘k-means++’, random_state = 42)
+ kmeans.fit(X)
+ wcss.append(kmeans.inertia_)
+🦩Fun facts: If you paid attention to the details of the k-means line, you might have wondered why 42? Well, for no smart reason 😆. The number 42 is an ongoing joke in the scientific community and is derived from the legendary Hitchhiker’s Guide to the Galaxy, wherein an enormous supercomputer named Deep Thought calculates the “Answer to the Ultimate Question of Life….”
+
+Then, once our wcss list is complete, we can plot the graph wcss depending on the K value, which kind of looks like an Elbow (maybe this has to do with the name of the method? 🤪).
+
+plt.plot(range(1, 20), wcss)
+plt.xlabel(‘Number of clusters’)
+plt.ylabel(‘WCSS’) 
+plt.show()
+Press enter or click to view image in full size
+
+And this looks like magic, as we see that our value that creates the elbow shape is situated at a number of clusters of 2, which makes perfect sense 😁.
+
+A clustering comparison to DBSCAN
+In a previous article, we dived into clustering with DBSCAN.
+
+How to automate 3D point cloud segmentation and clustering with Python
+towardsdatascience.com
+
+And if you followed it, you may wonder what is the true benefit of K-Means over DBSCAN in the case of 3D point clouds? Well, let me illustrate the cases where you may want to switch. I provide another part of the Aerial LiDAR dataset, which holds three cars close to one another. If we run K-Means with K=3, this is what we get:
+
+data_folder="../DATA/"
+dataset="KME_cars.xyz"
+x,y,z,r,g,b = np.loadtxt(data_folder+dataset,skiprows=1, delimiter=';', unpack=True)
+X=np.column_stack((x,y,z))
+kmeans = KMeans(n_clusters=3).fit(X)
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+As you can see, even if we cannot delineate the objects spatially, we get an excellent clustering. What does it look like with DBSCAN? Well, let us check below with the code lines:
+
+#analysis on dbscan
+clustering = DBSCAN(eps=0.5, min_samples=2).fit(X)
+plt.scatter(x, y, c=clustering.labels_, s=20)
+plt.show()
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+DBSCAN clustering of the D3 point clouds. Respectively, the epsilon value was set to 0.1, 0.2, and 0.5. © F. Poux
+As you can see, on top of having difficulties setting the epsilon parameter, we cannot delineate, at least with these features, the two cars on the right. 1–0 for K-Means in that case 🙂.
+
+Playing with the feature space.
+For now, we illustrated K-Means using only spatial features. But we can use any combination of features, which makes it super flexible to use on different applications!
+
+For the purpose of the tutorial, you can also experiment using the illuminance, the intensity, the number of returns, and the reflectance.
+
+3D Point Cloud Feature extraction from the Aerial LiDAR HD dataset. © F. Poux
+3D Point Cloud Feature extraction from the Aerial LiDAR HD dataset. © F. Poux
+Below are two examples using these features:
+
+X=np.column_stack((x[mask], y[mask], z[mask], illuminance[mask], nb_of_returns[mask], intensity[mask]))
+kmeans = KMeans(n_clusters=3, random_state=0).fit(X)
+plt.scatter(x[mask], y[mask], c=kmeans.labels_, s=0.1)
+plt.show()
+or again
+
+X=np.column_stack((z[mask] ,z[mask], intensity[mask]))
+kmeans = KMeans(n_clusters=4, random_state=0).fit(X)
+plt.scatter(x[mask], y[mask], c=kmeans.labels_, s=0.1)
+plt.show()
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+K-Means results on the 3D point cloud using different feature spaces and K values. © F. Poux
+To go deeper, we could better describe the local neighborhood around each point, for example, through a Principle Component Analysis. Indeed, this could permit to extract a large set of more or less relevant geometric features. It would surpass the scope of the current article, but you can be sure that I will dive into it on a specific issue later on. You can also directly dive into the PCA expertise through the Point Cloud Processor online course.
+
+Point Cloud Processing Online Course - 3D Geodata Academy
+Formation to learn advanced point cloud processing and 3D automation. Develop new python geodata skills and open-source…
+learngeodata.eu
+
+Finally, we are just left with exporting the data to a coherent structure, for example, a .xyz ASCII file, holding only the spatial coordinate with the label information that can be read in external software:
+
+result_folder=”../DATA/RESULTS/”
+np.savetxt(result_folder+dataset.split(“.”)[0]+”_result.xyz”, np.column_stack((x[mask], y[mask], z[mask],kmeans.labels_)), fmt=’%1.4f’, delimiter=’;’)
+If you want to get it working directly, I also created a Google Colab script that you can access here: To the Python Google Colab script.
+
+Conclusion
+Massive congratulations 🎉! You just learned how to develop an automatic semi-supervised segmentation through K-Means clustering, and it is super handy when semantic labeling is not available along with the 3D data. We learned that we can still infer semantic information by investigating inherent geometrical patterns within the data.
+
+Sincerely, well done! But the path certainly does not end here because you just unlocked a tremendous potential for intelligent processes that reason at a segment level!
+
+Future posts will dive deeper into point cloud spatial analysis, file formats, data structures, object detection, segmentation, classification, visualization, animation and meshing.
+
+Going Further
+Other advanced segmentation methods for point cloud exist. It is a research field in which I am deeply involved, and you can already find some well-designed methodologies in the articles [1–6]. Some comprehensive tutorials are coming very soon for the more advanced 3D deep learning architectures!
+
+Poux, F., & Billen, R. (2019). Voxel-based 3D point cloud semantic segmentation: unsupervised geometric and relationship featuring vs. deep learning methods. ISPRS International Journal of Geo-Information. 8(5), 213; https://doi.org/10.3390/ijgi8050213 — Jack Dangermond Award (Link to press coverage)
+Poux, F., Neuville, R., Nys, G.-A., & Billen, R. (2018). 3D Point Cloud Semantic Modelling: Integrated Framework for Indoor Spaces and Furniture. Remote Sensing, 10(9), 1412. https://doi.org/10.3390/rs10091412
+Poux, F., Neuville, R., Van Wersch, L., Nys, G.-A., & Billen, R. (2017). 3D Point Clouds in Archaeology: Advances in Acquisition, Processing and Knowledge Integration Applied to Quasi-Planar Objects. Geosciences, 7(4), 96. https://doi.org/10.3390/GEOSCIENCES7040096
+Poux, F., Mattes, C., Kobbelt, L., 2020. Unsupervised segmentation of indoor 3D point cloud: application to object-based classification, ISPRS — International Archives of the Photogrammetry, Remote Sensing and Spatial Information Sciences. pp. 111–118. https://doi:10.5194/isprs-archives-XLIV-4-W1-2020-111-2020
+Poux, F., Ponciano, J.J., 2020. Self-learning ontology for instance segmentation of 3d indoor point cloud, ISPRS — International Archives of Photogrammetry, Remote Sensing and Spatial Information Sciences. pp. 309–316. https://doi:10.5194/isprs-archives-XLIII-B2-2020-309-2020
+Bassier, M., Vergauwen, M., Poux, F., (2020). Point Cloud vs. Mesh Features for Building Interior Classification. Remote Sensing. 12, 2224. https://doi:10.3390/rs12142224
+3d
+Python
+Point Cloud
+K Means
+Deep Dives
+453
+
+
+6
+
+
+
+
+TDS Archive
+Published in TDS Archive
+829K followers
+·
+Last published Feb 3, 2025
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (6)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Anthony Klemm
+Anthony Klemm
+
+Aug 8, 2023
+
+
+Thank you! I’m interested in performing a similar approach for detecting/segmenting features and noise in multibeam echosounder point cloud data. This is extremely helpful.
+2
+
+
+1 reply
+
+Reply
+
+Mala Deep
+Mala Deep
+
+Jun 29, 2023
+
+
+Damn, this is fantastic.
+Reply
+
+Cem Tutum
+Cem Tutum
+
+Feb 8, 2023
+
+
+z[mask] ,z[mask]
+
+Is this correct?
+Reply
+
+See all responses
+More from Florent Poux, Ph.D. and TDS Archive
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Francesco Casalegno
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+Leveraging data to help users discovering new contents
+Nov 25, 2022
+542
+5
+
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Ketan Doshi
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+A Gentle Guide to the inner workings of Self-Attention, Encoder-Decoder Attention, Attention Score and Masking, in Plain English.
+Jan 17, 2021
+3K
+35
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from TDS Archive
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+How to calculate surface volume using a digital surface model in Python?
+Python in Plain English
+In
+
+Python in Plain English
+
+by
+
+Tarık Emre Yorulmaz
+
+How to calculate surface volume using a digital surface model in Python?
+
+Jul 1
+2
+1
+
+
+Wait… YOLO11 to YOLO26?! Here’s what actually changed.
+Towards Deep Learning
+In
+
+Towards Deep Learning
+
+by
+
+Sumit Pandey
+
+Wait… YOLO11 to YOLO26?! Here’s what actually changed.
+YOLO11 to YOLO26?! Ultralytics skips ahead: NMS-free, edge-first, export-friendly vision model. Hype or real? My take. Yep
+
+Sep 26
+31
+1
+
+
+AlphaEarth Foundations: Implications for Cities and Urban Planners
+Urban AI
+Urban AI
+
+AlphaEarth Foundations: Implications for Cities and Urban Planners
+How Embeddings And GeoAI Are Transforming Urban Planning
+Oct 14
+22
+
+
+YOLO26: Not as Good as YOLO12
+Zain Shariff
+Zain Shariff
+
+YOLO26: Not as Good as YOLO12
+YOLO26 release came with new preliminary data, however further digestion of the data sort of reveals how YOLO12 might be better, read…
+Sep 30
+17
+2
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

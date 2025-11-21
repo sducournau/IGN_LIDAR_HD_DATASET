@@ -1,0 +1,405 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+TDS Archive
+TDS Archive
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+Follow publication
+
+Member-only story
+
+3D Reconstruction
+3D Reconstruction Tutorial with Python and Meshroom
+Quickly learn to create 3D models from photos, and master point cloud generation with Python + Meshroom (photogrammetry).
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+5 min read
+·
+Jul 20, 2024
+128
+
+
+1
+
+
+
+
+
+You may have heard of image-based 3D reconstruction from previous articles I wrote. This is a depth-first example (to save for later use):
+
+The Ultimate Guide to 3D Reconstruction with Photogrammetry
+A full hands-on 3D Reconstruction tutorial using 3D Photogrammetry, Reality Capture, Meshroom, and Blender.
+towardsdatascience.com
+
+Today, I want to focus on a “cut-to-the-chase” read that ensures you can take a bunch of pictures and create a 3D point cloud or 3D mesh within your Python script to develop a cool experience.
+
+If that sounds good to you, let me quickly answer the question below:
+
+Press enter or click to view image in full size
+Illustration by Florent Poux: Which tool should be used for 3D point cloud generation?
+Which tool should be used for 3D point cloud generation? © 
+Florent Poux, Ph.D.
+Whenever you are ready, let us move on to the fun bits.
+
+📦 Florent’s Resources: Please find the resources for this tutorial here—first, the Meshroom Software with its documentation. And then, an Anaconda Distribution with Python 3.9+ to use some libraries.
+
+Let me break down the tutorial into 7 steps:
+
+Press enter or click to view image in full size
+Illustration by Florent Poux: The Step-by-step process to generate a 3D point cloud
+The Step-by-step process to generate a 3D point cloud. © 
+Florent Poux, Ph.D.
+Time to move onto Stage 1: a quick (and dirty) introduction to photogrammetry.
+
+1. Photogrammetry: introduction
+So, photogrammetry is a powerful technique that allows the creation of 3D models from a series of 2D images.
+
+Today, I will guide you on generating 3D point clouds using Python and Meshroom. The process involves capturing images, processing them in Meshroom to create a 3D model, and then using Python to manipulate and visualize the resulting point cloud, as illustrated below.
+
+Press enter or click to view image in full size
+3D Point Cloud Generation process as a high-level view from 3D Reconstruction, by Florent Poux
+The process is a high-level view. © 
+Florent Poux, Ph.D.
+Now that you grasp what we are going to do from a high-level view, let us move on to stage 2.
+
+2. Prerequisites
+Before starting, ensure you have the following:
+
+Press enter or click to view image in full size
+The software and applications covered in photogrammetry tutorial by Florent Poux
+The software and applications are covered in this tutorial. © 
+Florent Poux, Ph.D.
+This holds:
+
+A camera (a smartphone camera can suffice)
+A computer with Meshroom installed
+Python installed on your computer
+Libraries: open3d, numpy, matplotlib
+You can install the necessary Python libraries using pip:
+
+pip install open3d numpy matplotlib
+🦚 Florent’s Note: If this is obscure to you, you can always refer to this tutorial for a minimalistic Python Setup for 3D Data Processing:
+
+3D Python Environment Setup: 7-Steps Guide for Beginners
+Tutorial to get started with Python for 3D Data Science. It covers the steps to set up your 3D Python Environment…
+learngeodata.eu
+
+Great, everything is smooth! We now have the following pieces:
+
+Press enter or click to view image in full size
+The four main components: Photogrammetry, Meshroom, Python and Open3d library. © Florent Poux, Ph.D.
+The four main components are Photogrammetry, Meshroom, Python, and Open3d library. © 
+Florent Poux, Ph.D.
+Let us capture some images.
+
+3. Capturing Images
+The quality of your 3D model heavily depends on the quality and quantity of the images you capture. Follow these guidelines for the best results:
+
+Press enter or click to view image in full size
+
+How to capture good photos for 3D Reconstruction? © 
+Florent Poux, Ph.D.
+If I have to describe a bit what that means:
+
+Capture images with good lighting and minimal shadows.
+Ensure the object is in focus in all pictures.
+Take photos from multiple angles to cover all sides of the object.
+Overlap between consecutive images should be around 60–80%.
+With these four simple directions, you should be good to go and ready to move on to stage 4.
+
+4. Processing Images with Meshroom
+Great, you now have a bunch of images that you uploaded to a local drive folder on your computer. It is time to use Meshroom, as illustrated below:
+
+Press enter or click to view image in full size
+The Meshroom process in 4 steps. © Florent Poux, Ph.D.
+The Meshroom process in 4 steps. © 
+Florent Poux, Ph.D.
+What you should do in detail is the following:
+
+Open Meshroom: Launch Meshroom on your computer.
+Create a New Project: Start a new project and import your images by dragging and dropping them into the Meshroom workspace.
+Run the Pipeline: Click the “Start” button to run the default photogrammetry pipeline. Meshroom will process the images and generate a 3D model.
+Inspect the Model: Once processing is complete, inspect the 3D model to ensure it meets your expectations.
+After these steps, we can move on to stage 5: exporting our 3D dataset.
+
+5. Exporting the Point Cloud
+After generating the 3D model (yes, it is a model at this stage) in Meshroom, let us export the point cloud. If you look at my illustration below, this is what we do:
+
+Press enter or click to view image in full size
+How to export point clouds in Meshroom. © Florent Poux, Ph.D.
+How to export point clouds in Meshroom. © 
+Florent Poux, Ph.D.
+In short, that means:
+
+Select the Output: In the Meshroom interface, navigate to the “Texturing” node.
+Export: Right-click on the “Texturing” node and select “Export”. Choose the format you prefer, such as .ply or .obj.
+Great, now we can move on to the next stage: six.
+
+🦚 Florent’s Note: At this stage, if you feel like something is not properly working, then I recommend checking out the tutorial hinted before, as this holds the various deep details that I am overlooking here for the sake of quick replication.
+
+6. Visualizing the Point Cloud with Python
+Now that you have the point cloud file, you can use Python to visualize it. Below is a sample script using open3d:
+
+import open3d as o3d
+And to visualize your point cloud:
+
+pcd = o3d.io.read_point_cloud("path_to_your_point_cloud.ply")
+o3d.visualization.draw_geometries([pcd])
+This brings this result for me (35 pictures):
+
+The result of the 3D Reconstruction process detailed in this article. © Florent Poux, Ph.D.
+The result of the 3D Reconstruction process is detailed in this article. © 
+Florent Poux, Ph.D.
+Not bad, hun?
+
+7. Conclusion
+Generating 3D point clouds using Python and Meshroom is a straightforward process that leverages the power of photogrammetry. By following the steps outlined in this document, you can create detailed 3D models from simple 2D images and visualize them using Python.
+
+Press enter or click to view image in full size
+How Photogrammetry, Python and Meshroom play hand in hand
+How Photogrammetry, Python, and Meshroom play hand in hand. © 
+Florent Poux, Ph.D.
+This technique opens up numerous possibilities for applications in various fields, from virtual reality to 3D printing.
+
+Now, I am excited to see what you do with this! It is time to put that as one other skill to your 3D Tech quiver 🏹.
+
+Photogrammetry
+3d Reconstruction
+Point Cloud
+Python
+Data Visualization
+128
+
+
+1
+
+
+
+
+TDS Archive
+Published in TDS Archive
+829K followers
+·
+Last published Feb 3, 2025
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (1)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Xx Yy
+Xx Yy
+
+Jul 23, 2024
+
+
+Meshroom has a nice gui but Colmap is much more powerful, faster, hands-off and also free
+
+1 reply
+
+Reply
+
+More from Florent Poux, Ph.D. and TDS Archive
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Francesco Casalegno
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+Leveraging data to help users discovering new contents
+Nov 25, 2022
+542
+5
+
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Ketan Doshi
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+A Gentle Guide to the inner workings of Self-Attention, Encoder-Decoder Attention, Attention Score and Masking, in Plain English.
+Jan 17, 2021
+3K
+35
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from TDS Archive
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+Jiayi Hoffman
+Jiayi Hoffman
+
+Robot Auto Mapping using Nav2 SLAM Toolbox
+In this blog, I will explain how to create the floor map using a mobile robot with the Nav2 SLAM Toolbox.
+May 28
+15
+
+
+Create your own calendar with highlighted dates in Matplotlib
+Top Python Libraries
+In
+
+Top Python Libraries
+
+by
+
+UnicornOnAzur
+
+Create your own calendar with highlighted dates in Matplotlib
+Show dates of interest in a month in a similar style as the Strava month overview using the calendar and matplotlib libraries.
+Sep 10
+25
+
+
+D3Blocks: The Python Library to Create Interactive, Standalone, and Beautiful D3.js Charts
+Data Science Collective
+In
+
+Data Science Collective
+
+by
+
+Erdogan T
+
+D3Blocks: The Python Library to Create Interactive, Standalone, and Beautiful D3.js Charts
+Bring your charts alive using D3Blocks: The Python Library to Create Interactive, Standalone, and Beautiful D3.js Charts.
+
+Jun 28
+861
+7
+
+
+Python Map Algebra Cookbook: Raster Operations for Spatial Analysis
+Stacy Mwangi
+Stacy Mwangi
+
+Python Map Algebra Cookbook: Raster Operations for Spatial Analysis
+Essential recipes for transforming, combining, and analyzing gridded spatial data
+
+6d ago
+52
+
+
+Real-Time Face Tracking in the Browser with MediaPipe
+Chris McKenzie
+Chris McKenzie
+
+Real-Time Face Tracking in the Browser with MediaPipe
+On-device ML with zero latency, no servers, and full control over the UI
+Jul 21
+11
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

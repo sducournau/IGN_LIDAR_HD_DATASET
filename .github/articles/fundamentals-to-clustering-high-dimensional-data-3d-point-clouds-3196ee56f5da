@@ -1,0 +1,473 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+TDS Archive
+TDS Archive
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+Follow publication
+
+Top highlight
+
+Member-only story
+
+3D Geodata
+Fundamentals to clustering high-dimensional data (3D point clouds)
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+11 min read
+·
+Jun 9, 2020
+210
+
+
+1
+
+
+
+
+
+Why unsupervised segmentation & clustering is the “bulk of AI”? What to look for when using them? How to evaluate performances? Explications and Illustration over 3D point cloud data.
+
+Clustering algorithms allow data to be partitioned into subgroups, or clusters, in an unsupervised manner. Intuitively, these segments group similar observations together. Clustering algorithms are therefore highly dependent on how one defines this notion of similarity, which is often specific to the field of application.
+
+Press enter or click to view image in full size
+
+Different clustering strategies applied to this noisy point cloud of a room. One can see that spatial proximities seems a choice criterion to define this similarity to constitute segments. © 
+Florent Poux, Ph.D.
+What is clustering?
+Clustering algorithms are often used for exploratory data analysis. They also constitute the bulk of the processes in AI classification pipelines to create nicely labeled datasets in an unsupervised/self-learning fashion.
+
+Press enter or click to view image in full size
+
+Original LeCun cake analogy slide presented at NIPS 2016, the highlighted area has now been updated.
+Within the scope of 3D Geodata, clustering algorithms (also defined as unsupervised segmentation) permit to obtain a segment soup that becomes the backbone of several processes such as feature extraction, classification or 3D modeling as illustrated below.
+
+Press enter or click to view image in full size
+
+Here you can see an automatic modeling process that leverages the segment information for a nice extraction of a 3D mesh. © 
+Florent Poux, Ph.D.
+Aside from Geodata applications, they are used to identify :
+
+customers with similar behaviors (market segmentation);
+users who have similar uses of a tool;
+communities in social networks;
+recurring patterns in financial transactions.
+They most often act in addition to a dimensionality reduction algorithm that allows the different attributes (called dimensions) to be viewed in two or three dimensions. If a “view” presents sufficient decorrelation, a clustering algorithm can be used to form sub-groups of these points — the clusters — as illustrated below.
+
+Press enter or click to view image in full size
+
+A simple illustration of finding two clusters by creating a line to separate the dataset in two sub-groups.
+In this way, the relationships between the points can be visually represented. Alternatively, instead of representing the entire data, only one representative point per cluster can be displayed.
+
+Once clusters have been identified, data can also be viewed using only one representative per cluster and discarding the others.
+
+Press enter or click to view image in full size
+
+Determination of centroids of two clusters to act as the new base data. © 
+Florent Poux, Ph.D.
+Why is this useful?
+Clustering algorithms are particularly useful in the frequent cases where it is expensive to label data. Take the example of annotating a large point cloud. Annotating each point by what it represents can be a long and tedious job, to the point (see what I did here 😄) that the people doing it can unintentionally introduce errors through inattention or fatigue. It is cheaper and perhaps even more efficient to let a clustering algorithm group similar points together and then only involve a human operator when assigning a label to the cluster.
+
+Press enter or click to view image in full size
+
+Simple illustration over a chair of one advantage within semantic segmentation workflows. © 
+Florent Poux, Ph.D.
+Thus, clustering algorithms can be used to extend a property of one of the points in the same cluster to all the points in the same cluster (in the previous example, the represented chair object.).
+
+Outside the geodata scope, inferring data properties is useful for:
+
+finding similar images, likely to represent the same object, the same animal or the same person;
+extracting similar texts, likely to speak about the same subject;
+searching in an image the pixels that belong to the same object (which is called segmentation).
+In the examples above, the subjects (image, text, pixels) are represented as 2D/3D/nD points and are then grouped into clusters. Then, it is sufficient to infer that if one image in a cluster represents a duck, all the images part of the cluster are likely to represent ducks.
+
+We will define several criteria to be optimized to define an interesting partition of the data. These are then used to derive some of the best-known clustering algorithms, and will be covered in another article as else the read would be a bit dense 😇.
+
+How to know if the clustering is representative?
+In the case of unsupervised algorithms, the purpose of the algorithm is less obvious to define than in the case of supervised algorithms, where there is a clear task to accomplish (E.g. classification or regression). The success of the model is therefore more subjective. The fact that the task is more difficult to define does not prevent a wide range of measures of the performance which I will detail below.
+
+Distances and similarities
+Clustering means grouping together the closest or most similar points. The concept of clustering relies heavily on the concepts of distance and similarity.
+
+These concepts will be very useful to formalize:
+
+(1) How close two observations are to each other;
+(2) How close an observation is to a cluster;
+(3) How close two clusters are to each other.
+Press enter or click to view image in full size
+
+Simple illustration of some distances between two observations (1), one observation and a cluster (2), two clusters (3). © 
+Florent Poux, Ph.D.
+The most commonly used examples of distances are the Euclidean distance, and the Manhattan distance. The Euclidean distance is the “ordinary” straight-line distance between two points in Euclidean space. The Manhattan distance is so-called because it corresponds in two dimensions to the distance traveled by a taxi on the streets of Manhattan, which are all either parallel or perpendicular to each other.
+
+Press enter or click to view image in full size
+
+Simple illustration of the Euclidean and Manhattan distances. © 
+Florent Poux, Ph.D.
+Thus, a distance can be used to define a similarity: the further apart two points are, the less similar they are, and vice versa. For injecting a very tiny bit of math, we can transform a distance d between x and y into a similarity measure s very simply such as: s(x,y)=1/1+d(x,y).
+
+Another common way to define similarity is to use the Pearson correlation which measures the cosine of the angle formed by vectors x and y when the underlying data is centered.
+
+Press enter or click to view image in full size
+
+Simple illustration of the Pearson Correlation coefficient. © 
+Florent Poux, Ph.D.
+But without going too deep, it is important to note that the Pearson’s correlation will take into account the shape of the distribution rather than their amplitude, which the Euclidean distance mainly takes into account. The choice of the distance measure is therefore important.
+
+Cluster shape
+The shape of a cluster is an important element that we initially describe as:
+
+(1) Tightened on themselves: two close points must belong to the same cluster
+(2) far from each other: two points that are far apart must belong to different clusters.
+Press enter or click to view image in full size
+
+How tighten can give a hint as to the formation of coherent clusters. © 
+Florent Poux, Ph.D.
+Often, we search for clusters tighten on themselves. Let us translate these properties with an example, using the Euclidean distance. First, we can compute the centroid of a cluster (the barycentre of the points of this cluster) pretty easily. The homogeneity of a cluster can then be defined as the average of the distances of each of the points contained in this cluster to the centroid. In this way, a tightened cluster will have a lower heterogeneity than a cluster of scattered points. Then, to characterize not one cluster, but all clusters in our dataset, we can calculate the average of the homogeneity of each cluster.
+
+Press enter or click to view image in full size
+
+Simple illustration about how homogeneity gives intuitive sense to better characterize clusters. © 
+Florent Poux, Ph.D.
+Secondly, we want the clusters to be far from each other. To quantify this, we usually define the separation of two clusters as the distance between their centroids. Once again, we can calculate the average of these quantities on all the pairs of clusters obtained.
+
+Press enter or click to view image in full size
+
+A simple illustration to show how separation can be used to get a nice clustering. © 
+Florent Poux, Ph.D.
+We now have two criteria to optimize: homogeneity and separation. To make it easier for us, we can group them into a single criterion, the Davies-Bouldin index. The idea of this index is to compare intra-cluster distances (homogeneity) — which we want to be low — to inter-cluster distances (separation), which we want to be high. For a given cluster, this index is all the weaker as all the clusters are homogeneous and well separated.
+
+Another way to quantify how well a clustering meets these two requirements (homogeneity and separation) is to measure the so-called silhouette coefficient. For a given point p, the silhouette coefficient s(p) is used to assess whether this point belongs to the “right” cluster. For this, we try and answer two questions:
+
+Is p close to the points of the cluster to which it belongs? We can calculate the average distance a(p) of p from all the other points of the cluster to which it belongs.
+Is the point far from the other points? We calculate the smallest value b(p) that a(p) could take if p were assigned to another cluster. If p has been correctly assigned, then a(x) < b(x). The silhouette coefficient is given by s(x)=b(x)−a(x)/max(a(x),b(x)), and ranges between -1 and 1. The closer to 1 it is, the more the assignment of p to its cluster is satisfactory.
+💡 Hint: To evaluate a clustering, its mean silhouette coefficient can be calculated, for example using scikit-learn and the command sklearn.metrics.silhouette_score.
+
+Cluster stability
+Another important criterion is the stability of the clustering: if I run the algorithm several times on the same data with a different initialization, or on different subsets of the data, or on the same slightly noisy data, do I get the same results? This criterion is particularly relevant when choosing the number of clusters: if the number of clusters chosen corresponds to the natural structure of the data, the clustering will be more stable than if it does not.
+
+Press enter or click to view image in full size
+
+An example of the “parameter supervision” for finding clusters and its impact. © 
+Florent Poux, Ph.D.
+On the example above, an algorithm that tries to determine 3 clusters will reasonably find the three clusters we see. But if it is asked to determine 4 clusters, the distribution in these 4 clusters will be more random and will not necessarily be twice the same. This is one way to determine that 3 is a better number of clusters than 4.
+
+Compatibility with domain-specific knowledge
+Very often, we will also evaluate a clustering algorithm “by eye”, and see if the proposed clusters make sense. Do the points grouped in this cluster all represent the same object? Do the points in these two clusters represent different objects?
+
+Press enter or click to view image in full size
+
+Pay attention to the various clusters in the following illustration. Do they make intuitive sense? Should the central lamp post be described by one cluster? 3 clusters? more? © 
+Florent Poux, Ph.D.
+To do this more neatly, we can work on a dataset on which we know a reasonable partition of the data. We will then compare this partition with the one returned by our clustering algorithm. For example, we can work with a point cloud partitioned by planar shapes. The next step is to evaluate whether the groups formed by the clustering algorithm correspond to those defined a priori.
+
+Press enter or click to view image in full size
+
+Example of taking a portion of a point cloud, and creating a “planar-labeled” dataset to compare to the clustering results. © 
+Florent Poux, Ph.D.
+It’s easy! It’s like evaluating a multi-class classification algorithm. But not so fast: if we are interested in whether the same objects belong to the same cluster, it doesn’t matter whether this cluster is the first, the second, or the k-th cluster. Therefore, specific performance metrics must be used to evaluate the concordance of two partitions of the dataset.
+
+💡 Hint: A list of these can be found in sklearn.metrics.
+
+An example of these measures is the Rand index. The Rand index is the proportion of pairs of points (p1,p2) that are grouped in the same way in both partitions: either because, in both cases, p_1 and p_2 belong to the same cluster, or because, in both cases, p_1 and p_2 belong to different clusters.
+
+The Rand index can be artificially inflated by predicting a lot of clusters: the pairs of points belonging to different clusters will be numerous, and there will be a good chance that two points labeled differently will be in two different clusters. The Adjusted Rand Index (ARI) corrects for this effect by normalizing the Rand Index (RI): ARI=RI-E(RI)/max(RI)-E(RI), where E(RI) is the expected value of the Rand index, i.e. the index obtained by partitioning the data at random. This adjusted index is close to 0 for random clustering and equal to 1 only when the clustering corresponds exactly to the initial partition.
+
+💡 Hint: In scikit-learn it can be calculated thanks to sklearn.metrics.adjusted_rand_score
+
+Conclusion
+Unsupervised and self-learning methods are very important for solving automation challenges. Particularly, in the era of deep learning, creating labeled datasets manually is tedious, and ways to alleviate this process are more than welcome. Clustering algorithms provide crucial solutions for this, and are used to partition a dataset into sub-groups of similar observations:
+
+They can be used to better understand the data;
+They can be used to facilitate data visualization;
+They can be used to infer data properties.
+Then, to evaluate a clustering algorithm, we can look at :
+
+the shape of the clusters it produces (are they dense, well separated). The silhouette coefficient is often used here;
+the stability of the algorithm;
+the compatibility of the results with domain-specific knowledge, which can be evaluated using enrichment measures.
+Going Further
+In this article, I covered the essentials of clustering, specifically illustrated on 3D point clouds. The next step is pretty natural, and involve diving right into the code, and looking at the most prominent approaches that you can use to start with. This will be covered in the next article and using Python.
+
+If you want to extend the read and get the basics about Python and working with 3D data (point cloud, meshes), I recommend you dive into the formation from the 3D Geodata Academy:
+
+Point Cloud Processing Online Course - 3D Geodata Academy
+Formation to learn advanced point cloud processing and 3D automation. Develop new python geodata skills and open-source…
+learngeodata.eu
+
+or that you pick a read at the following:
+
+The Future of 3D Point Clouds: a new perspective
+Discrete spatial datasets known as point clouds often lay the groundwork for decision-making applications. But can they…
+towardsdatascience.com
+
+Discover 3D Point Cloud Processing with Python
+Tutorial to simply set up your python environment, start processing and visualize 3D point cloud data.
+towardsdatascience.com
+
+5-Step Guide to generate 3D meshes from point clouds with Python
+Tutorial to generate 3D meshes (.obj, .ply, .stl, .gltf) automatically from 3D point clouds using python. (Bonus)…
+towardsdatascience.com
+
+References & Related works
+A short overview of clustering applications and the Smart Point Cloud Concept
+Medium: This top article by fellow writer 
+George Seif
+
+Scientific articles:
+
+1. Poux, F., & Billen, R. (2019). Voxel-based 3D point cloud semantic segmentation: unsupervised geometric and relationship featuring vs deep learning methods. ISPRS International Journal of Geo-Information. 8(5), 213; https://doi.org/10.3390/ijgi8050213
+
+2. Poux, F., Neuville, R., Nys, G.-A., & Billen, R. (2018). 3D Point Cloud Semantic Modelling: Integrated Framework for Indoor Spaces and Furniture. Remote Sensing, 10(9), 1412. https://doi.org/10.3390/rs10091412
+
+3. Poux, F., Neuville, R., Van Wersch, L., Nys, G.-A., & Billen, R. (2017). 3D Point Clouds in Archaeology: Advances in Acquisition, Processing and Knowledge Integration Applied to Quasi-Planar Objects. Geosciences, 7(4), 96. https://doi.org/10.3390/GEOSCIENCES7040096
+
+About the author
+Florent Poux has been at the forefront of automation in 3D Tech for more than 15 years. He authored 100+ papers and patents on 3D Recognition. He holds an award-winning Ph.D. in Sciences and is recognized as an outstanding researcher through the once-every-4-year ISPRS Jack Dangermond 2019 award.
+
+Florent Poux is a Senior 3D Tech Executive that shares knowledge and research for 3D Data Science
+He bridges high-level research & knowledge transmission as a Professor (3D Data Academy), a Senior Scientist (OpenClassrooms, UTwente, ULiège) as well as a 3D Tech Senior Executive.
+
+3D Innovator Newsletter
+Weekly practical content, insights, code and resources to master 3D Data Science. I write about Point Clouds, AI…
+learngeodata.eu
+
+Clustering
+3d
+Point Cloud
+Segmentation
+Unsupervised Learning
+210
+
+
+1
+
+
+
+
+TDS Archive
+Published in TDS Archive
+829K followers
+·
+Last published Feb 3, 2025
+An archive of data science, data analytics, data engineering, machine learning, and artificial intelligence writing from the former Towards Data Science Medium publication.
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (1)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Prarthana Bataju
+Prarthana Bataju
+
+Nov 20, 2020
+
+
+Thank you for the tutorial.
+But do you have link for the code so that we can implement and try it.
+
+1 reply
+
+Reply
+
+More from Florent Poux, Ph.D. and TDS Archive
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Francesco Casalegno
+
+Recommender Systems — A Complete Guide to Machine Learning Models
+Leveraging data to help users discovering new contents
+Nov 25, 2022
+542
+5
+
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Ketan Doshi
+
+Transformers Explained Visually (Part 3): Multi-head Attention, deep dive
+A Gentle Guide to the inner workings of Self-Attention, Encoder-Decoder Attention, Attention Score and Masking, in Plain English.
+Jan 17, 2021
+3K
+35
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from TDS Archive
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+AlphaEarth Foundations: Implications for Cities and Urban Planners
+Urban AI
+Urban AI
+
+AlphaEarth Foundations: Implications for Cities and Urban Planners
+How Embeddings And GeoAI Are Transforming Urban Planning
+Oct 14
+22
+
+
+Deep Dive into Unsupervised Classification of Satellite Images: K-means, PCA, and Spectral Indices.
+Apratim Das
+Apratim Das
+
+Deep Dive into Unsupervised Classification of Satellite Images: K-means, PCA, and Spectral Indices.
+Introduction
+Jun 30
+78
+
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+Google Earth and Earth Engine
+In
+
+Google Earth and Earth Engine
+
+by
+
+Google Earth
+
+Bridging Worlds: Bringing Google Earth Engine to Desktop GIS Users!
+By Alicia Sullivan, Earth Engine Product Manager; Kel Market, Cloud Geographer; and Gena Donchyts, Cloud Geographer
+Jun 17
+109
+2
+
+
+Point Cloud Data
+Sujeeth Kumaravel
+Sujeeth Kumaravel
+
+Point Cloud Data
+Point cloud data is 3D because each point in the cloud represents a position in three-dimensional space using three coordinates:
+Jun 10
+
+
+Finding Groundwater Using Google Earth Engine and Gemini
+Google Cloud - Community
+In
+
+Google Cloud - Community
+
+by
+
+Greg Sommerville
+
+Finding Groundwater Using Google Earth Engine and Gemini
+Remote Sensing and Infrared images make it possible
+Jul 16
+16
+2
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+

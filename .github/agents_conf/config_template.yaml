@@ -1,0 +1,299 @@
+# Configuration Template pour LiDAR Trainer Agent
+
+# Exemple de configuration pour entraînement PointNet++
+# À adapter selon votre cas d'usage
+
+# ==============================================================================
+# DATASET CONFIGURATION
+# ==============================================================================
+
+dataset:
+  # Chemins
+  train_path: "/data/ign_lidar/train/"
+  val_path: "/data/ign_lidar/val/"
+  test_path: "/data/ign_lidar/test/"
+
+  # Format
+  file_format: "las" # ou "laz", "xyz", "ply"
+
+  # Classes (ASPRS standard)
+  num_classes: 3
+  class_names:
+    - "ground" # ASPRS class 2
+    - "vegetation" # ASPRS class 3,4,5
+    - "buildings" # ASPRS class 6
+
+  # Distribution (important pour weighted loss)
+  class_distribution:
+    ground: 0.45 # 45% des points
+    vegetation: 0.35 # 35% des points
+    buildings: 0.20 # 20% des points
+
+  # Sampling
+  num_points_per_sample: 16384 # Typique : 8192, 16384, 32768
+  use_farthest_point_sampling: true
+
+  # Features
+  feature_mode: "lod2" # "minimal", "lod2", "lod3", "full", "custom"
+
+  # Features personnalisées (si mode="custom")
+  custom_features:
+    - "X"
+    - "Y"
+    - "Z"
+    - "R"
+    - "G"
+    - "B"
+    - "verticality_1"
+    - "planarity_2"
+    - "omnivariance_2"
+    - "normal_change_rate_2"
+
+  # Preprocessing
+  normalize: true
+  normalization_method: "minmax" # ou "standard", "robust"
+  remove_outliers: true
+  outlier_nb_neighbors: 20
+  outlier_std_ratio: 2.0
+
+# ==============================================================================
+# MODEL CONFIGURATION
+# ==============================================================================
+
+model:
+  architecture: "pointnet2_msg" # "pointnet2_ssg", "pointnet2_msg", "point_transformer"
+
+  # PointNet++ Specific
+  pointnet2:
+    # Set Abstraction levels
+    sa_n_points: [4096, 1024, 256, 64] # Points per SA level
+    sa_radius: [0.1, 0.2, 0.4, 0.8] # Ball query radius per level
+    sa_n_samples: [32, 32, 32, 32] # Max neighbors per level
+
+    # Multi-Scale Grouping (MSG only)
+    msg_radii: [[0.05, 0.1], [0.1, 0.2], [0.2, 0.4], [0.4, 0.8]]
+    msg_n_samples: [[16, 32], [16, 32], [16, 32], [16, 32]]
+
+    # MLP dimensions
+    sa_mlp_dims: [[32, 32, 64], [64, 64, 128], [128, 128, 256], [256, 256, 512]]
+    fp_mlp_dims: [[256, 256], [256, 256], [256, 128], [128, 128, 128]]
+
+    # Dropout & BatchNorm
+    use_dropout: true
+    dropout_rate: 0.3
+    use_batch_norm: true
+
+  # Point Transformer Specific
+  point_transformer:
+    embed_dim: 256
+    num_heads: 4
+    num_layers: 4
+    mlp_ratio: 4
+    dropout: 0.1
+
+# ==============================================================================
+# TRAINING CONFIGURATION
+# ==============================================================================
+
+training:
+  # Optimization
+  optimizer: "adam" # "adam", "sgd", "adamw"
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  momentum: 0.9 # Si SGD
+
+  # Learning rate schedule
+  lr_scheduler:
+    type: "step" # "step", "cosine", "exponential"
+    step_size: 20 # epochs
+    gamma: 0.7
+
+  # Batch settings
+  batch_size: 16
+  num_workers: 0 # 0 avec GPU, 4+ avec CPU
+
+  # Epochs
+  max_epochs: 200
+  early_stopping:
+    enabled: true
+    patience: 20
+    monitor: "val_miou"
+    mode: "max"
+
+  # Loss function
+  loss:
+    type: "cross_entropy" # "cross_entropy", "focal_loss"
+    weighted: true # Recommandé pour classes déséquilibrées
+    focal_loss_gamma: 2.0 # Si focal_loss
+
+  # Checkpointing
+  checkpoint:
+    save_best_only: true
+    monitor: "val_miou"
+    mode: "max"
+    save_dir: "./checkpoints/"
+
+  # Logging
+  logging:
+    use_tensorboard: true
+    use_wandb: false
+    log_interval: 10 # batches
+    val_interval: 1 # epochs
+
+# ==============================================================================
+# DATA AUGMENTATION
+# ==============================================================================
+
+augmentation:
+  enabled: true
+
+  # Rotations
+  random_rotation:
+    enabled: true
+    axes: ["z"] # ["x", "y", "z"]
+    angle_range: [-180, 180] # degrees
+
+  # Translations
+  random_translation:
+    enabled: true
+    range: [-0.5, 0.5] # mètres
+
+  # Scaling
+  random_scaling:
+    enabled: true
+    range: [0.8, 1.2]
+
+  # Jittering (bruit)
+  random_jitter:
+    enabled: true
+    sigma: 0.01
+    clip: 0.05
+
+  # Point dropout
+  random_dropout:
+    enabled: true
+    dropout_ratio: 0.1
+
+  # Color jittering (si RGB)
+  color_jitter:
+    enabled: false
+    brightness: 0.2
+    contrast: 0.2
+
+# ==============================================================================
+# EVALUATION CONFIGURATION
+# ==============================================================================
+
+evaluation:
+  # Metrics
+  metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "iou"
+    - "miou"
+
+  # Per-class metrics
+  compute_per_class: true
+
+  # Confusion matrix
+  save_confusion_matrix: true
+
+  # Visualization
+  visualize_predictions: true
+  num_vis_samples: 5
+
+# ==============================================================================
+# GPU CONFIGURATION
+# ==============================================================================
+
+gpu:
+  enabled: true
+  device_ids: [0] # Liste des GPUs à utiliser
+
+  # Multi-GPU (DataParallel ou DistributedDataParallel)
+  use_multi_gpu: false
+
+  # Mixed precision training (FP16)
+  use_amp: false
+
+  # Gradient accumulation (si GPU RAM limitée)
+  gradient_accumulation_steps: 1
+
+  # GPU chunking strategy (pour très gros datasets)
+  chunking:
+    enabled: false
+    chunk_size: 1000000 # points par chunk
+
+# ==============================================================================
+# TRANSFER LEARNING
+# ==============================================================================
+
+transfer_learning:
+  enabled: false
+
+  # Checkpoint pré-entraîné
+  pretrained_path: "./pretrained/pointnet2_shapenet.pth"
+
+  # Fine-tuning strategy
+  freeze_encoder: true
+  unfreeze_epoch: 50 # Epoch pour dégeler l'encodeur
+
+  # Learning rate fine-tuning (typiquement 10x plus faible)
+  finetune_lr: 0.0001
+
+# ==============================================================================
+# ADVANCED OPTIONS
+# ==============================================================================
+
+advanced:
+  # Gradient clipping
+  gradient_clip_norm: 1.0
+
+  # Deterministic training (reproductibilité)
+  deterministic: true
+  seed: 42
+
+  # Memory optimization
+  empty_cache_interval: 10 # batches
+
+  # Profiling
+  profile_training: false
+  profile_epochs: [0, 1]
+# ==============================================================================
+# NOTES D'UTILISATION
+# ==============================================================================
+
+# Pour lancer l'entraînement :
+# conda run -n ign_gpu python scripts/train_model.py --config config_template.yaml
+
+# Pour monitoring TensorBoard :
+# tensorboard --logdir=./runs
+
+# Pour évaluation sur validation :
+# conda run -n ign_gpu python scripts/evaluate_model.py \
+#   --checkpoint ./checkpoints/best_model.pth \
+#   --config config_template.yaml
+
+# ==============================================================================
+# CONFIGURATIONS TYPES
+# ==============================================================================
+
+# RAPIDE (prototypage)
+# - num_points_per_sample: 4096
+# - batch_size: 32
+# - max_epochs: 50
+# - feature_mode: "minimal"
+
+# STANDARD (production)
+# - num_points_per_sample: 16384
+# - batch_size: 16
+# - max_epochs: 200
+# - feature_mode: "lod2"
+
+# HAUTE QUALITÉ (recherche)
+# - num_points_per_sample: 32768
+# - batch_size: 8
+# - max_epochs: 300
+# - feature_mode: "lod3"

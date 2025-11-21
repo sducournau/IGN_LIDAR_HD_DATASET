@@ -1,0 +1,1569 @@
+Sidebar menu
+Search
+Write
+Notifications
+
+Simon Ducournau
+Home
+Library
+Profile
+Stories
+Stats
+Following
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+Find writers and publications to follow.
+
+See suggestions
+Data Science Collective
+Data Science Collective
+Advice, insights, and ideas from the Medium data science community
+
+Follow publication
+
+Member-only story
+
+3D Python
+How to Build a Multi-View 3D Renderer with Python + Blender (3D Gaussian Splatting 100% automated)
+A complete guide to create multi-view 3D datasets for Gaussian Splatting with Blender Python API. Automated 3D rendering in just 5 mins.
+Florent Poux, Ph.D.
+Florent Poux, Ph.D.
+
+Following
+37 min read
+·
+Sep 18, 2025
+464
+
+
+4
+
+
+
+
+
+Press enter or click to view image in full size
+The thumbnail for the 3D Multi-View Tutorial
+3D Multi-View Rendering for Gaussian Splatting Tutorial. © Florent Poux
+Why do we still capture 3D data like it’s 1995?
+
+Think about it.
+
+You have a flawless 3D model. Every vertex is precisely placed. Every surface is mathematically defined—just a piece of (digital) art.
+
+But you want to create the ultimate real-time experience for people to see your 3D asset, with outstanding rendering abilities.
+
+🎁 Gift: Read the complete tutorial for free with my friend’s link.
+
+This is where you decide to jump on the 3D Gaussian Splatting hype wagon. It looks like the perfect sweet spot for your goals.
+
+Yet, to go this direction, you’re told to grab a camera and walk around in circles, to be able to train the neural radiance field.
+
+🦚Florent’s Note: NeRFs proved that AI can understand spatial relationships better than we imagined. Gaussian Splatting has shown us that neural 3D can rival traditional graphics. But we’re still (mostly) stuck in a physical-object-only workflow with physical capture processes.
+
+This doesn’t make sense when you start from a synthetic 3D dataset.
+
+Are you going to turn around your screen?
+
+🦚 Florent’s Note: During my transition from LiDAR field engineering to spatial AI research, I watched this same pattern repeat endlessly. We’d spend months creating precise 3D models, then degrade them through capture processes just to feed them back into AI systems. It felt backwards.
+
+When you can generate any 3D model through AI, why constrain yourself to physical capture limitations?
+
+When you can position cameras with mathematical precision, why settle for handheld inconsistency?
+
+Let us investigate from “capture what exists” to “create what’s needed.”
+
+And, of course, as you know, I want to research a new innovative workflow that is 100% automated and scalable.
+
+So, what is the main quest here?
+
+In this tutorial, our goal is to create an end-to-end solution that can take any 3D Model and turn it into a Gaussian-Splatting Ready 3D Dataset.
+
+And as a secondary quest, we want to investigate the generalization capabilities of our new 3D multi-modal dataset, for other tasks like training AI models (Semantic Segmentation, Pose Estimation …), cutting-edge viewpoint analysis, 3D Reconstruction …
+
+Press enter or click to view image in full size
+
+I am boiling over it. Are youhot for it?
+
+Let us dive right in!
+
+🦚 
+Florent Poux, Ph.D.
+ : If you are new to my (3D) writing world, welcome! We are embarking on an exciting adventure that enables you to master a crucial 3D Python skill. Before diving, I like to establish a clear scenario, the mission brief.
+
+Once the scene is laid out, we embark on the Python journey. Everything is given. You will see Tips (🌱Growing Notes, 📈Market Insights, and 🦥Geeky Notes), the code (Python), and 🗺️diagrams to help you get the most out of this article.
+
+→ The download link for all the resources 📦 is at the end of the article. Thanks to the 3D Geodata Academy for their support of this endeavor.
+
+The Mission Brief: Towards
+You’re a 3D innovator with a breakthrough idea.
+
+You’ve just created the perfect 3D model: an architectural concept that doesn’t exist yet.
+
+Your model is flawless. Every surface is smooth. Every texture precisely placed.
+
+But now you hit the wall.
+
+To make this model truly interactive — to turn it into a neural radiance field that users can explore seamlessly — you need dozens of training views.
+
+Everyone on the internet: grab a camera, set up proper lighting, and start shooting.
+
+It makes no sense: you’re staring at a digital model on your screen. Why reach for a physical camera?
+
+Press enter or click to view image in full size
+A person with a camera capturing data of a building model on a computer screen surrounded by tangled cables.
+Capturing spatial data like a pro! When you’re in the field, sometimes it’s all about managing those cables while getting the perfect shot 🍌 x Florent Poux
+After diving deep into the intricacies of 3D Gaussian Splatting, you’ve realized something profound: the best training data for AI isn’t captured — it’s calculated. The most consistent lighting isn’t set up — it’s scripted. The most precise camera positions aren’t handheld — they’re algorithmic.
+
+Your mission is clear:
+
+transform your perfect digital model into the perfect training dataset without ever leaving the digital realm.
+
+The mission is on: you’re about to create a multi-view generation product. You’ll position cameras with mathematical precision around your model. You’ll render views with perfect consistency. You’ll export camera poses that feed directly into Gaussian Splatting pipelines.
+
+Most importantly, you’ll bridge the gap between traditional 3D graphics and modern neural representation.
+
+The theoretical solution is elegant: use algorithmic camera positioning to sample your 3D model from optimal viewpoints, then render these views with consistent lighting and export the camera parameters in a format that neural networks can understand.
+
+Press enter or click to view image in full size
+Isometric illustration of a modern building surrounded by floating data points representing spatial intelligence analysis
+ Copyright: Florent Poux
+Visualizing urban spaces with Spatial AI: where buildings meet data points in harmony 🍌 x Florent Poux
+But how do you actually implement this workflow?
+
+How do you ensure your camera positions are mathematically optimal rather than randomly scattered?
+
+The Proposed Workflow
+Let me drop an incisive sentence: Small systems create powerful outcomes.
+
+The secret to synthetic multi-view generation isn’t complexity — it’s systematic precision.
+
+But we still need to go through a series of logical steps, right?
+
+Press enter or click to view image in full size
+A flowchart illustrating the process of data science: starting with a cube representing raw data, moving through stages of data capture, processing, coding, validation, and finally visualization as a network graph.
+From raw data to insights: my workflow in 3D Data Science. 🍌 x Florent Poux
+So, where should we start?
+
+Well, we do not want to build from scratch, and we want to be smart about it. Hence, let us start with the hypothesis that we can use an existing rendering engine (Blender), and a coding engine (Python).
+
+Press enter or click to view image in full size
+A step-by-step workflow diagram illustrating the process of scene initialization, model loading, camera selection, rendering pipeline execution, and data export in a spatial AI system.
+Unveiling the magic behind Spatial AI pipelines! From scene setup to final data export, every step counts. 🍌 x Florent Poux
+From there, we will go through the six main steps as illustrated above and detailed below for clarity:
+
+Step 1: Environment Setup & Scene Initialization
+Step 2: 3D Model Loading & Processing
+Step 3: Spherical Camera Position Generation 
+Step 4: Rendering Pipeline & Batch Processing 
+Step 5: CLI Interface & Validation 
+Step 6: Gaussian Splatting Integration
+Each step builds upon the previous one, but in a modular fashion, i.e., each component can be optimized independently.
+
+🦚 Florent’s Note: I learned to think system design first from years of R&D and LiDAR processing. You can’t inspect every point cloud manually, so you build systems that ensure quality at each stage. The same principle applies here: systematic thinking.
+
+The beauty lies in the compounding effects.
+
+Master spherical sampling once, and you can position cameras optimally for any model. Automate rendering once, and you can process hundreds of models overnight. Build the export pipeline once, and you can feed any neural network implementation.
+
+But here’s the first question: where do we even start?
+
+The Data, Code, and Setup
+Okay, time to get onto the fundamentals of our setup.
+
+Your environment needs to be disciplined and focused. No shortcuts.
+
+Press enter or click to view image in full size
+Laptop displaying Python code with annotations on Python libraries, imports, and dependencies for data science projects
+Coding in Python: where the magic of data science happens! 🍌 x Florent Poux
+No “it works on my machine” solutions. We’re building a production-capable system that works reliably across platforms.
+
+The Dataset
+
+Here, you have almost complete freedom to source any dataset that you would like to investigate!
+
+In the tutorial’s resource folder, you will see a bunch of 3D models, such as those shown below. This will be great to showcase the script's versatility in handling different scenes.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Example of 3D mesh models that are going to be processed in this tutorial. A house, an elephant, and a fun little dragon. This gives enough versatility to see the impact of view positions on the reconstruction.
+The data is there, now, what about the coding setup?
+
+Core Requirements
+You need Python 3.11 specifically. Blender’s Python API has strict version dependencies, and newer versions often break compatibility. Don’t risk it.
+
+You need a dedicated Conda environment. This isn’t optional. Blender’s internal Python can conflict with system installations in unpredictable ways.
+
+You need these exact libraries:
+
+bpy (Blender Python API - comes with Blender)
+mathutils (3D mathematics - bundled with Blender)
+numpy (numerical computing)
+json (data export)
+argparse (command-line interface)
+pathlib (file system operations)
+Now, quickly on the environment setup, you can use your terminal for this:
+
+# Create isolated environment
+conda create -n multiview_renderer python=3.11
+conda activate multiview_renderer
+Then, install the core dependencies:
+
+# Install core dependencies
+pip install numpy
+pip install mathutils
+Okay, now, onto some platform-specific notes.
+
+Installing Blender and the Python API
+On Windows 11, Blender typically installs to C:\Program Files\Blender Foundation\Blender 4.0\. The executable is blender.exe.
+
+On macOS, Blender installs as an application bundle. The executable is inside: /Applications/Blender.app/Contents/MacOS/Blender.
+
+After this, in your terminal, install the Python Blender API:
+
+pip install bpy
+From there, Blender must run in background mode for automated rendering. It is different from the usual script we write together.
+
+The syntax to follow, however, is dead simple:
+
+blender --background --python your_script.py
+
+And then, we will aim to pass in arguments after a double dash so that we can parse the arguments given to python efficiently:
+
+-- --input model.obj --views 100
+
+🦚 Florent’s Note: I’ve seen countless projects fail because people skip environment isolation. Blender’s Python environment is finicky. One wrong library version, and you’ll spend hours debugging import errors instead of building amazing 3D systems.
+
+Press enter or click to view image in full size
+Blender software interface displaying a 3D model with Python scripting nodes connected to it, showcasing procedural modeling techniques.
+Blender’s node-based workflow combining geometry and Python scripts for advanced 3D modeling — 🍌 x Florent Poux
+Common Troubleshooting
+Okay, pretty sure not 100% of readers will have something that works on the first go, hence, I saw the future (more or less :) ), and here are some potential fixes to issues you may encounter:
+
+“ModuleNotFoundError: No module named ‘bpy’” — You’re running the script outside Blender. The bpy module only exists within Blender's Python interpreter.
+
+“Command not found: blender” — Blender isn’t in your system PATH. Use the full path to the executable or add Blender’s directory to PATH.
+
+“AttributeError: ‘NoneType’ object has no attribute…” — Usually means Blender couldn’t initialize properly. Check that you’re running with --background flag.
+
+🦚 
+Florent Poux, Ph.D.
+ : If you need to brush up on Blender basics, the essential concepts are covered comprehensively in The Blender Handbook for 3D Point Cloud Visualization and Rendering. Focus primarily on the sections about scene management and Python API fundamentals.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+medium.com
+
+The foundation determines everything that follows. Spend the time to get this right. A disciplined setup prevents hours of frustrating debugging later.
+
+Your environment is ready. Your dependencies are isolated. Your path forward is clear.
+
+Now, how can we setup our Blender Scene
+
+Step 0. Workflow Initialization
+Why do most multi-view datasets fail before they even reach the neural network?
+
+The answer lies in a fundamental misunderstanding of what Gaussian Splatting actually needs.
+
+Most people think more views equals better results. They scatter cameras randomly around their models, hoping quantity will compensate for poor quality.
+
+This approach is backwards.
+
+Neural radiance fields don’t just need multiple viewpoints — they need mathematically optimal viewpoints. They don’t just need consistent lighting — they need lighting that reveals structure rather than hiding it. They don’t just need camera poses — they need poses that respect the coordinate systems where the magic actually happens.
+
+The transformation we’re building isn’t just about automation. It’s about precision that exceeds human capability.
+
+🦚 Florent’s Note: After analyzing thousands of failed Gaussian Splatting attempts, I noticed a pattern. The failures rarely happened during training — they happened during data preparation. Poor camera spacing. Inconsistent coordinate systems. Missing transparency handling. Fix these fundamentals, and neural networks become remarkably forgiving.
+
+And to kick things off, we can very simply import the necessary libraries in our script, and save it as “multiview_renderer.py”
+
+# Libraries import
+
+import bpy
+
+import mathutils
+import numpy as np
+import json
+
+import sys
+import argparse
+
+from pathlib import Path
+With this, we will bridge the gap between mathematical theory and production reality.
+
+Press enter or click to view image in full size
+
+🦚 Florent’s Note: Above, you see my setup for this tutorial, using Anaconda and Spyder IDE. Feel free to use the same setup or another more geared to your interests!
+
+Let us now dive deep into each component, understanding not just how to implement it, but why these specific approaches work when others fail.
+
+The first thing to do is set up our 3D environment for rendering. How do we do that?
+
+Step 1. Environment Setup and Scene Initialization
+The obstacle is obvious: Blender’s default scene is cluttered with distractions.
+
+Every new Blender file comes with a cube, a light, and a camera. These default objects create interference. They cast shadows where you don’t expect them.
+
+Press enter or click to view image in full size
+
+They occupy coordinate space that should belong to your model. They inherit settings from previous sessions that create unpredictable behavior.
+
+This chaos is the enemy of systematic multi-view generation.
+
+Press enter or click to view image in full size
+Illustration showing tangled wires representing chaos transforming into an organized 3D coordinate system with axes
+From messy data to clear spatial insights — that’s the power of 3D Data Science! 🍌 x Florent Poux
+The strategic solution is nuclear: complete scene destruction and controlled reconstruction.
+
+Our weapon is Blender’s Python API combined with systematic scene management. We don’t modify the existing scene — we obliterate it and build exactly what we need.
+
+Core Libraries for Scene Control:
+
+bpy.ops.object: Object manipulation and deletion
+bpy.data.objects: Direct scene graph access
+bpy.context.scene: Rendering configuration
+bpy.data.meshes: Mesh data cleanup
+The technical advantage is absolute control. No inherited settings. No unexpected interactions. Every parameter is explicitly set to optimize for neural training data.
+
+🦚 Florent’s Note: I learned this nuclear approach from years of dealing with corrupted Blender files. Selective cleanup never works completely — there’s always some hidden setting that causes problems later. Total reset followed by systematic reconstruction is the only reliable approach.
+
+How It Works
+I initially tried to work around Blender’s defaults.
+
+The approach seemed reasonable. Delete the cube, keep the light, adjust the camera. Modify existing settings rather than starting from scratch. Work with the system rather than against it.
+
+This approach failed consistently.
+
+Random rendering artifacts would appear. Shadows would fall inconsistently across views. Memory usage would grow unpredictably during batch processing. The problems were subtle but persistent.
+
+So, I defined a Scene Initialization Algorithm.
+
+The cleanup process follows a specific sequence:
+
+Object Selection: bpy.ops.object.select_all(action='SELECT')
+Object Deletion: bpy.ops.object.delete(use_global=False)
+Data Block Cleanup: Remove orphaned mesh data
+Memory Recovery: Force garbage collection
+This systematic approach ensures no residual data contaminates the clean scene.
+
+def initialize_blender_scene():
+    """Clear default scene and setup optimal rendering environment."""
+    # Clear existing mesh objects
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete(use_global=False)
+    
+    # Remove default cube, light, and camera
+    for obj in bpy.data.objects:
+        bpy.data.objects.remove(obj, do_unlink=True)
+    
+    # Clear orphaned data
+    for block in bpy.data.meshes:
+        if block.users == 0:
+            bpy.data.meshes.remove(block)
+    
+    print("✓ Blender scene initialized and cleaned")
+The initialize_blender_scene() function implements the nuclear cleanup approach. The select_all operation ensures no objects escape deletion. The use_global=False parameter prevents deletion of objects in linked libraries - crucial for maintaining Blender stability.
+
+The orphaned data cleanup loop is critical. When you delete objects, their mesh data remains in memory unless explicitly removed. This creates memory leaks that compound across hundreds of renders.
+
+Then, we can move on to the Rendering Configuration Algorithm.
+
+The rendering setup optimizes specifically for neural training:
+
+Engine Selection: EEVEE for speed vs CYCLES for quality
+Resolution Configuration: Square images (neural networks prefer this)
+Transparency Enable: Alpha channels for background separation
+Quality Optimization: Sample counts balanced for speed and quality
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Rendering: the setup, and EEVEE vs Cycles.
+This translates into the following Python function:
+
+# Rendering Configuration Algorithm
+def setup_rendering_settings(resolution=1024, transparent_bg=True, engine='BLENDER_EEVEE'):
+    """Configure optimal rendering settings for Gaussian Splatting preparation."""
+    scene = bpy.context.scene
+    
+    # Set rendering engine
+    scene.render.engine = engine
+    
+    # Configure resolution
+    scene.render.resolution_x = resolution
+    scene.render.resolution_y = resolution
+    scene.render.resolution_percentage = 100
+    
+    # Enable transparent background (crucial for Gaussian Splatting)
+    if transparent_bg:
+        scene.render.film_transparent = True
+        scene.render.image_settings.color_mode = 'RGBA'
+    
+    # Output format configuration
+    scene.render.image_settings.file_format = 'PNG'
+    scene.render.image_settings.compression = 15  # PNG compression
+    
+    # Quality settings for EEVEE
+    if engine == 'BLENDER_EEVEE':
+        scene.eevee.taa_render_samples = 64
+        scene.eevee.use_bloom = False
+        scene.eevee.use_ssr = True
+    
+    print(f"✓ Rendering configured: {resolution}x{resolution}, {engine}, transparent={transparent_bg}")
+The rendering configuration reveals its precision in the parameters. resolution_percentage = 100 ensures no scaling artifacts. film_transparent = True enables alpha channels that Gaussian Splatting requires. compression = 15 optimizes PNG files for storage without quality loss.
+
+🦥 Geeky Note: The taa_render_samples = 64 parameter controls EEVEE's temporal anti-aliasing. Values below 32 create noise artifacts that neural networks interpret as features. Values above 128 increase render time exponentially with minimal quality gain. 64 represents the sweet spot discovered through extensive testing.
+
+It also means we need to set up the light to create consistent illumination across all viewpoints:
+
+# Light setup
+def setup_lighting_environment():
+    """Create optimal lighting setup for consistent multi-view rendering."""
+    # Add world environment lighting
+    world = bpy.context.scene.world
+    world.use_nodes = True
+    nodes = world.node_tree.nodes
+    nodes.clear()
+    
+    # Environment texture node
+    env_node = nodes.new(type='ShaderNodeTexEnvironment')
+    bg_node = nodes.new(type='ShaderNodeBackground')
+    output_node = nodes.new(type='ShaderNodeOutputWorld')
+    
+    # Connect nodes
+    world.node_tree.links.new(env_node.outputs['Color'], bg_node.inputs['Color'])
+    world.node_tree.links.new(bg_node.outputs['Background'], output_node.inputs['Surface'])
+    
+    # Set environment strength
+    bg_node.inputs['Strength'].default_value = 1.0
+    
+    # Add key light for better illumination
+    bpy.ops.object.light_add(type='SUN', location=(5, 5, 10))
+    sun = bpy.context.active_object
+    sun.data.energy = 2.0
+    
+    print("✓ Lighting environment configured")
+This mathematical foundation ensures every rendered view has identical lighting conditions.
+
+🦥 Geeky Note: The lighting setup uses Blender’s node-based shader system. The ShaderNodeTexEnvironment creates omnidirectional lighting that doesn't cast directional shadows. This consistency is crucial - shadows that change between views confuse neural networks.
+
+The sunlight addition provides subtle directional enhancement. energy = 2.0 creates enough contrast to reveal surface details without overwhelming the environment lighting.
+
+🌱 Growing Note: Advanced users can implement dynamic lighting that adjusts intensity based on model surface properties. Highly reflective models need lower environment strength to prevent overexposure. Matte models benefit from higher intensity to reveal texture details.
+
+If you want to test the sequence, you can use this function:
+
+#Testing the stage 1.
+def test_environment_setup():
+    """Test the complete environment setup process."""
+    initialize_blender_scene()
+    setup_rendering_settings(resolution=512, engine='BLENDER_EEVEE')
+    setup_lighting_environment()
+    print("Environment setup test completed successfully!")
+And call it:
+
+#calling our function
+test_environment_setup()
+Before moving on to the next stage, let’s think again about our clean slate approach.
+
+Press enter or click to view image in full size
+
+The Blender Clean Slate
+Total scene destruction works perfectly for isolated rendering tasks. But what if your workflow requires preserving existing scene elements?
+
+What if you’re integrating with existing Blender projects that can’t be reset?
+
+This approach becomes problematic in collaborative environments. Other team members might have spent hours setting up custom materials or lighting rigs. Destroying their work to optimize for multi-view generation creates workflow conflicts.
+
+Also, know that Blender’s memory management becomes unstable with repeated scene resets. Each cleanup cycle releases memory, but not immediately. Processing hundreds of models sequentially can exhaust system memory despite our cleanup efforts. The garbage collection isn’t instantaneous. Memory fragmentation accumulates across iterations.
+
+🌱 Growing Note : For a professional implementations often restart Blender entirely between large batch jobs. Also, EEVEE rendering produces slightly different results on different graphics hardware. NVIDIA, AMD, and Intel GPUs handle shader compilation differently. These subtle differences can create training data inconsistencies when processing across multiple machines.
+
+Now that our scene is set, how can we load an external 3D model?
+
+Step 2. 3D Model Loading and Processing
+Alright, let us talk about a deceptive obstacle: every 3D model exists in its own coordinate system.
+
+Press enter or click to view image in full size
+
+The 3D Model of a dragon in CloudCompare.
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+View from above in its local frame of reference, and from the right side. You can see some issues allready.
+CAD models use engineering coordinates. Game assets use graphics conventions. Scanned models inherit capture coordinate systems. Each format brings its own assumptions about scale, orientation, and units.
+
+This diversity poses a challenge for systematic camera positioning.
+
+The strategic solution is normalization: transform every model to a standard coordinate system and scale.
+
+We need an approach that copes with this: let us center every model at the world origin with consistent scaling. This creates predictable geometry that our camera algorithms can target reliably.
+
+Normalizing our 3D Model Input
+The normalization challenge is more complex than it appears.
+
+Different 3D formats store coordinate data in different ways. OBJ files use text-based vertex coordinates. PLY files can use binary encoding. STL files focus on triangle mesh data. Each format requires different import procedures.
+
+Press enter or click to view image in full size
+3D model formats OBJ PLY STL processing into a building visualization
+Transforming 3D data formats (OBJ, PLY, STL) through spatial AI processing to create detailed building visualizations 🍌 x Florent Poux
+Let us define a function, load_and_center_model, which takes in a file_path and a scale_factor , and returns the object:
+
+def load_and_center_model(file_path, scale_factor=1.0):
+  #Here comes the instruction of our nice function, below
+  return obj
+First, we want to handle the multiple file formation by going on four mini-steps:
+
+Extension Detection: file_path.suffix.lower()
+Format-Specific Import: Different operators for each format
+Object Selection: Identify the imported geometry
+Validation: Ensure import succeeded
+This means, adding the following in our function:
+
+    #Loading the model
+    file_path = Path(file_path)
+    
+    if not file_path.exists():
+        raise FileNotFoundError(f"Model file not found: {file_path}")
+    
+    # Import based on file extension
+    if file_path.suffix.lower() == '.obj':
+        bpy.ops.wm.obj_import(filepath=str(file_path))
+    elif file_path.suffix.lower() == '.ply':
+        bpy.ops.wm.ply_import(filepath=str(file_path))
+    elif file_path.suffix.lower() == '.stl':
+        bpy.ops.wm.stl_import(filepath=str(file_path))
+    else:
+        raise ValueError(f"Unsupported file format: {file_path.suffix}")
+This adaptive approach handles the most common 3D file formats without user intervention.
+
+Press enter or click to view image in full size
+
+The 3D house loaded in our script.
+Then, we move on to centering based on a simple bounding-box extraction and world-space transformation, and we scale the mode to fit within a unit sphere to preserve proportions while ensuring consistent camera distances.
+
+Press enter or click to view image in full size
+
+This means that in Python we can do:
+
+#... Within the function, mind the indent
+    # Get the imported object
+    obj = bpy.context.selected_objects[0]
+    bpy.context.view_layer.objects.active = obj
+    
+    # Calculate bounding box and center
+    bbox_corners = [obj.matrix_world @ mathutils.Vector(corner) for corner in obj.bound_box]
+    bbox_center = sum(bbox_corners, mathutils.Vector()) / 8
+    
+    # Move to origin
+    obj.location = -bbox_center
+    
+    # Calculate scale to fit in unit sphere
+    max_dimension = max([(corner - bbox_center).length for corner in bbox_corners])
+    auto_scale = scale_factor / max_dimension if max_dimension > 0 else 1.0
+    
+    obj.scale = (auto_scale, auto_scale, auto_scale)
+    
+    # Apply transforms
+    bpy.context.view_layer.update()
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    
+    print(f"✓ Model loaded and centered: {file_path.name}")
+    print(f"  Auto-scale factor: {auto_scale:.3f}")
+The file format detection uses Python’s pathlib for robust path handling. The suffix.lower() approach handles mixed-case extensions reliably. Each format gets its specific import operator - wm.obj_import, wm.ply_import, etc.
+
+The bounding box calculation is mathematically precise. obj.bound_box returns 8 corner points in local coordinates. Matrix multiplication with obj.matrix_world transforms these to world space.
+
+This handles models that were imported with transformations applied.
+
+The center calculation uses vector arithmetic. sum(bbox_corners, mathutils.Vector()) / 8 computes the average position efficiently. The mathutils.Vector() provides the zero vector for sum initialization.
+
+🦥 Geeky Note: The scale_factor parameter typically remains 1.0, but becomes crucial for models with extreme proportions. Architectural models might need 0.5 to ensure full building visibility. Small mechanical parts might need 2.0 to provide adequate detail resolution.
+
+The transform_apply() call bakes transformations into the mesh data. This prevents confusion in the coordinate system during camera positioning.
+
+Without this step, Blender maintains separate transformation matrices that can cause subtle positioning errors.
+
+Then, we can define the optimal camera distance to use
+
+Press enter or click to view image in full size
+
+with Python, we can use:
+
+def calculate_optimal_camera_distance(obj, safety_margin=1.5):
+    """Calculate optimal camera distance to frame the object properly."""
+    # Recalculate bounding box after transforms
+    bbox_corners = [obj.matrix_world @ mathutils.Vector(corner) for corner in obj.bound_box]
+    max_distance = max([corner.length for corner in bbox_corners])
+    
+    optimal_distance = max_distance * safety_margin
+    print(f"✓ Optimal camera distance calculated: {optimal_distance:.3f}")
+    
+    return optimal_distance
+You can see that I use a safety margin to the bounding sphere radius. The safety_margin of 1.5 ensures no model geometry gets largely clipped by camera positioning. Larger margins provide more context but reduce detail resolution.
+
+🌱 Growing Note: Professional implementations often analyze model geometry to calculate adaptive safety margins. Models with thin protrusions need larger margins. Compact, solid models can use smaller margins for better detail capture.
+
+However, my scientific outlook requires that I ensure you are aware of the assumptions we’re making about the model structure.
+
+Our centering algorithm assumes models have reasonable bounding boxes. But what about models with extreme aspect ratios? A model that’s 100 units long and 1 unit wide creates problems for spherical camera positioning.
+
+The uniform scaling approach works for most models but breaks down for collections of separate objects. A scene with a building and a car needs different treatment than a single unified object.
+
+So, following our approach, you can now test the model loading to see if everything works as expected:
+
+def test_model_loading():
+    """Test model loading with a simple cube as fallback."""
+    # Create a test cube if no model file available
+    bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 0))
+    obj = bpy.context.active_object
+    
+    # Test centering and scaling
+    optimal_dist = calculate_optimal_camera_distance(obj)
+    print(f"Model loading test completed. Optimal distance: {optimal_dist:.3f}")
+    return obj
+
+model_obj = test_model_loading()
+Now that I am free from guilt, let us speak about the actual core of our system: the multi-view setup definition.
+
+Step 3. Spherical Camera Position Generation
+The obstacle is fundamental: random camera placement creates uneven training data.
+
+If you look at how most people approach multi-view generation, it's mostly based on intuition. They position cameras wherever “looks good.” They cluster views around interesting angles. They avoid positions that seem “boring” or “repetitive.”
+
+Press enter or click to view image in full size
+
+An example of some camera positions from what could be a drone shoot. Does it look perfect?
+This intuitive approach can quickly sabotage neural network training.
+
+Neural radiance fields (especially) learn from data distribution patterns.
+
+Uneven camera spacing creates uneven learning. Dense clusters in some areas and sparse coverage in others. The network learns to represent well-covered areas accurately but struggles with sparse regions.
+
+So, the strategic solution is mathematical: uniform sampling on the sphere surface using proven algorithms.
+
+And our weapon today is the Golden Spiral algorithm — a mathematical approach that distributes points evenly across any sphere surface with minimal clustering and optimal coverage.
+
+Press enter or click to view image in full size
+Abstract spiral design with golden triangles, representing data flow or spatial patterns in geospatial intelligence
+Exploring the beauty of spatial patterns through abstract designs 🍌 x Florent Poux
+How the Golden Spiral Algorithm Works (Fibonacci Sphere)
+The mathematics behind uniform sphere sampling is elegantly beautiful.
+
+The challenge is distributing N points on a sphere surface such that each point has roughly equal “territory.” Random distribution fails because probability creates clusters. Grid-based approaches fail because spheres don’t tile evenly.
+
+The solution comes from nature itself — the same mathematical principles that arrange seeds in sunflowers and scales on pinecones.
+
+This Golden Spiral algorithm uses the golden ratio φ = (1 + √5)/2 to create optimal point distribution with the addition of:
+
+Latitude Calculation: θ = arccos(1 - 2i/(N-1)) , that creates even vertical spacing from pole to pole (Each point gets equal “height territory”)
+Longitude Calculation: φ = (2πi/φ) mod 2π , which uses golden ratio to avoid clustering and creates a spiral pattern that naturally spaces points
+Cartesian Conversion: Standard spherical-to-Cartesian transformation (x = r × sin(θ) × cos(φ) , y = r × sin(θ) × sin(φ) , z = r × cos(θ) )
+This means that we can even add some variations, code-wise, to vary the distribution of our poses, as different applications may benefit from different sampling strategies:
+
+Spiral Pattern: Multiple rotations for very dense coverage
+Hemisphere Pattern: Upper views only for tabletop objects
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+This means:
+
+def generate_spherical_coordinates(num_views, pattern='uniform', radius=5.0):
+    """Generate spherical coordinates for camera positions around the object."""
+    positions = []
+    
+    if pattern == 'uniform':
+        # Uniform sampling on sphere using Golden Spiral
+        golden_ratio = (1 + np.sqrt(5)) / 2
+        
+        for i in range(num_views):
+            # Latitude (elevation angle)
+            theta = np.arccos(1 - 2 * i / (num_views - 1))  # 0 to π
+            
+            # Longitude (azimuth angle)
+            phi = (2 * np.pi * i / golden_ratio) % (2 * np.pi)  # 0 to 2π
+            
+            # Convert to Cartesian coordinates
+            x = radius * np.sin(theta) * np.cos(phi)
+            y = radius * np.sin(theta) * np.sin(phi)
+            z = radius * np.cos(theta)
+            
+            positions.append((x, y, z, theta, phi))
+    
+    elif pattern == 'spiral':
+        # Spiral pattern for more uniform angular distribution
+        for i in range(num_views):
+            # Parametric spiral on sphere
+            t = i / (num_views - 1)
+            theta = np.pi * t  # Latitude from 0 to π
+            phi = 4 * np.pi * t  # Multiple rotations
+            
+            x = radius * np.sin(theta) * np.cos(phi)
+            y = radius * np.sin(theta) * np.sin(phi)
+            z = radius * np.cos(theta)
+            
+            positions.append((x, y, z, theta, phi))
+    
+    elif pattern == 'hemisphere':
+        # Upper hemisphere only (useful for tabletop objects)
+        for i in range(num_views):
+            theta = np.arccos(1 - i / (num_views - 1))  # 0 to π/2
+            phi = (2 * np.pi * i / golden_ratio) % (2 * np.pi)
+            
+            x = radius * np.sin(theta) * np.cos(phi)
+            y = radius * np.sin(theta) * np.sin(phi)
+            z = radius * np.cos(theta)
+            
+            positions.append((x, y, z, theta, phi))
+    
+    print(f"✓ Generated {len(positions)} camera positions using '{pattern}' pattern")
+    return positions
+The golden_ratio = (1 + np.sqrt(5)) / 2 calculation provides the irrational number that creates optimal spacing. This ratio appears throughout nature because it minimizes clustering while maximizing coverage.
+
+The latitude calculation theta = np.arccos(1 - 2 * i / (num_views - 1)) ensures even vertical distribution. The arccos function maps linear spacing in the range [-1, 1] to even angular spacing from 0 to π radians.
+
+The longitude calculation phi = (2 * np.pi * i / golden_ratio) % (2 * np.pi) creates the spiral pattern. The golden ratio denominator ensures the spiral never repeats exactly, avoiding systematic clustering.
+
+🦥 Geeky Note: The modulo operation % (2 * np.pi) is mathematically unnecessary since arccos naturally bounds the output, but it prevents floating-point accumulation errors when generating thousands of views. Professional implementations often use double-precision arithmetic here.
+
+The coordinate conversion uses standard spherical-to-Cartesian formulas. The np.sin(theta) and np.cos(theta) functions handle the vertical distribution. The np.cos(phi) and np.sin(phi) functions handle the horizontal rotation.
+
+Press enter or click to view image in full size
+
+🎩 Fun Anecdote: The Golden Spiral was first described by Leonardo Fibonacci in 1202 while studying rabbit population growth. Its application to sphere sampling wasn’t discovered until 1979 by researchers at Bell Labs studying optimal antenna placement on communication satellites. They needed to minimize interference while maximizing coverage — exactly our challenge with camera positioning.
+
+Now, let us create the camera with the pose estimation. This means that each camera needs proper orientation to look at the model center:
+
+A Direction Vector: Calculates vector from camera to target
+A Quaternion Rotation: Converts direction to rotation quaternion
+An Euler Conversion: Transforms to Euler angles for Blender
+A Coordinate System Alignment: Ensures consistent camera orientation
+The mathematical equivalent ensures every camera points at the model center with consistent “up” orientation:
+
+def create_camera_with_pose(position, target=(0, 0, 0), name="RenderCamera"):
+    """Create camera at specified position looking at target."""
+    # Create camera
+    bpy.ops.object.camera_add(location=position)
+    camera = bpy.context.active_object
+    camera.name = name
+    
+    # Point camera at target
+    direction = mathutils.Vector(target) - mathutils.Vector(position)
+    rot_quat = direction.to_track_quat('-Z', 'Y')
+    camera.rotation_euler = rot_quat.to_euler()
+    
+    # Set as active camera
+    bpy.context.scene.camera = camera
+    
+    return camera
+As the camera creation uses Blender’s quaternion system for rotation, the direction.to_track_quat('-Z', 'Y') call calculates the rotation needed to point the camera's negative Z-axis (forward direction) toward the target while keeping Y as the up vector.
+
+🌱 Growing Note: Advanced implementations can add controlled randomization to break perfect mathematical symmetry. Small random offsets (±5 degrees) can improve neural network robustness while maintaining overall uniform distribution.
+
+Also, what you will need is the intrinsics of the camera.
+
+Press enter or click to view image in full size
+
+Here is a quick view of the Camera Geometry Intrisics principles
+For that, you can use my function to define a standard camera + lens combo:
+
+def calculate_camera_intrinsics(resolution=1024, fov_degrees=50):
+    """Calculate camera intrinsic parameters for Gaussian Splatting."""
+    fov_radians = np.radians(fov_degrees)
+    focal_length = (resolution / 2) / np.tan(fov_radians / 2)
+    
+    intrinsics = {
+        'fx': focal_length,
+        'fy': focal_length,
+        'cx': resolution / 2,
+        'cy': resolution / 2,
+        'width': resolution,
+        'height': resolution
+    }
+    
+    return intrinsics
+This will be very useful for any neural networks that need camera parameters in standardized formats:
+
+Focal Length: f = (resolution/2) / tan(fov/2)
+Principal Point: Usually image center (cx, cy)
+Distortion Parameters: Zero for synthetic cameras
+Camera Matrix: Standard computer vision format
+This camera intrinsics calculation implements standard computer vision formulas. focal_length = (resolution/2) / np.tan(fov_radians/2) converts field-of-view angles to pixel-based focal lengths. This creates camera matrices that neural networks expect.
+
+🦥 Geeky Note: The fov_degrees=50 parameter represents a compromise between wide coverage and distortion minimization. Values below 35 degrees create telephoto effects that lose context. Values above 70 degrees introduce perspective distortion that neural networks struggle to learn.
+
+What is left? Well, testing the code that all work by all means!
+
+def test_camera_generation():
+    """Test spherical camera position generation."""
+    positions = generate_spherical_coordinates(20, pattern='uniform', radius=3.0)
+    
+    # Create camera at first position
+    if positions:
+        test_pos = positions[0][:3]  # Extract x, y, z
+        # camera = create_camera_with_pose(test_pos)
+        print(f"Test camera created at position: {test_pos}")
+        
+        # Test intrinsics calculation
+        intrinsics = calculate_camera_intrinsics()
+        print(f"Camera intrinsics: fx={intrinsics['fx']:.1f}, fy={intrinsics['fy']:.1f}")
+    
+    return positions
+
+position_estimates = test_camera_generation()
+Another Scientific 3D Alert
+Think again about our perfect mathematical distribution.
+
+The Golden Spiral creates mathematically optimal coverage for a perfect sphere. But 3D models aren’t perfect spheres. Complex models have geometric features that benefit from non-uniform camera placement.
+
+Consider an architectural model. The building’s facade contains most visual detail. The roof and ground plane are relatively uniform. Our uniform distribution “wastes” cameras on boring viewing angles while under-sampling the detailed areas.
+
+Food for thought to the crazy minds out there (I hope you fit the profile, we need more ☺️)
+
+Additionally, the pattern selection (uniform vs. spiral vs. hemisphere) has a significant impact on training data quality. But choosing the optimal pattern requires understanding both the model geometry and the neural network training dynamics.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+The two geometries impact on the 3D Reconstruction of the Gaussian Splatting.
+Most users don’t have the expertise to make this choice effectively. This implementation provides options but little guidance on when to use each approach. But for that, you can hop onto the 3D Segmentor OS Journey from the 3D Geodata Academy.
+
+Ready to see how these perfectly positioned cameras transform into actual rendered training data?
+
+Step 4. Rendering Pipeline and Batch Processing
+Alright, let me cut to the chase: rendering hundreds of high-quality views requires systematic automation to beat the data scale issue.
+
+Manual rendering approaches break down quickly. Click camera. Set render settings. Choose output path. Start rendering. Wait. Repeat hundreds of times. This process is error-prone, time-consuming, and mentally exhausting.
+
+If you want to go with professional multi-view generation, you need industrial-strength automation.
+
+Press enter or click to view image in full size
+
+A multi-view dataset generated from the tutorial.
+The strategic solution is batch processing with systematic quality control and data export.
+
+Press enter or click to view image in full size
+
+The approach treats rendering as a production pipeline. Every view uses identical settings. Every output follows consistent naming. Every camera pose gets exported in standardized formats that neural networks understand.
+
+Press enter or click to view image in full size
+A flowchart illustrating the process of camera positioning, scene setup, image generation, and file export in a 3D rendering pipeline.
+The step-by-step flow of creating 3D visuals: from camera positioning to final file export. 🍌 x Florent Poux
+The technical advantage is consistency at scale. Whether you’re processing 50 views or 500 views, every output meets identical quality standards and format requirements.
+
+Press enter or click to view image in full size
+
+🦚 Florent’s Note: I learned the importance of systematic rendering the hard way during a client project. We generated 300 views manually, then discovered inconsistent render settings between batches. The neural network training failed mysteriously until we realized some images had different resolutions. Systematic automation prevents these costly mistakes.
+
+The Vision on How It Works
+The rendering challenge extends beyond just creating images.
+
+Neural radiance fields need more than multi-view images. They need camera intrinsic parameters. They need extrinsic pose matrices. They need coordinate system transformations. They need data validation and quality assurance.
+
+So, let us first focus on rendering a single view:
+
+def render_single_view(camera, output_path, view_index):
+    """Render a single view from the specified camera."""
+    # Set active camera
+    bpy.context.scene.camera = camera
+    
+    # Set output path
+    bpy.context.scene.render.filepath = output_path
+    
+    # Render
+    bpy.ops.render.render(write_still=True)
+    
+    print(f"  ✓ Rendered view {view_index:03d}")
+The render_single_view() function encapsulates the core rendering logic. Setting bpy.context.scene.camera makes the specified camera active for rendering. The filepath assignment determines output location with systematic naming.
+
+Press enter or click to view image in full size
+
+A Single View Rendered.
+The bpy.ops.render.render(write_still=True) call triggers actual rendering. The write_still=True parameter ensures images get saved to disk immediately rather than held in memory.
+
+From there, we can export the camera poses to better handle in the Blender system:
+
+def export_camera_poses(cameras_data, output_dir, intrinsics):
+    """Export camera poses in format compatible with Gaussian Splatting."""
+    poses_data = {
+        'intrinsics': intrinsics,
+        'frames': []
+    }
+    
+    for i, (camera, position, rotation) in enumerate(cameras_data):
+        # Convert Blender coordinate system to standard computer vision
+        transform_matrix = camera.matrix_world.copy()
+        
+        # Blender to CV coordinate system conversion
+        transform_matrix = transform_matrix @ mathutils.Matrix((
+            (1, 0, 0, 0),
+            (0, -1, 0, 0),
+            (0, 0, -1, 0),
+            (0, 0, 0, 1)
+        ))
+        
+        frame_data = {
+            'file_path': f"view_{i:03d}.png",
+            'transform_matrix': [list(row) for row in transform_matrix]
+        }
+        
+        poses_data['frames'].append(frame_data)
+    
+    # Save to JSON file
+    poses_file = output_dir / "transforms.json"
+    with open(poses_file, 'w') as f:
+        json.dump(poses_data, f, indent=2)
+    
+    print(f"✓ Camera poses exported to: {poses_file}")
+As Blender uses Z-up, right-handed coordinates and Computer vision uses Y-down (or Y-up), right-handed coordinates, this transformation matrix handles this conversion:
+
+[1  0  0  0]
+[0 -1  0  0] 
+[0  0 -1  0]
+[0  0  0  1]
+The JSON export creates the transforms.json format that most neural rendering frameworks expect. Each frame contains the image filename and a 4×4 transformation matrix in row-major order.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+🌱 Growing Note: Professional implementations often export multiple coordinate system formats simultaneously. COLMAP expects one format. Instant-NGP expects another. Supporting multiple formats makes datasets more versatile across different training frameworks.
+
+All that is left? well, batching in a multiview function:
+
+def render_multiview_dataset(obj, camera_positions, output_dir, resolution=1024):
+    """Render complete multi-view dataset for Gaussian Splatting."""
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    cameras_data = []
+    intrinsics = calculate_camera_intrinsics(resolution)
+    
+    print(f"Starting multi-view rendering: {len(camera_positions)} views")
+    print(f"Output directory: {output_dir}")
+    
+    for i, position_data in enumerate(camera_positions):
+        # Extract position coordinates
+        position = position_data[:3]  # x, y, z
+        
+        # Create camera for this view
+        camera_name = f"Camera_{i:03d}"
+        camera = create_camera_with_pose(position, target=(0, 0, 0), name=camera_name)
+        
+        # Set camera field of view
+        camera.data.lens_unit = 'FOV'
+        camera.data.angle = np.radians(50)  # 50 degrees FOV
+        
+        # Render this view
+        output_path = output_dir / f"view_{i:03d}.png"
+        render_single_view(camera, str(output_path), i)
+        
+        # Store camera data for pose export
+        cameras_data.append((camera, position, camera.rotation_euler))
+        
+        # Clean up camera (optional, saves memory)
+        # bpy.data.objects.remove(camera, do_unlink=True)
+    
+    # Export camera poses
+    export_camera_poses(cameras_data, output_dir, intrinsics)
+    
+    print(f"✓ Multi-view rendering completed: {len(camera_positions)} images")
+    return output_dir
+and testing our pipeline:
+
+def test_rendering_pipeline(test_output):
+    """Test the complete rendering pipeline with a few views."""
+    # Use existing test cube or create new one
+    if not bpy.context.selected_objects:
+        test_model_loading()
+    
+    # Generate small set of camera positions
+    positions = generate_spherical_coordinates(5, pattern='uniform', radius=3.0)
+    
+    # Run rendering pipeline
+    render_multiview_dataset(
+        obj=bpy.context.selected_objects[0],
+        camera_positions=positions,
+        output_dir=test_output,
+        resolution=256  # Small resolution for testing
+    )
+    
+    print("Rendering pipeline test completed!")
+
+test_output = Path(r"your_path_young_padawawn")
+test_rendering_pipeline(test_output)
+So, what do you have so far? great results!
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Extracting three views from our complete generation
+🌱 Growing Note: Consider the assumptions underlying our batch processing approach. Our systematic rendering assumes all views need identical settings. But some viewing angles might benefit from different exposure or focus settings. Our uniform approach optimizes for neural network training consistency but might sacrifice individual image quality.
+
+However, not that rendering thousands of high-resolution images consumes substantial memory. Each camera object takes memory. Each rendered image takes memory. Large datasets can exhaust system resources and cause crashes.
+
+Our current implementation doesn’t include memory optimization strategies, such as camera object pooling or progressive rendering. These optimizations are possible but add complexity (again, head to the 3D Geodata Academy to push your knowledge .
+
+Now, how do we transform this batch processing capability into a tool that others can use reliably?
+
+Step 5. Blender-aware CLI Interface + Execution
+At this stage, we are on the 20% remaining details that make it a success. The obstacle is usability: powerful algorithms mean nothing if people can’t use them effectively.
+
+Any complexity limits adoption and creates barriers to innovation.
+
+Today, our strategic solution is a command-line interface design that balances power with simplicity.
+
+Press enter or click to view image in full size
+Terminal window displaying a Python command for rendering a 3D model with parameters including model file, camera path, and output directory.
+Running a Python script to render 3D models with specific parameters — cameras, model, and output directory. 🍌 x Florent Poux
+Our approach is to create a CLI tool that exposes all necessary parameters while providing sensible defaults. Users can get started immediately with basic usage, then customize advanced settings as their expertise grows.
+
+The special Blender x 3D x AI approach
+The CLI challenge in the Blender context is unique.
+
+Standard Python scripts receive arguments directly through sys.argv. But Blender scripts run within Blender's Python interpreter, which consumes arguments for its own purposes.
+
+We want our script to receive arguments after Blender finishes processing its parameters. This requires special argument extraction and parsing.
+
+Press enter or click to view image in full size
+
+our “prompt” to generate the multi-view dataset.
+But good news, everyone! Here is the no-headache solution, written for you:
+
+def run_multiview_renderer():
+    """Main execution function for the multi-view renderer."""
+    # Parse arguments (when running as script)
+    if "--" in sys.argv:
+        # Extract arguments after "--" when called from Blender
+        print("===========================================")
+        cli_args = sys.argv[sys.argv.index("--") + 1:]
+        
+        # Create parser and parse the extracted arguments
+        parser = argparse.ArgumentParser(
+            description="Generate multi-view renders for Gaussian Splatting",
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        )
+        
+        parser.add_argument("--input", "-i", type=str, required=True, help="Path to input 3D model file (.obj, .ply, .stl)")
+        parser.add_argument("--output", "-o", type=str, default="renders", help="Output directory for rendered views")
+        parser.add_argument("--views", "-n", type=int, default=100, help="Number of views to generate")
+        parser.add_argument("--resolution", "-r", type=int, default=1024, help="Output image resolution (square images)")
+        parser.add_argument("--pattern", "-p", choices=['uniform', 'spiral', 'hemisphere'], default='uniform', help="Camera positioning pattern")
+        parser.add_argument("--radius", type=float, default=None, help="Camera distance (auto-calculated if not specified)")
+        parser.add_argument("--engine", choices=['BLENDER_EEVEE', 'CYCLES'], default='BLENDER_EEVEE', help="Blender rendering engine")
+        
+        args = parser.parse_args(cli_args)  # Parse the extracted arguments
+
+    else:
+        # Direct execution or testing
+        print("Running in test mode with default parameters")
+        class DefaultArgs:
+            # input = "test_model.obj"
+            input = "D:\OneDrive\FORMER\TUTORIALS\Multi-view-generation\plane.obj"
+            # output = "renders"
+            output = "D:\OneDrive\FORMER\TUTORIALS\Multi-view-generation\my_renders_2"
+            views = 80
+            resolution = 1024
+            pattern = 'uniform'
+            radius = None
+            engine = 'CYCLES'
+        args = DefaultArgs()
+    
+    print("🎬 Multi-View 3D Renderer for Gaussian Splatting")
+    print("=" * 50)
+    
+    try:
+        # Step 1: Initialize environment
+        print("\n1. Initializing Blender environment...")
+        initialize_blender_scene()
+        setup_rendering_settings(
+            resolution=args.resolution,
+            transparent_bg=True,
+            engine=args.engine
+        )
+        setup_lighting_environment()
+        
+        # Step 2: Load and process model
+        print(f"\n2. Loading 3D model: {args.input}")
+        if hasattr(args, 'input') and Path(args.input).exists():
+            obj = load_and_center_model(args.input)
+        else:
+            print("   Using test cube (model file not found)")
+            bpy.ops.mesh.primitive_cube_add(size=2)
+            obj = bpy.context.active_object
+        
+        # Step 3: Calculate camera setup
+        print(f"\n3. Generating {args.views} camera positions...")
+        if args.radius is None:
+            camera_radius = calculate_optimal_camera_distance(obj)
+        else:
+            camera_radius = args.radius
+        
+        camera_positions = generate_spherical_coordinates(
+            num_views=args.views,
+            pattern=args.pattern,
+            radius=camera_radius
+        )
+        
+        # Step 4: Render dataset
+        print("\n4. Rendering multi-view dataset...")
+        output_path = render_multiview_dataset(
+            obj=obj,
+            camera_positions=camera_positions,
+            output_dir=args.output,
+            resolution=args.resolution
+        )
+        
+        print("\n🎉 Rendering completed successfully!")
+        print(f"   Output: {output_path}")
+        print(f"   Views: {args.views}")
+        print(f"   Resolution: {args.resolution}x{args.resolution}")
+        print("   Ready for Gaussian Splatting training!")
+        
+    except Exception as e:
+        print(f"\n❌ Error during rendering: {e}")
+        raise
+The argument extraction logic handles Blender’s unique execution context. The "--" in sys.argv check detects when arguments are available. The sys.argv.index("--") + 1 calculation finds the start of script arguments.
+
+The argparse.ArgumentParser setup provides professional command-line interface. The formatter_class=argparse.ArgumentDefaultsHelpFormatter automatically includes default values in help text - crucial for user understanding.
+
+With that, arguments passed to Blender scripts appear after a double-dash separator:
+
+blender --background --python script.py -- --input model.obj --views 100
+This means that the extraction process runs in four stages:
+
+Separator Detection: Find “ — “ in sys.argv
+Argument Isolation: Extract everything after the separator
+Parser Creation: Set up argparse with extracted arguments
+Validation: Ensure required arguments are present
+This approach cleanly separates Blender arguments from script arguments.
+
+🦥 Geeky Note: The choices=['uniform', 'spiral', 'hemisphere'] parameter for pattern selection prevents invalid inputs while clearly communicating available options. This approach is more robust than string validation and provides better user experience.
+
+The error handling wraps the entire pipeline in try-catch blocks. Exceptions get caught and displayed as user-friendly messages rather than cryptic Python tracebacks.
+
+🌱 Growing Note: Advanced implementations often include configuration file support, allowing users to save parameter sets for different scenarios. YAML or JSON config files can specify commonly-used combinations of settings.
+
+Everything is there, you can now generate multiview dataset with ease, and control by just changing a few key arguments.
+
+And now, how compatible is this with 3D Gaussian Splatting?
+
+Step 6. 3D Gaussian Splatting testing
+Well, we are allready past the 30-minute reading time mark! Congrats to you if you are still there, you are part of the elite readers that still see value in another human writing for you, to help you. So thanks for staying haha!
+
+But of course, I will not go through another complete tutorial on 3D Gaussian Splatting Python Implementation. Let us test our system with an established solution: Postshot.
+
+Press enter or click to view image in full size
+
+After the redering engine we created, your 3D model transforms from a static digital asset into a comprehensive training dataset. Dozens of perfectly positioned views. Consistent lighting across every angle. Camera poses are exported in standardized formats.
+
+But the real magic lies in what this enables long-term. Every model you process becomes part of a growing library of neural-ready assets. Every algorithm you master becomes a tool you can apply to new challenges.
+
+and you can just drag and drop your images to see your training process starting, culminating in a 3D Gaussian Splatting Experience:
+
+Press enter or click to view image in full size
+
+the 3D Gaussian Splatting of the house. I know, I totally messed up the color and lighting, but I like this pinky vibe haha! You know where to search to fix that ;).
+Every model you process becomes part of a growing library of neural-ready assets. Every algorithm you master becomes a tool you can apply to new challenges.
+
+This isn’t just about rendering images. You’re building the foundation for next-generation 3D applications.
+
+Press enter or click to view image in full size
+Illustration of a neural network processing multiple 3D data cubes to generate a detailed building model, showcasing the power of spatial AI in geospatial intelligence.
+Transforming raw 3D data into actionable insights with Spatial AI! 🍌 x Florent Poux
+Consider the compounding effects: Process one model, and you have a dataset. Process hundreds, and you have a pipeline. Master the pipeline, and you can tackle challenges that seemed impossible months ago.
+
+🦚 Florent’s Note: The first time I generated a 200-view dataset and fed it into a Gaussian Splatting implementation, I watched my static architectural model become a fully explorable neural scene. The quality was indistinguishable from photogrammetry, but the control was absolute. That moment changed how I think about 3D content creation.
+
+The dataset structure you’ve created follows industry standards. The transforms.json file works directly with popular implementations like the original Gaussian Splatting research code, COLMAP preprocessing scripts, and modern tools like Postshot.
+
+Your images maintain alpha channels for perfect background separation, and you can see the quality of the splats:
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+different viewpoints showcasing a perfect 3D reconstruciton even in hard to reach areas.
+But what happens when you push this system beyond its intended boundaries?
+
+My View on the 3D System Limitations
+Intellectual honesty demands we examine what doesn’t work.
+
+Synthetic multi-view generation isn’t a silver bullet. Like every powerful tool, it has specific domains where it excels and others where it struggles.
+
+For starters, Blender’s material system, while sophisticated, can’t perfectly replicate every real-world surface. Subsurface scattering in human skin. Complex interference patterns in iridescent materials. The subtle variations in weathered concrete.
+
+These limitations matter more for some applications than others. Product visualization might require material precision that synthetic rendering can’t achieve. Architectural visualization might care more about geometry than material nuance.
+
+Then, processing time scales non-linearly (but not too far) with model complexity and view count. A simple model with 50 views renders in under a minute. A complex model with 2,000 views might take hours. Multiple complex models could take days.
+
+Your pipeline works brilliantly for prototyping and moderate-scale production.
+
+It becomes unwieldy for massive industrial applications without significant investment in infrastructure, and of course, reworking a bit the code to optimize :)..
+
+Also, Neural radiance fields make assumptions about data distribution and viewing patterns. Our uniform spherical sampling creates mathematically optimal distributions, but not necessarily optimal learning distributions.
+
+Some viewing angles contribute more to reconstruction quality than others. Some surface orientations are more challenging for neural networks to learn.
+
+Pure mathematical optimization doesn’t always align with neural network optimization.
+
+Finally, the gap between perfect synthetic data and messy real-world applications remains significant. Your neural scene trained on perfect synthetic views might struggle with real cameras, real lighting, and real noise.
+
+This matters for applications that must operate in uncontrolled environments, such as indoor navigation systems, outdoor reconstruction applications, and Mixed reality applications that blend synthetic and real content.
+
+🦚 Florent’s Note: I learned this lesson during a robotics project where our synthetic training data worked perfectly in simulation but failed when the robot encountered real-world lighting variations and camera noise. Synthetic data is incredibly powerful, but it’s not a complete replacement for real-world validation.
+
+These limitations define optimal use cases rather than fundamental flaws.
+
+Synthetic multi-view generation excels for controlled applications, rapid prototyping, and scenarios where traditional capture is impractical or impossible.
+
+Understanding these boundaries helps you choose the right tool for each challenge.
+
+Okay, What about extending the Solution?
+We’re witnessing the democratization of spatial intelligence, and one clear example to get started is this tutorial I wrote:
+
+Build 3D Scene Graphs for Spatial AI LLMs from Point Cloud (Python Tutorial)
+Transform semantic point clouds into intelligent OpenUSD scene graphs with spatial relationships. Complete Python…
+medium.com
+
+Think about what this transformation means. For the first time in history, creating immersive 3D experiences doesn’t require expensive capture equipment, professional photography skills, or specialized facilities.
+
+A single person with a computer can generate training data that rivals professional photogrammetry studios. A small team can create neural 3D assets faster than large studios could capture them traditionally.
+
+This democratization connects to broader themes that have shaped human progress. The printing press democratized knowledge, personal computers democratized information processing, the internet democratized communication;
+
+Now we’re democratizing the creation of spatial intelligence.
+
+Press enter or click to view image in full size
+Diagram showing three key applications of spatial AI: Advanced Analytics, Interactive VR/AR, and Automated Capture, all connected to a central geospatial intelligence hub.
+Exploring the power of Spatial AI with real-world applications like analytics, VR/AR, and automated capture. 🍌 x Florent Poux
+And within that space, there is a specific, highly interesting field: Generative AI.
+
+Generative AI can create 3D models from text descriptions. Our pipeline transforms those models into neural-ready datasets. Gaussian Splatting creates immersive experiences from those datasets.
+
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+Press enter or click to view image in full size
+The model, the multi-view dataset and the 3D Gaussian Splatting experience.
+The complete workflow — from imagination to neural 3D experience — can happen entirely in software. No physical constraints. No capture limitations. Pure creative expression amplified by algorithmic precision.
+
+Press enter or click to view image in full size
+
+🪐 My Future Outlook: Within three years, we’ll see real-time GenAI-to-GaussianSplat pipelines. Describe a space, and watch it materialize as an explorable neural scene in minutes, not hours. The bottleneck won’t be technical capability — it’ll be creative imagination.
+
+But the deeper question involves the relationship between digital and physical reality.
+
+When synthetic 3D experiences become indistinguishable from captured reality, what does “authentic” mean?
+
+When AI can generate any environment imaginable, and our tools can make it experientially real, we’re not just changing technology — we’re changing the nature of human experience itself.
+
+This power requires wisdom. The tools we’re building will shape how future generations experience space, form memories, and understand reality.
+
+Our responsibility extends beyond technical excellence to thoughtful application that enhances rather than replaces authentic human experience.
+
+The future isn’t just about better tools. It’s about using those tools to create more meaningful, more healing, more connective experiences for humans navigating an increasingly complex world.
+
+📦 Resources
+I created a special standalone episode, accessible in this Open-Access Course. You will find:
+
+The complete tutorial with under-the-hood tricks📜
+The whole dataset to download️ 📂
+The code implementation with a permissive license💻
+Additional resources (cheat sheet, paper …)🌍
+🦚Florent: This is all offered 🎁, and based on the book below. Feel free to get it to support this knowledge sharing initiative.
+
+3D Data Science with Python
+Our physical world is grounded in three dimensions. To create technology that can reason about and interact with it…
+www.oreilly.com
+
+Final (Wise or Not ) Words
+You now possess a production-ready system for synthetic multi-view generation.
+
+This isn’t theoretical knowledge. This isn’t an academic exercise. You have working code that transforms any 3D model into neural-ready training data.
+
+Press enter or click to view image in full size
+
+More importantly, you understand the mathematical foundations that make it work reliably.
+
+Your Immediate Action Plan
+Start with a simple model—something self-contained, like a figurine, or a geometric element. Run the complete pipeline. Verify every output file. Understand how each component contributes to the final result.
+
+Then progress to more complex models. Test the boundaries. Discover where the system excels and where it struggles. Build intuition about parameter choices and quality trade-offs.
+
+Then, connect your output to existing Gaussian Splatting implementations. Try the original research code. Experiment with Postshot for more user-friendly processing. Test commercial solutions as they emerge.
+
+Each integration teaches you about coordinate systems, file formats, and workflow optimization. These lessons compound across every future project.
+
+Look for applications where traditional capture is impossible or impractical. Underground spaces. Dangerous environments. Imaginary worlds. Therapeutic scenarios. These challenging use cases reveal the true power of synthetic generation. They also create business opportunities for those who master the tools first.
+
+Resource Recommendations
+I took some time to curate the resource that serves a specific learning objective. The papers below provide a theoretical foundation. The implementations offer practical experience. The tools demonstrate professional workflows. The advanced courses prepare you for cutting-edge applications.
+
+Essential Academic Papers
+3D Gaussian Splatting for Real-Time Radiance Field Rendering — The foundational paper that introduced Gaussian Splatting. Read this to understand the mathematical foundations and training requirements.
+
+NeRF: Representing Scenes as Neural Radiance Fields — The breakthrough that started the neural 3D revolution. Essential for understanding multi-view geometry and neural scene representation.
+
+Implementation Resources
+Original Gaussian Splatting Implementation — The official research code. Well-documented and actively maintained. Perfect for understanding data format requirements and training workflows.
+
+Postshot — Commercial software that simplifies Gaussian Splatting workflows. Excellent for testing your datasets and comparing results against industry tools. The user interface teaches best practices for 3D neural scene creation.
+
+Technical Deep Dives
+3D Data Science with Python Book — My comprehensive guide to 3D data processing with Python. Covers coordinate systems, mathematical foundations, and practical implementation patterns that directly support this tutorial’s concepts.
+
+Advanced Learning
+3D Deep Learning Operating System — For those ready to master neural 3D beyond basic implementation. Covers advanced architectures, production deployment, and integration with modern AI workflows.
+
+🦚 Florent’s Note: These resources represent thousands of hours of research and development. Start with the Gaussian Splatting paper to understand the target. Experiment with Postshot to see professional results. Then dive into the implementation details with the official code. The book provides a broader context for 3D data science principles that will serve you across many projects.
+
+About the author
+Florent Poux, Ph.D.
+ is a Scientific and Course Director focused on educating engineers on leveraging AI and 3D Data Science. He leads research teams and teaches 3D Computer Vision at various universities. His current aim is to ensure humans are correctly equipped with the knowledge and skills to tackle 3D challenges for impactful innovations.
+
+3d Modeling
+Python
+Blender
+Hands On Tutorials
+Data Visualization
+464
+
+
+4
+
+
+
+
+Data Science Collective
+Published in Data Science Collective
+879K followers
+·
+Last published 12 hours ago
+Advice, insights, and ideas from the Medium data science community
+
+
+Follow
+Florent Poux, Ph.D.
+Written by Florent Poux, Ph.D.
+4.7K followers
+·
+28 following
+🏆 Director of Science | 3D Data + Spatial AI. https://learngeodata.eu (💻 + 📦 + 📙 + ▶️)
+
+
+Following
+Responses (4)
+Simon Ducournau
+Simon Ducournau
+﻿
+
+Cancel
+Respond
+Akvilonbrown
+Akvilonbrown
+
+Sep 19
+
+
+Hmm, I render with bpy module, without "blender" running in the background - bpy is quite self-sufficient, it takes the .blend file and understands it quite well. You just need to make sure that versions of Blender where you create the scene and bpy…more
+20
+
+Reply
+
+Eric PASCUAL
+Eric PASCUAL
+
+Sep 19
+
+
+Waouh 🤩 A real masterpiece.
+
+Bookmarked for rereading again and again to assimilate all the important stuff. I'm not at all in your field, only using Blender for scene creation, sometimes by scripting the process. Your code is filled with lots of…more
+1
+
+Reply
+
+Rob Ford
+Rob Ford
+
+Sep 22
+
+
+Oh my goodness. This is the most insane article I have ever seen on Medium. Brilliant. Almost superhuman.
+Reply
+
+See all responses
+More from Florent Poux, Ph.D. and Data Science Collective
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+The Blender Handbook for 3D Point Cloud Visualization and Rendering
+Complete guide to create 3D experiences with large point clouds in Blender
+
+Feb 28, 2024
+263
+1
+
+
+Agentic AI: Single vs Multi-Agent Systems
+Data Science Collective
+In
+
+Data Science Collective
+
+by
+
+Ida Silfverskiöld
+
+Agentic AI: Single vs Multi-Agent Systems
+Building with a structured data source in LangGraph
+
+Oct 28
+879
+16
+
+
+It Took Me 6 Years to Find the Best Metric for Classification Models
+Data Science Collective
+In
+
+Data Science Collective
+
+by
+
+Samuele Mazzanti
+
+It Took Me 6 Years to Find the Best Metric for Classification Models
+How I realized that the best calibration metric is none of the ones you’d expect (ROC, Log-loss, Brier score, etc.)
+
+Nov 8
+839
+16
+
+
+3D Point Cloud Shape Detection for Indoor Modelling
+TDS Archive
+In
+
+TDS Archive
+
+by
+
+Florent Poux, Ph.D.
+
+3D Point Cloud Shape Detection for Indoor Modelling
+A 10-step Python Guide to Automate 3D Shape Detection, Segmentation, Clustering, and Voxelization for Space Occupancy 3D Modeling of Indoor…
+
+Sep 7, 2023
+468
+2
+
+
+See all from Florent Poux, Ph.D.
+See all from Data Science Collective
+Recommended from Medium
+5 Different Ways to Track Objects in Python
+siromer
+siromer
+
+5 Different Ways to Track Objects in Python
+5 different object tracking methods, both deep learning and classical computer vision approaches, implemented in Python and C++.
+Oct 13
+63
+
+
+I Built a Wall Street Analyst in 200 Lines of Code — And It Outperformed My $2,000/Month Bloomberg…
+Generative AI
+In
+
+Generative AI
+
+by
+
+Adham Khaled
+
+I Built a Wall Street Analyst in 200 Lines of Code — And It Outperformed My $2,000/Month Bloomberg…
+How an open-source AI agent named Dexter is democratizing financial research, one autonomous query at a time
+
+Oct 20
+421
+11
+
+
+Building a Self-Improving Agentic RAG System
+Level Up Coding
+In
+
+Level Up Coding
+
+by
+
+Fareed Khan
+
+Building a Self-Improving Agentic RAG System
+Specialist agents, multi-dimensional eval, Pareto front and more.
+
+6d ago
+1.1K
+5
+
+
+How I Built Lightning-Fast Vector Search for Legal Documents
+Dr Adrian Lucas Malec
+Dr Adrian Lucas Malec
+
+How I Built Lightning-Fast Vector Search for Legal Documents
+From 53 to 2,880 queries/sec with USearch
+Oct 20
+616
+6
+
+
+7 Websites I Visit Every Day in 2025
+Tosny
+Tosny
+
+7 Websites I Visit Every Day in 2025
+If there is one thing I am addicted to, besides coffee, it is the internet.
+
+Sep 23
+8.3K
+296
+
+
+Python Map Algebra Cookbook: Raster Operations for Spatial Analysis
+Stacy Mwangi
+Stacy Mwangi
+
+Python Map Algebra Cookbook: Raster Operations for Spatial Analysis
+Essential recipes for transforming, combining, and analyzing gridded spatial data
+
+6d ago
+52
+
+
+See more recommendations
+Help
+
+Status
+
+About
+
+Careers
+
+Press
+
+Blog
+
+Privacy
+
+Rules
+
+Terms
+
+Text to speech
+
+All your favorite parts of Medium are now in one sidebar for easy access.
+Okay, got it
+
