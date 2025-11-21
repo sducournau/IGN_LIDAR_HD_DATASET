@@ -1052,8 +1052,8 @@ class BuildingFacadeClassifier:
         roof_flat_threshold: float = 15.0,  # 🆕 v3.1: Angle max pour toit plat (degrés)
         roof_pitched_threshold: float = 20.0,  # 🆕 v3.1: Angle min pour toit en pente (degrés)
         # 🆕 v3.4 Paramètres de classification avancée LOD3
-        enable_enhanced_lod3: bool = False,  # 🆕 v3.4: Activer classification LOD3 complète (Phase 2.4)
-        enhanced_building_config: Optional[
+        enable_detailed_lod3: bool = False,  # 🆕 v3.4: Activer classification LOD3 complète (Phase 2.4)
+        detailed_building_config: Optional[
             Dict[str, Any]
         ] = None,  # 🆕 v3.4: Configuration BuildingClassifier
         # 🚀 Phase 3.2: Parallel processing parameters
@@ -1138,16 +1138,16 @@ class BuildingFacadeClassifier:
                 self.enable_roof_classification = False
 
         # v3.4 LOD3 classification (Phase 2.4 integration)
-        self.enable_enhanced_lod3 = enable_enhanced_lod3
+        self.enable_detailed_lod3 = enable_detailed_lod3
         
         # 🚀 Phase 3.2: Parallel processing
         self.enable_parallel_facades = enable_parallel_facades
         self.max_workers = max_workers
-        self.enhanced_building_config = enhanced_building_config
+        self.detailed_building_config = detailed_building_config
 
         # Initialize BuildingClassifier if enabled
-        self.enhanced_classifier = None
-        if self.enable_enhanced_lod3:
+        self.detailed_classifier = None
+        if self.enable_detailed_lod3:
             try:
                 from ign_lidar.core.classification.building import (
                     BuildingClassifier,
@@ -1155,14 +1155,14 @@ class BuildingFacadeClassifier:
                 )
 
                 # Build config from provided dict or use defaults
-                if enhanced_building_config:
+                if detailed_building_config:
                     classifier_config = BuildingClassifierConfig(
-                        **enhanced_building_config
+                        **detailed_building_config
                     )
                 else:
                     classifier_config = BuildingClassifierConfig()
 
-                self.enhanced_classifier = BuildingClassifier(classifier_config)
+                self.detailed_classifier = BuildingClassifier(classifier_config)
                 logger.info("LOD3 classifier enabled (v3.4 - Phase 2.4)")
                 logger.info(
                     f"  - Roof detection: " f"{classifier_config.enable_roof_detection}"
@@ -1177,7 +1177,7 @@ class BuildingFacadeClassifier:
                 )
             except ImportError as e:
                 logger.warning(f"LOD3 classifier unavailable: {e}")
-                self.enable_enhanced_lod3 = False
+                self.enable_detailed_lod3 = False
 
         self.building_class = building_class
         self.wall_subclass = wall_subclass
@@ -1771,10 +1771,10 @@ class BuildingFacadeClassifier:
                 stats["roof_classification_error"] = str(e)
 
         # 8.2. LOD3 Classification (v3.4 - Phase 2.4)
-        if self.enhanced_classifier is not None:
+        if self.detailed_classifier is not None:
             try:
-                # Prepare features for enhanced classification
-                enhanced_features = {
+                # Prepare features for detailed LOD3 classification
+                detailed_features = {
                     "normals": normals[building_mask] if normals is not None else None,
                     "verticality": (
                         verticality[building_mask] if verticality is not None else None
@@ -1790,57 +1790,57 @@ class BuildingFacadeClassifier:
                 ground_elevation = float(np.min(building_z))
 
                 # Classify building with LOD3 features
-                enhanced_result = self.enhanced_classifier.classify_building(
+                detailed_result = self.detailed_classifier.classify_building(
                     points=building_points,
-                    features=enhanced_features,
+                    features=detailed_features,
                     building_polygon=polygon,
                     ground_elevation=ground_elevation,
                 )
 
-                if enhanced_result.success:
+                if detailed_result.success:
                     # Get building point indices for mapping
                     building_indices = np.where(building_mask)[0]
 
-                    # Apply enhanced classifications
+                    # Apply detailed LOD3 classifications
                     # Priority: chimneys > balconies > roof > default
-                    enhanced_labels = enhanced_result.point_labels
+                    detailed_labels = detailed_result.point_labels
 
                     # Update labels for points with valid classifications
                     # Only update points not already classified as facades
-                    for i, enhanced_label in enumerate(enhanced_labels):
-                        if enhanced_label != 0:  # Skip unclassified
+                    for i, detailed_label in enumerate(detailed_labels):
+                        if detailed_label != 0:  # Skip unclassified
                             original_idx = building_indices[i]
                             # Don't override facade classifications (class 6)
                             if labels_updated[original_idx] != 6:
-                                labels_updated[original_idx] = enhanced_label
+                                labels_updated[original_idx] = detailed_label
                                 all_classified_indices.add(original_idx)
 
                     # Update statistics
-                    stats["enhanced_lod3_enabled"] = True
-                    stats["roof_type_enhanced"] = (
-                        enhanced_result.roof_result.roof_type.name
-                        if enhanced_result.roof_result
+                    stats["detailed_lod3_enabled"] = True
+                    stats["roof_type_detailed"] = (
+                        detailed_result.roof_result.roof_type.name
+                        if detailed_result.roof_result
                         else "N/A"
                     )
                     stats["num_chimneys"] = (
-                        enhanced_result.chimney_result.num_chimneys
-                        if enhanced_result.chimney_result
+                        detailed_result.chimney_result.num_chimneys
+                        if detailed_result.chimney_result
                         else 0
                     )
                     stats["num_balconies"] = (
-                        enhanced_result.balcony_result.num_balconies
-                        if enhanced_result.balcony_result
+                        detailed_result.balcony_result.num_balconies
+                        if detailed_result.balcony_result
                         else 0
                     )
 
                     # Add architectural detail counts
-                    if enhanced_result.chimney_result:
+                    if detailed_result.chimney_result:
                         stats["chimney_points"] = len(
-                            enhanced_result.chimney_result.all_chimney_points
+                            detailed_result.chimney_result.all_chimney_points
                         )
-                    if enhanced_result.balcony_result:
+                    if detailed_result.balcony_result:
                         stats["balcony_points"] = len(
-                            enhanced_result.balcony_result.all_balcony_points
+                            detailed_result.balcony_result.all_balcony_points
                         )
 
                     logger.debug(
@@ -1854,7 +1854,7 @@ class BuildingFacadeClassifier:
                     f"LOD3 classification failed for building "
                     f"{building_id}: {e}"
                 )
-                stats["enhanced_lod3_error"] = str(e)
+                stats["detailed_lod3_error"] = str(e)
 
         # 9. Statistiques finales
         stats["points_classified"] = len(all_classified_indices)
