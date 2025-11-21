@@ -297,10 +297,24 @@ class AsyncGPUProcessor:
                 gpu_classification = cp.asarray(batch_classification)
                 gpu_height = self._compute_height_above_ground_gpu(gpu_points, gpu_classification)
             
-            # Download results
-            normals = cp.asnumpy(gpu_normals)
-            curvature = cp.asnumpy(gpu_curvature)
-            height = cp.asnumpy(gpu_height) if gpu_height is not None else np.zeros(len(batch_points))
+            # ⚡ OPTIMIZATION: Batch download results (3→1 or 2→1 transfers)
+            if gpu_height is not None:
+                # Stack all features on GPU, single transfer
+                results_gpu = cp.stack([
+                    gpu_normals[:, 0], gpu_normals[:, 1], gpu_normals[:, 2],
+                    gpu_curvature, gpu_height
+                ], axis=1)
+                results_cpu = cp.asnumpy(results_gpu)
+                normals = results_cpu[:, :3]
+                curvature = results_cpu[:, 3]
+                height = results_cpu[:, 4]
+            else:
+                # No height: stack normals + curvature (3→1 transfers)
+                results_gpu = cp.column_stack([gpu_normals, gpu_curvature])
+                results_cpu = cp.asnumpy(results_gpu)
+                normals = results_cpu[:, :3]
+                curvature = results_cpu[:, 3]
+                height = np.zeros(len(batch_points))
         
         return {
             'normals': normals,
