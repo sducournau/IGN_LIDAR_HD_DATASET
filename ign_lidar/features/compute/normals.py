@@ -12,6 +12,8 @@ from typing import Optional, Tuple
 from sklearn.neighbors import NearestNeighbors
 import logging
 
+from ign_lidar.optimization.gpu_accelerated_ops import eigh
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,8 +96,8 @@ def _compute_normals_cpu(
             centered = neighbors - centroid
             cov_matrix = np.dot(centered.T, centered) / len(neighbors)
             
-            # Eigendecomposition
-            eigvals, eigvecs = np.linalg.eigh(cov_matrix)
+            # Eigendecomposition (GPU-accelerated with CPU fallback)
+            eigvals, eigvecs = eigh(cov_matrix)
             
             # Sort eigenvalues and eigenvectors in descending order
             idx = eigvals.argsort()[::-1]
@@ -118,8 +120,8 @@ def _compute_normals_cpu(
             centered = neighbors - centroid
             cov_matrix = np.dot(centered.T, centered) / k_neighbors
             
-            # Eigendecomposition
-            eigvals, eigvecs = np.linalg.eigh(cov_matrix)
+            # Eigendecomposition (GPU-accelerated with CPU fallback)
+            eigvals, eigvecs = eigh(cov_matrix)
             
             # Sort eigenvalues and eigenvectors in descending order
             idx = eigvals.argsort()[::-1]

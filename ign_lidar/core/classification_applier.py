@@ -237,7 +237,7 @@ class ClassificationApplier:
         ground_truth_features: Dict[str, Any],
     ) -> np.ndarray:
         """
-        Apply ground truth using UnifiedClassifier.
+        Apply ground truth using Classifier.
 
         Args:
             points: Point cloud [N, 3]

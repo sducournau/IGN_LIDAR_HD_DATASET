@@ -1,0 +1,715 @@
+# ============================================================================
+# IGN LiDAR HD - PointNet++/Transformer Hybrid Training Configuration
+# ============================================================================
+# Created: November 20, 2025
+#
+# Optimized for:
+# - Architecture: Hybrid PointNet++/Point Transformer
+# - Patch size: 50m × 50m
+# - Points per patch: 32,000 (32K)
+# - LOD2 classification (buildings focus)
+# - GPU: NVIDIA RTX 4080 (16GB VRAM)
+# - Tile stitching: ENABLED for boundary artifacts
+# - Segmentation: Point-level classification
+#
+# Input: /home/simon/ign_data/unified_dataset_rgb
+# Output: Training-ready patches with segmentation labels
+# ============================================================================
+
+config_version: "6.3.0"
+preset_name: "pointnet_transformer_hybrid_training"
+
+# ============================================================================
+# PROCESSOR CONFIGURATION
+# ============================================================================
+processor:
+  # Processing mode
+  lod_level: "LOD2"
+  architecture: "hybrid" # Hybrid PointNet++/Transformer
+  processing_mode: "both" # Generate both enriched LAZ and training patches
+  output_format: "laz"
+
+  # GPU Configuration (Optimized for RTX 4080 16GB)
+  use_gpu: true
+  gpu_device: 0
+  gpu_batch_size: 10_000_000 # 10M points (safer for 16GB VRAM)
+  gpu_memory_target: 0.85 # 85% VRAM utilization (more conservative)
+  vram_limit_gb: 14 # Leave 2GB for system (avoid OOM)
+
+  # Parallel processing
+  num_workers: 0 # 0 when using GPU (avoid CUDA context issues)
+
+  # Patch Configuration - CRITICAL FOR TRAINING
+  patch_size: 50.0 # 50m × 50m patches
+  num_points: 32000 # 32K points per patch (32768 for power-of-2)
+  overlap: 0.15 # 15% overlap (7.5m buffer for stitching)
+
+  # Point sampling strategy
+  sampling_method: "fps" # Farthest Point Sampling (better coverage)
+  # Options: fps | random | grid
+  # fps: Best for transformers (uniform coverage)
+  # random: Faster, good for PointNet++
+  # grid: Most uniform, slower
+
+  # Data augmentation (for training)
+  augment: true
+  num_augmentations: 5 # Generate 5 augmented versions per patch
+  augmentation_types:
+    - rotation # Random rotation (0-360°)
+    - scaling # Random scaling (0.95-1.05)
+    - jitter # Random point jitter (±5cm)
+    - dropout # Random point dropout (5-10%)
+    - flip # Random flip (horizontal/vertical)
+
+  # Performance tuning
+  batch_size: "auto" # Auto-determine based on GPU memory
+  prefetch_factor: 2 # Prefetch 2 batches
+  pin_memory: true # Pin memory for faster GPU transfer
+
+# ============================================================================
+# PREPROCESSING CONFIGURATION
+# ============================================================================
+preprocess:
+  enabled: true
+
+  # Statistical Outlier Removal (SOR)
+  sor_k: 16 # Slightly more neighbors for 50m patches
+  sor_std: 2.0
+
+  # Radius Outlier Removal (ROR)
+  ror_radius: 1.0
+  ror_neighbors: 5 # Slightly stricter for training data
+
+  # Voxel downsampling (disabled - we control point count via sampling)
+  voxel_enabled: false
+
+# ============================================================================
+# STITCHING CONFIGURATION - CRITICAL FOR BOUNDARY ARTIFACTS
+# ============================================================================
+stitching:
+  enabled: true # ENABLED for boundary-aware processing
+
+  # Buffer zone
+  buffer_size: 15.0 # 15m buffer (3x overlap for smooth transitions)
+
+  # Auto-detection
+  auto_detect_neighbors: true # Automatically detect neighbor tiles
+  auto_download_neighbors: false # Use local tiles only
+
+  # Neighbor tiles
+  neighbor_pattern: "8_way" # Load all 8 neighbors
+  # Options: 4_way (N,S,E,W) | 8_way (all neighbors)
+
+  # Caching
+  cache_enabled: true # Cache loaded neighbor tiles
+  cache_dir: null # Auto: {output_dir}/cache/stitching
+
+  # Boundary handling
+  blend_method: "distance_weighted" # Smooth feature blending at boundaries
+  blend_width: 7.5 # Blend width (meters) = 15% of 50m
+
+  # Feature recalculation at boundaries
+  recalculate_boundary_features: true
+  boundary_buffer: 5.0 # Recalculate features within 5m of boundary
+
+# ============================================================================
+# FEATURES CONFIGURATION - OPTIMIZED FOR HYBRID ARCHITECTURE
+# ============================================================================
+features:
+  # Feature mode
+  mode: "lod2" # LOD2 feature set (building-optimized)
+
+  # Geometric computation
+  k_neighbors: 30 # Base neighborhood size
+  search_radius: 2.5 # 2.5m search radius (good for 50m patches)
+
+  # Core geometric features (REQUIRED)
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: true # planarity, sphericity, verticality
+  compute_density: true
+  compute_anisotropy: true # Eigenvalue-based features
+
+  # Spectral features (RGB available in unified_dataset_rgb)
+  compute_ndvi: true # Vegetation index
+  use_rgb: true # Use RGB from orthophotos
+  use_infrared: false # Set to true if NIR available
+  use_nir: false
+
+  # Height computation
+  height_method: "local" # Local height (DTM not required for training)
+  compute_height_above_ground: true
+  compute_height_local: true
+
+  # ========================================================================
+  # MULTI-SCALE COMPUTATION - ARTIFACT SUPPRESSION FOR TRAINING
+  # ========================================================================
+  multi_scale_computation: true
+
+  # 3-scale configuration (fine/medium/coarse)
+  scales:
+    - name: fine
+      k_neighbors: 15
+      search_radius: 1.0
+      weight: 0.25
+
+    - name: medium
+      k_neighbors: 30
+      search_radius: 2.5
+      weight: 0.50 # Highest weight
+
+    - name: coarse
+      k_neighbors: 60
+      search_radius: 5.0
+      weight: 0.25
+
+  # Aggregation method
+  aggregation_method: "adaptive" # Best for transformers (geometry-aware)
+  # Options: weighted_average | variance_weighted | adaptive
+  variance_penalty_factor: 2.0
+
+  # Artifact detection
+  artifact_detection: true
+  artifact_variance_threshold: 0.15
+  artifact_gradient_threshold: 0.10
+  auto_suppress_artifacts: true
+
+  # Multi-scale performance
+  reuse_kdtrees_across_scales: true
+  parallel_scale_computation: false # Avoid with GPU
+  cache_scale_results: true
+
+  # Save artifact masks (useful for training diagnostics)
+  save_artifact_mask: true
+  save_per_scale_features: false # Don't save (large files)
+
+  # RGB augmentation (cache for speed)
+  rgb_augmentation:
+    enabled: true
+    method: "orthophoto"
+    resolution: 0.2 # 20cm resolution
+    cache_enabled: true
+    cache_dir: null # Auto: {output_dir}/cache/rgb
+
+  # Feature normalization (CRITICAL for transformers)
+  normalize_xyz: true # Normalize coordinates to [-1, 1]
+  normalize_features: true # Z-score normalization
+  normalize_method: "z_score" # Options: z_score | min_max
+
+  # FORCE GPU STRATEGY FOR FEATURES
+  gpu_batch_size: 3_000_000 # 3M points per feature batch (safer for RTX 4080)
+  use_gpu_chunked: true # Force chunked GPU strategy
+  force_gpu: true # Force GPU even for large point clouds
+
+  # Feature selection for hybrid architecture
+  feature_selection:
+    # Geometric features (transformers benefit from these)
+    geometric_features:
+      - normals # (nx, ny, nz)
+      - planarity
+      - sphericity
+      - verticality
+      - horizontality
+      - linearity
+      - curvature
+      - anisotropy
+      - omnivariance
+      - eigenentropy
+
+    # Height features
+    height_features:
+      - height # Absolute Z
+      - height_above_ground # Relative height
+      - height_local # Local relative
+      - height_range # Local range
+
+    # Density features
+    density_features:
+      - point_density
+      - return_density
+
+    # Spectral features (if RGB available)
+    spectral_features:
+      - rgb # (R, G, B)
+      - rgb_intensity # Grayscale
+      - ndvi # Vegetation index (if NIR available)
+
+    # Radiometric features
+    radiometric_features:
+      - intensity # LiDAR intensity
+      - return_number
+      - number_of_returns
+
+    # Contextual features
+    contextual_features:
+      - local_point_count
+      - k_nearest_distance_mean
+      - k_nearest_distance_std
+
+# ============================================================================
+# DATA SOURCES - GROUND TRUTH FOR SEGMENTATION LABELS
+# ============================================================================
+data_sources:
+  # RGE ALTI (optional - for more accurate height)
+  rge_alti:
+    enabled: false # Disable for faster processing (use local height)
+    use_wcs: false
+
+  # BD TOPO - Ground truth for segmentation labels
+  bd_topo:
+    enabled: true
+    path: "./data/ground_truth/BDTOPO/"
+
+    # Cluster IDs (object instance segmentation)
+    assign_building_cluster_ids: true
+    assign_parcel_cluster_ids: false # Not needed for LOD2
+
+    # Feature layers for LOD2 - ROADS ONLY
+    features:
+      # Buildings (DISABLED - not reclassified)
+      buildings:
+        enabled: false
+
+      # Roads (PRIMARY - only feature to reclassify)
+      roads:
+        enabled: true
+        file: "TRONCON_DE_ROUTE.shp"
+        buffer_distance: 1.5 # 1.5m buffer for better road coverage
+        classification_method: "surface_type"
+
+      # Vegetation (DISABLED)
+      vegetation:
+        enabled: false
+
+      # Water (DISABLED)
+      water:
+        enabled: false
+
+      # Ground (DISABLED)
+      ground:
+        enabled: false
+
+# ============================================================================
+# GROUND TRUTH CONFIGURATION
+# ============================================================================
+# GPU-accelerated ground truth labeling with BD Topo WFS integration
+# Provides accurate labels for roads, buildings, vegetation, water
+# Uses parallel fetching and GPU-optimized spatial indexing
+ground_truth:
+  enabled: true # Enable ground truth classification
+
+  # Processing method - GPU optimized (100-1000x faster)
+  method: "gpu" # Force GPU mode (not auto)
+  chunk_size: 3_000_000 # 3M points per chunk (safer for 16GB VRAM)
+
+  # Caching - ESSENTIAL for speed
+  cache_dir: null # Auto-set to {output_dir}/cache/ground_truth
+  cache_ttl_days: 30 # Cache validity
+  cache_compression: true # Compress cached files
+
+  # Processing options
+  preclassify: true # Pre-classify for better results
+  show_progress: true # Show progress
+
+  # BD TOPO WFS configuration
+  bd_topo:
+    enabled: true
+
+    # Feature layers - ROADS ONLY
+    features:
+      buildings:
+        enabled: false # DISABLED - not reclassified
+
+      roads:
+        enabled: true # ONLY roads reclassified
+        buffer_distance: 1.5 # 1.5m buffer for better coverage
+
+      vegetation:
+        enabled: false # DISABLED
+
+      water:
+        enabled: false # DISABLED
+
+      railways:
+        enabled: false # DISABLED
+
+      bridges:
+        enabled: false # DISABLED
+
+      power_lines:
+        enabled: false # DISABLED
+
+    # Parameters
+    parameters:
+      road_width_fallback: 4.0 # Default road width (meters)
+      use_spatial_index: true # Fast spatial queries (STRtree)
+
+    # Performance
+    cache_enabled: true # CRITICAL - cache WFS responses
+
+# ============================================================================
+# CLASSIFICATION CONFIGURATION - LOD2 SEGMENTATION
+# ============================================================================
+classification:
+  mode: "lod2" # LOD2 classification scheme
+
+  # Class normalization
+  normalize_classes: true
+  strict_normalization: false
+
+  # LOD2 building classes (15 classes total)
+  lod2_classes:
+    enabled: true
+    classes:
+      # Standard ASPRS
+      - 1 # Unclassified
+      - 2 # Ground
+      - 3 # Low Vegetation
+      - 4 # Medium Vegetation
+      - 5 # High Vegetation
+      - 6 # Building (generic)
+      - 9 # Water
+      - 11 # Road
+
+      # LOD2 building extensions (32-34)
+      - 32 # Roof
+      - 33 # Facade
+      - 34 # Building Components (chimneys, etc.)
+
+  # Height-based classification (using local height)
+  height_classification:
+    enabled: true
+    low_vegetation_max: 0.5
+    medium_vegetation_max: 2.0
+    high_vegetation_min: 2.0
+
+  # NDVI-based vegetation
+  ndvi_classification:
+    enabled: true
+    vegetation_threshold: 0.3
+    strong_vegetation_threshold: 0.5
+
+  # Geometric thresholds (tuned for LOD2)
+  thresholds:
+    buildings:
+      min_height: 1.5
+      min_verticality: 0.60 # Facades
+      min_roof_planarity: 0.70 # Roofs
+      max_roof_curvature: 0.15
+
+    ground:
+      max_height: 0.5
+      min_planarity: 0.80
+      min_horizontality: 0.75
+
+    vegetation:
+      min_ndvi: 0.3
+      max_planarity: 0.6
+      max_verticality: 0.4
+
+# ============================================================================
+# RECLASSIFICATION - GEOMETRIC REFINEMENT
+# ============================================================================
+reclassification:
+  enabled: true
+
+  # Geometric rules
+  use_geometric_rules: true
+  use_ndvi_classification: true
+  use_spectral_rules: true
+  use_clustering: true
+
+  # Thresholds
+  ndvi_vegetation_threshold: 0.3
+  spatial_cluster_eps: 0.5 # 50cm clustering
+  min_cluster_size: 10
+
+  # Confidence
+  min_classification_confidence: 0.35
+  rejection_confidence_threshold: 0.25
+
+# ============================================================================
+# OUTPUT CONFIGURATION - TRAINING DATASET FORMAT
+# ============================================================================
+output:
+  format: "laz" # LAZ format (compressed)
+
+  # Enriched LAZ output (full tiles with computed features)
+  enriched_laz:
+    enabled: true # Save enriched LAZ tiles
+    output_dir: "enriched_tiles" # Subdirectory for enriched tiles
+    compression: true # Use LAZ compression
+
+  # Training patches output
+  patches:
+    enabled: true # Generate training patches
+    format: "npz" # NPZ format (NumPy compressed) - better for PyTorch
+    # Options: npz | laz | both
+    output_dir: "patches" # Subdirectory for patches
+
+    # Also save LAZ patches for visualization/debugging
+    save_laz: true # Also save LAZ version of patches
+    laz_output_dir: "patches_laz" # Subdirectory for LAZ patches
+
+  # Output structure
+  output_structure: "flat" # All patches in one directory
+  # Options: flat | by_class | by_tile
+
+  # Patch naming
+  patch_naming: "coordinates" # Name by coordinates
+  # Format: patch_X{east}_Y{north}_{augmentation_id}.npz
+
+  # Extra dimensions to save (features for training)
+  extra_dims:
+    # Geometric features
+    - planarity
+    - sphericity
+    - verticality
+    - horizontality
+    - linearity
+    - curvature
+    - anisotropy
+    - omnivariance
+    - eigenentropy
+
+    # Height features
+    - height
+    - height_above_ground
+    - height_local
+    - height_range
+
+    # Density
+    - point_density
+    - return_density
+
+    # Spectral
+    - ndvi
+    - rgb_intensity
+
+    # Radiometric
+    - intensity
+    - return_number
+    - number_of_returns
+
+    # Contextual
+    - local_point_count
+    - k_nearest_distance_mean
+
+    # Quality control
+    - artifact_mask # Flag artifacts
+    - confidence_score # Classification confidence
+    - cluster_id # Instance segmentation ID
+    - building_cluster_id # Building instance ID
+
+  # Classification output
+  save_classification: true # Segmentation labels
+  save_confidence_scores: true # Useful for training weights
+
+  # Metadata
+  include_metadata: true
+  metadata_format: "json"
+
+  # Training split metadata
+  save_split_info: true # Save train/val/test split info
+  split_ratios:
+    train: 0.70 # 70% training
+    val: 0.15 # 15% validation
+    test: 0.15 # 15% testing
+
+# ============================================================================
+# PYTORCH DATASET CONFIGURATION
+# ============================================================================
+pytorch:
+  enabled: true
+
+  # Dataset parameters
+  dataset_class: "IGNLiDARMultiArchDataset"
+  preset: "buildings" # Use buildings preset
+
+  # Architecture-specific
+  architecture: "hybrid" # Hybrid PointNet++/Transformer
+
+  # Features for model input
+  input_features:
+    - xyz # Coordinates (normalized)
+    - normals # Surface normals
+    - planarity
+    - verticality
+    - height_above_ground
+    - rgb # RGB colors
+    - intensity
+
+  # Labels
+  target: "classification" # Segmentation labels
+
+  # Data loader
+  batch_size: 8 # 8 patches per batch (32K points × 8 = 256K points)
+  num_workers: 4 # 4 data loading workers
+  shuffle: true
+  pin_memory: true
+  drop_last: true # Drop incomplete batches
+
+  # Augmentation (on-the-fly)
+  augmentation:
+    enabled: true
+    rotation_range: 180 # ±180° rotation
+    scale_range: [0.95, 1.05] # ±5% scaling
+    jitter_sigma: 0.01 # 1cm jitter
+    jitter_clip: 0.05 # 5cm max jitter
+
+# ============================================================================
+# MONITORING & LOGGING
+# ============================================================================
+monitoring:
+  enabled: true
+  log_level: "INFO"
+
+  # Performance
+  track_memory: true
+  track_gpu_usage: true
+  track_processing_time: true
+
+  # Progress
+  progress_interval: 5 # Log every 5 tiles
+
+  # Statistics
+  compute_statistics: true
+  save_statistics: true
+  statistics_output: "training_dataset_stats.json"
+
+  # Class distribution (important for balanced training)
+  save_class_distribution: true
+  warn_class_imbalance: true
+  max_class_imbalance_ratio: 10.0 # Warn if ratio > 10:1
+
+# ============================================================================
+# CACHE CONFIGURATION
+# ============================================================================
+cache:
+  enabled: true
+  cache_dir: "/mnt/c/Users/Simon/ign_lidar/training_patches_50m_32k/cache"
+
+  # Cache policies
+  cache_features: false # Don't cache (large)
+  cache_ground_truth: true # Cache BD TOPO
+  cache_rgb: true # Cache RGB
+  cache_kdtrees: true # Cache KD-trees (speed up multi-scale)
+
+  # Expiration
+  ground_truth_ttl_days: 90
+  rgb_ttl_days: 180
+
+# ============================================================================
+# VALIDATION & QUALITY CONTROL
+# ============================================================================
+validation:
+  enabled: true
+
+  # Input validation
+  check_point_density: true
+  min_points_per_tile: 100_000
+
+  # Patch validation
+  check_patch_completeness: true
+  min_points_per_patch: 30000 # Ensure at least 30K points (target 32K)
+  reject_incomplete_patches: true
+
+  # Feature validation
+  check_feature_range: true
+  flag_invalid_features: true
+  check_nan_values: true
+  reject_patches_with_nans: true
+
+  # Classification validation
+  check_class_distribution: true
+  warn_on_high_unclassified: true
+  max_unclassified_percentage: 20 # Warn if >20% unclassified
+
+  # Output validation
+  check_output_completeness: true
+  verify_extra_dims: true
+# ============================================================================
+# NOTES & USAGE
+# ============================================================================
+#
+# USAGE:
+#   cd /mnt/d/Users/Simon/OneDrive/Documents/GitHub/IGN_LIDAR_HD_DATASET
+#
+#   ign-lidar-hd process \
+#     -c examples/config_pointnet_transformer_hybrid_training.yaml \
+#     input_dir="/mnt/c/Users/Simon/ign_lidar/unified_dataset_rgb" \
+#     output_dir="/mnt/c/Users/Simon/ign_lidar/training_patches_50m_32k"
+#
+# EXPECTED OUTPUT:
+#   - Enriched LAZ tiles: Full tiles with computed features in enriched_tiles/
+#   - Training patches (NPZ): 50m × 50m with 32K points in patches/
+#   - Training patches (LAZ): Same patches in LAZ format in patches_laz/
+#   - Format: NPZ (NumPy) for fast PyTorch loading
+#   - Labels: LOD2 segmentation classes (15 classes)
+#   - Augmentation: 5× augmented versions per patch
+#   - Stitching: Boundary artifacts handled
+#   - Metadata: Train/val/test split info
+#
+# PYTORCH USAGE:
+#   from ign_lidar.datasets import IGNLiDARMultiArchDataset
+#   from torch.utils.data import DataLoader
+#
+#   # Load from NPZ patches (faster)
+#   dataset = IGNLiDARMultiArchDataset(
+#       '/mnt/c/Users/Simon/ign_lidar/training_patches_50m_32k/patches',
+#       architecture='hybrid',
+#       preset='buildings',
+#       num_points=32000,
+#       format='npz'  # Load NPZ format
+#   )
+#
+#   dataloader = DataLoader(
+#       dataset,
+#       batch_size=8,
+#       shuffle=True,
+#       num_workers=4,
+#       pin_memory=True
+#   )
+#
+#   for batch in dataloader:
+#       points = batch['points']  # [B, N, 3] = [8, 32000, 3]
+#       features = batch['features']  # [B, N, F] = [8, 32000, num_features]
+#       labels = batch['labels']  # [B, N] = [8, 32000]
+#       # Train your model...
+#
+# PERFORMANCE (RTX 4080 16GB):
+#   - Feature computation: ~2-3 min per tile (multi-scale)
+#   - Stitching overhead: ~1 min per tile (boundary handling)
+#   - Ground truth: ~1-2 min per tile
+#   - Patch generation: ~1 min per tile
+#   - Total: ~6-8 min per tile
+#   - Expected patches: ~50-100 patches per 1km² tile
+#
+# DATASET SIZE ESTIMATE:
+#   - Points per patch: 32,000
+#   - Patches per tile: ~80 (average)
+#   - Tiles: 100 (example)
+#   - Total patches: 8,000
+#   - With augmentation: 40,000 patches
+#   - Disk space: ~2-3 GB per tile → 200-300 GB for 100 tiles
+#
+# MEMORY REQUIREMENTS:
+#   - GPU: 16GB (RTX 4080 sufficient)
+#   - RAM: 32GB recommended
+#   - Disk: 500GB+ for full dataset
+#
+# ADJUSTMENTS:
+#   - More points: Set num_points to 65536 (64K) - requires more VRAM
+#   - Smaller patches: Set patch_size to 30.0 (30m) - more patches per tile
+#   - Faster: Disable multi_scale_computation (less artifact suppression)
+#   - No BD TOPO: Disable data_sources.bd_topo (no segmentation labels)
+#   - No RGB: Set use_rgb=false (geometry-only training)
+#
+# TROUBLESHOOTING:
+#   - Out of VRAM: Reduce gpu_batch_size or num_points
+#   - Slow processing: Disable stitching (but may have boundary artifacts)
+#   - Low GPU usage: Check num_workers=0 (avoid multiprocessing with GPU)
+#   - Missing neighbors: Set stitching.auto_download_neighbors=true
+#
+# ============================================================================

@@ -9,6 +9,8 @@ import numpy as np
 from typing import Tuple, Optional
 import logging
 
+from ign_lidar.optimization.gpu_accelerated_ops import eigh
+
 logger = logging.getLogger(__name__)
 
 
@@ -319,7 +321,7 @@ def compute_local_frame(points: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
     centroid = np.mean(points, axis=0)
     cov_matrix = compute_covariance_matrix(points)
-    eigenvalues, eigenvectors = np.linalg.eigh(cov_matrix)
+    eigenvalues, eigenvectors = eigh(cov_matrix)
     
     # Sort in descending order
     idx = eigenvalues.argsort()[::-1]

@@ -16,8 +16,10 @@ Version: 5.2.1
 
 import numpy as np
 from typing import Dict, Optional, Tuple, Set
-from scipy.spatial import cKDTree
 import logging
+
+from ign_lidar.optimization import cKDTree  # GPU-accelerated drop-in replacement
+from ign_lidar.optimization.gpu_accelerated_ops import knn
 
 logger = logging.getLogger(__name__)
 
@@ -349,12 +351,19 @@ class VariableObjectFilter:
         candidate_points = points[candidate_indices]
 
         try:
-            tree = cKDTree(candidate_points[:, :2])  # XY only
-
-            # Count neighbors within 1m radius for each point
-            neighbors_count = tree.query_ball_point(
-                candidate_points[:, :2], r=1.0, return_length=True
+            # 🔥 GPU-accelerated KNN for cluster analysis
+            k_neighbors = 20  # Reasonable default for furniture clustering
+            
+            distances, neighbors_indices = knn(
+                candidate_points[:, :2],
+                candidate_points[:, :2],
+                k=k_neighbors
             )
+            
+            # Count neighbors within 1m radius for each point
+            neighbors_count = np.array([
+                np.sum(distances[i] <= 1.0) for i in range(len(candidate_points))
+            ])
 
             # Small clusters = furniture (isolated objects)
             small_cluster_mask = neighbors_count < self.furniture_max_cluster

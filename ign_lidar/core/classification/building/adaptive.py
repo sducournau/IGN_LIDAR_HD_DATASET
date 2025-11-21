@@ -51,9 +51,10 @@ HAS_SPATIAL = utils.check_spatial_dependencies()
 
 if HAS_SPATIAL:
     import geopandas as gpd
-    from scipy.spatial import cKDTree
     from shapely.geometry import Point
     from shapely.strtree import STRtree
+    from ign_lidar.optimization import cKDTree  # GPU-accelerated drop-in replacement
+    from ign_lidar.optimization.gpu_accelerated_ops import knn
 
 
 @dataclass
@@ -753,13 +754,22 @@ class AdaptiveBuildingClassifier:
             return scores
 
         try:
-            # Use 3D spatial index for better coherence check
-            tree = cKDTree(candidate_points)
+            from ign_lidar.optimization.gpu_accelerated_ops import knn
+            
+            # 🔥 GPU-accelerated KNN for spatial coherence
+            k_neighbors = 20  # Reasonable default for coherence check
+            
+            distances, neighbors_indices = knn(
+                points,
+                candidate_points,
+                k=k_neighbors
+            )
 
             # For each point, check neighbors within radius
             for i in range(n):
-                # Query neighbors
-                neighbors = tree.query_ball_point(points[i], self.spatial_radius)
+                # Filter neighbors within spatial radius
+                valid_neighbors = distances[i] <= self.spatial_radius
+                neighbors = neighbors_indices[i][valid_neighbors]
 
                 if len(neighbors) == 0:
                     scores[i] = 0.0

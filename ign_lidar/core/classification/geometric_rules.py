@@ -15,8 +15,8 @@ import logging
 from typing import Dict, Optional, Tuple
 
 import numpy as np
-from scipy.spatial import cKDTree
 
+from ign_lidar.optimization.gpu_accelerated_ops import knn  # GPU-accelerated KNN
 from .constants import ASPRSClass
 
 logger = logging.getLogger(__name__)
@@ -508,9 +508,6 @@ class GeometricRulesEngine:
             logger.debug("No existing building points for reference")
             return 0
 
-        # Build KD-Tree for efficient nearest neighbor search
-        building_tree = cKDTree(building_points[:, :2])  # XY only
-
         # Create buffered building geometries
         buffered_buildings = building_geometries.geometry.buffer(
             self.building_buffer_distance
@@ -532,11 +529,17 @@ class GeometricRulesEngine:
                     continue
 
                 # Point is within buffer zone
-                # Check height similarity to nearby building points
+                # Check height similarity to nearby building points (GPU-accelerated KNN)
                 # Find nearest building points (within 5m)
-                distances, indices = building_tree.query(
-                    pt[:2], k=10, distance_upper_bound=5.0
+                distances, indices = knn(
+                    building_points[:, :2],  # XY only
+                    pt[:2].reshape(1, -1),
+                    k=min(10, len(building_points))
                 )
+                distances, indices = distances[0], indices[0]  # Extract from batch
+                # Manual distance threshold
+                distances = distances.copy()  # Ensure we can filter
+                distances[distances > 5.0] = float("inf")
 
                 valid_neighbors = distances < float("inf")
                 if not np.any(valid_neighbors):
@@ -634,7 +637,6 @@ class GeometricRulesEngine:
             return 0
 
         building_points = points[building_mask]
-        building_tree = cKDTree(building_points[:, :2])  # XY only
 
         for cluster_id in set(cluster_labels):
             if cluster_id == -1:  # Skip noise points
@@ -648,12 +650,16 @@ class GeometricRulesEngine:
             cluster_center = np.mean(cluster_pts, axis=0)
             cluster_mean_height = cluster_center[2]
 
-            # Find nearest building points
-            distances, indices = building_tree.query(
-                cluster_center[:2],
-                k=min(10, len(building_points)),
-                distance_upper_bound=5.0,
+            # Find nearest building points (GPU-accelerated KNN)
+            distances, indices = knn(
+                building_points[:, :2],  # XY only
+                cluster_center[:2].reshape(1, -1),
+                k=min(10, len(building_points))
             )
+            distances, indices = distances[0], indices[0]  # Extract from batch
+            # Manual distance threshold
+            distances = distances.copy()
+            distances[distances > 5.0] = float("inf")
 
             valid = distances < float("inf")
             if not np.any(valid):
@@ -931,12 +937,9 @@ class GeometricRulesEngine:
         unclassified_indices = np.where(unclassified_mask)[0]
         unclassified_points = points[unclassified_mask]
 
-        # Build KD-Tree for all points (for verticality computation)
-        all_points_tree = cKDTree(points)
-
-        # Compute verticality for unclassified points
+        # Compute verticality for unclassified points (KNN computed inside)
         verticality_scores = self.compute_verticality(
-            points=points, query_points=unclassified_points, kdtree=all_points_tree
+            points=points, query_points=unclassified_points
         )
 
         # Filter by verticality threshold
@@ -966,18 +969,21 @@ class GeometricRulesEngine:
 
         if np.any(building_mask):
             building_points = points[building_mask]
-            building_tree = cKDTree(building_points[:, :2])  # XY only
 
             # For each candidate, check proximity and height consistency with buildings
             for i, pt in enumerate(candidate_points):
                 global_idx = candidate_indices[i]
 
-                # Find nearby building points (within 10m)
-                distances, indices = building_tree.query(
-                    pt[:2], k=10, distance_upper_bound=10.0
+                # Find nearby building points (within 10m) - GPU-accelerated KNN
+                distances, indices = knn(
+                    building_points[:, :2],  # XY only
+                    pt[:2].reshape(1, -1),
+                    k=10
                 )
+                distances, indices = distances[0], indices[0]  # Extract from batch
 
-                valid_neighbors = distances < float("inf")
+                # Manual distance threshold (distance_upper_bound=10.0)
+                valid_neighbors = distances < 10.0
 
                 if np.any(valid_neighbors):
                     # Check height consistency
@@ -1013,7 +1019,6 @@ class GeometricRulesEngine:
         self,
         points: np.ndarray,
         query_points: np.ndarray,
-        kdtree: Optional[cKDTree] = None,
     ) -> np.ndarray:
         """
         Compute verticality score for query points.
@@ -1023,7 +1028,7 @@ class GeometricRulesEngine:
         like building walls.
 
         Algorithm:
-        1. For each query point, find neighbors within search radius
+        1. For each query point, find neighbors within search radius (GPU KNN)
         2. Compute vertical extent (max Z - min Z)
         3. Compute horizontal extent (max of XY spread)
         4. Verticality = vertical_extent / (horizontal_extent + epsilon)
@@ -1032,21 +1037,25 @@ class GeometricRulesEngine:
         Args:
             points: All points [N, 3] for neighborhood search
             query_points: Points to compute verticality for [M, 3]
-            kdtree: Pre-computed KD-Tree (optional, will create if None)
 
         Returns:
             Verticality scores [M] in range [0, 1]
         """
-        if kdtree is None:
-            kdtree = cKDTree(points)
-
         verticality_scores = np.zeros(len(query_points))
 
         for i, query_pt in enumerate(query_points):
-            # Find neighbors within search radius
-            indices = kdtree.query_ball_point(
-                query_pt, r=self.verticality_search_radius
+            # Find neighbors within search radius (GPU-accelerated KNN + filter)
+            # Use k=50 as approximate radius search, then filter by distance
+            distances, indices = knn(
+                points,
+                query_pt.reshape(1, -1),
+                k=min(50, len(points))
             )
+            distances, indices = distances[0], indices[0]  # Extract from batch
+
+            # Filter by radius
+            radius_mask = distances <= self.verticality_search_radius
+            indices = indices[radius_mask]
 
             if len(indices) < self.min_vertical_neighbors:
                 # Not enough neighbors, verticality = 0
@@ -1112,17 +1121,18 @@ class GeometricRulesEngine:
 
         ground_points = points[ground_mask]
 
-        # Build KD-Tree for ground points
-        ground_tree = cKDTree(ground_points[:, :2])  # XY only
-
         # For each point, find nearby ground points and estimate ground height
         for i, pt in enumerate(points):
-            # Query nearby ground points
-            distances, indices = ground_tree.query(
-                pt[:2], k=5, distance_upper_bound=search_radius
+            # Query nearby ground points (GPU-accelerated KNN)
+            distances, indices = knn(
+                ground_points[:, :2],  # XY only
+                pt[:2].reshape(1, -1),
+                k=min(5, len(ground_points))
             )
+            distances, indices = distances[0], indices[0]  # Extract from batch
 
-            valid_neighbors = distances < float("inf")
+            # Manual distance threshold (distance_upper_bound=search_radius)
+            valid_neighbors = distances < search_radius
 
             if np.any(valid_neighbors):
                 neighbor_heights = ground_points[indices[valid_neighbors], 2]

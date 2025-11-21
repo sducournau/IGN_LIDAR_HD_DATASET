@@ -20,6 +20,11 @@ from dataclasses import dataclass
 from ign_lidar.core.classification.priorities import (
     get_priority_order_for_iteration,
 )
+from ign_lidar.classification_schema import (
+    get_classification_for_road,
+    ASPRSClass,
+    ClassificationMode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +98,53 @@ class OptimizedGroundTruthClassifier:
         self.road_buffer_tolerance = road_buffer_tolerance
         self.use_prepared_geometries = use_prepared_geometries
         self.verbose = verbose
+
+    def _get_asprs_code(self, feature_name: str, properties: Optional[Dict[str, Any]] = None) -> int:
+        """
+        Get ASPRS code for a feature type with support for detailed road classification.
+
+        Args:
+            feature_name: Feature type (e.g., 'buildings', 'roads')
+            properties: Optional feature properties (e.g., {'nature': 'Autoroute'})
+
+        Returns:
+            ASPRS classification code
+        """
+        # Special handling for roads with nature attribute
+        if feature_name == "roads" and properties and "nature" in properties:
+            return self._get_asprs_code_for_road(properties["nature"])
+
+        # Standard mapping for other features
+        mapping = {
+            "buildings": self.ASPRS_BUILDING,
+            "roads": self.ASPRS_ROAD,
+            "water": self.ASPRS_WATER,
+            "vegetation": self.ASPRS_MEDIUM_VEGETATION,
+            "bridges": self.ASPRS_BRIDGE,
+            "railways": self.ASPRS_RAIL,
+            "sports": int(ASPRSClass.SPORTS_FACILITY),
+            "parking": self.ASPRS_PARKING,
+            "cemeteries": self.ASPRS_CEMETERY,
+        }
+        return mapping.get(feature_name, 1)  # Default to UNCLASSIFIED
+
+    def _get_asprs_code_for_road(self, nature: Optional[str]) -> int:
+        """
+        Get detailed ASPRS code for a road based on BD Topo nature attribute.
+
+        Uses ASPRS Extended Classes (32-49) for detailed road classification.
+
+        Args:
+            nature: BD Topo road nature (e.g., 'Autoroute', 'Chemin')
+
+        Returns:
+            ASPRS classification code (extended codes 32-49 for specific types)
+        """
+        # Use extended classification mode for detailed road types
+        return get_classification_for_road(
+            nature=nature,
+            mode=ClassificationMode.ASPRS_EXTENDED
+        )
 
     def classify_with_ground_truth(
         self,
@@ -246,11 +298,8 @@ class OptimizedGroundTruthClassifier:
 
         # ✅ Use centralized priority order (lowest → highest priority)
         feature_priority = get_priority_order_for_iteration()
-        priority_order = [
-            (feature, self._get_asprs_code(feature)) for feature in feature_priority
-        ]
 
-        for feature_type, asprs_class in priority_order:
+        for feature_type in feature_priority:
             if feature_type not in ground_truth_features:
                 continue
 
@@ -292,10 +341,16 @@ class OptimizedGroundTruthClassifier:
             for (idx, row), prepared_geom, polygon in zip(
                 valid_gdf.iterrows(), prepared_geoms, geometries
             ):
+                # Extract properties for road nature classification
+                row_props = dict(row)
+                
+                # Get ASPRS code (roads use nature attribute for detailed classification)
+                asprs_class = self._get_asprs_code(feature_type, row_props)
+                
                 metadata = PolygonMetadata(
                     feature_type=feature_type,
                     asprs_class=asprs_class,
-                    properties=dict(row),
+                    properties=row_props,
                     prepared_geom=prepared_geom,
                 )
 

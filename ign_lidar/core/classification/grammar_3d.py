@@ -561,7 +561,7 @@ class GrammarParser:
         Uses connected component analysis in 2D.
         """
         try:
-            from scipy.spatial import cKDTree
+            from ign_lidar.optimization.gpu_accelerated_ops import knn
             from scipy.sparse import csr_matrix
             from scipy.sparse.csgraph import connected_components
         except ImportError:
@@ -576,11 +576,22 @@ class GrammarParser:
             return []
         
         # Build adjacency graph (2D, horizontal plane)
-        tree = cKDTree(building_points[:, :2])
-        
-        # Find neighbors within threshold
+        # Use k-NN to find neighbors within threshold (2D proximity)
         threshold = 2.0  # meters
-        neighbors = tree.query_ball_tree(tree, threshold)
+        k_neighbors = 30  # Reasonable default for connected component analysis
+        
+        # 🔥 GPU-accelerated KNN on 2D coordinates
+        distances, neighbors_indices = knn(
+            building_points[:, :2],
+            building_points[:, :2],
+            k=k_neighbors
+        )
+        
+        # Convert to list of neighbor lists, filtering by threshold
+        neighbors = []
+        for i in range(len(building_points)):
+            neighs = [j for j, d in zip(neighbors_indices[i], distances[i]) if d <= threshold and i != j]
+            neighbors.append(neighs)
         
         # Build sparse adjacency matrix
         n = len(building_points)

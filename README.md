@@ -346,8 +346,17 @@ print(f"Available features: {orchestrator.get_feature_list('lod3')}")
 pip install ign-lidar-hd
 
 # Optional: GPU acceleration (6-20x speedup)
-./install_cuml.sh  # or follow GPU_SETUP.md
+# CRITICAL: Use ign_gpu conda environment for GPU operations
+conda env create -f conda-recipe/environment_gpu.yml
 ```
+
+> **⚠️ GPU Users**: Always run GPU operations with:
+>
+> ```bash
+> conda run -n ign_gpu python <script.py>
+> ```
+>
+> See [GPU_QUICK_REFERENCE.md](GPU_QUICK_REFERENCE.md) for details.
 
 ### Zero-Config Quick Start (v5.5+)
 

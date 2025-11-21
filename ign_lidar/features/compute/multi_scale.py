@@ -42,9 +42,20 @@ import numpy as np
 import logging
 from typing import Dict, List, Optional, Set
 from dataclasses import dataclass
-from scipy.spatial import cKDTree
+
+from ign_lidar.optimization.gpu_accelerated_ops import eigh, knn  # GPU-accelerated operations
 
 logger = logging.getLogger(__name__)
+
+# GPU support
+try:
+    import cupy as cp
+    from ..gpu_processor import GPUProcessor
+    GPU_AVAILABLE = True
+except ImportError:
+    GPU_AVAILABLE = False
+    GPUProcessor = None
+    cp = None
 
 
 @dataclass
@@ -107,6 +118,8 @@ class MultiScaleFeatureComputer:
         homogeneity_threshold: float = 0.8,
         reuse_kdtrees: bool = True,
         cache_scale_results: bool = True,
+        gpu_processor: Optional[object] = None,
+        use_gpu: bool = False,
     ):
         """
         Initialize multi-scale feature computer.
@@ -124,6 +137,8 @@ class MultiScaleFeatureComputer:
             homogeneity_threshold: Threshold for homogeneity-based adaptation
             reuse_kdtrees: Reuse KD-tree across scales (faster)
             cache_scale_results: Cache intermediate scale results
+            gpu_processor: Optional GPUProcessor for GPU acceleration
+            use_gpu: Whether to use GPU acceleration
         """
         if len(scales) < 2:
             raise ValueError("At least 2 scales required for multi-scale")
@@ -139,6 +154,13 @@ class MultiScaleFeatureComputer:
         self.homogeneity_threshold = homogeneity_threshold
         self.reuse_kdtrees = reuse_kdtrees
         self.cache_scale_results = cache_scale_results
+        
+        # GPU support
+        self.use_gpu = use_gpu and GPU_AVAILABLE
+        self.gpu_processor = gpu_processor
+        if self.use_gpu and self.gpu_processor is None:
+            logger.warning("GPU requested but no GPUProcessor provided, falling back to CPU")
+            self.use_gpu = False
 
         # Validate aggregation method
         valid_methods = ["weighted_average", "variance_weighted", "adaptive"]
@@ -157,7 +179,6 @@ class MultiScaleFeatureComputer:
         self,
         points: np.ndarray,
         features_to_compute: List[str],
-        kdtree: Optional[cKDTree] = None,
         chunk_size: Optional[int] = None,
     ) -> Dict[str, np.ndarray]:
         """
@@ -186,6 +207,13 @@ class MultiScaleFeatureComputer:
             f"Computing {len(features_to_compute)} features at "
             f"{len(self.scales)} scales for {n_points:,} points"
         )
+
+        # 🚀 SKIP CPU CHUNKING when using GPU (GPU handles its own chunking)
+        if self.use_gpu and self.gpu_processor is not None:
+            logger.info("Using GPU acceleration - skipping CPU chunking")
+            return self._compute_features_full(
+                points=points, features_to_compute=features_to_compute, kdtree=kdtree
+            )
 
         # Auto-determine if chunking is needed (AGGRESSIVE for v6.3.2)
         if chunk_size is None:
@@ -248,7 +276,6 @@ class MultiScaleFeatureComputer:
         self,
         points: np.ndarray,
         features_to_compute: List[str],
-        kdtree: Optional[cKDTree],
         chunk_size: int,
     ) -> Dict[str, np.ndarray]:
         """
@@ -276,11 +303,7 @@ class MultiScaleFeatureComputer:
 
         logger.info(f"📦 Processing in {n_chunks} chunks " f"of ~{chunk_size:,} points")
 
-        # Build KD-tree once for all chunks if needed
-        if self.reuse_kdtrees and kdtree is None:
-            logger.debug("Building global KD-tree")
-            kdtree = cKDTree(points)
-
+        # Note: kdtree parameter removed - KNN computed on-demand per chunk
         # Initialize result arrays
         result = {
             fname: np.zeros(n_points, dtype=np.float32) for fname in features_to_compute
@@ -321,7 +344,6 @@ class MultiScaleFeatureComputer:
         self,
         points: np.ndarray,
         features_to_compute: List[str],
-        kdtree: Optional[cKDTree] = None,
     ) -> Dict[str, np.ndarray]:
         """
         Compute features at all scales and aggregate (non-chunked).
@@ -339,11 +361,7 @@ class MultiScaleFeatureComputer:
         """
         n_points = points.shape[0]
 
-        # Build KD-tree once if reusing
-        if self.reuse_kdtrees and kdtree is None:
-            logger.debug("Building KD-tree for all scales")
-            kdtree = cKDTree(points)
-
+        # Note: kdtree parameter removed - KNN computed on-demand per scale
         # Step 1: Compute features at each scale
         scale_features = []
         scale_variances = []
@@ -414,20 +432,19 @@ class MultiScaleFeatureComputer:
         features: List[str],
         k_neighbors: int,
         search_radius: float,
-        kdtree: Optional[cKDTree] = None,
     ) -> Dict[str, np.ndarray]:
         """
-        Compute features at a single scale using existing backend.
+        Compute features at a single scale using GPU or CPU backend.
 
-        This delegates to the existing feature computation functions
-        from ign_lidar.features.compute.geometric.
+        This delegates to GPU processor if available, otherwise uses
+        existing CPU feature computation functions.
 
         Args:
             points: Point cloud [N, 3]
             features: List of feature names
             k_neighbors: Number of neighbors
             search_radius: Search radius in meters
-            kdtree: Optional pre-built KD-tree
+            kdtree: Optional pre-built KD-tree (CPU only)
 
         Returns:
             Dictionary with feature arrays for this scale
@@ -442,6 +459,15 @@ class MultiScaleFeatureComputer:
                 "returning zero features"
             )
             return {fname: np.zeros(n_points) for fname in features}
+        
+        # 🚀 Use GPU if available
+        if self.use_gpu and self.gpu_processor is not None:
+            return self._compute_single_scale_gpu(
+                points=points,
+                features=features,
+                k_neighbors=k_neighbors,
+                search_radius=search_radius
+            )
 
         # Import existing feature computation functions and utilities
         from .utils import compute_covariance_matrix
@@ -455,35 +481,22 @@ class MultiScaleFeatureComputer:
             compute_horizontality,
         )
 
-        # Build KD-tree if not provided
-        if kdtree is None:
-            kdtree = cKDTree(points)
-
         n_points = len(points)
 
-        # 🔥 ARTIFACT SUPPRESSION: Use hybrid radius + k-NN search
-        # This ensures consistent neighborhood sizes while adapting to point density
-        neighbors_indices = []
-        for i in range(n_points):
-            # Start with radius search (more stable for varying densities)
-            indices = kdtree.query_ball_point(points[i], search_radius)
+        # 🔥 ARTIFACT SUPPRESSION: Use k-NN search for consistent neighborhoods
+        # GPU-accelerated KNN provides stable neighborhood sizes
+        distances, neighbors_indices = knn(
+            points,
+            points,
+            k=k_neighbors
+        )
 
-            # Ensure minimum k neighbors for stable statistics
-            if len(indices) < k_neighbors:
-                # Fall back to k-NN to ensure sufficient neighborhood
-                _, knn_idx = kdtree.query(points[i], k=k_neighbors)
-                indices = (
-                    knn_idx.tolist() if hasattr(knn_idx, "tolist") else list(knn_idx)
-                )
-            # 🔥 NEW: Cap maximum neighbors to avoid artifacts from over-sampling
-            elif len(indices) > k_neighbors * 3:
-                # Too many neighbors can cause over-smoothing artifacts
-                # Keep closest k_neighbors * 2 for stability
-                distances = np.linalg.norm(points[indices] - points[i], axis=1)
-                closest_idx = np.argsort(distances)[: k_neighbors * 2]
-                indices = [indices[j] for j in closest_idx]
-
-            neighbors_indices.append(indices)
+        # Convert to list of indices for feature computation
+        neighbors_list = [
+            (neighbors_indices[i].tolist() if hasattr(neighbors_indices[i], "tolist") 
+             else list(neighbors_indices[i]))
+            for i in range(n_points)
+        ]
 
         # Compute eigenvalues and normals for all points
         eigenvalues = np.zeros((n_points, 3), dtype=np.float32)
@@ -512,8 +525,8 @@ class MultiScaleFeatureComputer:
             weighted_centered = centered * np.sqrt(weights)[:, np.newaxis]
             cov = np.dot(weighted_centered.T, weighted_centered) / len(neighbors_idx)
 
-            # Compute eigenvalues and eigenvectors
-            eigvals, eigvecs = np.linalg.eigh(cov)
+            # Compute eigenvalues and eigenvectors (GPU-accelerated)
+            eigvals, eigvecs = eigh(cov)
 
             # Sort in descending order
             idx = np.argsort(eigvals)[::-1]
@@ -560,11 +573,77 @@ class MultiScaleFeatureComputer:
 
         return result
 
+    def _compute_single_scale_gpu(
+        self,
+        points: np.ndarray,
+        features: List[str],
+        k_neighbors: int,
+        search_radius: float,
+    ) -> Dict[str, np.ndarray]:
+        """
+        Compute features at a single scale using GPU acceleration.
+        
+        Args:
+            points: Point cloud [N, 3]
+            features: List of feature names
+            k_neighbors: Number of neighbors
+            search_radius: Search radius in meters (not used with GPU)
+            
+        Returns:
+            Dictionary with feature arrays for this scale
+        """
+        logger.debug(f"Computing scale on GPU: k={k_neighbors}")
+        
+        # Compute normals and curvature using GPU
+        normals = self.gpu_processor.compute_normals(
+            points, k=k_neighbors, show_progress=False
+        )
+        curvature = self.gpu_processor.compute_curvature(
+            points, normals, k=k_neighbors, show_progress=False
+        )
+        
+        result = {}
+        
+        # Add normals if requested
+        if "normals" in features:
+            result["normals"] = normals.astype(np.float32)
+        
+        # Add curvature if requested
+        if "curvature" in features:
+            result["curvature"] = curvature.astype(np.float32)
+        
+        # Compute geometric features from normals
+        if "verticality" in features:
+            # Verticality: 1 - |normal_z|
+            verticality = (1.0 - np.abs(normals[:, 2])).astype(np.float32)
+            result["verticality"] = np.clip(verticality, 0.0, 1.0)
+        
+        if "horizontality" in features:
+            # Horizontality: |normal_z|
+            horizontality = np.abs(normals[:, 2]).astype(np.float32)
+            result["horizontality"] = np.clip(horizontality, 0.0, 1.0)
+        
+        if "planarity" in features:
+            # Planarity: 1 - curvature (normalized)
+            planarity = (1.0 - np.minimum(curvature, 1.0)).astype(np.float32)
+            result["planarity"] = planarity
+        
+        if "sphericity" in features:
+            # Sphericity: curvature normalized
+            sphericity = np.minimum(curvature, 1.0).astype(np.float32)
+            result["sphericity"] = sphericity
+        
+        if "linearity" in features:
+            # Linearity approximation: inverse of sphericity
+            linearity = (1.0 - np.minimum(curvature, 1.0)).astype(np.float32)
+            result["linearity"] = linearity
+        
+        return result
+
     def _apply_spatial_median_filter(
         self,
         eigenvalues: np.ndarray,
         points: np.ndarray,
-        kdtree: cKDTree,
         filter_radius: float,
     ) -> np.ndarray:
         """
@@ -573,7 +652,6 @@ class MultiScaleFeatureComputer:
         Args:
             eigenvalues: Eigenvalue array [N, 3]
             points: Point cloud [N, 3]
-            kdtree: KD-tree for spatial queries
             filter_radius: Radius for median filtering
 
         Returns:
@@ -586,9 +664,16 @@ class MultiScaleFeatureComputer:
         if n_points < 100:
             return filtered
 
+        # 🔥 GPU-accelerated KNN for spatial filtering
+        k_neighbors = 30
+        distances, neighbors_indices = knn(points, points, k=k_neighbors)
+        
         # Apply median filter in spatial neighborhoods
         for i in range(n_points):
-            neighbors_idx = kdtree.query_ball_point(points[i], filter_radius)
+            # Filter neighbors within radius
+            valid_mask = distances[i] <= filter_radius
+            neighbors_idx = neighbors_indices[i][valid_mask]
+            
             if len(neighbors_idx) >= 5:  # Need at least 5 for meaningful median
                 # Compute median of each eigenvalue separately
                 for j in range(3):
@@ -600,7 +685,6 @@ class MultiScaleFeatureComputer:
         self,
         normals: np.ndarray,
         points: np.ndarray,
-        kdtree: cKDTree,
         smooth_radius: float,
     ) -> np.ndarray:
         """
@@ -611,7 +695,6 @@ class MultiScaleFeatureComputer:
         Args:
             normals: Normal vectors [N, 3]
             points: Point cloud [N, 3]
-            kdtree: KD-tree for spatial queries
             smooth_radius: Radius for smoothing
 
         Returns:
@@ -624,9 +707,16 @@ class MultiScaleFeatureComputer:
         if n_points < 100:
             return smoothed
 
+        # 🔥 GPU-accelerated KNN for smoothing
+        k_neighbors = 30
+        distances, neighbors_indices = knn(points, points, k=k_neighbors)
+
         # Bilateral smoothing: preserve sharp edges (high normal variation)
         for i in range(n_points):
-            neighbors_idx = kdtree.query_ball_point(points[i], smooth_radius)
+            # Filter neighbors within radius
+            valid_mask = distances[i] <= smooth_radius
+            neighbors_idx = neighbors_indices[i][valid_mask]
+            
             if len(neighbors_idx) < 3:
                 continue
 
@@ -653,7 +743,6 @@ class MultiScaleFeatureComputer:
         self,
         features: Dict[str, np.ndarray],
         points: Optional[np.ndarray] = None,
-        kdtree: Optional[cKDTree] = None,
         window_size: int = 50,
     ) -> Dict[str, np.ndarray]:
         """
@@ -680,15 +769,14 @@ class MultiScaleFeatureComputer:
             n = len(feature_values)
             var = np.zeros(n)
 
-            # Use spatial neighbors if available
+            # Use spatial neighbors if available (GPU-accelerated)
             if points is not None and points.shape[0] == n:
-                tree = kdtree if kdtree is not None else cKDTree(points)
-
                 # Query neighbors for each point
+                k = min(window_size, n)
+                distances, neighbor_idxs = knn(points, points, k=k)
+                
                 for i in range(n):
-                    k = min(window_size, n)
-                    _, neighbor_idxs = tree.query(points[i], k=k)
-                    neighborhood_values = feature_values[neighbor_idxs]
+                    neighborhood_values = feature_values[neighbor_idxs[i]]
                     var[i] = np.var(neighborhood_values)
             else:
                 # Fall back to sequential window (less accurate)

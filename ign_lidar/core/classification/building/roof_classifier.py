@@ -21,9 +21,9 @@ from typing import Dict, List, Optional, Tuple, Any
 import logging
 
 import numpy as np
-from scipy.spatial import KDTree
 from sklearn.cluster import DBSCAN
 
+from ign_lidar.optimization import KDTree  # GPU-accelerated drop-in replacement
 from ign_lidar.classification_schema import ASPRSClass
 
 logger = logging.getLogger(__name__)

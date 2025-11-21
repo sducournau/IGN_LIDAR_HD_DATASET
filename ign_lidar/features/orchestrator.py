@@ -355,11 +355,41 @@ class FeatureOrchestrator:
                 f"scales={len(scales)} | "
                 f"method={aggregation_method}"
             )
+            
+            # Connect GPU processor if available (must be done after _init_computer)
+            self._connect_multi_scale_gpu()
 
         except Exception as e:
             logger.error(f"Failed to initialize multi-scale computation: {e}")
             self.use_multi_scale = False
             self.multi_scale_computer = None
+    
+    def _connect_multi_scale_gpu(self):
+        """
+        Connect GPU processor to multi-scale computer after initialization.
+        
+        This must be called after _init_computer() to ensure self.computer exists.
+        """
+        if not self.use_multi_scale or self.multi_scale_computer is None:
+            return
+        
+        features_cfg = self.config.get("features", {})
+        use_gpu = features_cfg.get("use_gpu", False) or features_cfg.get("force_gpu", False)
+        
+        if not use_gpu:
+            return
+        
+        # Try to get GPU processor from strategy
+        gpu_processor = None
+        if hasattr(self.computer, 'gpu_processor'):
+            gpu_processor = self.computer.gpu_processor
+        
+        if gpu_processor is not None:
+            self.multi_scale_computer.use_gpu = True
+            self.multi_scale_computer.gpu_processor = gpu_processor
+            logger.info("  🚀 Multi-scale connected to GPU processor")
+        else:
+            logger.warning("  ⚠️  GPU requested but no GPU processor available in strategy")
 
     # =========================================================================
     # STRATEGY SELECTION (from FeatureComputerFactory)

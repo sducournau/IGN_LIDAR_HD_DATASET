@@ -249,7 +249,7 @@ class Classifier(BaseClassifier):
         >>> labels = classifier.classify_points(data, ground_truth_data)
 
         >>> # Adaptive classification with missing features
-        >>> classifier = UnifiedClassifier(strategy=ClassificationStrategy.ADAPTIVE)
+        >>> classifier = Classifier(strategy=ClassificationStrategy.ADAPTIVE)
         >>> classifier.set_artifact_features({'curvature', 'roughness'})
         >>> labels = classifier.classify_batch(features)
     """
@@ -375,7 +375,7 @@ class Classifier(BaseClassifier):
             ClassificationResult with labels, confidence (None), and metadata
 
         Example:
-            >>> classifier = UnifiedClassifier(strategy='comprehensive')
+            >>> classifier = Classifier(strategy='comprehensive')
             >>> result = classifier.classify(points, features, ground_truth=gdf)
             >>> labels = result.labels
             >>> stats = result.get_statistics()
@@ -432,7 +432,7 @@ class Classifier(BaseClassifier):
         # Return standardized result
         return ClassificationResult(
             labels=labels,
-            confidence=None,  # UnifiedClassifier doesn't provide confidence scores
+            confidence=None,  # Classifier doesn't provide confidence scores
             metadata={
                 "strategy": self.strategy.value,
                 "lod_level": self.config.lod_level,
@@ -776,7 +776,7 @@ class Classifier(BaseClassifier):
 
             >>> import pandas as pd
             >>> import numpy as np
-            >>> from ign_lidar.core.classification import UnifiedClassifier
+            >>> from ign_lidar.core.classification import Classifier
             >>>
             >>> # Create sample point cloud data
             >>> n_points = 1000
@@ -789,7 +789,7 @@ class Classifier(BaseClassifier):
             ... })
             >>>
             >>> # Create classifier
-            >>> classifier = UnifiedClassifier(strategy='basic')
+            >>> classifier = Classifier(strategy='basic')
             >>> labels = classifier.classify_points(data)
             >>>
             >>> # Check results
@@ -816,7 +816,7 @@ class Classifier(BaseClassifier):
             ... }
             >>>
             >>> # Use comprehensive strategy
-            >>> classifier = UnifiedClassifier(
+            >>> classifier = Classifier(
             ...     strategy='comprehensive',
             ...     mode='asprs_extended'
             ... )
@@ -837,7 +837,7 @@ class Classifier(BaseClassifier):
             Adaptive classification with feature importance:
 
             >>> # Use adaptive strategy (handles missing features)
-            >>> classifier = UnifiedClassifier(strategy='adaptive')
+            >>> classifier = Classifier(strategy='adaptive')
             >>>
             >>> # Even with limited features, adaptive works
             >>> minimal_data = pd.DataFrame({
@@ -863,7 +863,7 @@ class Classifier(BaseClassifier):
             Ground truth masks significantly improve accuracy but are optional.
 
         See Also:
-            - UnifiedClassifierConfig: Configuration options
+            - ClassifierConfig: Configuration options
             - get_thresholds: Get classification thresholds
             - ASPRSClass: ASPRS classification codes
         """
@@ -2083,70 +2083,6 @@ def refine_classification(
 
 
 # ============================================================================
-# Deprecated aliases for backward compatibility
+# Deprecated aliases removed in v4.0
+# Use Classifier, ClassifierConfig, classify_points, refine_classification directly
 # ============================================================================
-
-
-def classify_points_unified(*args, **kwargs):
-    """
-    Deprecated: Use classify_points() instead.
-
-    This function is deprecated and will be removed in v4.0.
-    Use classify_points() for the same functionality.
-    """
-    warnings.warn(
-        "classify_points_unified() is deprecated, " "use classify_points() instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return classify_points(*args, **kwargs)
-
-
-def refine_classification_unified(*args, **kwargs):
-    """
-    Deprecated: Use refine_classification() instead.
-
-    This function is deprecated and will be removed in v4.0.
-    Use refine_classification() for the same functionality.
-    """
-    warnings.warn(
-        "refine_classification_unified() is deprecated, "
-        "use refine_classification() instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return refine_classification(*args, **kwargs)
-
-
-class UnifiedClassifier(Classifier):
-    """
-    Deprecated: Use Classifier instead.
-
-    This class is deprecated and will be removed in v4.0.
-    Use Classifier for the same functionality.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "UnifiedClassifier is deprecated, use Classifier instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class UnifiedClassifierConfig(ClassifierConfig):
-    """
-    Deprecated: Use ClassifierConfig instead.
-
-    This class is deprecated and will be removed in v4.0.
-    Use ClassifierConfig for the same functionality.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "UnifiedClassifierConfig is deprecated, " "use ClassifierConfig instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

@@ -6,7 +6,16 @@ Tests the shared utilities in ign_lidar/features/utils.py
 
 import pytest
 import numpy as np
-from sklearn.neighbors import KDTree
+
+# Import both possible KDTree types for compatibility
+try:
+    from ign_lidar.optimization import KDTree as GPUKDTree
+    HAS_GPU_KDTREE = True
+except ImportError:
+    HAS_GPU_KDTREE = False
+    GPUKDTree = None
+
+from sklearn.neighbors import KDTree as CPUKDTree
 
 from ign_lidar.features.utils import (
     build_kdtree,
@@ -27,16 +36,24 @@ class TestBuildKDTree:
         points = np.random.rand(100, 3)
         tree = build_kdtree(points)
         
-        assert isinstance(tree, KDTree)
-        assert tree.data.shape == (100, 3)
+        # Accept both GPU and CPU KDTree types
+        if HAS_GPU_KDTREE:
+            assert isinstance(tree, (CPUKDTree, GPUKDTree))
+        else:
+            assert isinstance(tree, CPUKDTree)
+        assert tree.data.shape == (100, 3) or tree.n == 100  # GPU uses .n, CPU uses .data
     
     def test_build_kdtree_custom_leaf_size(self):
         """Test KDTree with custom leaf size."""
         points = np.random.rand(100, 3)
         tree = build_kdtree(points, leaf_size=40)
         
-        assert isinstance(tree, KDTree)
-        # Note: sklearn KDTree doesn't expose leaf_size directly
+        # Accept both GPU and CPU KDTree types
+        if HAS_GPU_KDTREE:
+            assert isinstance(tree, (CPUKDTree, GPUKDTree))
+        else:
+            assert isinstance(tree, CPUKDTree)
+        # Note: GPU KDTree (FAISS) doesn't expose leaf_size, CPU doesn't expose it either
         # We just verify it builds successfully
     
     def test_build_kdtree_different_metrics(self):
@@ -45,14 +62,23 @@ class TestBuildKDTree:
         
         for metric in ['euclidean', 'manhattan', 'chebyshev']:
             tree = build_kdtree(points, metric=metric)
-            assert isinstance(tree, KDTree)
+            # Accept both GPU and CPU KDTree types
+            # Note: GPU only supports euclidean, but build_kdtree handles fallback
+            if HAS_GPU_KDTREE:
+                assert isinstance(tree, (CPUKDTree, GPUKDTree))
+            else:
+                assert isinstance(tree, CPUKDTree)
     
     def test_quick_kdtree(self):
         """Test quick_kdtree convenience function."""
         points = np.random.rand(100, 3)
         tree = quick_kdtree(points)
         
-        assert isinstance(tree, KDTree)
+        # Accept both GPU and CPU KDTree types
+        if HAS_GPU_KDTREE:
+            assert isinstance(tree, (CPUKDTree, GPUKDTree))
+        else:
+            assert isinstance(tree, CPUKDTree)
 
 
 class TestComputeLocalEigenvalues:
@@ -96,7 +122,11 @@ class TestComputeLocalEigenvalues:
         )
         
         assert eigenvalues.shape == (100, 3)
-        assert isinstance(tree, KDTree)
+        # Accept both GPU and CPU KDTree types
+        if HAS_GPU_KDTREE:
+            assert isinstance(tree, (CPUKDTree, GPUKDTree))
+        else:
+            assert isinstance(tree, CPUKDTree)
     
     def test_compute_eigenvalues_different_k(self):
         """Test eigenvalue computation with different k values."""

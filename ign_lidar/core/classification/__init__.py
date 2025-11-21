@@ -162,11 +162,6 @@ try:
         FeatureImportance,
         classify_points,
         refine_classification,
-        # Deprecated aliases
-        UnifiedClassifier,
-        UnifiedClassifierConfig,
-        classify_points_unified,
-        refine_classification_unified,
     )
 
     _HAS_UNIFIED_CLASSIFIER = True
@@ -179,11 +174,6 @@ except ImportError:
     FeatureImportance = None
     classify_points = None
     refine_classification = None
-    # Deprecated
-    UnifiedClassifier = None
-    UnifiedClassifierConfig = None
-    classify_points_unified = None
-    refine_classification_unified = None
 
 # Backward compatibility removed in v3.1.0
 # Use Classifier instead:
@@ -237,7 +227,7 @@ __all__ = [
     # ========================================================================
     # New Unified Interface (v3.2+) - Use these!
     # ========================================================================
-    "Classifier",  # ← Main entry point (alias for UnifiedClassifier)
+    "Classifier",  # ← Main entry point
     "BaseClassifier",
     "ClassificationResult",
     "create_classifier",  # ← Convenience function
@@ -316,11 +306,6 @@ __all__ = [
     "ClassificationRule",
     "FeatureImportance",
     "create_classifier",
-    # Deprecated aliases (will be removed in v4.0)
-    "UnifiedClassifier",
-    "UnifiedClassifierConfig",
-    "classify_points_unified",
-    "refine_classification_unified",
     # Adaptive building classifier (optional, v5.2.2)
     "AdaptiveBuildingClassifier",
     "BuildingFeatureSignature",

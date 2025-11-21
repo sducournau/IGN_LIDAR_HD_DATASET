@@ -168,18 +168,13 @@ except ImportError as e:
     BalconyDetectionResult = None
     _HAS_BALCONY_DETECTOR = False
 
-# Phase 2.4: Building Classifier (v3.4.0) - renamed from Enhanced
+# Phase 2.4: Building Classifier (v3.4.0)
 try:
     from .building_classifier import (
         BuildingClassifier,
         BuildingClassifierConfig,
         BuildingClassificationResult,
         classify_building,
-        # Deprecated aliases (remove in v4.0)
-        EnhancedBuildingClassifier,
-        EnhancedClassifierConfig,
-        EnhancedClassificationResult,
-        classify_building_enhanced,
     )
 
     _HAS_BUILDING_CLASSIFIER = True
@@ -191,10 +186,6 @@ except ImportError as e:
     BuildingClassifierConfig = None
     BuildingClassificationResult = None
     classify_building = None
-    EnhancedBuildingClassifier = None
-    EnhancedClassifierConfig = None
-    EnhancedClassificationResult = None
-    classify_building_enhanced = None
     _HAS_BUILDING_CLASSIFIER = False
 
 # Adaptive polygon buffering and integration modules are planned for future implementation
@@ -257,11 +248,6 @@ __all__ = [
     "BuildingClassifierConfig",
     "BuildingClassificationResult",
     "classify_building",
-    # Deprecated (remove in v4.0)
-    "EnhancedBuildingClassifier",
-    "EnhancedClassifierConfig",
-    "EnhancedClassificationResult",
-    "classify_building_enhanced",
     # Adaptive Polygon Buffering (v3.3.0)
     "AdaptivePolygonBuffer",
     "AdaptiveBufferConfig",

@@ -1,7 +1,7 @@
 """
 Ground Truth Classification Optimization Module
 
-Week 2 Consolidation: Unified ground truth classification with automatic optimization.
+Week 2 Consolidation: Ground truth classification with automatic optimization.
 
 This module provides the GroundTruthOptimizer class that automatically selects
 the best method based on dataset size and available hardware:
@@ -34,8 +34,28 @@ from .auto_select import (
     check_strtree_available,
 )
 
-# Week 2: Unified ground truth optimizer (replaces 7 implementations)
+# Week 2: Ground truth optimizer (replaces 7 implementations)
 from .ground_truth import GroundTruthOptimizer
+
+# Phase 1: GPU Accelerated Operations (November 2025)
+from .gpu_accelerated_ops import (
+    eigh,
+    eigvalsh,
+    knn,
+    cdist,
+    svd,
+    set_force_cpu,
+    get_gpu_info,
+    HAS_CUPY,
+    HAS_FAISS,
+    HAS_CUML,
+)
+from .gpu_kdtree import (
+    GPUKDTree,
+    create_kdtree,
+    cKDTree,  # Drop-in replacement for scipy.spatial.cKDTree
+    KDTree,   # Drop-in replacement for sklearn.neighbors.KDTree
+)
 
 # Backward compatibility: gpu_dataframe_ops moved to io/ in v3.1.0
 # Maintain import for v3.x compatibility
@@ -75,6 +95,11 @@ def apply_prefilter_optimization():
 __all__ = [
     # Week 2: Primary interface
     'GroundTruthOptimizer',
+    # Phase 1: GPU Accelerated Operations (Nov 2025)
+    'eigh', 'eigvalsh', 'knn', 'cdist', 'svd',
+    'set_force_cpu', 'get_gpu_info',
+    'GPUKDTree', 'create_kdtree', 'cKDTree', 'KDTree',
+    'HAS_CUPY', 'HAS_FAISS', 'HAS_CUML',
     # GPU dataframe operations (relocated to io/ in v3.1.0)
     'GPUDataFrameOps',  # Backward compatibility alias
     # Legacy interfaces (backward compatibility)
@@ -90,4 +115,4 @@ __all__ = [
 ]
 
 # Version info
-__version__ = '2.0.0'  # Week 2: Unified ground truth optimizer
+__version__ = '2.0.0'  # Week 2: Ground truth optimizer

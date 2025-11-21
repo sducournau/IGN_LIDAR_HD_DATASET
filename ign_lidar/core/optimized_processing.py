@@ -482,7 +482,7 @@ class GeometricFeatureProcessor(OptimizedProcessor):
     
     def _compute_normals_cpu_vectorized(self, points: np.ndarray) -> np.ndarray:
         """Vectorized CPU normal computation."""
-        from sklearn.neighbors import KDTree
+        from ign_lidar.optimization import KDTree  # GPU-accelerated drop-in replacement
         
         k = self.feature_strategy['k_neighbors']
         tree = KDTree(points)

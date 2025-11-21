@@ -133,7 +133,7 @@ class LiDARProcessor:
     │   └─ Spectral features (RGB, NIR, NDVI)
     │
     └─→ Classification Subsystem
-        ├─ UnifiedClassifier (Ground truth integration)
+        ├─ Classifier (Ground truth integration)
         ├─ Rule-based classification (geometric, spectral)
         ├─ Building detection and refinement
         ├─ Vegetation classification (NDVI-based)
@@ -219,14 +219,14 @@ class LiDARProcessor:
     - **TileProcessor**: Per-tile orchestration (1 level down)
     - **ProcessorCore**: Low-level operations (2 levels down)
     - **FeatureOrchestrator**: Feature computation management
-    - **UnifiedClassifier**: Ground truth classification
+    - **Classifier**: Ground truth classification
     - **DatasetManager**: ML dataset organization
 
     Version History:
     ===============
 
     - v3.2: Unified Config class replacing multiple schemas
-    - v3.1: UnifiedClassifier replacing multiple classifier classes
+    - v3.1: Classifier replacing multiple classifier classes
     - v3.0: GPU acceleration with CuPy/cuML support
     - v2.x: Multi-scale features and architectural style detection
     - v1.x: Initial release with LOD2/LOD3 support
@@ -457,33 +457,63 @@ class LiDARProcessor:
 
         if bd_topo_enabled:
             # Extract from nested structure (V5)
-            bd_topo_buildings = OmegaConf.select(
+            # Check if features.buildings is a dict (with .enabled) or a boolean (legacy)
+            buildings_value = OmegaConf.select(
                 config, "data_sources.bd_topo.features.buildings", default=False
             )
-            bd_topo_roads = OmegaConf.select(
+            if isinstance(buildings_value, (dict, DictConfig)):
+                bd_topo_buildings = buildings_value.get('enabled', False) if hasattr(buildings_value, 'get') else False
+            else:
+                bd_topo_buildings = bool(buildings_value)
+            
+            roads_value = OmegaConf.select(
                 config, "data_sources.bd_topo.features.roads", default=False
             )
-            bd_topo_water = OmegaConf.select(
+            if isinstance(roads_value, (dict, DictConfig)):
+                bd_topo_roads = roads_value.get('enabled', False) if hasattr(roads_value, 'get') else False
+            else:
+                bd_topo_roads = bool(roads_value)
+            
+            water_value = OmegaConf.select(
                 config, "data_sources.bd_topo.features.water", default=False
             )
-            bd_topo_vegetation = OmegaConf.select(
+            if isinstance(water_value, (dict, DictConfig)):
+                bd_topo_water = water_value.get('enabled', False) if hasattr(water_value, 'get') else False
+            else:
+                bd_topo_water = bool(water_value)
+            
+            vegetation_value = OmegaConf.select(
                 config, "data_sources.bd_topo.features.vegetation", default=False
             )
+            if isinstance(vegetation_value, (dict, DictConfig)):
+                bd_topo_vegetation = vegetation_value.get('enabled', False) if hasattr(vegetation_value, 'get') else False
+            else:
+                bd_topo_vegetation = bool(vegetation_value)
+            
             # Bridges and power_lines might be in nested OR flat structure
-            bd_topo_bridges = OmegaConf.select(
+            bridges_value = OmegaConf.select(
                 config,
                 "data_sources.bd_topo.features.bridges",
                 default=OmegaConf.select(
                     config, "data_sources.bd_topo_bridges", default=False
                 ),
             )
-            bd_topo_power_lines = OmegaConf.select(
+            if isinstance(bridges_value, (dict, DictConfig)):
+                bd_topo_bridges = bridges_value.get('enabled', False) if hasattr(bridges_value, 'get') else False
+            else:
+                bd_topo_bridges = bool(bridges_value)
+            
+            power_lines_value = OmegaConf.select(
                 config,
                 "data_sources.bd_topo.features.power_lines",
                 default=OmegaConf.select(
                     config, "data_sources.bd_topo_power_lines", default=False
                 ),
             )
+            if isinstance(power_lines_value, (dict, DictConfig)):
+                bd_topo_power_lines = power_lines_value.get('enabled', False) if hasattr(power_lines_value, 'get') else False
+            else:
+                bd_topo_power_lines = bool(power_lines_value)
 
             logger.debug("Extracted BD TOPO features from nested config (V5)")
         else:

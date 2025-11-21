@@ -2,7 +2,7 @@
 Enhanced building classification configuration.
 
 This module defines configuration options for LOD3 building classification
-using the EnhancedBuildingClassifier (Phase 2.1-2.4).
+using the BuildingClassifier (Phase 2.1-2.4).
 
 Usage:
     >>> from ign_lidar.config import Config
@@ -99,8 +99,8 @@ class BuildingConfig:
         ... )
 
     See Also:
-        ign_lidar.core.classification.building.EnhancedBuildingClassifier
-        ign_lidar.core.classification.building.EnhancedClassifierConfig
+        ign_lidar.core.classification.building.BuildingClassifier
+        ign_lidar.core.classification.building.BuildingClassifierConfig
     """
 
     # ========================================================================

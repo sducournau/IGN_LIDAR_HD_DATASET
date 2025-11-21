@@ -54,12 +54,11 @@ except ImportError:
     gpd = None
 
 try:
-    from scipy.spatial import cKDTree
-
+    from ign_lidar.optimization.gpu_accelerated_ops import knn  # GPU-accelerated KNN
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
-    cKDTree = None
+    knn = None
 
 
 class AugmentationStrategy(Enum):
@@ -417,9 +416,6 @@ class DTMAugmenter:
                 len(synthetic_points), AugmentationArea.GAPS.value
             )
 
-        # Build KD-tree of existing ground
-        tree = cKDTree(ground_points[:, :2])  # Use XY only
-
         # MEMORY OPTIMIZATION: Process synthetic points in chunks
         chunk_size = 100000  # 100k points at a time
         n_synthetic = len(synthetic_points)
@@ -433,7 +429,12 @@ class DTMAugmenter:
             end_idx = min(start_idx + chunk_size, n_synthetic)
             chunk = synthetic_points[start_idx:end_idx, :2]
 
-            # Query nearest ground point for each synthetic point in chunk
+            # Query nearest ground point for each synthetic point in chunk (GPU-accelerated)
+            distances, _ = knn(
+                ground_points[:, :2],  # XY only
+                chunk,
+                k=1
+            )
             distances, _ = tree.query(chunk)
 
             # Keep only points far from existing ground
@@ -536,25 +537,28 @@ class DTMAugmenter:
 
         veg_points = real_points[veg_mask]
 
-        # Build KD-tree of vegetation points
-        tree = cKDTree(veg_points[:, :2])
-
-        # Find synthetic points within vegetation footprint
+        # Find synthetic points within vegetation footprint (GPU-accelerated)
         # Use larger radius to capture area under tree canopy
         radius = 5.0  # meters
-        neighbor_indices = tree.query_ball_point(synthetic_points[:, :2], radius)
-
-        # Keep points that have vegetation above them
-        under_veg_mask = np.array(
-            [len(neighbors) > 0 for neighbors in neighbor_indices]
+        # Use k=10 as approximate radius search, then filter by distance
+        distances, _ = knn(
+            veg_points[:, :2],
+            synthetic_points[:, :2],
+            k=min(10, len(veg_points))
         )
+        # Check if any neighbor within radius
+        under_veg_mask = np.min(distances, axis=1) <= radius
 
-        # Also ensure not too close to existing ground points
+        # Also ensure not too close to existing ground points (GPU-accelerated)
         ground_mask = labels == int(ASPRSClass.GROUND)
         if np.any(ground_mask):
             ground_points = real_points[ground_mask]
-            ground_tree = cKDTree(ground_points[:, :2])
-            distances, _ = ground_tree.query(synthetic_points[:, :2])
+            distances, _ = knn(
+                ground_points[:, :2],
+                synthetic_points[:, :2],
+                k=1
+            )
+            distances = distances[:, 0]  # Extract single nearest neighbor distance
             spacing_ok = distances > self.config.min_spacing_to_existing
             under_veg_mask &= spacing_ok
 
@@ -596,13 +600,17 @@ class DTMAugmenter:
                     under_building_mask[i] = True
                     break
 
-        # Also ensure not too close to existing ground points
+        # Also ensure not too close to existing ground points (GPU-accelerated)
         if HAS_SCIPY:
             ground_mask = labels == int(ASPRSClass.GROUND)
             if np.any(ground_mask):
                 ground_points = real_points[ground_mask]
-                ground_tree = cKDTree(ground_points[:, :2])
-                distances, _ = ground_tree.query(synthetic_points[:, :2])
+                distances, _ = knn(
+                    ground_points[:, :2],
+                    synthetic_points[:, :2],
+                    k=1
+                )
+                distances = distances[:, 0]  # Extract single nearest neighbor distance
                 spacing_ok = distances > self.config.min_spacing_to_existing
                 under_building_mask &= spacing_ok
 
@@ -648,10 +656,14 @@ class DTMAugmenter:
             return remaining, len(remaining)
 
         ground_points = real_points[ground_mask]
-        tree = cKDTree(ground_points[:, :2])
 
-        # Find points far from existing ground
-        distances, _ = tree.query(remaining[:, :2])
+        # Find points far from existing ground (GPU-accelerated)
+        distances, _ = knn(
+            ground_points[:, :2],
+            remaining[:, :2],
+            k=1
+        )
+        distances = distances[:, 0]  # Extract single nearest neighbor distance
         gap_mask = distances > self.config.min_spacing_to_existing
 
         return remaining[gap_mask], np.sum(gap_mask)
@@ -686,10 +698,7 @@ class DTMAugmenter:
 
         ground_points = real_points[ground_mask]
 
-        # Build KD-tree (this is fast and memory-efficient)
-        tree = cKDTree(ground_points[:, :2])
-
-        # Process in chunks to avoid memory issues
+        # Process in chunks to avoid memory issues (GPU-accelerated KNN)
         # 64GB system can handle larger chunks
         chunk_size = 50000  # Balanced for 64GB systems
         n_synthetic = len(synthetic_points)

@@ -26,7 +26,10 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union, Any
 import numpy as np
 import laspy
-from scipy.spatial import KDTree, cKDTree
+
+from ign_lidar.optimization import KDTree, cKDTree  # GPU-accelerated drop-in replacement
+from ign_lidar.optimization.gpu_accelerated_ops import knn
+
 try:
     from scipy.ndimage import gaussian_filter1d
     SCIPY_NDIMAGE_AVAILABLE = True
@@ -1693,15 +1696,23 @@ class TileStitcher:
         # Combine core and buffer points for density computation
         all_points = np.vstack([core_points, buffer_points])
         
-        # Build spatial index
-        tree = cKDTree(all_points[:, :2])  # Use only X,Y for 2D queries
+        # 🔥 GPU-accelerated KNN for density computation
+        k_neighbors = 50  # Reasonable default for density estimation
+        
+        distances, neighbors_indices = knn(
+            core_points[:, :2],
+            all_points[:, :2],
+            k=k_neighbors
+        )
         
         # Query neighborhoods for core points
         densities = np.zeros(len(core_points))
         
-        for i, point in enumerate(core_points[:, :2]):
-            neighbors = tree.query_ball_point(point, radius)
-            densities[i] = len(neighbors) / (np.pi * radius**2)  # Points per unit area
+        for i in range(len(core_points)):
+            # Filter neighbors within radius
+            valid_mask = distances[i] <= radius
+            n_neighbors = np.sum(valid_mask)
+            densities[i] = n_neighbors / (np.pi * radius**2)  # Points per unit area
         
         return densities
     

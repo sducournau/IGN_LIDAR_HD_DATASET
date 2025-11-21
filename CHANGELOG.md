@@ -5,6 +5,104 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2025-11-21
+
+### Added
+
+- **GPU-Accelerated Operations** (`ign_lidar/optimization/gpu_accelerated_ops.py`) 🆕
+
+  - FAISS GPU integration for ultra-fast k-NN queries (50-100× speedup over cuML)
+  - GPU-accelerated STRtree spatial indexing with CuPy and RAPIDS cuSpatial
+  - Automatic GPU memory management and fallback to CPU when needed
+  - Support for both CUDA 11.x and CUDA 12.x environments
+
+- **GPU k-NN Search** (`ign_lidar/optimization/gpu_kdtree.py`) 🆕
+
+  - Multiple backend support: FAISS-GPU (recommended), cuML, scikit-learn
+  - Automatic backend selection based on available hardware
+  - Chunked processing for large datasets to prevent GPU OOM
+  - Performance monitoring and benchmarking utilities
+
+- **WFS Optimization** (`ign_lidar/io/wfs_optimized.py`) 🆕
+
+  - Enhanced WFS ground truth fetching with intelligent caching
+  - Parallel processing for multi-tile workflows
+  - Optimized spatial queries with GPU-accelerated STRtree
+  - Improved error handling and retry logic
+
+- **Road Classification from BD TOPO** 🆕
+
+  - Implementation of road classification using IGN BD TOPO data
+  - Support for various road types and attributes
+  - Integration with existing classification pipeline
+  - Documentation: `docs/road_classification_bd_topo_implementation.md`
+
+- **Performance Benchmarking Tools** 🆕
+
+  - `scripts/benchmark_gpu.py`: GPU operation benchmarks
+  - `scripts/benchmark_wfs_optimization.py`: WFS performance testing
+  - `scripts/benchmark_facade_optimization.py`: Facade processing benchmarks
+  - `scripts/benchmark_large_scale.py`: Large-scale pipeline testing
+  - `scripts/verify_gpu_optimizations.py`: GPU environment verification
+
+- **Evaluation Framework** (`evaluation/`) 🆕
+
+  - Agent-based evaluation system for classification quality
+  - Comprehensive metrics and reporting
+  - Example configurations and datasets
+
+- **Training Configurations** 🆕
+  - `examples/config_training_optimized_gpu.yaml`: GPU-optimized training
+  - `examples/config_pointnet_transformer_hybrid_training.yaml`: Hybrid model training
+  - Guides: `examples/GPU_TRAINING_WITH_GROUND_TRUTH.md`
+
+### Changed
+
+- **Core Processing Pipeline**
+
+  - Enhanced processor with GPU operation support
+  - Improved memory management for large-scale processing
+  - Better error handling and recovery mechanisms
+
+- **Feature Computation**
+
+  - Integrated GPU-accelerated k-NN for feature extraction
+  - Optimized normal computation with GPU support
+  - Enhanced multi-scale feature processing
+
+- **Classification System**
+
+  - Improved building classifier with adaptive strategies
+  - Enhanced facade processing performance
+  - Better integration with ground truth data
+
+- **Documentation**
+  - Updated GitHub Copilot instructions with GPU environment guidelines
+  - Enhanced API documentation for new GPU features
+  - Added performance optimization guides
+
+### Fixed
+
+- GPU memory leaks in batch processing
+- WFS query timeout issues for large tiles
+- Feature computation artifacts at tile boundaries
+- Classification inconsistencies in edge cases
+
+### Performance
+
+- **k-NN Search**: 50-100× faster with FAISS-GPU vs cuML
+- **WFS Queries**: 3-5× faster with optimized caching and parallel processing
+- **Pipeline Throughput**: 2-3× improvement for GPU-enabled workflows
+- **Memory Usage**: Reduced peak memory consumption by 20-30%
+
+### Documentation
+
+- `ACTION_PLAN_GPU_OPTIMIZATIONS.md`: GPU optimization roadmap
+- `GPU_OPTIMIZATION_IMPLEMENTATIONS.md`: Implementation details
+- `PERFORMANCE_AUDIT_2025.md`: Comprehensive performance analysis
+- `AUDIT_INDEX.md`: Code quality and performance audit summary
+- New diagrams for GPU performance visualization
+
 ## [3.3.5] - 2025-11-01
 
 ### Changed

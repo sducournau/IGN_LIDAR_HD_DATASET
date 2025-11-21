@@ -8,8 +8,8 @@ comprehensive geometric features from LiDAR point clouds.
 import numpy as np
 from typing import Dict, Optional, Tuple
 import logging
-from sklearn.neighbors import KDTree
 
+from ign_lidar.optimization import KDTree  # GPU-accelerated drop-in replacement
 from .eigenvalues import compute_eigenvalue_features
 from .density import compute_density_features
 from .utils import validate_points, handle_nan_inf, compute_covariance_matrix

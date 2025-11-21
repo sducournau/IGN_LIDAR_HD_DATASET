@@ -156,7 +156,7 @@ class BuildingClassifier:
             self.balcony_detector = None
 
         logger.info(
-            f"EnhancedBuildingClassifier initialized with: "
+            f"BuildingClassifier initialized with: "
             f"roof={self.config.enable_roof_detection}, "
             f"chimney={self.config.enable_chimney_detection}, "
             f"balcony={self.config.enable_balcony_detection}"
@@ -185,7 +185,7 @@ class BuildingClassifier:
             roof_elevation: Optional roof elevation. If None, estimated automatically.
 
         Returns:
-            EnhancedClassificationResult with all detection results
+            BuildingClassificationResult with all detection results
 
         Raises:
             ValueError: If required features are missing
@@ -195,7 +195,7 @@ class BuildingClassifier:
             f"ground elevation {ground_elevation:.2f}m"
         )
 
-        result = EnhancedClassificationResult()
+        result = BuildingClassificationResult()
 
         try:
             # Validate inputs
@@ -469,71 +469,5 @@ def classify_building(
 # ============================================================================
 
 
-def classify_building_enhanced(
-    points: np.ndarray,
-    features: Dict[str, np.ndarray],
-    building_polygon: Polygon,
-    ground_elevation: float,
-    config: Optional[BuildingClassifierConfig] = None,
-) -> BuildingClassificationResult:
-    """
-    Deprecated: Use classify_building() instead.
-
-    This function will be removed in v4.0.
-    """
-    warnings.warn(
-        "classify_building_enhanced() is deprecated, use classify_building() instead. "
-        "This function will be removed in v4.0.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return classify_building(
-        points, features, building_polygon, ground_elevation, config
-    )
-
-
-# ============================================================================
-# Deprecated aliases for backward compatibility
-# ============================================================================
-
-import warnings
-
-
-class EnhancedBuildingClassifier(BuildingClassifier):
-    """
-    Deprecated: Use BuildingClassifier instead.
-
-    This class is deprecated and will be removed in v4.0.
-    Use BuildingClassifier for the same functionality.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "EnhancedBuildingClassifier is deprecated, "
-            "use BuildingClassifier instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EnhancedClassifierConfig(BuildingClassifierConfig):
-    """
-    Deprecated: Use BuildingClassifierConfig instead.
-
-    This class is deprecated and will be removed in v4.0.
-    Use BuildingClassifierConfig for the same functionality.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "EnhancedClassifierConfig is deprecated, "
-            "use BuildingClassifierConfig instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-# Alias for result class (dataclass, so we can't use inheritance)
-EnhancedClassificationResult = BuildingClassificationResult
+# Deprecated aliases removed in v4.0
+# Use BuildingClassifier, BuildingClassifierConfig, and BuildingClassificationResult directly

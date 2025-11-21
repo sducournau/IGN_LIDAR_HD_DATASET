@@ -12,22 +12,23 @@ Version 3.3.3 - Gap Detection Enhancement:
 - Directional gap identification (N, NE, E, SE, S, SW, W, NW)
 - Export of problematic buildings for manual review
 
-Version 3.0.0 - Major Release:
-- Complete configuration system overhaul with unified v4.0 schema
-- Enhanced GPU optimization with significantly improved utilization
-- Streamlined presets for common processing scenarios
-- Better hardware-specific configurations and performance tuning
-- Improved documentation and migration tools from legacy versions
+Version 3.4.0 - GPU Optimizations & Road Classification:
+- GPU-accelerated operations (k-NN, STRtree spatial indexing)
+- FAISS GPU integration for ultra-fast k-NN queries
+- WFS optimization with enhanced caching and parallel processing
+- Road classification from BD TOPO implementation
+- Performance improvements across the pipeline
+- New benchmarking and evaluation tools
 
-All features now work with the new unified configuration architecture.
+All features now work with the new configuration architecture.
 """
 
-__version__ = "3.3.5"
+__version__ = "3.4.0"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 
 # ============================================================================
-# v3.2+ UNIFIED API (Recommended - Simplified Configuration)
+# v3.2+ API (Recommended - Simplified Configuration)
 # ============================================================================
 
 # Configuration
@@ -102,7 +103,7 @@ except ImportError:
 # BACKWARD COMPATIBILITY IMPORTS (Legacy - Still Supported)
 # ============================================================================
 
-# NEW v3.1: Unified classification schema (consolidates asprs_classes.py + classes.py)
+# v3.1: classification schema (consolidates asprs_classes.py + classes.py)
 from .classification_schema import LOD2_CLASSES  # Backward compatibility
 from .classification_schema import LOD3_CLASSES  # Backward compatibility
 from .classification_schema import (
@@ -304,7 +305,7 @@ except ImportError:
 
 __all__ = [
     # ========================================================================
-    # v3.2+ Unified API (NEW - Simplified)
+    # v3.2+ Main API (NEW - Simplified)
     # ========================================================================
     "Config",
     "FeatureConfig",

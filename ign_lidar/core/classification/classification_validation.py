@@ -265,16 +265,13 @@ class ClassificationValidator:
         Higher scores indicate more spatially coherent classification.
         """
         try:
-            from scipy.spatial import cKDTree
+            from ign_lidar.optimization.gpu_accelerated_ops import knn
         except ImportError:
-            logger.warning("scipy not available, skipping spatial coherence")
+            logger.warning("GPU KNN not available, skipping spatial coherence")
             return 0.0
         
-        # Build KD-tree
-        tree = cKDTree(points)
-        
-        # Query neighbors for each point
-        distances, indices = tree.query(points, k=k_neighbors + 1)
+        # Query neighbors for each point (GPU-accelerated)
+        distances, indices = knn(points, points, k=k_neighbors + 1)
         
         # Compute coherence (ratio of neighbors with same label)
         coherence_scores = []
@@ -301,16 +298,13 @@ class ClassificationValidator:
         its neighbors share the same label.
         """
         try:
-            from scipy.spatial import cKDTree
+            from ign_lidar.optimization.gpu_accelerated_ops import knn
         except ImportError:
-            logger.warning("scipy not available, skipping isolated point detection")
+            logger.warning("GPU KNN not available, skipping isolated point detection")
             return 0.0
         
-        # Build KD-tree
-        tree = cKDTree(points)
-        
-        # Query neighbors
-        distances, indices = tree.query(points, k=k_neighbors + 1)
+        # Query neighbors (GPU-accelerated)
+        distances, indices = knn(points, points, k=k_neighbors + 1)
         
         # Count isolated points
         isolated_count = 0
@@ -426,13 +420,12 @@ class ClassificationValidator:
     ) -> np.ndarray:
         """Detect spatially isolated points (same as _compute_isolated_ratio but returns mask)."""
         try:
-            from scipy.spatial import cKDTree
+            from ign_lidar.optimization.gpu_accelerated_ops import knn
         except ImportError:
-            logger.warning("scipy not available, skipping isolated point detection")
+            logger.warning("GPU KNN not available, skipping isolated point detection")
             return np.zeros(len(labels), dtype=bool)
         
-        tree = cKDTree(points)
-        distances, indices = tree.query(points, k=k_neighbors + 1)
+        distances, indices = knn(points, points, k=k_neighbors + 1)
         
         isolated_mask = np.zeros(len(labels), dtype=bool)
         for i, neighbors in enumerate(indices):
@@ -484,18 +477,17 @@ class ErrorCorrector:
             Tuple of (corrected_labels, num_corrected)
         """
         try:
-            from scipy.spatial import cKDTree
+            from ign_lidar.optimization.gpu_accelerated_ops import knn
             from scipy.stats import mode
         except ImportError:
-            logger.warning("scipy not available, skipping correction")
+            logger.warning("Dependencies not available, skipping correction")
             return labels.copy(), 0
         
         corrected = labels.copy()
         num_corrected = 0
         
-        # Build KD-tree
-        tree = cKDTree(points)
-        distances, indices = tree.query(points, k=k_neighbors + 1)
+        # Query neighbors (GPU-accelerated)
+        distances, indices = knn(points, points, k=k_neighbors + 1)
         
         # Correct each isolated point
         for i, neighbors in enumerate(indices):

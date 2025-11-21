@@ -1,7 +1,7 @@
 """
 Feature extraction modules for IGN LiDAR HD.
 
-This package provides unified feature computation with Strategy pattern (Week 2 refactoring):
+This package provides feature computation with Strategy pattern (Week 2 refactoring):
 
 Strategy Pattern API (NEW - Week 2):
     from ign_lidar.features import BaseFeatureStrategy, CPUStrategy, GPUStrategy
@@ -14,7 +14,7 @@ Strategy Pattern API (NEW - Week 2):
     strategy = GPUChunkedStrategy(chunk_size=5_000_000, batch_size=250_000)
     features = strategy.compute(points)
 
-Unified API (recommended):
+Main API (recommended):
     from ign_lidar.features import compute_verticality, extract_geometric_features
 
     # Mode-based selection
@@ -144,7 +144,7 @@ __all__ = [
     "GPUFeatureComputer",  # Deprecated alias for GPUProcessor
     "GPUFeatureComputerChunked",  # Deprecated alias for GPUProcessor
     "GPUChunkedFeatureComputer",  # Deprecated alias for GPUProcessor
-    # Unified API (recommended)
+    # Main API (recommended)
     "FeatureMode",
     "compute_verticality",
     "extract_geometric_features",

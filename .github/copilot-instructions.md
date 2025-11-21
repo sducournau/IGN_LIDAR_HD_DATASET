@@ -17,6 +17,48 @@ This is the **IGN LiDAR HD Processing Library** - a Python library for processin
 - **Geospatial:** Shapely, GeoPandas, Rasterio, Rtree
 - **Testing:** pytest
 
+## GPU Development Environment (CRITICAL)
+
+**ALWAYS use the `ign_gpu` conda environment for GPU feature implementation and testing.**
+
+### GPU Testing Rule
+
+When implementing or testing GPU features:
+
+```bash
+# ALWAYS use this command for GPU-related work
+conda run -n ign_gpu python <your_script.py>
+
+# Examples:
+conda run -n ign_gpu python scripts/benchmark_gpu.py
+conda run -n ign_gpu python -m pytest tests/test_gpu_*.py
+conda run -n ign_gpu python -c "import cupy; print('GPU OK')"
+```
+
+### GPU Environment Details
+
+- **Environment**: `ign_gpu` (conda)
+- **GPU Libraries**: CuPy, RAPIDS cuML, RAPIDS cuSpatial, FAISS-GPU
+- **Purpose**: All GPU acceleration, CUDA operations, GPU benchmarks
+- **Base environment**: Should NOT be used for GPU testing (missing libraries)
+
+### When to Switch to ign_gpu
+
+✅ **Use ign_gpu for**:
+
+- Implementing GPU-accelerated features
+- Running GPU benchmarks
+- Testing RAPIDS cuML/cuSpatial code
+- Validating FAISS-GPU operations
+- Any code that imports: `cupy`, `cuml`, `cuspatial`, `faiss-gpu`
+
+❌ **Don't use ign_gpu for**:
+
+- CPU-only code
+- Pure NumPy/SciPy operations
+- Standard development/testing
+- Documentation generation
+
 ## Project Architecture
 
 ### Module Structure

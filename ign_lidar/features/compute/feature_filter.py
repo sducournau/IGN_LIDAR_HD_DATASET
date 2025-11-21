@@ -31,9 +31,11 @@ Date: 2025-10-30
 """
 
 import numpy as np
-from scipy.spatial import cKDTree
 from typing import Optional, Tuple
 import logging
+
+from ign_lidar.optimization import cKDTree  # GPU-accelerated drop-in replacement
+from ign_lidar.optimization.gpu_accelerated_ops import knn
 
 logger = logging.getLogger(__name__)
 
@@ -160,8 +162,16 @@ def smooth_feature_spatial(
         f"k={k_neighbors}, threshold={std_threshold:.2f}"
     )
 
-    # Build spatial index
-    tree = cKDTree(points)
+    # 🔥 GPU-accelerated KNN for spatial filtering
+    k_query = min(k_neighbors + 1, len(points))
+    
+    distances, neighbor_indices = knn(
+        points,
+        points,
+        k=k_query
+    )
+    # Remove self (first neighbor)
+    neighbor_indices = neighbor_indices[:, 1:]
 
     # Initialize output (copy on write)
     smoothed = feature.copy()

@@ -15,9 +15,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from scipy.spatial import cKDTree
 from sklearn.cluster import DBSCAN
 
+from ign_lidar.optimization import cKDTree  # GPU-accelerated drop-in replacement
+from ign_lidar.optimization.gpu_accelerated_ops import knn
 from ign_lidar.classification_schema import ASPRSClass
 
 logger = logging.getLogger(__name__)
@@ -676,13 +677,19 @@ class ASPRSClassRulesEngine:
         if not cfg.classify_as_noise:
             return classification
 
-        # Build KD-tree for neighbor queries
-        tree = cKDTree(points)
-
-        # Find isolated points
-        neighbor_counts = tree.query_ball_point(
-            points, cfg.isolation_threshold, return_length=True
+        # 🔥 GPU-accelerated KNN for isolated point detection
+        k_neighbors = max(cfg.min_neighbors + 5, 10)  # Extra neighbors for robust check
+        
+        distances, neighbors_indices = knn(
+            points,
+            points,
+            k=k_neighbors
         )
+        
+        # Count neighbors within isolation threshold
+        neighbor_counts = np.array([
+            np.sum(distances[i] <= cfg.isolation_threshold) for i in range(len(points))
+        ])
         isolated_mask = neighbor_counts < cfg.min_neighbors
 
         # Check height deviation

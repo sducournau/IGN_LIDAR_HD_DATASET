@@ -66,7 +66,8 @@ except ImportError:
     faiss = None
 
 # CPU fallback imports
-from sklearn.neighbors import KDTree, NearestNeighbors
+from sklearn.neighbors import NearestNeighbors
+from ign_lidar.optimization import KDTree  # GPU-accelerated drop-in replacement
 
 # Import compute feature implementations
 from ..features.compute import compute_curvature as core_compute_curvature

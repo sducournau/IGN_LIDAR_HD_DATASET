@@ -1,0 +1,43 @@
+refactor: Remove deprecated aliases and clean codebase
+
+Major cleanup removing "unified" and "enhanced" prefixed deprecated aliases
+to improve code clarity and maintainability.
+
+## Removed Deprecated Classes/Functions
+
+### Building Classification
+- EnhancedBuildingClassifier → BuildingClassifier
+- EnhancedClassifierConfig → BuildingClassifierConfig  
+- classify_building_enhanced() → classify_building()
+- EnhancedClassificationResult → BuildingClassificationResult
+
+### General Classification
+- UnifiedClassifier → Classifier
+- UnifiedClassifierConfig → ClassifierConfig
+- classify_points_unified() → classify_points()
+- refine_classification_unified() → refine_classification()
+
+## Test Updates
+- Renamed test_enhanced_classifier.py → test_building_classifier.py
+- Renamed test_enhanced_building_integration.py → test_building_integration.py
+- Updated 23 test cases (all passing ✓)
+
+## Documentation Updates
+- Renamed ENHANCED_BUILDING_CLASSIFICATION_GUIDE.md → BUILDING_CLASSIFICATION_GUIDE.md
+- Renamed API_ENHANCED_BUILDING.md → API_BUILDING_CLASSIFIER.md
+- Updated all code examples and references
+
+## Repository Cleanup
+- Archived 36 temporary report/session files to .archive/2025-nov/
+- Cleaned up "unified" and "enhanced" terminology in comments/docstrings
+- Maintained backward compatibility notes where needed
+
+## Impact
+- 40+ files modified
+- ~500 lines of deprecated code removed
+- All tests passing (23/23 ✓)
+- No breaking changes (deprecated aliases already warned users)
+
+BREAKING CHANGE: Deprecated aliases removed. Users should update:
+- EnhancedBuildingClassifier → BuildingClassifier
+- UnifiedClassifier → Classifier

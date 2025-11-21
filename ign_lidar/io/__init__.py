@@ -34,6 +34,16 @@ except ImportError:
     # shapely/geopandas not available
     WFS_AVAILABLE = False
 
+# Import optimized WFS fetcher conditionally
+try:
+    from .wfs_optimized import (
+        OptimizedWFSConfig,
+        OptimizedWFSFetcher,
+    )
+    WFS_OPTIMIZED_AVAILABLE = True
+except ImportError:
+    WFS_OPTIMIZED_AVAILABLE = False
+
 # Build __all__ based on available imports
 __all__ = [
     'MetadataManager',
@@ -49,4 +59,10 @@ if WFS_AVAILABLE:
         'IGNGroundTruthFetcher',
         'fetch_ground_truth_for_tile',
         'generate_patches_with_ground_truth',
+    ])
+
+if WFS_OPTIMIZED_AVAILABLE:
+    __all__.extend([
+        'OptimizedWFSConfig',
+        'OptimizedWFSFetcher',
     ])

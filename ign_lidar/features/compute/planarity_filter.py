@@ -14,7 +14,9 @@ import logging
 from typing import Tuple
 
 import numpy as np
-from scipy.spatial import cKDTree
+
+from ign_lidar.optimization import cKDTree  # GPU-accelerated drop-in replacement
+from ign_lidar.optimization.gpu_accelerated_ops import knn
 
 logger = logging.getLogger(__name__)
 
@@ -95,12 +97,14 @@ def smooth_planarity_spatial(
     n_artifacts_fixed = 0
     n_nan_fixed = 0
 
-    # Build spatial index for neighbor search
-    tree = cKDTree(points)
-
-    # Find neighbors for all points
+    # 🔥 GPU-accelerated KNN for spatial smoothing
     k_query = min(k_neighbors + 1, len(points))
-    _, neighbor_indices = tree.query(points, k=k_query)
+    
+    distances, neighbor_indices = knn(
+        points,
+        points,
+        k=k_query
+    )
     # Remove self (first neighbor)
     neighbor_indices = neighbor_indices[:, 1:]
 

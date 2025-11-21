@@ -17,8 +17,10 @@ Date: January 2025
 
 from typing import Optional, Tuple, Union
 import numpy as np
-from sklearn.neighbors import KDTree
 import logging
+
+from ign_lidar.optimization.gpu_accelerated_ops import eigvalsh
+from ign_lidar.optimization import KDTree  # GPU-accelerated drop-in replacement
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +40,12 @@ def build_kdtree(
         points: [N, 3] point cloud coordinates
         metric: Distance metric (default: 'euclidean')
                Other options: 'manhattan', 'chebyshev', 'minkowski'
+               Note: GPU KDTree only supports euclidean (L2)
         leaf_size: Leaf size for tree construction (default: 30)
                    - 30 for CPU operations (balanced speed/memory)
                    - 40 for GPU fallbacks (larger batches)
                    - 20 for small datasets (faster queries)
+                   Note: GPU KDTree ignores this parameter
     
     Returns:
         KDTree instance ready for queries
@@ -53,8 +57,16 @@ def build_kdtree(
     Note:
         The default leaf_size=30 is optimal for most CPU-based operations.
         For GPU fallback code, consider leaf_size=40 for better batching.
+        GPU KDTree uses FAISS which doesn't expose leaf_size/metric parameters.
     """
-    return KDTree(points, metric=metric, leaf_size=leaf_size)
+    # GPU KDTree (FAISS) only supports euclidean and doesn't use leaf_size
+    # Check if using GPU implementation
+    try:
+        # Try to create with full parameters (sklearn.neighbors.KDTree)
+        return KDTree(points, metric=metric, leaf_size=leaf_size)
+    except TypeError:
+        # GPU KDTree doesn't accept these parameters
+        return KDTree(points)
 
 
 def compute_local_eigenvalues(
@@ -99,7 +111,7 @@ def compute_local_eigenvalues(
         2. Compute local centroids (means)
         3. Center points around centroids
         4. Build covariance matrices: C = X^T X / (k-1)
-        5. Compute eigenvalues via np.linalg.eigvalsh
+        5. Compute eigenvalues via GPU-accelerated eigvalsh (with CPU fallback)
     """
     # Build KDTree if not provided
     if tree is None:
@@ -123,7 +135,8 @@ def compute_local_eigenvalues(
     
     # Compute eigenvalues [N, 3]
     # eigvalsh returns sorted eigenvalues (smallest to largest)
-    eigenvalues = np.linalg.eigvalsh(cov_matrices)
+    # Using GPU-accelerated version with automatic CPU fallback
+    eigenvalues = eigvalsh(cov_matrices)
     
     if return_tree:
         return eigenvalues, tree

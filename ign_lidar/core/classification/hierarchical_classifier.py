@@ -200,7 +200,7 @@ class HierarchicalClassifier(BaseClassifier):
             raise ValueError(
                 "HierarchicalClassifier requires 'asprs_labels' in features dict. "
                 "This classifier refines existing ASPRS classifications. "
-                "Use UnifiedClassifier for full classification from scratch."
+                "Use Classifier for full classification from scratch."
             )
 
         asprs_labels = features["asprs_labels"]

@@ -567,46 +567,88 @@ class ProcessorCore:
         )
 
         if bd_topo_enabled:
-            # V5 nested structure
+            # V5 nested structure - extract .enabled from dict configs
+            buildings_value = OmegaConf.select(
+                self.config,
+                "data_sources.bd_topo.features.buildings",
+                default=False,
+            )
+            buildings_enabled = (
+                buildings_value.get('enabled', False)
+                if isinstance(buildings_value, (dict, DictConfig)) and hasattr(buildings_value, 'get')
+                else bool(buildings_value)
+            )
+            
+            roads_value = OmegaConf.select(
+                self.config,
+                "data_sources.bd_topo.features.roads",
+                default=False,
+            )
+            roads_enabled = (
+                roads_value.get('enabled', False)
+                if isinstance(roads_value, (dict, DictConfig)) and hasattr(roads_value, 'get')
+                else bool(roads_value)
+            )
+            
+            water_value = OmegaConf.select(
+                self.config,
+                "data_sources.bd_topo.features.water",
+                default=False,
+            )
+            water_enabled = (
+                water_value.get('enabled', False)
+                if isinstance(water_value, (dict, DictConfig)) and hasattr(water_value, 'get')
+                else bool(water_value)
+            )
+            
+            vegetation_value = OmegaConf.select(
+                self.config,
+                "data_sources.bd_topo.features.vegetation",
+                default=False,
+            )
+            vegetation_enabled = (
+                vegetation_value.get('enabled', False)
+                if isinstance(vegetation_value, (dict, DictConfig)) and hasattr(vegetation_value, 'get')
+                else bool(vegetation_value)
+            )
+            
+            bridges_value = OmegaConf.select(
+                self.config,
+                "data_sources.bd_topo.features.bridges",
+                default=OmegaConf.select(
+                    self.config,
+                    "data_sources.bd_topo_bridges",
+                    default=False,
+                ),
+            )
+            bridges_enabled = (
+                bridges_value.get('enabled', False)
+                if isinstance(bridges_value, (dict, DictConfig)) and hasattr(bridges_value, 'get')
+                else bool(bridges_value)
+            )
+            
+            power_lines_value = OmegaConf.select(
+                self.config,
+                "data_sources.bd_topo.features.power_lines",
+                default=OmegaConf.select(
+                    self.config,
+                    "data_sources.bd_topo_power_lines",
+                    default=False,
+                ),
+            )
+            power_lines_enabled = (
+                power_lines_value.get('enabled', False)
+                if isinstance(power_lines_value, (dict, DictConfig)) and hasattr(power_lines_value, 'get')
+                else bool(power_lines_value)
+            )
+            
             features = {
-                "buildings": OmegaConf.select(
-                    self.config,
-                    "data_sources.bd_topo.features.buildings",
-                    default=False,
-                ),
-                "roads": OmegaConf.select(
-                    self.config,
-                    "data_sources.bd_topo.features.roads",
-                    default=False,
-                ),
-                "water": OmegaConf.select(
-                    self.config,
-                    "data_sources.bd_topo.features.water",
-                    default=False,
-                ),
-                "vegetation": OmegaConf.select(
-                    self.config,
-                    "data_sources.bd_topo.features.vegetation",
-                    default=False,
-                ),
-                "bridges": OmegaConf.select(
-                    self.config,
-                    "data_sources.bd_topo.features.bridges",
-                    default=OmegaConf.select(
-                        self.config,
-                        "data_sources.bd_topo_bridges",
-                        default=False,
-                    ),
-                ),
-                "power_lines": OmegaConf.select(
-                    self.config,
-                    "data_sources.bd_topo.features.power_lines",
-                    default=OmegaConf.select(
-                        self.config,
-                        "data_sources.bd_topo_power_lines",
-                        default=False,
-                    ),
-                ),
+                "buildings": buildings_enabled,
+                "roads": roads_enabled,
+                "water": water_enabled,
+                "vegetation": vegetation_enabled,
+                "bridges": bridges_enabled,
+                "power_lines": power_lines_enabled,
             }
             logger.debug("Extracted BD TOPO features from nested config (V5)")
         else:

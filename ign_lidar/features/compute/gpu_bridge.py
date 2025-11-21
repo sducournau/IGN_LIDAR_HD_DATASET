@@ -32,6 +32,8 @@ import numpy as np
 from typing import Dict, Optional, Tuple, Union
 import logging
 
+from ign_lidar.optimization.gpu_accelerated_ops import eigh, eigvalsh
+
 # Optional GPU support
 try:
     import cupy as cp
@@ -359,9 +361,9 @@ class GPUCoreBridge:
         # Compute covariance matrices
         covariances = np.einsum('nki,nkj->nij', centered, centered) / k  # Shape: (N, 3, 3)
         
-        # Compute eigenvalues
+        # Compute eigenvalues (GPU-accelerated with CPU fallback)
         if return_eigenvectors:
-            eigenvalues, eigenvectors = np.linalg.eigh(covariances)
+            eigenvalues, eigenvectors = eigh(covariances)
             # Sort descending
             idx = np.argsort(eigenvalues, axis=1)[:, ::-1]
             eigenvalues = np.take_along_axis(eigenvalues, idx, axis=1)
@@ -370,7 +372,7 @@ class GPUCoreBridge:
             )
             return eigenvalues, eigenvectors
         else:
-            eigenvalues = np.linalg.eigvalsh(covariances)
+            eigenvalues = eigvalsh(covariances)
             # Sort descending
             eigenvalues = np.sort(eigenvalues, axis=1)[:, ::-1]
             return eigenvalues
