@@ -43,7 +43,8 @@ import logging
 from typing import Dict, List, Optional, Set
 from dataclasses import dataclass
 
-from ign_lidar.optimization.gpu_accelerated_ops import eigh, knn  # GPU-accelerated operations
+from ign_lidar.optimization.gpu_accelerated_ops import eigh  # GPU-accelerated eigendecomposition
+from ign_lidar.optimization import knn_search  # Phase 2: Unified KNN engine
 
 # Import centralized GPU manager
 from ...core.gpu import GPUManager
@@ -491,11 +492,11 @@ class MultiScaleFeatureComputer:
         n_points = len(points)
 
         # 🔥 ARTIFACT SUPPRESSION: Use k-NN search for consistent neighborhoods
-        # GPU-accelerated KNN provides stable neighborhood sizes
-        distances, neighbors_indices = knn(
+        # Phase 2: Unified KNN engine with automatic backend selection
+        distances, neighbors_indices = knn_search(
             points,
-            points,
-            k=k_neighbors
+            k=k_neighbors,
+            backend='auto'
         )
 
         # Convert to list of indices for feature computation
@@ -671,9 +672,9 @@ class MultiScaleFeatureComputer:
         if n_points < 100:
             return filtered
 
-        # 🔥 GPU-accelerated KNN for spatial filtering
+        # Phase 2: Use unified KNN engine for spatial filtering
         k_neighbors = 30
-        distances, neighbors_indices = knn(points, points, k=k_neighbors)
+        distances, neighbors_indices = knn_search(points, k=k_neighbors, backend='auto')
         
         # Apply median filter in spatial neighborhoods
         for i in range(n_points):
@@ -714,9 +715,9 @@ class MultiScaleFeatureComputer:
         if n_points < 100:
             return smoothed
 
-        # 🔥 GPU-accelerated KNN for smoothing
+        # Phase 2: Use unified KNN engine for smoothing
         k_neighbors = 30
-        distances, neighbors_indices = knn(points, points, k=k_neighbors)
+        distances, neighbors_indices = knn_search(points, k=k_neighbors, backend='auto')
 
         # Bilateral smoothing: preserve sharp edges (high normal variation)
         for i in range(n_points):
@@ -780,7 +781,7 @@ class MultiScaleFeatureComputer:
             if points is not None and points.shape[0] == n:
                 # Query neighbors for each point
                 k = min(window_size, n)
-                distances, neighbor_idxs = knn(points, points, k=k)
+                distances, neighbor_idxs = knn_search(points, k=k, backend='auto')
                 
                 for i in range(n):
                     neighborhood_values = feature_values[neighbor_idxs[i]]

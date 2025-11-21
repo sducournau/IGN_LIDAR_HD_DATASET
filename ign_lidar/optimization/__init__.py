@@ -57,6 +57,15 @@ from .gpu_kdtree import (
     KDTree,   # Drop-in replacement for sklearn.neighbors.KDTree
 )
 
+# Phase 2: Unified KNN Engine (November 2025)
+from .knn_engine import (
+    KNNEngine,
+    KNNBackend,
+    knn_search,
+    build_knn_graph,
+    HAS_FAISS_GPU,
+)
+
 # Backward compatibility: gpu_dataframe_ops moved to io/ in v3.1.0
 # Maintain import for v3.x compatibility
 try:
@@ -100,6 +109,8 @@ __all__ = [
     'set_force_cpu', 'get_gpu_info',
     'GPUKDTree', 'create_kdtree', 'cKDTree', 'KDTree',
     'HAS_CUPY', 'HAS_FAISS', 'HAS_CUML',
+    # Phase 2: Unified KNN Engine (Nov 2025)
+    'KNNEngine', 'KNNBackend', 'knn_search', 'build_knn_graph', 'HAS_FAISS_GPU',
     # GPU dataframe operations (relocated to io/ in v3.1.0)
     'GPUDataFrameOps',  # Backward compatibility alias
     # Legacy interfaces (backward compatibility)

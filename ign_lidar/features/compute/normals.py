@@ -9,20 +9,12 @@ For optimized computation, use the features module instead.
 
 import numpy as np
 from typing import Optional, Tuple
-from sklearn.neighbors import NearestNeighbors
 import logging
-import multiprocessing
 
 from ign_lidar.optimization.gpu_accelerated_ops import eigh
+from ign_lidar.optimization import knn_search  # Phase 2: Unified KNN engine
 
 logger = logging.getLogger(__name__)
-
-
-def _get_safe_n_jobs() -> int:
-    """Get safe n_jobs for sklearn avoiding multiprocessing conflicts."""
-    if multiprocessing.current_process().name != 'MainProcess':
-        return 1  # Disable sklearn parallelism in workers
-    return -1  # Use all CPUs in main process
 
 
 def compute_normals(
@@ -100,14 +92,20 @@ def _compute_normals_cpu(
     k_neighbors: int,
     search_radius: Optional[float] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """CPU implementation of normal computation using scikit-learn."""
+    """
+    CPU implementation of normal computation using unified KNN engine (Phase 2).
+    
+    Now uses the unified knn_search() from Phase 2 for automatic backend selection
+    (FAISS-GPU, FAISS-CPU, cuML, or sklearn based on data size and hardware).
+    """
     n_points = points.shape[0]
     normals = np.zeros((n_points, 3), dtype=np.float32)
     eigenvalues = np.zeros((n_points, 3), dtype=np.float32)
     
-    # Build KD-tree for neighbor search
     if search_radius is not None:
-        # Radius-based search
+        # Radius-based search - use sklearn fallback for radius queries
+        # TODO: Add radius search to KNN engine in future version
+        from sklearn.neighbors import NearestNeighbors
         nbrs = NearestNeighbors(radius=search_radius, algorithm='kd_tree')
         nbrs.fit(points)
         
@@ -137,14 +135,9 @@ def _compute_normals_cpu(
             normal = eigvecs[:, idx[2]]
             normals[i] = normal.astype(np.float32)
     else:
-        # K-nearest neighbors search with safe parallelization
-        nbrs = NearestNeighbors(
-            n_neighbors=k_neighbors, 
-            algorithm='kd_tree',
-            n_jobs=_get_safe_n_jobs()
-        )
-        nbrs.fit(points)
-        distances, indices = nbrs.kneighbors(points)
+        # Phase 2: Use unified KNN engine (automatic backend selection)
+        # Replaces manual sklearn implementation with optimized multi-backend support
+        distances, indices = knn_search(points, k=k_neighbors, backend='auto')
         
         for i in range(n_points):
             neighbors = points[indices[i]]

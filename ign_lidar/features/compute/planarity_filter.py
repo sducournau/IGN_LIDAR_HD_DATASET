@@ -15,8 +15,7 @@ from typing import Tuple
 
 import numpy as np
 
-from ign_lidar.optimization import cKDTree  # GPU-accelerated drop-in replacement
-from ign_lidar.optimization.gpu_accelerated_ops import knn
+from ign_lidar.optimization import knn_search  # Phase 2: Unified KNN engine
 
 logger = logging.getLogger(__name__)
 
@@ -97,13 +96,13 @@ def smooth_planarity_spatial(
     n_artifacts_fixed = 0
     n_nan_fixed = 0
 
-    # 🔥 GPU-accelerated KNN for spatial smoothing
+    # Phase 2: Use unified KNN engine (automatic backend selection)
     k_query = min(k_neighbors + 1, len(points))
     
-    distances, neighbor_indices = knn(
+    distances, neighbor_indices = knn_search(
         points,
-        points,
-        k=k_query
+        k=k_query,
+        backend='auto'
     )
     # Remove self (first neighbor)
     neighbor_indices = neighbor_indices[:, 1:]
