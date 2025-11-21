@@ -1,5 +1,5 @@
 """
-Unified feature computation API.
+Feature computation dispatcher API.
 
 This module provides a single, consolidated API dispatcher that routes
 feature computation requests to the appropriate implementation (CPU, GPU, etc.).

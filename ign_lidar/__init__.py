@@ -15,7 +15,7 @@ Version 3.3.3 - Gap Detection Enhancement:
 Version 3.4.0 - GPU Optimizations & Road Classification:
 - GPU-accelerated operations (k-NN, STRtree spatial indexing)
 - FAISS GPU integration for ultra-fast k-NN queries
-- WFS optimization with enhanced caching and parallel processing
+- WFS optimization with caching and parallel processing
 - Road classification from BD TOPO implementation
 - Performance improvements across the pipeline
 - New benchmarking and evaluation tools

@@ -1,7 +1,7 @@
 """
 Feature computation module - canonical implementations of geometric features.
 
-This module provides unified, well-tested implementations of all geometric features
+This module provides well-tested implementations of all geometric features
 with clean, consistent naming conventions. Optimized with JIT compilation where available.
 
 📍 **Note**: Relocated from `features.core` to `features.compute` in v3.1.0 for better
@@ -28,6 +28,7 @@ Modules:
     architectural: Architectural element features
     geometric: General geometric computations
     gpu_bridge: GPU-accelerated feature computation bridge
+    dispatcher: Feature computation dispatcher (routes to CPU/GPU)
     utils: Shared utility functions
 
 Migration:
@@ -147,8 +148,8 @@ from .is_ground import (
 from .normals import compute_normals_accurate, compute_normals_fast
 
 # Unified API dispatcher - this is the main public API for compute_all_features
-from .unified import compute_all_features  # Main public API
-from .unified import ComputeMode
+from .dispatcher import compute_all_features  # Main public API
+from .dispatcher import ComputeMode
 
 # Utilities
 from .utils import (

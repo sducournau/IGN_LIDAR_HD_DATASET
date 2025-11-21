@@ -45,6 +45,9 @@ from ..core.error_handler import (
 # Multi-scale computation (v6.2)
 from .compute.multi_scale import MultiScaleFeatureComputer, ScaleConfig
 
+# Normalization utilities
+from ..utils.normalization import normalize_rgb, normalize_nir, is_gpu_available
+
 # NEW: Strategy Pattern (Week 2 refactoring)
 from .strategies import BaseFeatureStrategy, FeatureComputeMode
 from .strategy_cpu import CPUStrategy
@@ -582,10 +585,10 @@ class FeatureOrchestrator:
 
         # Set strategy name for logging
         if force_mode:
-            self.strategy_name = f"unified_{force_mode}"
+            self.strategy_name = force_mode
             logger.info(f"   📌 Mode: {force_mode} (forced by config)")
         else:
-            self.strategy_name = "unified_auto"
+            self.strategy_name = "auto"
             logger.info("   📌 Mode: automatic (intelligent selection)")
 
         # Log mode recommendations for typical tile size
@@ -604,7 +607,7 @@ class FeatureOrchestrator:
         """
         Get forced computation mode from configuration.
 
-        Maps legacy config flags to unified computer modes for backward compatibility.
+        Maps legacy config flags to computer modes for backward compatibility.
 
         Returns:
             str or None: Forced mode ('cpu', 'gpu', 'gpu_chunked', 'boundary') or None for auto
@@ -805,7 +808,7 @@ class FeatureOrchestrator:
         logger.debug("Config values cached for fast access")
 
     # =========================================================================
-    # FEATURE MODE MANAGEMENT (enhanced)
+    # FEATURE MODE MANAGEMENT
     # =========================================================================
 
     def _init_feature_mode(self):
@@ -900,7 +903,7 @@ class FeatureOrchestrator:
     # =========================================================================
 
     def _init_optimizations(self):
-        """Initialize optimization subsystems consolidated from EnhancedFeatureOrchestrator."""
+        """Initialize optimization subsystems for feature computation."""
         self._init_caching()
         self._init_parallel_processing()
         self._init_adaptive_parameters()
@@ -1557,7 +1560,7 @@ class FeatureOrchestrator:
                 # Restore original parameters
                 setattr(self.computer, "k_neighbors", original_k)
         else:
-            # No optimization to apply (unified computer or no optimized params)
+            # No optimization to apply (no optimized params)
             return self._compute_geometric_features(points, classification, **kwargs)
 
     def validate_mode(self, mode: FeatureMode) -> bool:
@@ -1667,7 +1670,7 @@ class FeatureOrchestrator:
         """
         Compute all features for a point cloud tile with V5 optimizations.
 
-        This enhanced version includes:
+        This version includes:
         1. Intelligent caching with memory management
         2. Automatic parameter optimization based on data characteristics
         3. Parallel RGB/NIR processing
@@ -1868,7 +1871,7 @@ class FeatureOrchestrator:
             # Features that need artifact filtering
             artifact_prone_features = ["planarity", "linearity", "horizontality"]
 
-            # v3.1.1: Get threshold from config or use improved default
+            # v3.1.1: Get threshold from config or use default
             filter_threshold = features_cfg.get("artifact_filter_threshold", 0.2)
 
             for feature_name in artifact_prone_features:
@@ -2108,7 +2111,7 @@ class FeatureOrchestrator:
             else:
                 geometric_features = []  # Minimal mode
 
-            # Call unified API
+            # Call API
             feature_dict = self.computer.compute_all_features(
                 points=points,
                 k_normals=k_value,

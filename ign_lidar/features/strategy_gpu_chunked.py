@@ -1,10 +1,10 @@
 """
 GPU-based feature computation strategy with chunking.
 
-Now uses the unified GPUProcessor which automatically handles chunking
+Uses the GPUProcessor which automatically handles chunking
 for large datasets (> 10M points).
 
-This strategy uses the unified GPUProcessor with intelligent auto-chunking for
+This strategy uses the GPUProcessor with intelligent auto-chunking for
 memory-efficient processing of massive point clouds.
 
 Author: IGN LiDAR HD Development Team
