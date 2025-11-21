@@ -2861,7 +2861,7 @@ class LiDARProcessor:
 
             # Apply refinement using unified classifier
             if refinement_features:
-                labels_v, refinement_stats = refine_classification_unified(
+                labels_v, refinement_stats = refine_classification(
                     labels=labels_v,
                     features=refinement_features,
                     ground_truth_data=ground_truth_data,

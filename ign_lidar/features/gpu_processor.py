@@ -968,9 +968,16 @@ class GPUProcessor:
 
         # Query neighbors in batches for better progress visibility and memory management
         # Especially important for CPU FAISS on large datasets (>15M points)
-        # OPTIMIZATION: Larger batches for GPU to maximize throughput
+        # OPTIMIZATION: Adaptive batch size based on GPU memory to avoid OOM
         if self.use_gpu:
-            batch_size = 5_000_000  # 5M points per batch for GPU (maximize throughput)
+            # CRITICAL FIX: Calculate safe batch size based on available GPU memory
+            # FAISS needs temp memory for: batch_size × k × 8 bytes (distances + indices)
+            # Plus internal temporary buffers (can be 2-3x the query size for IVFFlat)
+            available_gb = self.vram_limit_gb * 0.5  # Use at most 50% of VRAM for queries
+            bytes_per_point = k * 8 * 3  # × 3 for FAISS internal buffers
+            max_batch_points = int((available_gb * 1024**3) / bytes_per_point)
+            batch_size = min(5_000_000, max(100_000, max_batch_points))  # Between 100K and 5M
+            logger.debug(f"  Adaptive batch size: {batch_size:,} points (GPU memory: {available_gb:.1f}GB)")
         else:
             batch_size = 500_000  # 500K points per batch for CPU
         num_batches = (N + batch_size - 1) // batch_size
@@ -1020,9 +1027,43 @@ class GPUProcessor:
                 end_idx = min((batch_idx + 1) * batch_size, N)
 
                 batch_points = points[start_idx:end_idx].astype(np.float32)
-                batch_distances, batch_indices = index.search(batch_points, k)
-
-                all_indices[start_idx:end_idx] = batch_indices
+                
+                # CRITICAL FIX: Retry with smaller batch on GPU OOM
+                retry_count = 0
+                max_retries = 2
+                current_batch_points = batch_points
+                
+                while retry_count <= max_retries:
+                    try:
+                        batch_distances, batch_indices = index.search(current_batch_points, k)
+                        all_indices[start_idx:end_idx] = batch_indices
+                        break  # Success!
+                    except RuntimeError as e:
+                        if "out of memory" in str(e).lower() and retry_count < max_retries:
+                            retry_count += 1
+                            # Reduce batch size by half and retry
+                            logger.warning(f"     ⚠ GPU OOM on batch {batch_idx+1}, reducing batch size and retrying...")
+                            # Force garbage collection
+                            import gc
+                            gc.collect()
+                            if self.use_gpu and cp is not None:
+                                cp.get_default_memory_pool().free_all_blocks()
+                            # Try with smaller batch (this batch only)
+                            split_size = len(current_batch_points) // 2
+                            if split_size < 10000:
+                                # Too small, give up and fall back to cuML
+                                logger.error(f"     ✗ Cannot reduce batch further, falling back to cuML")
+                                raise
+                            # Process first half
+                            batch_distances_1, batch_indices_1 = index.search(current_batch_points[:split_size], k)
+                            all_indices[start_idx:start_idx+split_size] = batch_indices_1
+                            # Process second half
+                            batch_distances_2, batch_indices_2 = index.search(current_batch_points[split_size:], k)
+                            all_indices[start_idx+split_size:end_idx] = batch_indices_2
+                            break
+                        else:
+                            # Different error or out of retries
+                            raise
 
                 # Log progress every batch for visibility
                 if not show_progress or batch_idx % max(1, num_batches // 10) == 0:
@@ -1175,8 +1216,11 @@ class GPUProcessor:
             if use_gpu_faiss:
                 try:
                     res = faiss.StandardGpuResources()
-                    # Dynamic temp memory: scale with VRAM (4GB for 16GB VRAM, 2GB for 8GB)
-                    temp_memory_gb = min(4.0, self.vram_limit_gb * 0.3)
+                    # CRITICAL FIX: Conservative temp memory to avoid OOM
+                    # FAISS uses temp memory for intermediate results during training and search
+                    # For IVFFlat, this can be substantial during large batch queries
+                    # Set to 20% of VRAM max, with 1GB cap for safety
+                    temp_memory_gb = min(1.0, self.vram_limit_gb * 0.2)
                     res.setTempMemory(int(temp_memory_gb * 1024 * 1024 * 1024))
                     co = faiss.GpuClonerOptions()
                     
@@ -1190,6 +1234,7 @@ class GPUProcessor:
                     logger.info(f"     ✓ FAISS index on GPU ({temp_memory_gb:.1f}GB temp, {precision})")
                 except Exception as e:
                     logger.warning(f"     GPU failed: {e}, using CPU")
+                    use_gpu_faiss = False  # Mark as failed for later code
             else:
                 logger.info("     ✓ FAISS index on CPU (memory-safe)")
 
@@ -1236,13 +1281,14 @@ class GPUProcessor:
             if use_gpu_faiss:
                 try:
                     res = faiss.StandardGpuResources()
-                    # Dynamic temp memory for Flat index (smaller than IVF)
-                    temp_memory_gb = min(2.0, self.vram_limit_gb * 0.15)
+                    # CRITICAL FIX: Conservative temp memory for Flat index
+                    temp_memory_gb = min(0.5, self.vram_limit_gb * 0.1)
                     res.setTempMemory(int(temp_memory_gb * 1024 * 1024 * 1024))
                     index = faiss.index_cpu_to_gpu(res, 0, index)
                     logger.info(f"     ✓ FAISS index on GPU ({temp_memory_gb:.1f}GB temp memory)")
                 except Exception as e:
                     logger.warning(f"     GPU failed: {e}, using CPU")
+                    use_gpu_faiss = False  # Mark as failed
             else:
                 logger.info("     ✓ FAISS index on CPU")
 

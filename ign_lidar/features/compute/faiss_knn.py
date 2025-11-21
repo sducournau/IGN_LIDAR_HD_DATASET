@@ -27,6 +27,66 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+
+def _get_gpu_memory_info() -> Tuple[float, float]:
+    """Get available GPU memory in GB.
+    
+    Returns:
+        Tuple of (total_memory_gb, available_memory_gb)
+    """
+    try:
+        import cupy as cp
+        mempool = cp.get_default_memory_pool()
+        device = cp.cuda.Device()
+        total_bytes = device.mem_info[1]
+        free_bytes = device.mem_info[0]
+        return total_bytes / (1024**3), free_bytes / (1024**3)
+    except Exception:
+        # Default to conservative estimate
+        return 8.0, 4.0
+
+
+def _calculate_safe_temp_memory(n_points: int, n_dims: int, k: int) -> int:
+    """Calculate safe temp memory size for FAISS GPU.
+    
+    FAISS needs temp memory for intermediate results during search.
+    The memory requirement scales roughly with: N × k × D × sizeof(float)
+    
+    Args:
+        n_points: Number of points in dataset
+        n_dims: Number of dimensions
+        k: Number of neighbors
+        
+    Returns:
+        Safe temp memory size in bytes
+    """
+    total_gb, free_gb = _get_gpu_memory_info()
+    
+    # Estimate memory needed for search operation
+    # Each search needs: k × N × sizeof(float) for distances + k × N × sizeof(int) for indices
+    search_memory_gb = (n_points * k * (4 + 4)) / (1024**3)
+    
+    # Also need memory for the index itself
+    index_memory_gb = (n_points * n_dims * 4) / (1024**3)
+    
+    # Total estimated memory
+    total_needed_gb = search_memory_gb + index_memory_gb
+    
+    logger.debug(f"GPU memory: total={total_gb:.1f}GB, free={free_gb:.1f}GB, needed={total_needed_gb:.1f}GB")
+    
+    # If we need more than 80% of free memory, we should chunk
+    if total_needed_gb > free_gb * 0.8:
+        # Use smaller temp memory and rely on chunking
+        temp_memory_gb = min(1.0, free_gb * 0.2)
+        logger.info(f"Dataset too large for single GPU batch, will use chunked processing (temp={temp_memory_gb:.1f}GB)")
+    else:
+        # We have enough memory, allocate generously
+        temp_memory_gb = min(search_memory_gb * 1.5, free_gb * 0.4)
+        logger.debug(f"Using temp memory: {temp_memory_gb:.1f}GB")
+    
+    return int(temp_memory_gb * 1024**3)
+
+
 # Check GPU availability
 HAS_CUPY = False
 HAS_FAISS = False
@@ -133,23 +193,90 @@ def _faiss_gpu_search(
     distance_metric: str = "L2",
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    FAISS-GPU search implementation.
+    FAISS-GPU search implementation with automatic chunking for large datasets.
     
     Performance: 10-50x faster than sklearn on large datasets.
-    Memory: Handles up to ~2GB of data per GPU efficiently.
+    Memory: Automatically chunks large datasets to fit in GPU memory.
+    
+    For datasets that don't fit in GPU memory, this automatically:
+    1. Builds the index on GPU
+    2. Processes queries in chunks to avoid OOM
     """
     import faiss
     
     n_points, n_dims = points.shape
     
-    # Create GPU resources
+    # Calculate safe temp memory size
+    temp_memory_bytes = _calculate_safe_temp_memory(n_points, n_dims, k)
+    
+    # Check if we need to chunk based on memory requirements
+    _, free_gb = _get_gpu_memory_info()
+    estimated_memory_gb = (n_points * k * 8) / (1024**3)  # distances + indices
+    
+    if estimated_memory_gb > free_gb * 0.6:
+        # Use chunked processing
+        logger.info(f"Using chunked FAISS-GPU processing for {n_points:,} points")
+        return _faiss_gpu_search_chunked(points, k, gpu_id, distance_metric, temp_memory_bytes)
+    
+    # Standard single-pass GPU search
+    try:
+        # Create GPU resources
+        res = faiss.StandardGpuResources()
+        res.setTempMemory(temp_memory_bytes)
+        
+        # Create index based on distance metric
+        if distance_metric == "L2":
+            index = faiss.IndexFlatL2(n_dims)
+        elif distance_metric == "IP":
+            index = faiss.IndexFlatIP(n_dims)
+        else:
+            raise ValueError(f"Unknown distance metric: {distance_metric}")
+        
+        # Transfer index to GPU
+        gpu_index = faiss.index_cpu_to_gpu(res, gpu_id, index)
+        
+        # Add points to index
+        gpu_index.add(points)
+        
+        # Search for k nearest neighbors
+        # Note: k+1 because first neighbor is the point itself
+        distances, indices = gpu_index.search(points, k + 1)
+        
+        # Remove self (first column)
+        distances = distances[:, 1:]
+        indices = indices[:, 1:]
+        
+        return distances, indices
+        
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower():
+            logger.warning(f"GPU OOM in standard search, falling back to chunked: {e}")
+            return _faiss_gpu_search_chunked(points, k, gpu_id, distance_metric, temp_memory_bytes)
+        raise
+
+
+def _faiss_gpu_search_chunked(
+    points: np.ndarray,
+    k: int,
+    gpu_id: int = 0,
+    distance_metric: str = "L2",
+    temp_memory_bytes: int = 512 * 1024 * 1024,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Chunked FAISS-GPU search for large datasets.
+    
+    Builds index on GPU once, then processes queries in chunks to avoid OOM.
+    This is much faster than falling back to CPU for the entire operation.
+    """
+    import faiss
+    
+    n_points, n_dims = points.shape
+    
+    # Create GPU resources with reduced temp memory
     res = faiss.StandardGpuResources()
+    res.setTempMemory(temp_memory_bytes)
     
-    # Configure GPU resources for optimal performance
-    # Set temporary memory to 512MB (adjust based on GPU memory)
-    res.setTempMemory(512 * 1024 * 1024)
-    
-    # Create index based on distance metric
+    # Create and populate index on GPU
     if distance_metric == "L2":
         index = faiss.IndexFlatL2(n_dims)
     elif distance_metric == "IP":
@@ -157,19 +284,34 @@ def _faiss_gpu_search(
     else:
         raise ValueError(f"Unknown distance metric: {distance_metric}")
     
-    # Transfer index to GPU
     gpu_index = faiss.index_cpu_to_gpu(res, gpu_id, index)
-    
-    # Add points to index
     gpu_index.add(points)
     
-    # Search for k nearest neighbors
-    # Note: k+1 because first neighbor is the point itself
-    distances, indices = gpu_index.search(points, k + 1)
+    # Calculate safe chunk size
+    # Aim for ~500MB per chunk (distances + indices)
+    bytes_per_query = k * 8  # 4 bytes for distance + 4 bytes for index
+    max_queries_per_chunk = max(1000, min(n_points, int(500 * 1024 * 1024 / bytes_per_query)))
     
-    # Remove self (first column)
-    distances = distances[:, 1:]
-    indices = indices[:, 1:]
+    logger.info(f"Processing {n_points:,} queries in chunks of {max_queries_per_chunk:,}")
+    
+    # Process in chunks
+    all_distances = []
+    all_indices = []
+    
+    for start_idx in range(0, n_points, max_queries_per_chunk):
+        end_idx = min(start_idx + max_queries_per_chunk, n_points)
+        chunk_queries = points[start_idx:end_idx]
+        
+        # Search this chunk (k+1 to include self)
+        chunk_distances, chunk_indices = gpu_index.search(chunk_queries, k + 1)
+        
+        # Remove self (first column)
+        all_distances.append(chunk_distances[:, 1:])
+        all_indices.append(chunk_indices[:, 1:])
+    
+    # Concatenate results
+    distances = np.vstack(all_distances)
+    indices = np.vstack(all_indices)
     
     return distances, indices
 
