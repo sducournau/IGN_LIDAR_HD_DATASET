@@ -154,11 +154,14 @@ class GroundTruthOptimizer:
 
         # GPU methods (if available)
         if GroundTruthOptimizer._gpu_available:
-            # Use chunked for large datasets
-            if n_points > 10_000_000:
+            # Use chunked for large datasets (lowered from 10M to 1M for better GPU utilization)
+            if n_points > 1_000_000:
                 return "gpu_chunked"
-            else:
+            # Use basic GPU for medium datasets (lowered from always to 100K+ threshold)
+            elif n_points > 100_000:
                 return "gpu"
+            # For small datasets (<100K), CPU STRtree is faster due to GPU transfer overhead
+            # Fall through to CPU methods
 
         # CPU methods
         if HAS_SPATIAL:

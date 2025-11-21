@@ -31,12 +31,16 @@ class TestGroundTruthOptimizer:
         assert hasattr(optimizer, 'label_points')
     
     def test_auto_selection_small_dataset(self):
-        """Test auto-selection for small dataset (<1M points)."""
+        """Test auto-selection for small dataset (100K-1M points)."""
         optimizer = GroundTruthOptimizer(verbose=False)
         method = optimizer.select_method(n_points=500_000, n_polygons=100)
         
-        # Small datasets should use STRtree (CPU) or GPU if available
-        assert method in ['strtree', 'gpu', 'vectorized']
+        if GPU_AVAILABLE:
+            # With GPU: should use 'gpu' for medium datasets (100K-1M)
+            assert method == 'gpu'
+        else:
+            # Without GPU: should use STRtree
+            assert method in ['strtree', 'vectorized']
     
     def test_auto_selection_medium_dataset(self):
         """Test auto-selection for medium dataset (1-10M points)."""
@@ -44,8 +48,8 @@ class TestGroundTruthOptimizer:
         method = optimizer.select_method(n_points=5_000_000, n_polygons=100)
         
         if GPU_AVAILABLE:
-            # With GPU: should select 'gpu' for medium datasets
-            assert method in ['gpu', 'gpu_chunked']
+            # With GPU: should select 'gpu_chunked' for datasets >1M
+            assert method == 'gpu_chunked'
         else:
             # Without GPU: should select STRtree
             assert method == 'strtree'
@@ -138,15 +142,19 @@ class TestMethodSelection:
         try:
             optimizer = GroundTruthOptimizer(verbose=False)
             
-            # Small dataset - might use GPU or STRtree
-            method = optimizer.select_method(n_points=500_000, n_polygons=100)
-            assert method in ['gpu', 'strtree']
+            # Very small dataset (<100K) - should use STRtree (CPU faster due to transfer overhead)
+            method = optimizer.select_method(n_points=50_000, n_polygons=100)
+            assert method == 'strtree'
             
-            # Medium dataset - should use GPU
-            method = optimizer.select_method(n_points=5_000_000, n_polygons=100)
+            # Medium dataset (100K-1M) - should use GPU
+            method = optimizer.select_method(n_points=500_000, n_polygons=100)
             assert method == 'gpu'
             
-            # Large dataset - should use GPU chunked
+            # Large dataset (1M-10M) - should use GPU chunked
+            method = optimizer.select_method(n_points=5_000_000, n_polygons=100)
+            assert method == 'gpu_chunked'
+            
+            # Very large dataset (>10M) - should use GPU chunked
             method = optimizer.select_method(n_points=15_000_000, n_polygons=100)
             assert method == 'gpu_chunked'
         finally:
