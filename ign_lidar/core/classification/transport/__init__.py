@@ -41,7 +41,7 @@ Example:
     >>> 
     >>> config = BufferingConfig(curvature_aware=True, curvature_factor=0.3)
     >>> buffer = AdaptiveTransportBuffer(config)
-    >>> enhanced_roads = buffer.process_roads(roads_gdf)
+    >>> buffered_roads = buffer.process_roads(roads_gdf)
     
     Fast spatial classification with R-tree indexing:
     

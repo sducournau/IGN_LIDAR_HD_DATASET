@@ -1,7 +1,7 @@
 """
 Transport Detection Module with Multi-Mode Support
 
-This module provides enhanced road and railway detection capabilities for different
+This module provides road and railway detection capabilities for different
 classification modes: ASPRS standard, ASPRS extended, and LOD2 training.
 
 Migrated from transport_detection.py to transport/detection.py (Phase 3C).

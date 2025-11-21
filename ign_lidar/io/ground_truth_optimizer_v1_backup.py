@@ -6,7 +6,7 @@ that automatically selects the best method based on available hardware:
 
 1. GPU Chunked (fastest for large datasets with GPU)
 2. GPU (fastest for small-medium datasets with GPU)
-3. CPU STRtree (10-30× faster than naive, no GPU needed)
+3. CPU STRtree (10-30x faster than naive, no GPU needed)
 4. CPU Vectorized (fallback)
 
 The optimizer automatically detects available hardware and selects
@@ -70,10 +70,10 @@ class GroundTruthOptimizer:
     Automatically selects and applies the best ground truth optimization.
 
     Performance characteristics:
-    - GPU Chunked: 100-1000× speedup for datasets > 10M points
-    - GPU: 100-500× speedup for datasets < 10M points
-    - CPU STRtree: 10-30× speedup, works everywhere
-    - CPU Vectorized: 5-10× speedup, GeoPandas fallback
+    - GPU Chunked: 100-1000x speedup for datasets > 10M points
+    - GPU: 100-500x speedup for datasets < 10M points
+    - CPU STRtree: 10-30x speedup, works everywhere
+    - CPU Vectorized: 5-10x speedup, GeoPandas fallback
 
     V2 Features (Task #12):
     - Intelligent caching with spatial hash keys
@@ -583,7 +583,7 @@ class GroundTruthOptimizer:
         ndvi_vegetation_threshold: float,
         ndvi_building_threshold: float,
     ) -> np.ndarray:
-        """CPU STRtree implementation (10-30× faster than naive)."""
+        """CPU STRtree implementation (10-30x faster than naive)."""
         if not HAS_SPATIAL:
             raise ImportError("Shapely and GeoPandas required for STRtree optimization")
 

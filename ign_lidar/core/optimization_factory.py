@@ -298,8 +298,7 @@ class OptimizationFactory:
             'gpu_memory_target': 0.8,
             'enable_memory_pooling': True,
             'enable_async_transfers': True,
-            'num_workers': 2,  # Reduce CPU workers when using GPU
-            'architecture': 'enhanced'
+            'num_workers': 2  # Reduce CPU workers when using GPU
         }
     
     def _get_cpu_config(self, data_chars: DataCharacteristics) -> Dict[str, Any]:
@@ -319,8 +318,7 @@ class OptimizationFactory:
             'use_gpu': False,
             'num_workers': optimal_workers,
             'chunk_size': chunk_size,
-            'enable_parallel_processing': True,
-            'architecture': 'enhanced'
+            'enable_parallel_processing': True
         }
     
     def _get_memory_config(self, data_chars: DataCharacteristics) -> Dict[str, Any]:
@@ -341,8 +339,7 @@ class OptimizationFactory:
             'gpu_batch_size': 1_000_000,  # Conservative GPU usage
             'gpu_memory_target': 0.6,     # Leave room for CPU processing
             'num_workers': self.system.parallel_capability // 2,
-            'enable_parallel_processing': True,
-            'architecture': 'enhanced'
+            'enable_parallel_processing': True
         }
     
     def recommend_optimization(self, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -398,7 +395,7 @@ class OptimizationFactory:
         if optimal_strategy == ProcessingStrategy.GPU_OPTIMIZED and not current_gpu:
             recommendations['estimated_performance'] = "2-5x speedup with GPU optimization"
         elif optimal_strategy == ProcessingStrategy.CPU_PARALLEL and current_arch == 'standard':
-            recommendations['estimated_performance'] = "1.5-3x speedup with enhanced orchestrator"
+            recommendations['estimated_performance'] = "1.5-3x speedup with optimized orchestrator"
             
         return recommendations
 

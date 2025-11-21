@@ -1,9 +1,8 @@
-"""
-Unified Classification Schema for IGN LiDAR HD Dataset
+"""Classification Schema for IGN LiDAR HD Dataset
 
 This module consolidates all classification schemas:
 - ASPRS LAS 1.4 standard classification codes (0-31)
-- ASPRS extended codes for BD TOPO® integration (32-255)
+- ASPRS extended codes for BD TOPO integration (32-255)
 - LOD2/LOD3 building-focused classification schemas
 - Mapping utilities and conversion functions
 
@@ -30,10 +29,9 @@ class ASPRSClass(IntEnum):
     ASPRS LAS 1.4 classification codes.
 
     Standard codes (0-31) are reserved by ASPRS specification.
-    Extended codes (32-255) are user-defined, here mapped to IGN BD TOPO® features.
+    Extended codes (32-255) are user-defined, here mapped to IGN BD TOPO features.
 
     Reference: ASPRS LAS Specification Version 1.4 - R15
-    https://www.asprs.org/wp-content/uploads/2019/07/LAS_1_4_r15.pdf
     """
 
     # ========================================================================

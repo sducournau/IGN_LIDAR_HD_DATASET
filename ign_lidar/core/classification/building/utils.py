@@ -556,7 +556,7 @@ def compute_bounding_box_volume(points: np.ndarray) -> float:
     # Compute dimensions (length, width, height)
     dimensions = max_coords - min_coords
     
-    # Volume = length × width × height
+    # Volume = length x width x height
     volume = np.prod(dimensions)
     
     return float(volume)

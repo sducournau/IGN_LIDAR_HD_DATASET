@@ -123,7 +123,7 @@ class Building3DExtruder:
         wall_verticality_threshold: float = 0.65,  # Minimum verticality for walls
         wall_detection_enabled: bool = True,
         missing_wall_threshold: float = 0.3,  # If <30% wall coverage, flag as missing
-        # 🆕 IMPROVED: Enhanced overhang detection
+        # Overhang detection
         enable_3d_hull_expansion: bool = True,  # Expand polygon using 3D convex hull projection
         overhang_max_distance: float = 4.0,  # Max distance for overhangs (m)
         roof_horizontal_expansion: float = 2.5,  # Expand for roof overhangs (m)
@@ -173,7 +173,7 @@ class Building3DExtruder:
         self.wall_detection_enabled = wall_detection_enabled
         self.missing_wall_threshold = missing_wall_threshold
         
-        # 🆕 IMPROVED: Enhanced overhang detection parameters
+        # Overhang detection parameters
         self.enable_3d_hull_expansion = enable_3d_hull_expansion
         self.overhang_max_distance = overhang_max_distance
         self.roof_horizontal_expansion = roof_horizontal_expansion
@@ -187,7 +187,7 @@ class Building3DExtruder:
         self.gap_min_points_per_sector = 5  # Minimum points per sector to consider covered
         self.gap_significant_threshold = 0.2  # If >20% perimeter has gaps, flag as significant
         
-        logger.info("3D Building Extruder initialized (Enhanced Wall Detection + Roof Overhang)")
+        logger.info("3D Building Extruder initialized (Wall Detection + Roof Overhang)")
         logger.info(f"  Floor height: {floor_height}m")
         logger.info(f"  Vertical buffer: ±{vertical_buffer}m")
         logger.info(f"  Horizontal buffers: ground={horizontal_buffer_ground}m, upper={horizontal_buffer_upper}m")
@@ -207,7 +207,7 @@ class Building3DExtruder:
         verticality: Optional[np.ndarray] = None,  # NEW: Verticality values
     ) -> List[BoundingBox3D]:
         """
-        Create 3D bounding boxes for each building polygon with enhanced wall detection.
+        Create 3D bounding boxes for each building polygon with wall detection.
         
         Args:
             polygons: List of 2D building footprint polygons
@@ -300,7 +300,7 @@ class Building3DExtruder:
         """
         Extrude a single 2D polygon into 3D bounding box with adaptive wall detection.
         
-        Enhanced Algorithm:
+        Algorithm:
         1. Compute adaptive buffer based on wall point density
         2. Find all points inside buffered polygon (2D)
         3. Analyze height distribution to determine building extent
@@ -863,7 +863,7 @@ class Building3DExtruder:
         Setbacks: Upper floors may have smaller footprints than ground floor.
         Common in: apartment buildings, terraced buildings, stepped facades.
         
-        🆕 Enhanced: Detects roof overhangs on top floor for better boundary detection.
+        Detects roof overhangs on top floor for better boundary detection.
         
         Algorithm:
         1. Divide height range into floor segments
@@ -912,7 +912,7 @@ class Building3DExtruder:
                     hull_points = floor_points_2d[hull.vertices]
                     floor_footprint = Polygon(hull_points)
                     
-                    # 🆕 IMPROVED: Apply appropriate buffer with enhanced roof handling
+                    # Apply appropriate buffer with roof handling
                     if floor_idx == 0:
                         # Ground floor: use ground buffer
                         buffer_dist = self.horizontal_buffer_ground
@@ -935,7 +935,7 @@ class Building3DExtruder:
                                 self.horizontal_buffer_upper,
                                 self.roof_horizontal_expansion
                             )
-                        logger.debug(f"Building {building_id}, roof floor: Using enhanced buffer={buffer_dist:.2f}m for overhangs")
+                        logger.debug(f"Building {building_id}, roof floor: Using buffer={buffer_dist:.2f}m for overhangs")
                     else:
                         # Mid-level floors: use upper buffer (captures balconies)
                         buffer_dist = self.horizontal_buffer_upper
@@ -1130,7 +1130,7 @@ def create_3d_bboxes_from_ground_truth(
         List of 3D bounding boxes with adaptive buffers and wall statistics
         
     Example:
-        >>> # Create bboxes with enhanced wall detection
+        >>> # Create bboxes with wall detection
         >>> bboxes = create_3d_bboxes_from_ground_truth(
         ...     buildings_gdf=my_buildings,
         ...     points=point_cloud,

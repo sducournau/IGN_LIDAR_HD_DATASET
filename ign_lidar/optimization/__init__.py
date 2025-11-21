@@ -6,10 +6,10 @@ Week 2 Consolidation: Ground truth classification with automatic optimization.
 This module provides the GroundTruthOptimizer class that automatically selects
 the best method based on dataset size and available hardware:
 
-1. GPU Chunked (100-1000× speedup) - Large datasets (>10M points) with GPU
-2. GPU Basic (100-500× speedup) - Medium datasets (1-10M points) with GPU
-3. CPU STRtree (10-30× speedup) - Works everywhere, spatial indexing
-4. CPU Vectorized (5-10× speedup) - GeoPandas fallback
+1. GPU Chunked (100-1000x speedup) - Large datasets (>10M points) with GPU
+2. GPU Basic (100-500x speedup) - Medium datasets (1-10M points) with GPU
+3. CPU STRtree (10-30x speedup) - Works everywhere, spatial indexing
+4. CPU Vectorized (5-10x speedup) - GeoPandas fallback
 
 Usage:
     from ign_lidar.optimization import GroundTruthOptimizer
@@ -69,25 +69,25 @@ except ImportError:
 
 
 def apply_strtree_optimization():
-    """Apply STRtree spatial indexing optimization (10-30× speedup)."""
+    """Apply STRtree spatial indexing optimization (10-30x speedup)."""
     from .strtree import patch_advanced_classifier
     patch_advanced_classifier()
 
 
 def apply_vectorized_optimization():
-    """Apply GeoPandas vectorized optimization (30-100× speedup)."""
+    """Apply GeoPandas vectorized optimization (30-100x speedup)."""
     from .vectorized import patch_advanced_classifier
     patch_advanced_classifier()
 
 
 def apply_gpu_optimization():
-    """Apply GPU-accelerated optimization (100-1000× speedup)."""
+    """Apply GPU-accelerated optimization (100-1000x speedup)."""
     from .gpu import patch_advanced_classifier
     patch_advanced_classifier()
 
 
 def apply_prefilter_optimization():
-    """Apply pre-filtering optimization (2-5× speedup)."""
+    """Apply pre-filtering optimization (2-5x speedup)."""
     from .prefilter import patch_classifier
     patch_classifier()
 

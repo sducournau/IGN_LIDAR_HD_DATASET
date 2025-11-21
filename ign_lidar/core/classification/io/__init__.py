@@ -4,7 +4,7 @@ Classification I/O Module
 Provides loading, serialization, and caching for LiDAR classification data.
 
 This module consolidates all I/O-related functionality previously scattered across
-multiple files in the classification root directory. It provides a unified interface
+multiple files in the classification root directory. It provides a consistent interface
 for loading LAZ/LAS files, serializing results, and managing tile data.
 
 Modules:

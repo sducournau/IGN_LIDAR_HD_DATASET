@@ -256,4 +256,4 @@ __all__ = [
     "integrate_adaptive_buffering_with_wfs",
 ]
 
-__version__ = "3.4.0"  # Bumped for enhanced building classifier integration
+__version__ = "3.4.0"  # Bumped for building classifier integration

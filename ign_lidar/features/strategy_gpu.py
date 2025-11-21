@@ -49,17 +49,17 @@ class GPUStrategy(BaseFeatureStrategy):
     - Systems with GPU (CuPy + cuML)
 
     Performance (batch mode):
-    - Medium (1-5M points): 0.5-2 seconds (10-30× faster than CPU)
+    - Medium (1-5M points): 0.5-2 seconds (10-30x faster than CPU)
     - Large (5-10M points): 2-5 seconds
 
     Performance (chunked mode, auto-triggered for >10M):
     - Very large (10-50M points): 5-30 seconds
-    - FAISS acceleration: 50-100× speedup for k-NN queries
+    - FAISS acceleration: 50-100x speedup for k-NN queries
 
     Requirements:
     - CuPy (CUDA arrays)
     - cuML (GPU algorithms) - optional but recommended
-    - FAISS (optional, for 50-100× k-NN speedup on large datasets)
+    - FAISS (optional, for 50-100x k-NN speedup on large datasets)
 
     Attributes:
         k_neighbors (int): Number of neighbors for geometric features

@@ -107,7 +107,7 @@ class BuildingClusterer:
             polygon_buffer: Buffer distance for polygon adjustment (meters)
             wall_buffer: Additional buffer for near-vertical wall detection (meters)
             detect_near_vertical_walls: Enable near-vertical wall detection
-            use_gpu: Use GPU acceleration for bbox optimization (50-100× faster)
+            use_gpu: Use GPU acceleration for bbox optimization (50-100x faster)
         """
         self.use_centroid_attraction = use_centroid_attraction
         self.attraction_radius = attraction_radius
@@ -137,7 +137,7 @@ class BuildingClusterer:
         """
         Cluster building points by their respective building footprints.
         
-        ENHANCED: Now detects near-vertical walls (plans verticaux / murs) using normals
+        Now detects near-vertical walls (plans verticaux / murs) using normals
         and extends building polygons with buffers to capture wall points up to boundaries.
         
         Args:
@@ -169,7 +169,7 @@ class BuildingClusterer:
             candidate_indices = np.arange(n_points)
             logger.info(f"Processing all {n_points:,} points")
         
-        # ENHANCED: Detect near-vertical walls if normals/verticality available
+        # Detect near-vertical walls if normals/verticality available
         near_vertical_mask = None
         if self.detect_near_vertical_walls and normals is not None:
             # Compute verticality if not provided (1 - |nz|)
@@ -391,7 +391,7 @@ class BuildingClusterer:
         """
         🚀 GPU-accelerated bbox optimization using CuPy vectorization.
         
-        Performance: 50-100× faster than CPU (0.5-2s → 20-40ms per building).
+        Performance: 50-100x faster than CPU (0.5-2s → 20-40ms per building).
         
         Algorithm:
         1. Generate all grid positions (dx, dy) on CPU
@@ -520,7 +520,7 @@ class BuildingClusterer:
         """
         Adjust polygon boundaries to better match point cloud distribution.
         
-        ENHANCED Strategy for Wall Detection:
+        Strategy for Wall Detection:
         1. Apply base buffer to capture building footprint
         2. Add extended buffer for near-vertical walls (captures points at wall boundaries)
         3. Compute point density around polygon edges
@@ -553,7 +553,7 @@ class BuildingClusterer:
                 if points is not None and points.shape[1] >= 3:
                     heights = points[:, 2]
 
-                # Use GPU-accelerated bbox optimization if enabled (50-100× faster)
+                # Use GPU-accelerated bbox optimization if enabled (50-100x faster)
                 if self.use_gpu:
                     best_shift, best_bbox = self.optimize_bbox_for_building_gpu(
                         points=points,
@@ -646,7 +646,7 @@ class BuildingClusterer:
         if len(points) == 0:
             return 0.0
         
-        # Simple estimate: polygon area × mean height
+        # Simple estimate: polygon area x mean height
         area = polygon.area
         mean_height = points[:, 2].mean()
         

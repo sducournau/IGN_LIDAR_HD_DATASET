@@ -1,5 +1,4 @@
-"""
-Enhanced WFS Fetch Result Handling
+"""WFS Fetch Result Handling
 
 This module provides structured error handling and retry logic for BD Topo
 WFS fetching operations, improving robustness of ground truth data retrieval.

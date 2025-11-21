@@ -273,7 +273,7 @@ class CadastreFetcher:
         point_assigned = np.zeros(n_points, dtype=bool)
         
         # OPTIMIZED: Use STRtree spatial indexing for O(log N) point-in-polygon queries
-        # Performance gain: 10-100× faster than nested loops with .iterrows()
+        # Performance gain: 10-100x faster than nested loops with .iterrows()
         try:
             # VECTORIZED: Filter valid parcels without iterrows()
             mask_valid_geom = parcels_gdf.geometry.apply(

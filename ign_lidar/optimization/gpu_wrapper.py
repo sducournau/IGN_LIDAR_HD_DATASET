@@ -1,5 +1,4 @@
-"""
-Unified GPU Acceleration Wrapper
+"""GPU Acceleration Wrapper
 
 Provides a consistent decorator pattern for adding GPU acceleration to functions
 with automatic fallback to CPU implementations.

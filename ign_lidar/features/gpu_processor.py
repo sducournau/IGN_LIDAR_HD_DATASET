@@ -54,13 +54,13 @@ except ImportError:
     cuNearestNeighbors = None
     cuPCA = None
 
-# FAISS GPU support (50-100× faster than cuML for k-NN)
+# FAISS GPU support (50-100x faster than cuML for k-NN)
 FAISS_AVAILABLE = False
 try:
     import faiss
 
     FAISS_AVAILABLE = True
-    logger.info("✓ FAISS available - Ultra-fast k-NN enabled (50-100× speedup)")
+    logger.info("✓ FAISS available - Ultra-fast k-NN enabled (50-100x speedup)")
 except ImportError:
     logger.debug("FAISS not available - using cuML/sklearn for k-NN")
     faiss = None
@@ -97,7 +97,7 @@ from .compute.utils import (
 
 class GPUProcessor:
     """
-    Unified GPU feature processor with automatic chunking.
+    GPU feature processor with automatic chunking.
 
     Consolidates features_gpu.py and features_gpu_chunked.py into a single
     intelligent processor that automatically selects the optimal strategy:
@@ -135,7 +135,7 @@ class GPUProcessor:
         batch_size: Optional[int] = None,
     ):
         """
-        Initialize unified GPU processor.
+        Initialize GPU processor.
 
         Args:
             auto_chunk: Auto-detect whether to use chunking (default: True)
@@ -925,7 +925,7 @@ class GPUProcessor:
         Compute normals using chunked processing (from features_gpu_chunked.py).
 
         Strategy (automatic selection):
-        1. FAISS (preferred): Ultra-fast k-NN, 50-100× faster than cuML
+        1. FAISS (preferred): Ultra-fast k-NN, 50-100x faster than cuML
         2. cuML fallback: Global KDTree + chunked queries
         3. CPU fallback: sklearn KDTree
         """
@@ -935,7 +935,7 @@ class GPUProcessor:
 
         N = len(points)
 
-        # Try FAISS first (50-100× speedup)
+        # Try FAISS first (50-100x speedup)
         if FAISS_AVAILABLE and self.use_cuml:
             logger.info(f"  🚀 Using FAISS for ultra-fast k-NN ({N:,} points)")
             try:
@@ -952,7 +952,7 @@ class GPUProcessor:
         self, points: np.ndarray, k: int, show_progress: bool
     ) -> np.ndarray:
         """
-        Compute normals using FAISS for 50-100× faster k-NN queries.
+        Compute normals using FAISS for 50-100x faster k-NN queries.
 
         FAISS dramatically outperforms cuML for massive neighbor queries:
         - 18.6M points: cuML ~51 min → FAISS ~30-60 seconds
@@ -971,10 +971,10 @@ class GPUProcessor:
         # OPTIMIZATION: Adaptive batch size based on GPU memory to avoid OOM
         if self.use_gpu:
             # CRITICAL FIX: Calculate safe batch size based on available GPU memory
-            # FAISS needs temp memory for: batch_size × k × 8 bytes (distances + indices)
+            # FAISS needs temp memory for: batch_size x k x 8 bytes (distances + indices)
             # Plus internal temporary buffers (can be 2-3x the query size for IVFFlat)
             available_gb = self.vram_limit_gb * 0.5  # Use at most 50% of VRAM for queries
-            bytes_per_point = k * 8 * 3  # × 3 for FAISS internal buffers
+            bytes_per_point = k * 8 * 3  # x 3 for FAISS internal buffers
             max_batch_points = int((available_gb * 1024**3) / bytes_per_point)
             batch_size = min(5_000_000, max(100_000, max_batch_points))  # Between 100K and 5M
             logger.debug(f"  Adaptive batch size: {batch_size:,} points (GPU memory: {available_gb:.1f}GB)")
@@ -994,7 +994,7 @@ class GPUProcessor:
                 if self.use_gpu:
                     estimated_seconds = (N / 1_000_000) * 3  # ~3 sec per million for GPU FAISS
                     logger.info(
-                        f"  ⚡ Querying {N:,} × {k} neighbors in {num_batches} batches..."
+                        f"  ⚡ Querying {N:,} x {k} neighbors in {num_batches} batches..."
                     )
                     logger.info(
                         f"     Estimated time: {estimated_seconds:.0f} seconds (GPU batched processing)"
@@ -1002,14 +1002,14 @@ class GPUProcessor:
                 else:
                     estimated_minutes = (N / 1_000_000) * 1.2  # ~1.2 min per million for CPU FAISS
                     logger.info(
-                        f"  ⚡ Querying {N:,} × {k} neighbors in {num_batches} batches..."
+                        f"  ⚡ Querying {N:,} x {k} neighbors in {num_batches} batches..."
                     )
                     logger.info(
                         f"     Estimated time: {estimated_minutes:.1f} minutes (CPU batched processing)"
                     )
             else:
                 logger.info(
-                    f"  ⚡ Querying {N:,} × {k} neighbors in {num_batches} batches..."
+                    f"  ⚡ Querying {N:,} x {k} neighbors in {num_batches} batches..."
                 )
 
             # Allocate result arrays
@@ -1079,7 +1079,7 @@ class GPUProcessor:
             logger.info(f"     ✓ All neighbors found ({num_batches} batches completed)")
         else:
             # Single batch for small datasets
-            logger.info(f"  ⚡ Querying all {N:,} × {k} neighbors...")
+            logger.info(f"  ⚡ Querying all {N:,} x {k} neighbors...")
             distances, indices = index.search(points.astype(np.float32), k)
             logger.info(f"     ✓ All neighbors found")
 
@@ -1206,7 +1206,7 @@ class GPUProcessor:
                 
                 quantizer = faiss.IndexFlatL2(D)
                 index = faiss.IndexIVFPQ(quantizer, D, nlist, m, nbits, faiss.METRIC_L2)
-                logger.info(f"     PQ compression: {m} subvectors × {nbits} bits (memory: {100*(m*nbits/8)/(D*4):.1f}% of original)")
+                logger.info(f"     PQ compression: {m} subvectors x {nbits} bits (memory: {100*(m*nbits/8)/(D*4):.1f}% of original)")
             else:
                 # IVFFlat: standard IVF without compression
                 quantizer = faiss.IndexFlatL2(D)
@@ -1378,7 +1378,7 @@ class GPUProcessor:
         """
         Compute normals using vectorized covariance computation on GPU.
 
-        ~100× faster than per-point PCA loops.
+        ~100x faster than per-point PCA loops.
         """
         M, k = neighbor_indices.shape
 

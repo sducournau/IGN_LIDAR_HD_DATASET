@@ -1,7 +1,7 @@
 """
-Unified Classification Module
+Classification Module
 
-This module consolidates three classification approaches into a single unified interface:
+This module consolidates three classification approaches into a single interface:
 1. AdvancedClassifier: Multi-stage pipeline with parcel clustering, geometry, NDVI, ground truth
 2. AdaptiveClassifier: Feature-aware classification with automatic fallback rules
 3. RefinementFunctions: LOD2/LOD3 refinement with ground truth integration
@@ -15,7 +15,7 @@ v3.2+ Changes:
 Consolidation reduces code from 4,216 lines to ~2,000 lines (52% reduction) while:
 - Preserving all unique features from each approach
 - Maintaining 100% backward compatibility via wrapper classes
-- Providing unified, consistent API
+- Providing consistent API
 - Improving maintainability and reducing duplication
 
 Author: IGN LiDAR HD Classification Team
@@ -32,10 +32,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
 import numpy as np
 import pandas as pd
 
-# Import unified modules (v3.1 - consolidated)
+# Import consolidated modules (v3.1)
 from ...classification_schema import ASPRSClass, LOD2Class, LOD3Class
 
-# Import BaseClassifier for v3.2+ unified interface
+# Import BaseClassifier for v3.2+ interface
 from .base import BaseClassifier, ClassificationResult
 
 # Import supporting modules (Phase 2 & 3 reorganization)
@@ -201,7 +201,7 @@ class ClassifierConfig:
 
 
 # ============================================================================
-# Unified Classifier
+# Classifier
 # ============================================================================
 
 
@@ -233,7 +233,7 @@ class Classifier(BaseClassifier):
     - ADAPTIVE: Adapts to available features with fallback rules
     - COMPREHENSIVE: Full multi-stage pipeline (slower, highest accuracy)
 
-    Example (v3.2+ unified interface):
+    Example (v3.2+ interface):
         >>> # Use standardized classify() method
         >>> classifier = Classifier(strategy='comprehensive')
         >>> result = classifier.classify(points, features, ground_truth=gdf)
@@ -328,7 +328,7 @@ class Classifier(BaseClassifier):
         self.artifact_features: Set[str] = config.artifact_features or set()
 
         logger.info(
-            f"🎯 Unified Classifier initialized (strategy: {self.strategy.value.upper()})"
+            f"🎯 Classifier initialized (strategy: {self.strategy.value.upper()})"
         )
         logger.info(f"  Ground truth: {config.use_ground_truth}")
         logger.info(f"  NDVI refinement: {config.use_ndvi}")
@@ -342,7 +342,7 @@ class Classifier(BaseClassifier):
         logger.info(f"  LOD level: {config.lod_level}")
 
     # ========================================================================
-    # v3.2+ Unified Interface (BaseClassifier compatibility)
+    # v3.2+ Interface (BaseClassifier compatibility)
     # ========================================================================
 
     def classify(
@@ -1765,7 +1765,7 @@ class Classifier(BaseClassifier):
         """
         Main refinement function applying all enabled refinements.
 
-        This is the unified entry point for all refinement operations,
+        This is the entry point for all refinement operations,
         consolidating the functionality from classification_refinement.refine_classification().
 
         Args:

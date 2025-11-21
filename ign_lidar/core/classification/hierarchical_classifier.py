@@ -35,7 +35,7 @@ from ign_lidar.classification_schema import (
     ASPRSClass,
 )
 
-# Import BaseClassifier for v3.2+ unified interface
+# Import BaseClassifier for v3.2+ interface
 from .base import BaseClassifier
 from .base import ClassificationResult as BaseClassificationResult
 
@@ -115,7 +115,7 @@ class HierarchicalClassifier(BaseClassifier):
     - Progressive refinement using multiple data sources
     - Feature importance tracking
 
-    Example (v3.2+ unified interface):
+    Example (v3.2+ interface):
         >>> classifier = HierarchicalClassifier(target_level=ClassificationLevel.LOD2)
         >>> result = classifier.classify(points, features)
         >>> labels = result.labels
@@ -151,7 +151,7 @@ class HierarchicalClassifier(BaseClassifier):
         )
 
     # ========================================================================
-    # v3.2+ Unified Interface (BaseClassifier compatibility)
+    # v3.2+ Interface (BaseClassifier compatibility)
     # ========================================================================
 
     def classify(
@@ -244,7 +244,7 @@ class HierarchicalClassifier(BaseClassifier):
         Perform hierarchical classification from ASPRS labels (original interface).
 
         This is the original method maintained for backward compatibility.
-        For v3.2+ code, prefer using the unified classify() method.
+        For v3.2+ code, prefer using the classify() method.
 
         Args:
             asprs_labels: Initial ASPRS classification labels [N]

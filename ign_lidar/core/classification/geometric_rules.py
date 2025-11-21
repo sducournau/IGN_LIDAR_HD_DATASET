@@ -109,7 +109,7 @@ class GeometricRulesEngine:
             use_spectral_rules: Enable advanced spectral classification rules
             nir_vegetation_threshold: Minimum NIR for vegetation (spectral rules)
             nir_building_threshold: Minimum NIR for building materials (spectral rules)
-            use_clustering: Enable clustering-based building buffer classification (10-100× faster)
+            use_clustering: Enable clustering-based building buffer classification (10-100x faster)
             spatial_cluster_eps: Spatial clustering epsilon (meters)
             min_cluster_size: Minimum points per cluster
         """
@@ -265,7 +265,7 @@ class GeometricRulesEngine:
 
         # Rule 2: Building buffer zone classification with verticality
         if "buildings" in ground_truth_features:
-            # Use clustered version if enabled (10-100× faster)
+            # Use clustered version if enabled (10-100x faster)
             if self.use_clustering:
                 n_added = self.classify_building_buffer_zone_clustered(
                     points=points,
@@ -566,7 +566,7 @@ class GeometricRulesEngine:
     ) -> int:
         """
         Classify unclassified points near buildings using spatial
-        clustering (10-100× faster).
+        clustering (10-100x faster).
 
         Logic:
         1. Extract all unclassified points within building buffers

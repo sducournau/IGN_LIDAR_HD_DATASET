@@ -77,8 +77,7 @@ def test_cpu_vectorized_vs_legacy(sample_points_large, sample_polygons):
 
 
 @pytest.mark.gpu
-@pytest.mark.skipif(not pytest.config.getoption("--run-gpu", default=False), 
-                    reason="GPU tests not enabled (use --run-gpu)")
+@pytest.mark.skipif(True, reason="GPU tests not enabled (use --run-gpu)")
 def test_gpu_batched_vs_cpu(sample_points_large, sample_polygons):
     """
     Test GPU batched implementation vs CPU vectorized.

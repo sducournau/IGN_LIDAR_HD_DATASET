@@ -350,7 +350,7 @@ class RPGFetcher:
         point_geoms = [Point(points[i, 0], points[i, 1]) for i in candidate_indices]
         
         # OPTIMIZED: Use STRtree spatial indexing for O(log N) lookups
-        # Performance gain: 10-100× faster than nested loops
+        # Performance gain: 10-100x faster than nested loops
         n_labeled = 0
         try:
             # Build spatial index

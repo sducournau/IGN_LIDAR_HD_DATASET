@@ -1,4 +1,3 @@
-"""
 """Command-line tool to migrate old configuration files to v3.2 format.
 
 This tool helps users migrate from the old dual-schema configuration

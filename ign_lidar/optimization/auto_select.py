@@ -105,27 +105,27 @@ def auto_optimize(force_level: Optional[str] = None, verbose: bool = True) -> st
         if selected_level == OptimizationLevel.GPU:
             from .gpu import patch_advanced_classifier
             patch_advanced_classifier()
-            speedup = "100-1000×"
+            speedup = "100-1000x"
         
         elif selected_level == OptimizationLevel.VECTORIZED:
             from .vectorized import patch_advanced_classifier
             patch_advanced_classifier()
-            speedup = "30-100×"
+            speedup = "30-100x"
         
         elif selected_level == OptimizationLevel.STRTREE:
             from .strtree import patch_advanced_classifier
             patch_advanced_classifier()
-            speedup = "10-30×"
+            speedup = "10-30x"
         
         elif selected_level == OptimizationLevel.PREFILTER:
             from .prefilter import patch_classifier
             patch_classifier()
-            speedup = "2-5×"
+            speedup = "2-5x"
         
         else:
             if verbose:
                 logger.info("Using original implementation (no optimization)")
-            speedup = "1×"
+            speedup = "1x"
         
         if verbose:
             logger.info(f"✅ Optimization applied: {selected_level}")

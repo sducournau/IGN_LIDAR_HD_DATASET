@@ -30,7 +30,7 @@ class StitchingConfigManager:
             'cache_enabled': True
         },
         
-        'enhanced': {
+        'standard': {
             'enabled': True,
             'buffer_size': 15.0,
             'adaptive_buffer': True,
@@ -88,7 +88,7 @@ class StitchingConfigManager:
         Load a stitching configuration by name.
         
         Args:
-            config_name: Configuration name ('disabled', 'basic', 'enhanced', 'advanced')
+            config_name: Configuration name ('disabled', 'basic', 'standard', 'advanced')
             
         Returns:
             Configuration dictionary
@@ -175,7 +175,7 @@ class StitchingConfigManager:
 
 
 def get_stitching_config_for_processor(
-    stitching_preset: str = 'enhanced',
+    stitching_preset: str = 'standard',
     custom_overrides: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
@@ -227,4 +227,4 @@ def get_recommended_stitching_preset(
     if tile_count > 100 and memory_gb >= 16:
         return 'advanced'  # High performance for large datasets
     
-    return 'enhanced'  # Good balance for most cases
+    return 'standard'  # Good balance for most cases

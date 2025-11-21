@@ -2,7 +2,7 @@
 Phase 5: Optimized WFS Ground Truth Fetcher
 
 Performance improvements over Phase 4:
-- HTTP session pooling (2-3× faster connections)
+- HTTP session pooling (2-3x faster connections)
 - Batch WFS queries (fetch multiple layers together)
 - Persistent disk cache with TTL
 - Parallel fetching support
@@ -87,8 +87,8 @@ class OptimizedWFSFetcher:
     Optimized WFS fetcher with connection pooling, batching, and caching.
     
     Performance improvements:
-    - HTTP session pooling: 2-3× faster connections
-    - Batch queries: Reduce round trips by ~5×
+    - HTTP session pooling: 2-3x faster connections
+    - Batch queries: Reduce round trips by ~5x
     - Persistent cache: Instant loading for cached data
     - Parallel fetching: Process multiple tiles simultaneously
     """
@@ -328,7 +328,7 @@ class OptimizedWFSFetcher:
                     pd.concat(gdfs_with_layer, ignore_index=True)
                 )
                 
-                # Save as Parquet (10-20× faster than GeoJSON)
+                # Save as Parquet (10-20x faster than GeoJSON)
                 cache_file = self.cache_dir / f"{cache_key}.parquet"
                 combined_gdf.to_parquet(
                     cache_file,

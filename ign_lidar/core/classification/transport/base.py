@@ -5,7 +5,7 @@ This module provides the foundational infrastructure for transport classificatio
 - Abstract base classes for transport detection and enhancement
 - Enums for transport modes, types, and strategies
 - Configuration dataclasses for detection, buffering, and indexing
-- Result types for unified transport detection outputs
+- Result types for transport detection outputs
 
 Author: Transport Module Consolidation (Phase 3)
 Date: October 22, 2025
@@ -19,7 +19,7 @@ from typing import Optional, Dict, Any, Tuple, List
 from pathlib import Path
 import numpy as np
 
-# Import unified thresholds (v3.1 - consolidated)
+# Import thresholds (v3.1 - consolidated)
 from ..thresholds import ClassificationThresholds
 
 
@@ -352,7 +352,7 @@ class TransportStats:
 @dataclass
 class TransportDetectionResult:
     """
-    Unified result type for transport detection.
+    Result type for transport detection.
     
     Provides type-safe container for detection outputs with
     labels, confidence scores, and summary statistics.

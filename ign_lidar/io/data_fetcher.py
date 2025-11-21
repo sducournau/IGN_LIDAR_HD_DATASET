@@ -230,7 +230,7 @@ class DataFetcher:
         
         # OPTIMIZATION: Fetch all data sources in parallel
         # This reduces total fetch time from sum(T_i) to max(T_i)
-        # Expected speedup: 2-4× for typical use cases
+        # Expected speedup: 2-4x for typical use cases
         from concurrent.futures import ThreadPoolExecutor, as_completed
         
         fetch_tasks = []
@@ -483,4 +483,5 @@ def create_full_fetcher(cache_dir: Optional[Path] = None) -> DataFetcher:
 
 
 # Deprecated aliases for backward compatibility
-UnifiedDataFetcher = DataFetcher  # Deprecated: use DataFetcher
+# Deprecated alias - use DataFetcher instead
+UnifiedDataFetcher = DataFetcher

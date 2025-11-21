@@ -374,10 +374,13 @@ class LiDARProcessor:
 
         # Phase 4.3: Initialize FeatureOrchestrator V5 (consolidated)
         # All optimizations are now built into the main FeatureOrchestrator
-        logger.info("🚀 Using FeatureOrchestrator V5 with integrated optimizations")
-        self.feature_orchestrator = FeatureOrchestrator(config)
-
-        # Keep backward-compatible references for legacy code
+        # Phase 2 Session 3: Use FeatureEngine wrapper for cleaner API
+        logger.info("🚀 Using FeatureEngine with FeatureOrchestrator V5")
+        from .feature_engine import FeatureEngine
+        self.feature_engine = FeatureEngine(config)
+        
+        # Backward compatibility: expose orchestrator directly
+        self.feature_orchestrator = self.feature_engine.orchestrator
         self.feature_manager = self.feature_orchestrator  # Backward compatibility alias
 
         # Setup stitching configuration and initialize stitcher if needed
@@ -394,17 +397,14 @@ class LiDARProcessor:
         )
         self.stitcher = ConfigValidator.init_stitcher(stitching_config)
 
-        # Set class mapping based on LOD level
-        if self.lod_level == "ASPRS":
-            # ASPRS mode: No class mapping - use ASPRS codes directly
-            self.class_mapping = None
-            self.default_class = 1  # ASPRS unclassified
-        elif self.lod_level == "LOD2":
-            self.class_mapping = ASPRS_TO_LOD2
-            self.default_class = 14
-        else:  # LOD3
-            self.class_mapping = ASPRS_TO_LOD3
-            self.default_class = 29
+        # Phase 2 Session 4: Initialize ClassificationEngine wrapper
+        logger.info("🔧 Using ClassificationEngine wrapper")
+        from .classification_engine import ClassificationEngine
+        self.classification_engine = ClassificationEngine(config, lod_level=self.lod_level)
+        
+        # Backward compatibility: expose class mapping directly
+        self.class_mapping = self.classification_engine.class_mapping
+        self.default_class = self.classification_engine.default_class
 
         # Initialize intelligent skip checker
         self.skip_checker = PatchSkipChecker(
@@ -718,6 +718,40 @@ class LiDARProcessor:
                 f"ℹ️  No data sources enabled - ground truth classification disabled"
             )
 
+        # Phase 2 (v3.5.0): Initialize new manager classes for better separation of concerns
+        logger.debug("Initializing I/O and ground truth managers...")
+        
+        # Initialize TileIOManager for file operations
+        from .tile_io_manager import TileIOManager
+        input_dir = Path(config.get("input_dir", "."))
+        self.tile_io_manager = TileIOManager(input_dir=input_dir)
+        logger.debug(f"   ✓ TileIOManager initialized (input_dir: {input_dir})")
+        
+        # Initialize GroundTruthManager for data prefetching and caching
+        from .ground_truth_manager import GroundTruthManager
+        cache_dir = Path(OmegaConf.select(config, "cache_dir", default="data/cache"))
+        self.ground_truth_manager = GroundTruthManager(
+            data_sources_config=config.get("data_sources", {}),
+            cache_dir=cache_dir
+        )
+        logger.debug(f"   ✓ GroundTruthManager initialized (cache_dir: {cache_dir})")
+
+        # Phase 2 Session 5: Initialize TileOrchestrator for tile processing
+        # (Must be after data_fetcher initialization to pass it as dependency)
+        logger.info("🔧 Initializing TileOrchestrator")
+        from .tile_orchestrator import TileOrchestrator
+        self.tile_orchestrator = TileOrchestrator(
+            config=config,
+            feature_orchestrator=self.feature_engine.feature_orchestrator,
+            classifier=None,  # Will be set later if ground truth is enabled
+            reclassifier=None,  # Will be set later if reclassification is enabled
+            lod_level=self.lod_level,
+            class_mapping=self.class_mapping,
+            default_class=self.default_class,
+            data_fetcher=self.data_fetcher,  # Pass data_fetcher for DTM augmentation
+        )
+        logger.debug("   ✓ TileOrchestrator initialized")
+
     def _validate_config(self, config: DictConfig) -> None:
         """Validate configuration object has required fields."""
         required_sections = ["processor", "features"]
@@ -809,17 +843,17 @@ class LiDARProcessor:
     @property
     def rgb_fetcher(self):
         """Access RGB fetcher (backward compatibility)."""
-        return self.feature_orchestrator.rgb_fetcher
+        return self.feature_engine.rgb_fetcher
 
     @property
     def infrared_fetcher(self):
         """Access infrared fetcher (backward compatibility)."""
-        return self.feature_orchestrator.infrared_fetcher
+        return self.feature_engine.infrared_fetcher
 
     @property
     def use_gpu(self):
         """Check if GPU is enabled (backward compatibility)."""
-        return self.feature_orchestrator.use_gpu
+        return self.feature_engine.use_gpu
 
     @property
     def include_rgb(self):
@@ -932,294 +966,6 @@ class LiDARProcessor:
         """Get RGB cache directory (backward compatibility)."""
         return self.config.features.rgb_cache_dir
 
-    def _save_patch_as_laz(
-        self,
-        save_path: Path,
-        arch_data: Dict[str, np.ndarray],
-        original_patch: Dict[str, np.ndarray],
-    ) -> None:
-        """
-        Save a patch as a LAZ point cloud file with all computed features.
-
-        Args:
-            save_path: Output LAZ file path
-            arch_data: Formatted patch data (architecture-specific)
-            original_patch: Original patch data with metadata
-        """
-        # Extract coordinates from arch_data
-        # Most architectures have 'points' or 'coords' key
-        if "points" in arch_data:
-            coords = arch_data["points"][:, :3].copy()  # XYZ
-        elif "coords" in arch_data:
-            coords = arch_data["coords"][:, :3].copy()
-        else:
-            logger.warning(
-                f"Cannot save LAZ patch: no coordinates found in {list(arch_data.keys())}"
-            )
-            return
-
-        # Restore LAMB93 coordinates if metadata available
-        # Extract tile coordinates from filename if possible
-        try:
-            filename = save_path.stem
-            parts = filename.split("_")
-            # Look for tile coordinates in filename (e.g., LHD_FXX_0649_6863_...)
-            if len(parts) >= 4 and parts[2].isdigit() and parts[3].isdigit():
-                tile_x = int(parts[2])
-                tile_y = int(parts[3])
-                # LAMB93 tiles are 1km x 1km, tile center at (tile_x * 1000 + 500, tile_y * 1000 + 500)
-                tile_center_x = tile_x * 1000 + 500
-                tile_center_y = tile_y * 1000 + 500
-
-                # If metadata has centroid, restore original coordinates
-                if "metadata" in original_patch and isinstance(
-                    original_patch["metadata"], dict
-                ):
-                    metadata = original_patch["metadata"]
-                    if "centroid" in metadata:
-                        centroid = np.array(metadata["centroid"])
-                        coords[:, 0] = coords[:, 0] + centroid[0] + tile_center_x
-                        coords[:, 1] = coords[:, 1] + centroid[1] + tile_center_y
-                        coords[:, 2] = coords[:, 2] + centroid[2]
-                    else:
-                        # No centroid, just apply tile offset
-                        coords[:, 0] = coords[:, 0] + tile_center_x
-                        coords[:, 1] = coords[:, 1] + tile_center_y
-        except Exception as e:
-            logger.debug(f"Could not restore LAMB93 coordinates: {e}")
-            # Continue with normalized coordinates
-
-        # Determine point format based on available data
-        # Format 3: supports RGB (LAS 1.4) - most compatible
-        # Format 8: supports RGB + NIR (LAS 1.4)
-        has_rgb = "rgb" in arch_data
-        has_nir = "nir" in original_patch and original_patch["nir"] is not None
-        point_format = 8 if (has_rgb and has_nir) else (3 if has_rgb else 6)
-
-        # Create LAZ file
-        header = laspy.LasHeader(version="1.4", point_format=point_format)
-        header.offsets = [
-            np.floor(coords[:, 0].min()),
-            np.floor(coords[:, 1].min()),
-            np.floor(coords[:, 2].min()),
-        ]
-        header.scales = [0.001, 0.001, 0.001]
-
-        las = laspy.LasData(header)
-        las.x = coords[:, 0]
-        las.y = coords[:, 1]
-        las.z = coords[:, 2]
-
-        # Add classification if available
-        if "labels" in arch_data:
-            las.classification = arch_data["labels"].astype(np.uint8)
-        elif "classification" in original_patch:
-            las.classification = original_patch["classification"].astype(np.uint8)
-
-        # Add intensity if available
-        if "intensity" in original_patch:
-            las.intensity = (original_patch["intensity"] * 65535).astype(np.uint16)
-
-        # Add RGB if available
-        if "rgb" in arch_data:
-            rgb = (arch_data["rgb"] * 65535).astype(np.uint16)
-            las.red = rgb[:, 0]
-            las.green = rgb[:, 1]
-            las.blue = rgb[:, 2]
-
-        # Add NIR if available and point format supports it (format 8)
-        if (
-            point_format == 8
-            and "nir" in original_patch
-            and original_patch["nir"] is not None
-        ):
-            nir = (original_patch["nir"] * 65535).astype(np.uint16)
-            las.nir = nir
-
-        # ===== Add computed features as extra dimensions =====
-        # Add ALL geometric/geometric features dynamically (not just a hardcoded subset)
-        # This ensures all computed features (including advanced ones like eigenvalues,
-        # architectural features, density features) are saved to LAZ
-
-        # Track added dimensions to avoid duplicates
-        added_dimensions = set()
-
-        # Define keys to skip (standard fields, special handling, or already processed)
-        skip_keys = {
-            "points",
-            "coords",
-            "labels",
-            "classification",
-            "intensity",
-            "rgb",
-            "nir",
-            "ndvi",
-            "normals",
-            "return_number",
-            "metadata",
-            "features",
-            "knn_graph",
-            "voxel_coords",
-            "voxel_features",
-            "voxel_labels",
-            "_patch_center",
-            "_patch_bounds",
-            "_version",
-            "_patch_idx",
-            "_spatial_idx",
-        }
-
-        # Iterate through all features in original_patch and add as extra dimensions
-        for feat_name, feat_data in original_patch.items():
-            # Skip if in skip list or not a numpy array
-            if feat_name in skip_keys or not isinstance(feat_data, np.ndarray):
-                continue
-
-            # Skip if already added
-            if feat_name in added_dimensions:
-                continue
-
-            # Skip if already a standard LAS field
-            if hasattr(las, feat_name) and feat_name not in ["height", "curvature"]:
-                continue
-
-            # Skip multi-dimensional arrays (except for specific known ones handled separately)
-            if feat_data.ndim > 1:
-                continue
-
-            try:
-                # Determine appropriate data type
-                # Keep cluster IDs as integers for semantic meaning
-                if feat_name in [
-                    "cluster_id",
-                    "building_cluster_id",
-                    "parcel_cluster_id",
-                ]:
-                    dtype = np.int32
-                    feat_data_typed = feat_data.astype(np.int32)
-                elif feat_data.dtype in [np.float32, np.float64]:
-                    dtype = np.float32
-                    feat_data_typed = feat_data.astype(np.float32)
-                elif feat_data.dtype in [np.int32, np.uint32]:
-                    dtype = np.int32
-                    feat_data_typed = feat_data.astype(np.int32)
-                elif feat_data.dtype == np.uint8:
-                    dtype = np.uint8
-                    feat_data_typed = feat_data.astype(np.uint8)
-                else:
-                    dtype = np.float32
-                    feat_data_typed = feat_data.astype(np.float32)
-
-                # Add extra dimension (description max 31 chars)
-                desc = f"Feature: {feat_name}"[:31]
-                las.add_extra_dim(
-                    laspy.ExtraBytesParams(name=feat_name, type=dtype, description=desc)
-                )
-                setattr(las, feat_name, feat_data_typed)
-                added_dimensions.add(feat_name)
-            except Exception as e:
-                logger.debug(
-                    f"  ⚠️  Could not add feature " f"'{feat_name}' to LAZ: {e}"
-                )
-
-        # Normals (normal_x, normal_y, normal_z for consistency)
-        if "normals" in original_patch:
-            try:
-                normals = original_patch["normals"]
-                for i, comp in enumerate(["normal_x", "normal_y", "normal_z"]):
-                    if comp not in added_dimensions:
-                        las.add_extra_dim(
-                            laspy.ExtraBytesParams(
-                                name=comp,
-                                type=np.float32,
-                                description=f"Normal {comp[-1]}",
-                            )
-                        )
-                        setattr(las, comp, normals[:, i].astype(np.float32))
-                        added_dimensions.add(comp)
-            except Exception as e:
-                logger.warning(f"  ⚠️  Could not add normals to LAZ: {e}")
-
-        # Height features
-        height_features = ["height", "z_normalized", "z_from_ground", "z_from_median"]
-        for feat_name in height_features:
-            if feat_name in original_patch and feat_name not in added_dimensions:
-                try:
-                    # Truncate description to 31 chars max (LAZ limit - needs null terminator)
-                    desc = f"Height: {feat_name}"[:31]
-                    las.add_extra_dim(
-                        laspy.ExtraBytesParams(
-                            name=feat_name, type=np.float32, description=desc
-                        )
-                    )
-                    setattr(
-                        las, feat_name, original_patch[feat_name].astype(np.float32)
-                    )
-                    added_dimensions.add(feat_name)
-                except Exception as e:
-                    logger.warning(
-                        f"  ⚠️  Could not add feature '{feat_name}' to LAZ: {e}"
-                    )
-
-        # Radiometric features (NIR, NDVI, etc.)
-        # Add NIR as extra dimension if not already included in point format
-        if (
-            point_format != 8
-            and "nir" in original_patch
-            and original_patch["nir"] is not None
-        ):
-            if "nir" not in added_dimensions:
-                try:
-                    las.add_extra_dim(
-                        laspy.ExtraBytesParams(
-                            name="nir",
-                            type=np.float32,
-                            description="NIR reflectance (norm 0-1)",
-                        )
-                    )
-                    las.nir = original_patch["nir"].astype(np.float32)
-                    added_dimensions.add("nir")
-                except Exception as e:
-                    logger.warning(f"  ⚠️  Could not add NIR to LAZ: {e}")
-
-        if "ndvi" in original_patch and original_patch["ndvi"] is not None:
-            if "ndvi" not in added_dimensions:
-                try:
-                    las.add_extra_dim(
-                        laspy.ExtraBytesParams(
-                            name="ndvi",
-                            type=np.float32,
-                            description="NDVI (vegetation index)",
-                        )
-                    )
-                    las.ndvi = original_patch["ndvi"].astype(np.float32)
-                    added_dimensions.add("ndvi")
-                except Exception as e:
-                    logger.warning(f"  ⚠️  Could not add NDVI to LAZ: {e}")
-
-        # Return number (if not already in standard fields)
-        if (
-            "return_number" in original_patch
-            and "return_number" not in added_dimensions
-        ):
-            try:
-                # Return number might already be a standard field
-                if not hasattr(las, "return_number"):
-                    las.add_extra_dim(
-                        laspy.ExtraBytesParams(
-                            name="return_number",
-                            type=np.uint8,
-                            description="Return number",
-                        )
-                    )
-                    las.return_number = original_patch["return_number"].astype(np.uint8)
-                    added_dimensions.add("return_number")
-            except Exception as e:
-                logger.warning(f"  ⚠️  Could not add return_number to LAZ: {e}")
-
-        # Write LAZ file
-        las.write(str(save_path))
-
     def _augment_ground_with_dtm(
         self,
         points: np.ndarray,
@@ -1227,19 +973,12 @@ class LiDARProcessor:
         bbox: Tuple[float, float, float, float],
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Augment ground points using RGE ALTI DTM (UPGRADED V3.1).
+        Augment ground points using RGE ALTI DTM.
 
-        This function uses the new comprehensive DTM augmentation module to add
-        synthetic ground points intelligently in areas where they are most needed:
-        - Under vegetation (CRITICAL for accurate height computation)
-        - Under buildings (ground-level reference)
-        - Coverage gaps (improve terrain coverage)
-
-        The new system provides:
-        - Intelligent area prioritization (vegetation > buildings > gaps)
-        - Better validation (height consistency, spatial filtering)
-        - Detailed statistics and logging
-        - Building polygon integration for targeted augmentation
+        ⚡ REFACTORED (v3.5.0 Phase 2 Session 6): Delegates to TileOrchestrator.
+        
+        This method now acts as a thin wrapper that delegates DTM augmentation
+        logic to TileOrchestrator.
 
         Args:
             points: Original point cloud [N, 3] (X, Y, Z)
@@ -1249,132 +988,12 @@ class LiDARProcessor:
         Returns:
             Tuple of (augmented_points, augmented_classification)
         """
-        try:
-            from ..io.rge_alti_fetcher import RGEALTIFetcher
-            from .classification.dtm_augmentation import (
-                AugmentationStrategy,
-                DTMAugmentationConfig,
-                DTMAugmenter,
-            )
-
-            # Get DTM configuration
-            dtm_config = OmegaConf.select(
-                self.config, "data_sources.rge_alti", default={}
-            )
-            augment_config = OmegaConf.select(
-                self.config, "ground_truth.rge_alti", default={}
-            )
-
-            # Initialize RGE ALTI fetcher
-            cache_dir = self.config.get("cache_dir")
-            if cache_dir:
-                cache_dir = Path(cache_dir) / "rge_alti"
-
-            fetcher = RGEALTIFetcher(
-                cache_dir=str(cache_dir) if cache_dir else None,
-                resolution=dtm_config.get("resolution", 1.0),
-                use_wms=dtm_config.get("use_wcs", True),  # Map use_wcs to use_wms
-                api_key=dtm_config.get("api_key", "pratique"),
-                prefer_lidar_hd=dtm_config.get(
-                    "prefer_lidar_hd", True
-                ),  # Use LiDAR HD MNT by default
-            )
-
-            # Map strategy string to enum
-            strategy_map = {
-                "full": AugmentationStrategy.FULL,
-                "gaps": AugmentationStrategy.GAPS,
-                "intelligent": AugmentationStrategy.INTELLIGENT,
-            }
-            strategy_name = augment_config.get("augmentation_strategy", "intelligent")
-            strategy = strategy_map.get(strategy_name, AugmentationStrategy.INTELLIGENT)
-
-            # Get priority areas configuration
-            priority_config = augment_config.get("augmentation_priority", {})
-
-            # Build augmentation configuration from config file
-            aug_config = DTMAugmentationConfig(
-                enabled=True,
-                strategy=strategy,
-                spacing=augment_config.get("augmentation_spacing", 2.0),
-                min_spacing_to_existing=augment_config.get(
-                    "min_spacing_to_existing", 1.5
-                ),
-                augment_vegetation=priority_config.get("vegetation", True),
-                augment_buildings=priority_config.get("buildings", True),
-                augment_water=priority_config.get("water", False),
-                augment_roads=priority_config.get("roads", False),
-                augment_gaps=priority_config.get("gaps", True),
-                max_height_difference=augment_config.get("max_height_difference", 5.0),
-                validate_against_neighbors=augment_config.get(
-                    "validate_against_neighbors", True
-                ),
-                min_neighbors_for_validation=augment_config.get(
-                    "min_neighbors_for_validation", 3
-                ),
-                neighbor_search_radius=augment_config.get(
-                    "neighbor_search_radius", 10.0
-                ),
-                synthetic_ground_class=augment_config.get("synthetic_ground_class", 2),
-                mark_as_synthetic=augment_config.get("mark_as_synthetic", True),
-                verbose=True,
-            )
-
-            # Get building polygons if available (for targeted augmentation under buildings)
-            building_polygons = None
-            if self.data_fetcher is not None:
-                try:
-                    # Try to fetch building polygons for this bbox
-                    minx, miny, maxx, maxy = bbox
-                    building_gdf = self.data_fetcher._fetch_bd_topo_buildings(
-                        minx, miny, maxx, maxy
-                    )
-                    if building_gdf is not None and len(building_gdf) > 0:
-                        building_polygons = building_gdf
-                        logger.debug(
-                            f"      Using {len(building_polygons)} building polygons for targeted augmentation"
-                        )
-                except Exception as e:
-                    logger.debug(f"      Could not fetch building polygons: {e}")
-
-            # Create augmenter and run augmentation
-            augmenter = DTMAugmenter(config=aug_config)
-
-            augmented_points, augmented_labels, augmentation_attrs = (
-                augmenter.augment_point_cloud(
-                    points=points,
-                    labels=classification,
-                    dtm_fetcher=fetcher,
-                    bbox=bbox,
-                    building_polygons=building_polygons,
-                    crs="EPSG:2154",
-                )
-            )
-
-            # Check if any points were added
-            n_added = len(augmented_points) - len(points)
-            if n_added > 0:
-                # Store augmentation attributes for output if requested
-                if augment_config.get("save_augmentation_report", True):
-                    self._store_augmentation_stats(augmentation_attrs, n_added)
-
-                return augmented_points, augmented_labels
-            else:
-                logger.info(
-                    f"      ℹ️  No ground points added (sufficient existing coverage)"
-                )
-                return points, classification
-
-        except ImportError as e:
-            logger.error(f"      ❌ DTM augmentation module not available: {e}")
-            logger.error(
-                f"         Install required packages: pip install rasterio requests scipy geopandas"
-            )
-            return points, classification
-        except Exception as e:
-            logger.error(f"      ❌ Ground augmentation failed: {e}")
-            logger.debug(f"      Exception details:", exc_info=True)
-            return points, classification
+        # Delegate to TileOrchestrator
+        return self.tile_orchestrator._augment_ground_with_dtm(
+            points=points,
+            classification=classification,
+            bbox=bbox
+        )
 
     def _store_augmentation_stats(self, augmentation_attrs: dict, n_added: int):
         """Store DTM augmentation statistics for later reporting."""
@@ -1403,6 +1022,8 @@ class LiDARProcessor:
     def _redownload_tile(self, laz_file: Path) -> bool:
         """
         Attempt to re-download a corrupted tile from IGN WFS.
+        
+        Delegates to TileIOManager for file operations.
 
         Args:
             laz_file: Path to the corrupted LAZ file
@@ -1410,84 +1031,13 @@ class LiDARProcessor:
         Returns:
             True if re-download succeeded, False otherwise
         """
-        try:
-            import shutil
-
-            from ..downloader import IGNLiDARDownloader
-
-            # Get filename
-            filename = laz_file.name
-
-            logger.info(f"  🌐 Re-downloading {filename} from IGN WFS...")
-
-            # Backup corrupted file
-            backup_path = laz_file.with_suffix(".laz.corrupted")
-            if laz_file.exists():
-                shutil.move(str(laz_file), str(backup_path))
-                logger.debug(f"  Backed up corrupted file to {backup_path.name}")
-
-            # Initialize downloader with output directory
-            downloader = IGNLiDARDownloader(output_dir=laz_file.parent)
-
-            # Download tile (force re-download, don't skip)
-            success, was_skipped = downloader.download_tile(
-                filename=filename, force=True, skip_existing=False
-            )
-
-            if success and laz_file.exists():
-                # Verify the download
-                try:
-                    import laspy
-
-                    test_las = laspy.read(str(laz_file))
-                    if len(test_las.points) > 0:
-                        logger.info(
-                            f"  ✓ Re-downloaded tile verified "
-                            f"({len(test_las.points):,} points)"
-                        )
-                        # Remove backup if successful
-                        if backup_path.exists():
-                            backup_path.unlink()
-                        return True
-                    else:
-                        logger.error(f"  ✗ Re-downloaded tile has no points")
-                        # Restore backup
-                        if backup_path.exists():
-                            if laz_file.exists():
-                                laz_file.unlink()
-                            shutil.move(str(backup_path), str(laz_file))
-                        return False
-                except Exception as verify_error:
-                    logger.error(
-                        f"  ✗ Re-downloaded tile is also corrupted: {verify_error}"
-                    )
-                    # Restore backup
-                    if backup_path.exists():
-                        if laz_file.exists():
-                            laz_file.unlink()
-                        shutil.move(str(backup_path), str(laz_file))
-                    return False
-            else:
-                logger.error(f"  ✗ Download failed or file not created")
-                # Restore backup
-                if backup_path.exists():
-                    if not laz_file.exists():
-                        shutil.move(str(backup_path), str(laz_file))
-                return False
-
-        except ImportError as ie:
-            logger.warning(
-                f"  ⚠️  IGNLidarDownloader not available for auto-recovery: {ie}"
-            )
-            return False
-        except Exception as e:
-            logger.error(f"  ✗ Re-download failed: {e}")
-            return False
+        return self.tile_io_manager.redownload_tile(laz_file)
 
     def _prefetch_ground_truth_for_tile(self, laz_file: Path) -> Optional[dict]:
         """
         Pre-fetch ground truth data for a single tile.
-        This method replaces bulk prefetching with per-tile prefetching.
+        
+        Delegates to GroundTruthManager for prefetching and caching.
 
         Args:
             laz_file: Path to LAZ file to prefetch data for
@@ -1495,95 +1045,22 @@ class LiDARProcessor:
         Returns:
             Dictionary containing fetched ground truth data, or None if failed
         """
-        try:
-            # Quick bbox estimation from LAZ header (fast read)
-            import laspy
-
-            las = laspy.read(str(laz_file))
-            bbox = (
-                float(las.x.min()),
-                float(las.y.min()),
-                float(las.x.max()),
-                float(las.y.max()),
-            )
-
-            # Fetch data for this specific tile
-            use_cache = (
-                self.config.get("data_sources", {})
-                .get("bd_topo", {})
-                .get("cache_enabled", True)
-            )
-            fetched_data = self.data_fetcher.fetch_all(bbox=bbox, use_cache=use_cache)
-
-            return {"bbox": bbox, "data": fetched_data}
-        except Exception as e:
-            logger.debug(f"Ground truth prefetch failed for {laz_file.name}: {e}")
-            return None
+        return self.ground_truth_manager.prefetch_ground_truth_for_tile(laz_file)
 
     def _prefetch_ground_truth(self, laz_files: List[Path]):
         """
-        DEPRECATED: This method is no longer used.
-        Use _prefetch_ground_truth_for_tile() for per-tile prefetching instead.
-
         Pre-fetch ground truth data for all tiles to warm up the cache.
-        This eliminates network I/O delays during processing.
-
-        OPTIMIZATION: Phase 1 - Quick Win
-        - Fetches all WFS data in parallel before processing
-        - Warms up cache with 8 concurrent workers
-        - Reduces per-tile fetch time from 2-3s to <0.1s
-        - Expected speedup: +40-60% on data fetching phase
+        
+        Delegates to GroundTruthManager for batch prefetching.
 
         Args:
             laz_files: List of LAZ files to prefetch data for
         """
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        import laspy
-        from tqdm import tqdm
-
-        logger.info(f"📍 Pre-fetching ground truth for {len(laz_files)} tiles...")
-
-        def fetch_for_tile(laz_file):
-            """Fetch ground truth for a single tile."""
-            try:
-                # Quick bbox estimation from LAZ header (fast read)
-                las = laspy.read(str(laz_file))
-                bbox = (
-                    float(las.x.min()),
-                    float(las.y.min()),
-                    float(las.x.max()),
-                    float(las.y.max()),
-                )
-
-                # Fetch data (fills cache)
-                use_cache = (
-                    self.config.get("data_sources", {})
-                    .get("bd_topo", {})
-                    .get("cache_enabled", True)
-                )
-                self.data_fetcher.fetch_all(bbox=bbox, use_cache=use_cache)
-                return True
-            except Exception as e:
-                logger.debug(f"Prefetch failed for {laz_file.name}: {e}")
-                return False
-
-        # Parallel fetch with progress bar (8 threads for I/O-bound task)
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            futures = {executor.submit(fetch_for_tile, f): f for f in laz_files}
-
-            success_count = 0
-            for future in tqdm(
-                as_completed(futures),
-                total=len(laz_files),
-                desc="Prefetching",
-                unit="tile",
-            ):
-                if future.result():
-                    success_count += 1
-
+        results = self.ground_truth_manager.prefetch_ground_truth_batch(
+            laz_files, show_progress=True
+        )
         logger.info(
-            f"✅ Ground truth pre-fetched ({success_count}/{len(laz_files)} tiles cached)"
+            f"✅ Ground truth pre-fetched ({len(results)}/{len(laz_files)} tiles cached)"
         )
         if success_count < len(laz_files):
             logger.warning(
@@ -1919,8 +1396,10 @@ class LiDARProcessor:
         """
         Core tile processing logic that works with pre-loaded tile data.
 
-        ⚡ OPTIMIZATION: This method accepts pre-loaded tile_data to avoid redundant I/O.
-        Called by both process_tile() and _process_tile_with_data().
+        ⚡ REFACTORED (v3.5.0 Phase 2 Session 5): Delegates to TileOrchestrator.
+        
+        This method now acts as a thin wrapper that delegates the complex tile processing
+        logic to TileOrchestrator, significantly reducing the size of LiDARProcessor.
 
         Args:
             laz_file: Path to LAZ file (for output naming)
@@ -1932,6 +1411,33 @@ class LiDARProcessor:
 
         Returns:
             Number of patches created (0 if skipped)
+        """
+        # Delegate to TileOrchestrator for all tile processing logic
+        return self.tile_orchestrator.process_tile_core(
+            laz_file=laz_file,
+            output_dir=output_dir,
+            tile_data=tile_data,
+            tile_idx=tile_idx,
+            total_tiles=total_tiles,
+            skip_existing=skip_existing,
+        )
+
+    def _process_tile_core_old_impl(
+        self,
+        laz_file: Path,
+        output_dir: Path,
+        tile_data: dict,
+        tile_idx: int = 0,
+        total_tiles: int = 0,
+        skip_existing: bool = True,
+    ) -> int:
+        """
+        OLD IMPLEMENTATION - Kept for reference during transition.
+        
+        TODO: Remove this method after validating TileOrchestrator works correctly.
+        
+        This was the original 1318-line implementation that has been extracted
+        to TileOrchestrator for better separation of concerns.
         """
         progress_prefix = f"[{tile_idx}/{total_tiles}]" if total_tiles > 0 else ""
         tile_start = time.time()
@@ -2208,12 +1714,12 @@ class LiDARProcessor:
                 logger.warning(f"  ⚠️  Failed to pre-fetch ground truth data: {e}")
                 logger.debug("  Exception details:", exc_info=True)
 
-        # 2. Compute all features using FeatureOrchestrator (Phase 4.3)
+        # 2. Compute all features using FeatureEngine wrapper (Phase 2 Session 3)
         # Store tile metadata in tile_data for orchestrator to use
         if tile_metadata:
             tile_data["tile_metadata"] = tile_metadata
 
-        all_features = self.feature_orchestrator.compute_features(tile_data=tile_data)
+        all_features = self.feature_engine.compute_features(tile_data=tile_data)
 
         # Extract feature arrays for patch creation
         normals = all_features.get("normals")
@@ -2299,7 +1805,7 @@ class LiDARProcessor:
                     )
 
                     if use_optimized_gt:
-                        # NEW: Use GroundTruthOptimizer (10-100× faster, GPU-accelerated)
+                        # NEW: Use GroundTruthOptimizer (10-100x faster, GPU-accelerated)
                         from ..optimization.ground_truth import GroundTruthOptimizer
 
                         # Prepare ground truth features dictionary

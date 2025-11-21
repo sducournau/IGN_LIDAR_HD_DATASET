@@ -90,8 +90,8 @@ FEATURE_DESCRIPTIONS = {
     "is_ground": "Binary ground indicator [0,1] with DTM augmentation support",
     # Building-Specific Scores (legacy)
     "verticality": "Verticality score [0,1] - 1 for vertical surfaces",
-    "wall_score": "Wall likelihood (planarity × verticality) - LEGACY",
-    "roof_score": "Roof likelihood (planarity × horizontality) - LEGACY",
+    "wall_score": "Wall likelihood (planarity x verticality) - LEGACY",
+    "roof_score": "Roof likelihood (planarity x horizontality) - LEGACY",
     # Canonical Architectural Features (from architectural.py)
     "horizontality": "Horizontality score [0,1] - 1 for horizontal surfaces",
     "wall_likelihood": "Wall probability (canonical from architectural.py)",
@@ -119,7 +119,7 @@ FEATURE_DESCRIPTIONS = {
     "steep_roof_score": "Steep roof likelihood (45-70° tilt)",
     "opening_likelihood": "Window/door likelihood (low planarity + high linearity)",
     "structural_element_score": "Pillar/column likelihood (linear + vertical + organized)",
-    "edge_strength_enhanced": "Edge strength from eigenvalues (λ1-λ2)/λ1",
+    "edge_strength": "Edge strength from eigenvalues (λ1-λ2)/λ1",
     # Spectral Features (5 features)
     "red": "Red channel [0-255]",
     "green": "Green channel [0-255]",

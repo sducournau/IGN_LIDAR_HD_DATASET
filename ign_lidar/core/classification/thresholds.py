@@ -1,5 +1,4 @@
-"""
-Unified Classification Thresholds
+"""Classification Thresholds
 
 This module consolidates all classification thresholds used across the
 IGN LiDAR HD classification system into a single, consistent configuration.
@@ -10,7 +9,7 @@ Consolidates and replaces:
 
 Author: IGN LiDAR HD Development Team
 Date: October 22, 2025
-Version: 3.1.0 - Unified thresholds
+Version: 3.1.0 - Consolidated thresholds
 """
 
 import logging
@@ -303,8 +302,8 @@ class BuildingThresholds:
     roof_planarity_min_lod3: float = 0.75
 
     # Additional building features
-    wall_score_min: float = 0.35  # planarity × verticality
-    roof_score_min: float = 0.5  # planarity × horizontality
+    wall_score_min: float = 0.35  # planarity x verticality
+    roof_score_min: float = 0.5  # planarity x horizontality
     anisotropy_building_min: float = 0.5  # Organized structures
     linearity_edge_min: float = 0.4  # Building edges
 
@@ -384,7 +383,7 @@ class VehicleThresholds:
 
 
 # ============================================================================
-# Unified Threshold Configuration
+# Threshold Configuration
 # ============================================================================
 
 

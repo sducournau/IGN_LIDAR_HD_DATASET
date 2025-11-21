@@ -9,6 +9,10 @@ This package contains the main processing logic:
 - error_handler: Error handling and recovery
 - verification: Feature and data verification utilities
 - gpu: Centralized GPU detection and management (v3.4.0+)
+- ground_truth_manager: Ground truth data fetching and caching (v3.5.0+)
+- tile_io_manager: Tile I/O operations and recovery (v3.5.0+)
+- feature_engine: Feature computation wrapper (v3.5.0+)
+- classification_engine: Classification operations wrapper (v3.5.0+)
 """
 
 from .processor import LiDARProcessor
@@ -24,6 +28,11 @@ from .error_handler import (
 )
 from .verification import FeatureVerifier, FeatureStats, verify_laz_files
 from .gpu import GPUManager, get_gpu_manager, GPU_AVAILABLE, HAS_CUPY
+from .ground_truth_manager import GroundTruthManager
+from .tile_io_manager import TileIOManager
+from .feature_engine import FeatureEngine
+from .classification_engine import ClassificationEngine
+from .tile_orchestrator import TileOrchestrator
 
 __all__ = [
     'LiDARProcessor',
@@ -44,6 +53,11 @@ __all__ = [
     'get_gpu_manager',
     'GPU_AVAILABLE',
     'HAS_CUPY',
+    'GroundTruthManager',
+    'TileIOManager',
+    'FeatureEngine',
+    'ClassificationEngine',
+    'TileOrchestrator',
 ]
 
 # Backward compatibility: core.modules moved to core.classification in v3.1.0

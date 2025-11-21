@@ -468,7 +468,7 @@ def verify_laz_files(
     Verify features in LAZ file(s).
 
     Compatibility function that maintains the original verifier.py interface
-    while using the enhanced FeatureVerifier class.
+    while using the FeatureVerifier class.
 
     Args:
         input_path: Single LAZ file to verify

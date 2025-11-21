@@ -261,7 +261,7 @@ def compute_all_features_optimized(
 
     This is the low-level optimized implementation. For high-level API
     with mode selection (CPU/GPU/etc), use compute_all_features() from
-    unified.py instead.
+    the orchestrator module instead.
 
     This is 5-8x faster than calling individual feature functions because:
     1. KD-tree built only once

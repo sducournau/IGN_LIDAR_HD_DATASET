@@ -262,10 +262,10 @@ class BuildingClassifier:
             )
 
             result.success = True
-            logger.info("Enhanced classification completed successfully")
+            logger.info("Classification completed successfully")
 
         except Exception as e:
-            logger.error(f"Enhanced classification failed: {e}", exc_info=True)
+            logger.error(f"Classification failed: {e}", exc_info=True)
             result.success = False
 
         return result

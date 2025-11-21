@@ -439,7 +439,7 @@ def create_patch_versions(
     num_versions = 1 + num_augmentations
     log.info(
         f"  🔄 Created {len(all_patches)} total patches "
-        f"({len(base_patches)} base × {num_versions} versions)"
+        f"({len(base_patches)} base x {num_versions} versions)"
     )
     
     return all_patches

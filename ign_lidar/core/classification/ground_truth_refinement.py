@@ -72,7 +72,7 @@ class GroundTruthRefinementConfig:
         0.80  # INCREASED from 0.75 - More permissive for varied facades
     )
 
-    # Roof overhang detection (enhanced)
+    # Roof overhang detection
     OVERHANG_DETECTION_ENABLED = True  # Enable overhang detection
     OVERHANG_HEIGHT_MIN = 1.8  # LOWERED from 2.0 - Capture lower overhangs
     OVERHANG_PLANARITY_MIN = (
@@ -418,7 +418,7 @@ class GroundTruthRefiner:
             if n_normal_invalid > 0:
                 validation_reasons.append(f"normals: {n_normal_invalid} rejected")
 
-        # Criterion 5: NDVI (roads should not be vegetation) - ENHANCED
+        # Criterion 5: NDVI (roads should not be vegetation)
         if ndvi is not None:
             candidate_ndvi = ndvi[road_candidates]
 
@@ -428,7 +428,7 @@ class GroundTruthRefiner:
 
             ndvi_valid = ndvi_robust <= self.config.ROAD_NDVI_MAX
 
-            # Enhanced vegetation detection on roads:
+            # Vegetation detection on roads:
             # 1. Moderate NDVI (0.12-0.40) = grass, shrubs on/near road
             moderate_ndvi = (ndvi_robust > self.config.ROAD_NDVI_MAX) & (
                 ndvi_robust <= 0.40
@@ -848,7 +848,7 @@ class GroundTruthRefiner:
 
             valid_building = np.zeros(len(building_candidates), dtype=bool)
 
-            # Process facades (enhanced with multi-criteria validation)
+            # Process facades (multi-criteria validation)
             if np.any(facade_mask):
                 candidate_vert = verticality[building_candidates[facade_mask]]
                 candidate_plan = planarity[building_candidates[facade_mask]]
@@ -938,7 +938,7 @@ class GroundTruthRefiner:
                         f"      🏠 Roofs: {stats['roofs_captured']:,} points validated"
                     )
 
-            # Process overhangs (roof edges extending beyond building footprint - enhanced)
+            # Process overhangs (roof edges extending beyond building footprint)
             if np.any(overhang_mask):
                 candidate_plan = planarity[building_candidates[overhang_mask]]
                 candidate_vert = verticality[building_candidates[overhang_mask]]

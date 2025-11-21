@@ -3,7 +3,7 @@
 STRtree Spatial Index Optimization for Ground Truth Classification
 
 This module provides an optimized version of _classify_by_ground_truth that uses
-shapely's STRtree for 10-30× speedup.
+shapely's STRtree for 10-30x speedup.
 
 Usage:
     from optimize_ground_truth_strtree import OptimizedGroundTruthClassifier
@@ -165,7 +165,7 @@ class OptimizedGroundTruthClassifier:
         """
         Classify points using ground truth with STRtree spatial indexing.
 
-        This is 10-30× faster than the original brute-force approach.
+        This is 10-30x faster than the original brute-force approach.
 
         New in v5.2:
         - Ground truth refinement for water, roads, vegetation, and buildings
@@ -310,7 +310,7 @@ class OptimizedGroundTruthClassifier:
             logger.info(f"  Adding {len(gdf)} {feature_type} polygons to index")
 
             # OPTIMIZED: Vectorized geometry filtering instead of iterrows()
-            # Performance: 10-50× faster than iterating with .iterrows()
+            # Performance: 10-50x faster than iterating with .iterrows()
 
             # Step 1: Filter valid geometries (vectorized)
             valid_mask = gdf.geometry.apply(
@@ -544,8 +544,8 @@ class OptimizedGroundTruthClassifier:
         Classify points using STRtree spatial queries.
 
         This is the core optimization: instead of checking every point against
-        every polygon (O(N×M)), we use spatial indexing to only check nearby
-        polygons (O(N×log(M))).
+        every polygon (O(NxM)), we use spatial indexing to only check nearby
+        polygons (O(Nxlog(M))).
         """
         stats = {ft: 0 for ft in set(m.feature_type for m in metadata_map.values())}
 
@@ -636,7 +636,7 @@ def create_optimized_method_for_advanced_classifier():
         intensity: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """
-        OPTIMIZED: Classify using STRtree spatial indexing (10-30× faster).
+        OPTIMIZED: Classify using STRtree spatial indexing (10-30x faster).
         """
         optimizer = OptimizedGroundTruthClassifier(
             ndvi_veg_threshold=self.ndvi_veg_threshold,
@@ -676,7 +676,7 @@ def patch_advanced_classifier():
         )
 
         logger.info("✅ Applied STRtree optimization to AdvancedClassifier")
-        logger.info("   Expected speedup: 10-30× (spatial indexing)")
+        logger.info("   Expected speedup: 10-30x (spatial indexing)")
 
     except ImportError as e:
         logger.error(f"Failed to patch AdvancedClassifier: {e}")
@@ -687,7 +687,7 @@ if __name__ == "__main__":
     print("=" * 80)
     print()
     print("This module provides optimized ground truth classification using STRtree")
-    print("spatial indexing for 10-30× speedup over brute-force approach.")
+    print("spatial indexing for 10-30x speedup over brute-force approach.")
     print()
     print("Usage:")
     print("  from optimize_ground_truth_strtree import patch_advanced_classifier")
@@ -697,9 +697,9 @@ if __name__ == "__main__":
     print("  python reprocess_with_ground_truth.py enriched.laz")
     print()
     print("Expected improvements:")
-    print("  - 10-30× speedup from STRtree spatial indexing")
-    print("  - 2-5× additional speedup from PreparedGeometry")
-    print("  - 2-5× additional speedup from pre-filtering")
-    print("  - Total: 40-375× speedup (realistically 10-100×)")
+    print("  - 10-30x speedup from STRtree spatial indexing")
+    print("  - 2-5x additional speedup from PreparedGeometry")
+    print("  - 2-5x additional speedup from pre-filtering")
+    print("  - Total: 40-375x speedup (realistically 10-100x)")
     print()
     print("Reduces classification time from 5-30 minutes to 30 seconds - 2 minutes.")

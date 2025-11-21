@@ -18,7 +18,7 @@ Version 3.4.1 - FAISS GPU Memory Optimization:
 - Smart memory calculation: query results + index + temp storage
 - Adaptive threshold: 80% of VRAM limit (vs hardcoded 15M point limit)
 - RTX 4080 SUPER (16GB): 72M point dataset now uses GPU (was CPU-only)
-- Expected speedup: 10-50× faster k-NN queries
+- Expected speedup: 10-50x faster k-NN queries
 - Supports 100M+ points on 16GB GPUs with FP16
 
 Version 3.4.0 - GPU Optimizations & Road Classification:

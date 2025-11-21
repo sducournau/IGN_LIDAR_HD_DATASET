@@ -3,7 +3,7 @@ Parcel-Based Classification Module
 
 This module provides intelligent classification by grouping points into cadastral
 parcels and processing them as coherent units. This approach provides:
-- 10-100× faster processing through batch operations
+- 10-100x faster processing through batch operations
 - Spatially coherent results within each parcel
 - Natural integration with ground truth data (cadastre, BD Forêt, RPG)
 - Intelligent land use detection at parcel level
@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-# Import BaseClassifier for v3.2+ unified interface
+# Import BaseClassifier for v3.2+ interface
 from .base import BaseClassifier
 from .base import ClassificationResult as BaseClassificationResult
 from .constants import ASPRSClass
@@ -172,7 +172,7 @@ class ParcelClassifier(BaseClassifier):
     - Intelligent parcel type classification
     - Point-level refinement within parcels
 
-    Example (v3.2+ unified interface):
+    Example (v3.2+ interface):
         >>> classifier = ParcelClassifier()
         >>> features = {
         ...     'ndvi': ndvi_array,
@@ -211,7 +211,7 @@ class ParcelClassifier(BaseClassifier):
         self._parcel_stats_cache: Dict[str, ParcelStatistics] = {}
 
     # ========================================================================
-    # v3.2+ Unified Interface (BaseClassifier compatibility)
+    # v3.2+ Interface (BaseClassifier compatibility)
     # ========================================================================
 
     def classify(

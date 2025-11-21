@@ -110,7 +110,7 @@ from .stitching import (
 )
 
 # ============================================================================
-# New Unified Interface (v3.2+)
+# Classification Interface (v3.2+)
 # ============================================================================
 
 # Reclassification modules (optional - may not be available)
@@ -152,7 +152,7 @@ except ImportError:
     get_artifact_free_features = None
     ArtifactReport = None
 
-# Unified classifier module (v3.1.0 consolidation, renamed in v3.3.0)
+# Classifier module (v3.1.0 consolidation, renamed in v3.3.0)
 try:
     from .classifier import (
         Classifier,
@@ -164,9 +164,9 @@ try:
         refine_classification,
     )
 
-    _HAS_UNIFIED_CLASSIFIER = True
+    _HAS_CLASSIFIER = True
 except ImportError:
-    _HAS_UNIFIED_CLASSIFIER = False
+    _HAS_CLASSIFIER = False
     Classifier = None
     ClassifierConfig = None
     ClassificationStrategy = None
@@ -181,10 +181,10 @@ except ImportError:
 #   - AdaptiveClassifier → Classifier(strategy='adaptive')
 #   - refine_classification() → Classifier().refine_classification()
 
-_HAS_ADAPTIVE_CLASSIFIER = _HAS_UNIFIED_CLASSIFIER
+_HAS_ADAPTIVE_CLASSIFIER = _HAS_CLASSIFIER
 
 # Convenience function for creating classifier with common settings
-if _HAS_UNIFIED_CLASSIFIER:
+if _HAS_CLASSIFIER:
 
     def create_classifier(strategy="comprehensive", use_gpu=False, **kwargs):
         """
@@ -206,7 +206,7 @@ if _HAS_UNIFIED_CLASSIFIER:
         return Classifier(strategy=strategy, use_gpu=use_gpu, **kwargs)
 
 
-# Adaptive building classifier module (new in v5.2.2 - Enhanced building classification)
+# Adaptive building classifier module (new in v5.2.2 - building classification)
 try:
     from .adaptive_building_classifier import (
         AdaptiveBuildingClassifier,
@@ -225,7 +225,7 @@ except ImportError:
 
 __all__ = [
     # ========================================================================
-    # New Unified Interface (v3.2+) - Use these!
+    # Classification Interface (v3.2+) - Use these!
     # ========================================================================
     "Classifier",  # ← Main entry point
     "BaseClassifier",
@@ -297,7 +297,7 @@ __all__ = [
     "validate_features_before_classification",
     "get_artifact_free_features",
     "ArtifactReport",
-    # Unified classifier (v3.1.0, renamed in v3.3.0)
+    # Classifier (v3.1.0, renamed in v3.3.0)
     "Classifier",
     "ClassifierConfig",
     "ClassificationStrategy",
@@ -313,7 +313,7 @@ __all__ = [
     "ClassificationConfidence",
 ]
 
-# DTM Augmentation module (new in v3.1.0 - Enhanced MNT integration)
+# DTM Augmentation module (new in v3.1.0 - MNT integration)
 try:
     from .dtm_augmentation import (
         AugmentationArea,

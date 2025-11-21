@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class ProcessingError(Exception):
-    """Base exception for processing errors with enhanced messages."""
+    """Base exception for processing errors with detailed messages."""
     
     def __init__(
         self,
@@ -456,7 +456,7 @@ def handle_gpu_error(
     **context
 ) -> ProcessingError:
     """
-    Handle GPU errors and convert to enhanced error messages.
+    Handle GPU errors and convert to detailed error messages.
     
     Args:
         error: Original exception

@@ -231,7 +231,7 @@ def patch_classifier():
         )
 
         logger.info("✅ Applied optimized ground truth classification")
-        logger.info("   Expected speedup: 2-5× (with pre-filtering)")
+        logger.info("   Expected speedup: 2-5x (with pre-filtering)")
 
     except ImportError as e:
         logger.error(f"Failed to patch classifier: {e}")
@@ -253,6 +253,6 @@ if __name__ == "__main__":
     print("  python reprocess_with_ground_truth.py enriched.laz")
     print()
     print("Expected improvements:")
-    print("  - 2-5× speedup from pre-filtering")
+    print("  - 2-5x speedup from pre-filtering")
     print("  - Progress bars for monitoring")
     print("  - Better logging")

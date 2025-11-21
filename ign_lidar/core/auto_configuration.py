@@ -1,5 +1,4 @@
-"""
-Enhanced Auto-Configuration System for IGN LiDAR HD
+"""Auto-Configuration System for IGN LiDAR HD
 ================================================
 
 This module provides intelligent auto-configuration capabilities that analyze
@@ -33,7 +32,7 @@ class AutoConfigRecommendation:
 
 class AutoConfigurationEngine:
     """
-    Enhanced auto-configuration engine that provides intelligent configuration
+    """Auto-configuration engine that provides intelligent configuration
     recommendations based on comprehensive system and data analysis.
     """
     
@@ -285,7 +284,7 @@ class AutoConfigurationEngine:
         # Feature optimization
         if data_chars.has_rgb and not base_config.get('features', {}).get('use_rgb', False):
             alternatives.append({
-                'name': 'RGB-Enhanced Configuration',
+                'name': 'RGB-Enabled Configuration',
                 'updates': {'features': {'use_rgb': True}},
                 'description': 'Enable RGB features for better classification accuracy'
             })

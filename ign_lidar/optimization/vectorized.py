@@ -3,7 +3,7 @@
 Vectorized Ground Truth Classification using GeoPandas Spatial Joins
 
 This provides the fastest CPU-based ground truth classification using:
-1. Vectorized spatial joins (30-100× speedup)
+1. Vectorized spatial joins (30-100x speedup)
 2. Chunked processing for memory efficiency
 3. Parallel processing support
 
@@ -42,7 +42,7 @@ class VectorizedGroundTruthClassifier:
     """
     Vectorized ground truth classifier using GeoPandas spatial joins.
 
-    This is 30-100× faster than brute-force and 3-10× faster than STRtree
+    This is 30-100x faster than brute-force and 3-10x faster than STRtree
     because all operations are vectorized in C/C++ (GEOS library).
 
     Key features:
@@ -101,7 +101,7 @@ class VectorizedGroundTruthClassifier:
         """
         Classify points using vectorized spatial joins.
 
-        This is 30-100× faster than brute-force approach.
+        This is 30-100x faster than brute-force approach.
 
         Args:
             labels: Current classification labels [N]
@@ -368,7 +368,7 @@ def create_vectorized_method_for_advanced_classifier():
         intensity: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """
-        VECTORIZED: Classify using GeoPandas spatial joins (30-100× faster).
+        VECTORIZED: Classify using GeoPandas spatial joins (30-100x faster).
         """
         classifier = VectorizedGroundTruthClassifier(
             chunk_size=1_000_000,
@@ -401,7 +401,7 @@ def patch_advanced_classifier():
         )
 
         logger.info("✅ Applied vectorized optimization to AdvancedClassifier")
-        logger.info("   Expected speedup: 30-100× (vectorized spatial joins)")
+        logger.info("   Expected speedup: 30-100x (vectorized spatial joins)")
 
     except ImportError as e:
         logger.error(f"Failed to patch AdvancedClassifier: {e}")
@@ -412,7 +412,7 @@ if __name__ == "__main__":
     print("=" * 80)
     print()
     print("This module provides vectorized ground truth classification using")
-    print("GeoPandas spatial joins for 30-100× speedup.")
+    print("GeoPandas spatial joins for 30-100x speedup.")
     print()
     print("Usage:")
     print("  from optimize_ground_truth_vectorized import patch_advanced_classifier")
@@ -422,7 +422,7 @@ if __name__ == "__main__":
     print("  python reprocess_with_ground_truth.py enriched.laz")
     print()
     print("Features:")
-    print("  - 30-100× speedup from vectorized operations")
+    print("  - 30-100x speedup from vectorized operations")
     print("  - Chunked processing for memory efficiency")
     print("  - Works with existing code (runtime patching)")
     print()

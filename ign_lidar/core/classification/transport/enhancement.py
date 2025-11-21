@@ -224,7 +224,7 @@ class AdaptiveTransportBuffer(TransportBufferBase):
             roads_gdf: GeoDataFrame with road centerlines and attributes
             
         Returns:
-            GeoDataFrame with enhanced road polygons
+            GeoDataFrame with buffered road polygons
         """
         if not HAS_GEOPANDAS:
             logger.error("geopandas required for road processing")
@@ -233,7 +233,7 @@ class AdaptiveTransportBuffer(TransportBufferBase):
         logger.info(f"Processing {len(roads_gdf)} roads with adaptive buffering...")
         start_time = time.time()
         
-        # OPTIMIZED: Vectorized road processing (5-20× faster than iterrows)
+        # OPTIMIZED: Vectorized road processing (5-20x faster than iterrows)
         # Step 1: Filter LineStrings only (vectorized)
         line_mask = roads_gdf.geometry.apply(lambda g: isinstance(g, LineString))
         roads_lines = roads_gdf[line_mask].copy()
@@ -269,7 +269,7 @@ class AdaptiveTransportBuffer(TransportBufferBase):
         result_gdf = roads_lines
         
         elapsed = time.time() - start_time
-        logger.info(f"Enhanced {len(result_gdf)} roads in {elapsed:.2f}s")
+        logger.info(f"Processed {len(result_gdf)} roads in {elapsed:.2f}s")
         
         return result_gdf
     
@@ -281,7 +281,7 @@ class AdaptiveTransportBuffer(TransportBufferBase):
             railways_gdf: GeoDataFrame with railway centerlines and attributes
             
         Returns:
-            GeoDataFrame with enhanced railway polygons
+            GeoDataFrame with buffered railway polygons
         """
         if not HAS_GEOPANDAS:
             logger.error("geopandas required for railway processing")
@@ -290,7 +290,7 @@ class AdaptiveTransportBuffer(TransportBufferBase):
         logger.info(f"Processing {len(railways_gdf)} railways with adaptive buffering...")
         start_time = time.time()
         
-        # OPTIMIZED: Vectorized railway processing (5-20× faster than iterrows)
+        # OPTIMIZED: Vectorized railway processing (5-20x faster than iterrows)
         # Step 1: Filter LineStrings only (vectorized)
         line_mask = railways_gdf.geometry.apply(lambda g: isinstance(g, LineString))
         railways_lines = railways_gdf[line_mask].copy()
@@ -327,7 +327,7 @@ class AdaptiveTransportBuffer(TransportBufferBase):
         result_gdf = railways_lines
         
         elapsed = time.time() - start_time
-        logger.info(f"Enhanced {len(result_gdf)} railways in {elapsed:.2f}s")
+        logger.info(f"Processed {len(result_gdf)} railways in {elapsed:.2f}s")
         
         return result_gdf
 

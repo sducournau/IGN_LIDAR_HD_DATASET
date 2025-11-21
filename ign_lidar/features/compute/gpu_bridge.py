@@ -64,7 +64,7 @@ class GPUCoreBridge:
     4. Automatic fallback to CPU if GPU unavailable
     
     Performance:
-    - Expected speedup: 8-15× for eigenvalue computation
+    - Expected speedup: 8-15x for eigenvalue computation
     - Transfer overhead: Minimal (<5% of total time)
     - Feature computation: Same as CPU (but eigenvalues already computed)
     
@@ -156,7 +156,7 @@ class GPUCoreBridge:
             
         Notes
         -----
-        - GPU version is ~10× faster than CPU for large datasets
+        - GPU version is ~10x faster than CPU for large datasets
         - Automatically batches if N > batch_size
         - Falls back to CPU if GPU fails
         """
@@ -418,7 +418,7 @@ class GPUCoreBridge:
         Notes
         -----
         This is the recommended way to compute features:
-        - GPU acceleration for eigenvalues (10×+ speedup)
+        - GPU acceleration for eigenvalues (10x+ speedup)
         - Canonical core implementation for features (maintainable)
         - Single source of truth for feature formulas
         """

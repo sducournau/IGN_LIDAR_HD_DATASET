@@ -355,7 +355,7 @@ class MultiScaleDatasetManager:
     """
     Manager for multi-scale datasets combining patches of different sizes.
     
-    Coordinates multiple DatasetManager instances to create a unified
+    Coordinates multiple DatasetManager instances to create a cohesive
     multi-scale training dataset.
     
     Examples:

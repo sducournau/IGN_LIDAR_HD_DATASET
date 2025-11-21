@@ -918,14 +918,14 @@ class IGNGroundTruthFetcher:
         Label point cloud points based on ground truth vector data.
 
         OPTIMIZED VERSION: Automatically selects best method (GPU/CPU) based on
-        available hardware and dataset size. This is 10-1000× faster than the
+        available hardware and dataset size. This is 10-1000x faster than the
         original implementation.
 
         Performance:
-        - GPU Chunked: 100-1000× speedup for large datasets (>10M points)
-        - GPU: 100-500× speedup for small-medium datasets (<10M points)
-        - CPU STRtree: 10-30× speedup, works everywhere
-        - CPU Vectorized: 5-10× speedup, GeoPandas fallback
+        - GPU Chunked: 100-1000x speedup for large datasets (>10M points)
+        - GPU: 100-500x speedup for small-medium datasets (<10M points)
+        - CPU STRtree: 10-30x speedup, works everywhere
+        - CPU Vectorized: 5-10x speedup, GeoPandas fallback
 
         Args:
             points: Point cloud [N, 3] with XYZ coordinates in Lambert 93
@@ -1030,7 +1030,7 @@ class IGNGroundTruthFetcher:
             logger.debug(f"Processing {feature_type} ({len(gdf)} features)")
 
             # CRITICAL OPTIMIZATION: Use STRtree spatial indexing for 100-1000x speedup
-            # Original code: O(N×M) double loop - extremely slow!
+            # Original code: O(NxM) double loop - extremely slow!
             # Optimized code: O(N log M) with spatial index - blazing fast!
             
             # Filter valid polygons
@@ -1051,7 +1051,7 @@ class IGNGroundTruthFetcher:
             from shapely.strtree import STRtree
             polygon_tree = STRtree(valid_polygons)
             
-            # Vectorized spatial query (O(N log M) instead of O(N×M))
+            # Vectorized spatial query (O(N log M) instead of O(NxM))
             logger.debug(f"  Querying {len(point_geoms)} points against {len(valid_polygons)} polygons...")
             
             for i, point_geom in enumerate(point_geoms):

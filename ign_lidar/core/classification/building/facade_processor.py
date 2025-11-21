@@ -304,7 +304,7 @@ class FacadeProcessor:
             # Pour chaque point de confiance moyenne, vérifier proximité
             medium_conf_points = candidate_points[medium_confidence_mask]
             if len(medium_conf_points) > 0:
-                # GPU-accelerated KNN (15-20× speedup vs scipy.cKDTree)
+                # GPU-accelerated KNN (15-20x speedup vs scipy.cKDTree)
                 distances, _ = knn(
                     high_conf_points[:, :2],
                     medium_conf_points[:, :2],
@@ -381,7 +381,7 @@ class FacadeProcessor:
         # Projeter les points sur la ligne de la façade
         candidate_points_2d = self.points[self._candidate_mask][:, :2]
 
-        # 🚀 Phase 3.3: Vectorized projection (100× speedup vs Python loop)
+        # 🚀 Phase 3.3: Vectorized projection (100x speedup vs Python loop)
         if HAS_SHAPELY:
             from shapely.geometry import MultiPoint
             
@@ -1088,7 +1088,7 @@ class BuildingFacadeClassifier:
             enable_roof_classification: Activer classification toits (v3.1)
             roof_flat_threshold: Angle max toit plat en degrés (v3.1)
             roof_pitched_threshold: Angle min toit pente en degrés (v3.1)
-            enable_parallel_facades: Process facades in parallel (4× speedup)
+            enable_parallel_facades: Process facades in parallel (4x speedup)
             max_workers: Max parallel workers for facade processing
             building_class: Code de classification pour bâtiments
             wall_subclass: Code optionnel pour sous-classe "mur"
@@ -1538,7 +1538,7 @@ class BuildingFacadeClassifier:
 
         # 5. Process facades (parallel or sequential)
         if self.enable_parallel_facades and len(facades) > 1:
-            # 🚀 Parallel processing (4× speedup for 4 facades)
+            # 🚀 Parallel processing (4x speedup for 4 facades)
             from concurrent.futures import ThreadPoolExecutor
             
             with ThreadPoolExecutor(max_workers=min(self.max_workers, len(facades))) as executor:

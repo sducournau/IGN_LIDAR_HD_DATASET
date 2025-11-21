@@ -63,7 +63,7 @@ class TileProcessor:
 
     4. **Patch Extraction** (via PatchExtractor)
        - Spatial gridding of tile
-       - Extract patches of configurable size (e.g., 150m × 150m)
+       - Extract patches of configurable size (e.g., 150m x 150m)
        - Subsample to target point count (e.g., 16384 points)
        - Apply augmentation if enabled
        - Handle tile boundaries with buffer zones
@@ -211,7 +211,7 @@ class TileProcessor:
 
     - v3.4.0: Extracted from LiDARProcessor for better modularity
     - v3.2.0: Added reclassify_only mode
-    - v3.1.0: Integrated UnifiedClassifier
+    - v3.1.0: Integrated Classifier
     - v3.0.0: GPU acceleration support
 
     See Also:

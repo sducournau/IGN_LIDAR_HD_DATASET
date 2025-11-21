@@ -543,7 +543,7 @@ class BDForetFetcher:
         point_geoms = [Point(p[0], p[1]) for p in points]
 
         # OPTIMIZED: Use STRtree spatial indexing for O(log N) lookups
-        # Performance gain: 10-100× faster than nested loops
+        # Performance gain: 10-100x faster than nested loops
         n_labeled = 0
         try:
             # Build spatial index

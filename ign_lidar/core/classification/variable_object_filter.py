@@ -206,14 +206,14 @@ class VariableObjectFilter:
         is_ground: Optional[np.ndarray] = None,
     ) -> int:
         """
-        Filter vehicles on roads, parking, railways with enhanced detection.
+        """Filter vehicles on roads, parking, railways with improved detection.
 
         Strategy:
         - Roads (11): height 0.8-4.0m → likely vehicles
         - Parking (40): height 0.5-4.0m → likely parked vehicles
         - Railways (10): height 1.5-5.0m → likely trains/wagons
 
-        Enhanced with:
+        Features:
         - is_ground check: vehicles are NOT ground points
         - NDVI check: vehicles have low NDVI (not vegetation)
 
@@ -262,7 +262,7 @@ class VariableObjectFilter:
             & (height <= max(5.0, self.vehicle_height_max + 1.0))
         )
 
-        # Enhanced filtering: Exclude ground points
+        # Exclude ground points
         if is_ground is not None:
             ground_mask = is_ground == 1
             n_ground_rejected = np.sum(vehicle_mask & ground_mask)
@@ -273,7 +273,7 @@ class VariableObjectFilter:
                 )
             vehicle_mask &= ~ground_mask  # Vehicles are NOT ground
 
-        # Enhanced filtering: Exclude high NDVI (vegetation)
+        # Exclude high NDVI (vegetation)
         if ndvi is not None:
             vegetation_threshold = 0.3  # Low NDVI for vehicles
             vegetation_mask = ndvi > vegetation_threshold

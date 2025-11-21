@@ -1,13 +1,13 @@
 """
 Base Classifier Interface for IGN LiDAR HD v3.2+
 
-This module defines the unified interface that all classifiers must follow,
+This module defines the interface that all classifiers must follow,
 ensuring consistency across the codebase and making it easier for users
 to swap between different classification strategies.
 
 Key Features:
 - Abstract BaseClassifier class with standard classify() signature
-- Unified ClassificationResult dataclass for all return values
+- ClassificationResult dataclass for all return values
 - Input validation utilities
 - Consistent error handling
 
@@ -39,7 +39,7 @@ except ImportError:
 @dataclass
 class ClassificationResult:
     """
-    Unified result object returned by all classifiers.
+    Result object returned by all classifiers.
 
     This standardizes the return value across all classification methods,
     making it easier to work with different classifiers and ensuring

@@ -3,7 +3,7 @@ DEPRECATED: This module has been merged into optimization/ground_truth.py
 
 This file provides backward compatibility aliases for code that imports
 from the old location. All functionality (including V2 cache features)
-is now available in the unified ign_lidar.optimization.ground_truth module.
+is now available in the ign_lidar.optimization.ground_truth module.
 
 Migration Guide:
     # OLD (deprecated):

@@ -47,9 +47,9 @@ try:
     SHAPELY_VERSION = tuple(map(int, shapely.__version__.split('.')[:2]))
     HAS_BULK_QUERY = SHAPELY_VERSION >= (2, 0)
     if HAS_BULK_QUERY:
-        logger.info(f"✅ Shapely {shapely.__version__} - bulk query enabled (10-20× speedup)")
+        logger.info(f"✅ Shapely {shapely.__version__} - bulk query enabled (10-20x speedup)")
     else:
-        logger.info(f"⚠️ Shapely {shapely.__version__} - consider upgrading to 2.0+ for 10-20× speedup")
+        logger.info(f"⚠️ Shapely {shapely.__version__} - consider upgrading to 2.0+ for 10-20x speedup")
 except ImportError:
     HAS_SPATIAL = False
     HAS_BULK_QUERY = False
@@ -437,7 +437,7 @@ class Reclassifier:
         """
         🚀 GPU-accelerated road classification using cuSpatial point_in_polygon.
 
-        This method provides 10-20× speedup over CPU version by using RAPIDS
+        This method provides 10-20x speedup over CPU version by using RAPIDS
         cuSpatial for vectorized point-in-polygon queries.
 
         Performance (18M points):
@@ -566,7 +566,7 @@ class Reclassifier:
         ndvi_threshold: float = 0.3,
     ) -> Tuple[np.ndarray, Dict[str, int]]:
         """
-        🆕 V5.2 Enhanced: Reclassify vegetation points above BD TOPO surfaces.
+        🆕 V5.2: Reclassify vegetation points above BD TOPO surfaces.
 
         This function identifies points that are:
         1. Inside BD TOPO polygons (roads, sports, cemeteries, parking)
@@ -765,15 +765,15 @@ class Reclassifier:
                 # Small datasets: CPU is competitive and avoids GPU overhead
                 use_gpu = False
             elif n_points < 10_000_000:
-                # Medium datasets: GPU if available (5-10× speedup)
+                # Medium datasets: GPU if available (5-10x speedup)
                 use_gpu = HAS_GPU
             else:
-                # Large datasets: GPU strongly preferred (10-30× speedup)
+                # Large datasets: GPU strongly preferred (10-30x speedup)
                 use_gpu = HAS_GPU
                 if not HAS_GPU:
                     logger.warning(
                         f"Large dataset ({n_points:,} points) but GPU not available. "
-                        "Consider installing RAPIDS for 10-30× speedup."
+                        "Consider installing RAPIDS for 10-30x speedup."
                     )
         elif self.acceleration_mode in ["gpu", "gpu+cuml"]:
             use_gpu = HAS_GPU
@@ -806,7 +806,7 @@ class Reclassifier:
         CPU implementation - auto-selects vectorized or legacy method based on dataset size.
         
         Performance:
-        - Vectorized (Shapely 2.0+): Best for >500K points (10-20× faster)
+        - Vectorized (Shapely 2.0+): Best for >500K points (10-20x faster)
         - Legacy: Better for smaller datasets (<500K points) due to lower overhead
 
         Args:
@@ -844,13 +844,13 @@ class Reclassifier:
         🔥 Highly optimized CPU implementation with true vectorization.
         
         Optimizations:
-        1. Shapely 2.0 array interface - vectorized Point creation (10× faster)
+        1. Shapely 2.0 array interface - vectorized Point creation (10x faster)
         2. Vectorized contains() using STRtree.query() with 'contains' predicate
         3. Batch processing to minimize Python overhead
         4. NumPy boolean indexing for fast label updates
         5. Prepared geometries as fallback for edge cases
         
-        Performance: 10-20× faster than legacy for large datasets (>500K points).
+        Performance: 10-20x faster than legacy for large datasets (>500K points).
 
         Args:
             points: XYZ coordinates [N, 3]
@@ -895,7 +895,7 @@ class Reclassifier:
             chunk_points = points[start_idx:end_idx]
             chunk_size_actual = len(chunk_points)
 
-            # 🔥 Use Shapely 2.0 vectorized Point creation (10× faster than loop)
+            # 🔥 Use Shapely 2.0 vectorized Point creation (10x faster than loop)
             try:
                 from shapely import points as shapely_points
                 # Vectorized creation using Shapely's C++ backend
@@ -1079,7 +1079,7 @@ class Reclassifier:
         3. Optimized polygon format conversion
         4. Early accumulation on GPU (avoid multiple transfers)
         
-        Performance: 5-10× faster than CPU vectorized for large datasets (>5M points).
+        Performance: 5-10x faster than CPU vectorized for large datasets (>5M points).
 
         Args:
             points: XYZ coordinates [N, 3]

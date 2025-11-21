@@ -50,7 +50,7 @@ def _calculate_safe_temp_memory(n_points: int, n_dims: int, k: int) -> int:
     """Calculate safe temp memory size for FAISS GPU.
     
     FAISS needs temp memory for intermediate results during search.
-    The memory requirement scales roughly with: N × k × D × sizeof(float)
+    The memory requirement scales roughly with: N x k x D x sizeof(float)
     
     Args:
         n_points: Number of points in dataset
@@ -63,7 +63,7 @@ def _calculate_safe_temp_memory(n_points: int, n_dims: int, k: int) -> int:
     total_gb, free_gb = _get_gpu_memory_info()
     
     # Estimate memory needed for search operation
-    # Each search needs: k × N × sizeof(float) for distances + k × N × sizeof(int) for indices
+    # Each search needs: k x N x sizeof(float) for distances + k x N x sizeof(int) for indices
     search_memory_gb = (n_points * k * (4 + 4)) / (1024**3)
     
     # Also need memory for the index itself

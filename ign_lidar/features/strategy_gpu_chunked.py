@@ -52,14 +52,14 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
     - Production workloads with massive point clouds
 
     Performance:
-    - Batch mode (<10M): 0.5-5 seconds (10-30× faster than CPU)
+    - Batch mode (<10M): 0.5-5 seconds (10-30x faster than CPU)
     - Chunked mode (>10M): Auto-selected, FAISS acceleration available
-    - FAISS speedup: 50-100× for k-NN queries on massive datasets
+    - FAISS speedup: 50-100x for k-NN queries on massive datasets
 
     Requirements:
     - CuPy (CUDA arrays)
     - cuML (GPU algorithms) - optional but recommended
-    - FAISS (optional, for 50-100× k-NN speedup)
+    - FAISS (optional, for 50-100x k-NN speedup)
 
     Attributes:
         k_neighbors (int): Number of neighbors for geometric features

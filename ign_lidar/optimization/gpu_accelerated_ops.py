@@ -139,8 +139,8 @@ class GPUAcceleratedOps:
             eigenvectors: Vecteurs propres [N, d, d] ou [d, d]
 
         Performance:
-            - CPU: 50s pour 100K matrices 3×3
-            - GPU: 3s pour 100K matrices 3×3 (17× speedup)
+            - CPU: 50s pour 100K matrices 3x3
+            - GPU: 3s pour 100K matrices 3x3 (17x speedup)
 
         Example:
             >>> cov_matrices = np.random.rand(10000, 3, 3)
@@ -218,8 +218,8 @@ class GPUAcceleratedOps:
 
         Performance:
             - CPU (scipy): 3s pour 1M points, k=30
-            - FAISS-GPU: 0.15s (20× speedup)
-            - cuML-GPU: 0.25s (12× speedup)
+            - FAISS-GPU: 0.15s (20x speedup)
+            - cuML-GPU: 0.25s (12x speedup)
 
         Example:
             >>> points = np.random.rand(1000000, 3)
@@ -263,7 +263,7 @@ class GPUAcceleratedOps:
         res = faiss.StandardGpuResources()
         
         # Calculer temp memory safe pour éviter OOM
-        # Estimer: k × N × (4 bytes distance + 4 bytes index)
+        # Estimer: k x N x (4 bytes distance + 4 bytes index)
         search_memory_gb = (len(query_f32) * k * 8) / (1024**3)
         
         # Obtenir mémoire GPU disponible
@@ -357,8 +357,8 @@ class GPUAcceleratedOps:
             distances: Matrice de distances [N, M]
 
         Performance:
-            - CPU: 15s pour 10K × 10K
-            - GPU: 0.5s (30× speedup)
+            - CPU: 15s pour 10K x 10K
+            - GPU: 0.5s (30x speedup)
 
         Example:
             >>> points1 = np.random.rand(10000, 3)
@@ -409,8 +409,8 @@ class GPUAcceleratedOps:
             vh: Matrice orthogonale [N, N] ou [K, N]
 
         Performance:
-            - CPU: 0.8s pour matrice 1000×100
-            - GPU: 0.05s (16× speedup)
+            - CPU: 0.8s pour matrice 1000x100
+            - GPU: 0.05s (16x speedup)
 
         Example:
             >>> matrix = np.random.rand(1000, 100)

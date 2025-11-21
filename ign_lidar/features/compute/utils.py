@@ -482,7 +482,7 @@ def inverse_power_iteration(
     """
     Compute eigenvector for smallest eigenvalue using inverse power iteration.
     
-    For symmetric 3x3 covariance matrices, this is 10-50× faster than
+    For symmetric 3x3 covariance matrices, this is 10-50x faster than
     full eigendecomposition (np.linalg.eigh or cupy.linalg.eigh).
     Works with both NumPy and CuPy arrays (GPU-compatible).
     

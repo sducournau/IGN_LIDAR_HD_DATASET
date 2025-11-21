@@ -199,7 +199,7 @@ def compute_building_cluster_ids(
     - Cluster IDs are assigned sequentially based on building index
     - If a point is in multiple buildings (overlapping polygons),
       the last matching building is used
-    - Computation time: O(M × K) where M=buildings, K=avg points per building
+    - Computation time: O(M x K) where M=buildings, K=avg points per building
     - **MUCH FASTER** than point-by-point processing
 
     Example
@@ -308,7 +308,7 @@ def compute_parcel_cluster_ids(
     - Cluster IDs are assigned sequentially based on parcel index
     - If a point is in multiple parcels (overlapping polygons),
       the last matching parcel is used
-    - Computation time: O(M × K) where M=parcels, K=avg points per parcel
+    - Computation time: O(M x K) where M=parcels, K=avg points per parcel
     - Parcels typically cover larger areas than buildings
     - **MUCH FASTER** than point-by-point processing
 

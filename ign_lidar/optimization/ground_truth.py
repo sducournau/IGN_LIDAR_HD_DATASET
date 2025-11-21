@@ -1,5 +1,4 @@
-"""
-Unified Ground Truth Classification with Automatic Optimization (V2)
+"""Ground Truth Classification with Automatic Optimization (V2)
 
 Week 2 Consolidation: This module consolidates 7 ground truth implementations
 into a single, optimized interface with automatic method selection.
@@ -18,10 +17,10 @@ Architecture:
   * Memory constraints
 
 Performance Characteristics:
-- GPU Chunked: 100-1000× speedup for datasets > 10M points (requires CuPy)
-- GPU Basic: 100-500× speedup for datasets 1-10M points (requires CuPy)
-- CPU STRtree: 10-30× speedup, works everywhere (requires Shapely)
-- CPU Vectorized: 5-10× speedup, GeoPandas fallback
+- GPU Chunked: 100-1000x speedup for datasets > 10M points (requires CuPy)
+- GPU Basic: 100-500x speedup for datasets 1-10M points (requires CuPy)
+- CPU STRtree: 10-30x speedup, works everywhere (requires Shapely)
+- CPU Vectorized: 5-10x speedup, GeoPandas fallback
 - Caching: 30-50% additional speedup for repeated tiles
 
 Replaces:
@@ -29,7 +28,7 @@ Replaces:
 - optimization/gpu_optimized.py (473 lines) - Duplicate GPU
 - optimization/strtree.py (456 lines) - STRtree implementation
 - optimization/vectorized.py (408 lines) - Vectorized implementation
-- core/modules/advanced_classification.py (1,094 lines) - Legacy naive implementation
+- core/modules/advanced_classification.py (1094 lines) - Legacy naive implementation
 - io/ground_truth_optimizer.py (902 lines) - V2 features now integrated here
 
 Usage:
@@ -108,10 +107,10 @@ class GroundTruthOptimizer:
     Automatically selects and applies the best ground truth optimization.
 
     Performance characteristics:
-    - GPU Chunked: 100-1000× speedup for datasets > 10M points
-    - GPU: 100-500× speedup for datasets < 10M points
-    - CPU STRtree: 10-30× speedup, works everywhere
-    - CPU Vectorized: 5-10× speedup, GeoPandas fallback
+    - GPU Chunked: 100-1000x speedup for datasets > 10M points
+    - GPU: 100-500x speedup for datasets < 10M points
+    - CPU STRtree: 10-30x speedup, works everywhere
+    - CPU Vectorized: 5-10x speedup, GeoPandas fallback
     """
 
     # Hardware detection cache (now uses GPUManager singleton)
@@ -632,7 +631,7 @@ class GroundTruthOptimizer:
         ndvi_vegetation_threshold: float,
         ndvi_building_threshold: float,
     ) -> np.ndarray:
-        """CPU STRtree implementation (10-30× faster than naive)."""
+        """CPU STRtree implementation (10-30x faster than naive)."""
         if not HAS_SPATIAL:
             raise ImportError("Shapely and GeoPandas required for STRtree optimization")
 
@@ -664,7 +663,7 @@ class GroundTruthOptimizer:
             label_value = label_map.get(feature_type, 0)
 
             # OPTIMIZED: Vectorized geometry processing instead of .iterrows() loop
-            # Performance gain: 2-5× faster for building polygon lists
+            # Performance gain: 2-5x faster for building polygon lists
             valid_mask = gdf["geometry"].apply(
                 lambda g: isinstance(g, (Polygon, MultiPolygon))
             )

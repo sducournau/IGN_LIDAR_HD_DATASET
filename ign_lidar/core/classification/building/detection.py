@@ -1,7 +1,7 @@
 """
 Building Detection Module with Multi-Mode Support
 
-This module provides enhanced building detection capabilities for different
+This module provides building detection capabilities for different
 classification modes: ASPRS, LOD2, and LOD3. Each mode uses tailored detection
 strategies and thresholds optimized for their specific use cases.
 
@@ -64,7 +64,7 @@ class BuildingDetectionConfig:
         # === Mode-specific Thresholds ===
         if mode == BuildingDetectionMode.ASPRS:
             # ASPRS: Simple binary detection (building vs non-building)
-            # ENHANCED: Near-vertical wall detection with buffer extension
+            # Near-vertical wall detection with buffer extension
             # v6.1: More aggressive facade detection
             self.wall_verticality_min = 0.50  # Further lowered to catch rougher facades
             self.wall_planarity_min = 0.35  # Lower for textured/windowed facades
@@ -79,14 +79,14 @@ class BuildingDetectionConfig:
 
         elif mode == BuildingDetectionMode.LOD2:
             # LOD2: Separate walls, roofs, other building elements
-            # ENHANCED: Improved wall detection with near-vertical tolerance
+            # Improved wall detection with near-vertical tolerance
             self.wall_verticality_min = 0.65  # Lowered from 0.70 for near-vertical
             self.wall_planarity_min = 0.50  # Lowered from 0.55 for textured walls
-            self.wall_score_min = 0.30  # Lowered from 0.35 (planarity × verticality)
+            self.wall_score_min = 0.30  # Lowered from 0.35 (planarity x verticality)
             self.wall_buffer_distance = 0.4  # NEW: Extend to wall boundaries
             self.roof_horizontality_min = 0.85
             self.roof_planarity_min = 0.70
-            self.roof_score_min = 0.50  # planarity × horizontality
+            self.roof_score_min = 0.50  # planarity x horizontality
             self.anisotropy_min = 0.50
             self.linearity_edge_min = 0.40
             self.use_ground_truth = True
@@ -200,9 +200,9 @@ class BuildingDetector:
                       (chimneys, dormers have high curvature).
             intensity: LiDAR return intensity [N], normalized to [0, 1].
                       Different materials have different intensities.
-            wall_score: Pre-computed wall likelihood [N] = planarity × verticality.
+            wall_score: Pre-computed wall likelihood [N] = planarity x verticality.
                        Optional optimization to avoid recomputation.
-            roof_score: Pre-computed roof likelihood [N] = planarity × horizontality.
+            roof_score: Pre-computed roof likelihood [N] = planarity x horizontality.
                        Optional optimization to avoid recomputation.
             ground_truth_mask: Boolean mask [N] indicating known building points
                               from external data (BD TOPO, cadastre). Highest

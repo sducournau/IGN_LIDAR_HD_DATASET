@@ -71,7 +71,7 @@ class GPUGroundTruthClassifier:
     3. Fall back to CPU vectorized (if no GPU)
 
     Performance improvements over basic implementation:
-    - 2-10× additional speedup through memory management optimization
+    - 2-10x additional speedup through memory management optimization
     - Adaptive chunk sizing prevents OOM errors
     - Pipeline optimization reduces transfer overhead
     """
@@ -545,7 +545,7 @@ def create_gpu_method_for_advanced_classifier():
         intensity: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """
-        GPU-ACCELERATED: Classify using CuPy/cuSpatial (100-1000× faster).
+        GPU-ACCELERATED: Classify using CuPy/cuSpatial (100-1000x faster).
         """
         classifier = GPUGroundTruthClassifier(
             gpu_chunk_size=5_000_000,
@@ -579,7 +579,7 @@ def patch_advanced_classifier():
         )
 
         logger.info("✅ Applied GPU optimization to AdvancedClassifier")
-        logger.info("   Expected speedup: 100-1000× (GPU acceleration)")
+        logger.info("   Expected speedup: 100-1000x (GPU acceleration)")
 
     except ImportError as e:
         logger.error(f"Failed to patch AdvancedClassifier: {e}")
@@ -590,7 +590,7 @@ if __name__ == "__main__":
     print("=" * 80)
     print()
     print("This module provides GPU-accelerated ground truth classification using")
-    print("CuPy and cuSpatial for 100-1000× speedup.")
+    print("CuPy and cuSpatial for 100-1000x speedup.")
     print()
     print("Requirements:")
     print("  - NVIDIA GPU with CUDA support")
@@ -607,7 +607,7 @@ if __name__ == "__main__":
     print("  python reprocess_with_ground_truth.py enriched.laz")
     print()
     print("Features:")
-    print("  - 100-1000× speedup from GPU parallel processing")
+    print("  - 100-1000x speedup from GPU parallel processing")
     print("  - Automatic fallback to CPU if no GPU available")
     print("  - Memory-efficient chunked processing")
     print()
