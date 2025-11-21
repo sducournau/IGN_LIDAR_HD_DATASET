@@ -353,7 +353,7 @@ class Classifier(BaseClassifier):
         **kwargs,
     ) -> ClassificationResult:
         """
-        Classify point cloud using unified BaseClassifier interface (v3.2+).
+        Classify point cloud using BaseClassifier interface (v3.2+).
 
         This method follows the standard BaseClassifier API for consistency
         across all classifiers in IGN LiDAR HD. It wraps the existing

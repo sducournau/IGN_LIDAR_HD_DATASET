@@ -222,7 +222,7 @@ class ParcelClassifier(BaseClassifier):
         **kwargs,
     ) -> BaseClassificationResult:
         """
-        Classify point cloud using unified BaseClassifier interface (v3.2+).
+        Classify point cloud using BaseClassifier interface (v3.2+).
 
         This method requires 'cadastre' in either features or ground_truth,
         as parcel-based classification depends on cadastral parcels.

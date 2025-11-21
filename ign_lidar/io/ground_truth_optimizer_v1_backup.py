@@ -1,66 +1,22 @@
 """
-Unified Ground Truth Classification with Automatic Optimization (V2)
+Optimized Ground Truth Computation with Automatic CPU/GPU Selection
 
-Week 2 Consolidation: This module consolidates 7 ground truth implementations
-into a single, optimized interface with automatic method selection.
+This module provides optimized implementations of ground truth labeling
+that automatically selects the best method based on available hardware:
 
-V2 Features (Task #12 - November 2025):
-- Intelligent caching system with spatial hashing (30-50% speedup)
-- LRU cache eviction policy with configurable limits
-- Batch processing optimization for multiple tiles
-- Memory and disk cache support
-- Cache statistics and monitoring
+1. GPU Chunked (fastest for large datasets with GPU)
+2. GPU (fastest for small-medium datasets with GPU)
+3. CPU STRtree (10-30× faster than naive, no GPU needed)
+4. CPU Vectorized (fallback)
 
-Architecture:
-- Automatically selects the best method based on:
-  * Dataset size (points & polygons)
-  * Available hardware (GPU/CPU)
-  * Memory constraints
+The optimizer automatically detects available hardware and selects
+the appropriate implementation.
 
-Performance Characteristics:
-- GPU Chunked: 100-1000× speedup for datasets > 10M points (requires CuPy)
-- GPU Basic: 100-500× speedup for datasets 1-10M points (requires CuPy)
-- CPU STRtree: 10-30× speedup, works everywhere (requires Shapely)
-- CPU Vectorized: 5-10× speedup, GeoPandas fallback
-- Caching: 30-50% additional speedup for repeated tiles
-
-Replaces:
-- optimization/gpu.py (546 lines) - GPU implementation
-- optimization/gpu_optimized.py (473 lines) - Duplicate GPU
-- optimization/strtree.py (456 lines) - STRtree implementation
-- optimization/vectorized.py (408 lines) - Vectorized implementation
-- core/modules/advanced_classification.py (1,094 lines) - Legacy naive implementation
-- io/ground_truth_optimizer.py (902 lines) - V2 features now integrated here
-
-Usage:
-    from ign_lidar.optimization.ground_truth import GroundTruthOptimizer
-
-    # Basic usage
-    optimizer = GroundTruthOptimizer(verbose=True)
-    labels = optimizer.label_points(
-        points=points_xyz,
-        ground_truth_features=ground_truth_gdf_dict,
-        ndvi=ndvi_values  # optional
-    )
-
-    # With caching (V2)
-    optimizer = GroundTruthOptimizer(
-        enable_cache=True,
-        cache_dir=Path("cache/ground_truth"),
-        max_cache_size_mb=500
-    )
-    labels = optimizer.label_points(points, ground_truth_features)
-    
-    # Batch processing (V2)
-    tiles = [{'points': p1, 'ndvi': n1}, {'points': p2}]
-    labels_list = optimizer.label_points_batch(tiles, ground_truth_features)
-    
-    # Cache statistics
-    stats = optimizer.get_cache_stats()
-    print(f"Cache hit ratio: {stats['hit_ratio']:.1%}")
-
-Version: 2.0 (Week 2 Consolidation + V2 Cache Features)
-Date: October 21, 2025 (Consolidated) / November 21, 2025 (V2 Features)
+V2 Features (Task #12):
+- Intelligent caching system with spatial hashing
+- LRU cache eviction policy
+- Batch processing optimization
+- Configurable cache size management
 """
 
 import hashlib
@@ -70,15 +26,23 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# Import centralized priority system
+from ign_lidar.core.classification.priorities import (
+    PRIORITY_ORDER,
+    get_label_map,
+    get_priority_value,
+)
+
 try:
-    from shapely.geometry import Point, Polygon, MultiPolygon
-    from shapely.strtree import STRtree
-    from shapely.prepared import prep
     import geopandas as gpd
+    from shapely.geometry import MultiPolygon, Point, Polygon
+    from shapely.prepared import prep
+    from shapely.strtree import STRtree
 
     HAS_SPATIAL = True
 except ImportError:
@@ -110,6 +74,12 @@ class GroundTruthOptimizer:
     - GPU: 100-500× speedup for datasets < 10M points
     - CPU STRtree: 10-30× speedup, works everywhere
     - CPU Vectorized: 5-10× speedup, GeoPandas fallback
+
+    V2 Features (Task #12):
+    - Intelligent caching with spatial hash keys
+    - LRU eviction when cache exceeds max size
+    - Batch processing for multiple tiles
+    - 30-50% speedup for repeated tiles
     """
 
     # Hardware detection cache
@@ -119,7 +89,7 @@ class GroundTruthOptimizer:
     def __init__(
         self,
         force_method: Optional[str] = None,
-        gpu_chunk_size: int = 2_000_000,  # ✅ FIXED: Reduced default from 5M to 2M (prevents OOM Exit 137)
+        gpu_chunk_size: int = 2_000_000,
         verbose: bool = True,
         enable_cache: bool = True,
         cache_dir: Optional[Path] = None,
@@ -127,13 +97,13 @@ class GroundTruthOptimizer:
         max_cache_entries: int = 100,
     ):
         """
-        Initialize optimizer with optional caching (V2 features).
+        Initialize optimizer with optional caching.
 
         Args:
             force_method: Force specific method ('gpu_chunked', 'gpu', 'strtree', 'vectorized')
-            gpu_chunk_size: Number of points per GPU chunk (default: 2M, safer for CPU mode)
+            gpu_chunk_size: Number of points per GPU chunk (default: 2M)
             verbose: Enable verbose logging
-            enable_cache: Enable result caching for 30-50% speedup on repeated tiles (default: True)
+            enable_cache: Enable result caching (default: True)
             cache_dir: Directory for disk cache (default: None = memory only)
             max_cache_size_mb: Maximum cache size in MB (default: 500)
             max_cache_entries: Maximum number of cache entries (default: 100)
@@ -166,18 +136,21 @@ class GroundTruthOptimizer:
         if GroundTruthOptimizer._cuspatial_available is None:
             GroundTruthOptimizer._cuspatial_available = self._check_cuspatial()
 
-    def __repr__(self) -> str:
-        """String representation of the optimizer."""
-        gpu_status = "GPU enabled" if self._gpu_available else "CPU only"
-        method_info = (
-            f"forced to '{self.force_method}'" if self.force_method else "auto-select"
-        )
-        cache_info = f", cache={'ON' if self.enable_cache else 'OFF'}"
-        return f"GroundTruthOptimizer({gpu_status}, {method_info}, chunk_size={self.gpu_chunk_size:,}{cache_info})"
+    @staticmethod
+    def _check_gpu() -> bool:
+        """Check if GPU is available."""
+        if not HAS_CUPY:
+            return False
+        try:
+            _ = cp.array([1.0])
+            return True
+        except Exception:
+            return False
 
-    # ========================================================================
-    # V2 Cache Methods (Task #12)
-    # ========================================================================
+    @staticmethod
+    def _check_cuspatial() -> bool:
+        """Check if cuSpatial is available."""
+        return HAS_CUSPATIAL
 
     def _generate_cache_key(
         self,
@@ -260,7 +233,7 @@ class GroundTruthOptimizer:
                         labels = pickle.load(f)
 
                     # Load into memory cache
-                    size_mb = labels.nbytes / (1024**2)
+                    size_mb = labels.nbytes / (1024 ** 2)
                     self._add_to_cache(cache_key, labels, size_mb)
 
                     self._cache_hits += 1
@@ -360,7 +333,9 @@ class GroundTruthOptimizer:
             Dictionary with cache metrics
         """
         total_requests = self._cache_hits + self._cache_misses
-        hit_ratio = self._cache_hits / total_requests if total_requests > 0 else 0.0
+        hit_ratio = (
+            self._cache_hits / total_requests if total_requests > 0 else 0.0
+        )
 
         return {
             "enabled": self.enable_cache,
@@ -373,29 +348,6 @@ class GroundTruthOptimizer:
             "hit_ratio": hit_ratio,
             "disk_cache_enabled": self.cache_dir is not None,
         }
-
-    # ========================================================================
-    # Hardware Detection
-    # ========================================================================
-
-    @staticmethod
-    def _check_gpu() -> bool:
-        """Check if GPU is available."""
-        if not HAS_CUPY:
-            return False
-        try:
-            _ = cp.array([1.0])
-            return True
-        except (RuntimeError, AttributeError, ImportError):
-            # RuntimeError: CUDA not available or initialization failed
-            # AttributeError: cp.array not available
-            # ImportError: CuPy module issue
-            return False
-
-    @staticmethod
-    def _check_cuspatial() -> bool:
-        """Check if cuSpatial is available."""
-        return HAS_CUSPATIAL
 
     def select_method(self, n_points: int, n_polygons: int) -> str:
         """
@@ -413,14 +365,11 @@ class GroundTruthOptimizer:
 
         # GPU methods (if available)
         if GroundTruthOptimizer._gpu_available:
-            # Use chunked for large datasets (lowered from 10M to 1M for better GPU utilization)
-            if n_points > 1_000_000:
+            # Use chunked for large datasets
+            if n_points > 10_000_000:
                 return "gpu_chunked"
-            # Use basic GPU for medium datasets (lowered from always to 100K+ threshold)
-            elif n_points > 100_000:
+            else:
                 return "gpu"
-            # For small datasets (<100K), CPU STRtree is faster due to GPU transfer overhead
-            # Fall through to CPU methods
 
         # CPU methods
         if HAS_SPATIAL:
@@ -441,12 +390,9 @@ class GroundTruthOptimizer:
         ndvi_building_threshold: float = 0.15,
     ) -> np.ndarray:
         """
-        Label points with ground truth using optimal method (V2: with caching).
+        Label points with ground truth using optimal method with caching.
 
-        V2 Features (Task #12):
-        - Intelligent caching with spatial hashing
-        - 30-50% speedup for repeated tiles
-        - LRU eviction when cache is full
+        V2 Enhancement: Checks cache before computation, stores results for reuse.
 
         Args:
             points: Point cloud [N, 3] with XYZ coordinates
@@ -474,11 +420,14 @@ class GroundTruthOptimizer:
                 points, ground_truth_features, use_ndvi_refinement
             )
             cached_labels = self._get_from_cache(cache_key)
+
             if cached_labels is not None:
                 elapsed = time.time() - start_time
                 if self.verbose:
+                    cache_stats = self.get_cache_stats()
                     logger.info(
-                        f"Ground truth labeling from cache in {elapsed:.3f}s (30-50% speedup)"
+                        f"Ground truth labels from cache: {len(points):,} points "
+                        f"in {elapsed:.3f}s (hit ratio: {cache_stats['hit_ratio']:.1%})"
                     )
                 return cached_labels
 
@@ -538,15 +487,19 @@ class GroundTruthOptimizer:
                 ndvi_building_threshold,
             )
 
-        # V2: Add to cache
-        if self.enable_cache and cache_key is not None:
-            size_mb = labels.nbytes / (1024**2)
-            self._add_to_cache(cache_key, labels, size_mb)
-
         elapsed = time.time() - start_time
 
+        # V2: Add to cache
+        if self.enable_cache and cache_key:
+            size_mb = labels.nbytes / (1024 ** 2)
+            self._add_to_cache(cache_key, labels, size_mb)
+
         if self.verbose:
-            logger.info(f"Ground truth labeling completed in {elapsed:.2f}s")
+            cache_stats = self.get_cache_stats()
+            logger.info(
+                f"Ground truth labeling completed in {elapsed:.2f}s "
+                f"(cache: {cache_stats['entries']} entries, {cache_stats['hit_ratio']:.1%} hit ratio)"
+            )
             # Log distribution
             unique, counts = np.unique(labels, return_counts=True)
             label_names = {
@@ -635,10 +588,11 @@ class GroundTruthOptimizer:
             raise ImportError("Shapely and GeoPandas required for STRtree optimization")
 
         if label_priority is None:
-            label_priority = ["buildings", "roads", "water", "vegetation"]
+            # ✅ Use centralized priority order
+            label_priority = PRIORITY_ORDER
 
-        # Label mapping
-        label_map = {"buildings": 1, "roads": 2, "water": 3, "vegetation": 4}
+        # ✅ Use centralized label mapping
+        label_map = get_label_map()
 
         # Initialize labels
         labels = np.zeros(len(points), dtype=np.int32)
@@ -649,9 +603,20 @@ class GroundTruthOptimizer:
 
         all_polygons = []
         polygon_labels = []
+        polygon_priorities = []  # Store priority for each polygon
+        prepared_polygons = []  # Pre-prepared for faster contains()
 
-        # Add polygons in reverse priority (so higher priority overwrites)
-        for feature_type in reversed(label_priority):
+        # ✅ Use centralized priority function
+        # Priority = numerical value from get_priority_value()
+        # Higher number = higher priority
+        label_priority_values = {}
+        for feature_type in label_priority:
+            label_value = label_map.get(feature_type, 0)
+            priority_value = get_priority_value(feature_type)
+            label_priority_values[label_value] = priority_value
+
+        # Add polygons (order doesn't matter, we use explicit priorities)
+        for feature_type in label_priority:
             if feature_type not in ground_truth_features:
                 continue
 
@@ -660,17 +625,17 @@ class GroundTruthOptimizer:
                 continue
 
             label_value = label_map.get(feature_type, 0)
+            priority_value = label_priority_values.get(label_value, 0)
 
-            # OPTIMIZED: Vectorized geometry processing instead of .iterrows() loop
-            # Performance gain: 2-5× faster for building polygon lists
-            valid_mask = gdf["geometry"].apply(
-                lambda g: isinstance(g, (Polygon, MultiPolygon))
-            )
-            valid_geoms = gdf.loc[valid_mask, "geometry"]
-
-            # Extend lists in batch
-            all_polygons.extend(valid_geoms.tolist())
-            polygon_labels.extend([label_value] * len(valid_geoms))
+            for idx, row in gdf.iterrows():
+                polygon = row["geometry"]
+                if isinstance(polygon, (Polygon, MultiPolygon)):
+                    all_polygons.append(polygon)
+                    polygon_labels.append(label_value)
+                    polygon_priorities.append(priority_value)  # ✅ NEW
+                    prepared_polygons.append(
+                        prep(polygon)
+                    )  # Prepare for faster queries
 
         if len(all_polygons) == 0:
             logger.warning("No valid polygons for labeling")
@@ -684,8 +649,9 @@ class GroundTruthOptimizer:
                 f"  Labeling {len(points):,} points with {len(all_polygons):,} polygons..."
             )
 
-        # Process points in batches for progress tracking
-        batch_size = 100_000
+        # ✅ FIXED: Process points in smaller batches to avoid memory issues
+        # Use smaller batch size (50K instead of 100K) to reduce memory footprint
+        batch_size = 50_000
         n_batches = (len(points) + batch_size - 1) // batch_size
 
         for batch_idx in range(n_batches):
@@ -693,27 +659,40 @@ class GroundTruthOptimizer:
             end_idx = min((batch_idx + 1) * batch_size, len(points))
             batch_points = points[start_idx:end_idx]
 
-            # Create Point geometries for batch
-            point_geoms = [Point(p[0], p[1]) for p in batch_points]
+            # ✅ OPTIMIZED: Create Point geometries and query immediately
+            # This avoids keeping all points in memory at once
+            for i, point_coords in enumerate(batch_points):
+                point_geom = Point(point_coords[0], point_coords[1])
 
-            # Query each point
-            for i, point_geom in enumerate(point_geoms):
                 # Find candidate polygon indices
                 candidate_indices = tree.query(point_geom)
 
-                if not candidate_indices:
+                # Check if empty (handle numpy array properly)
+                if len(candidate_indices) == 0:
                     continue
 
-                # Check actual containment
-                # Iterate in reverse to give priority to later features (higher priority)
+                # ✅ FIXED: Check all matching polygons and select highest priority
+                best_label = 0
+                best_priority = -1
+
                 for candidate_idx in candidate_indices:
-                    polygon = all_polygons[candidate_idx]
+                    # Use prepared polygon for much faster contains() check
+                    # ✅ FIXED: Use covers() instead of contains() to include
+                    # boundary points
+                    if prepared_polygons[candidate_idx].covers(point_geom):
+                        label = polygon_labels[candidate_idx]
+                        priority = polygon_priorities[candidate_idx]
 
-                    if polygon.contains(point_geom):
-                        labels[start_idx + i] = polygon_labels[candidate_idx]
-                        # Don't break - let higher priority features override
+                        # Keep the label with highest priority
+                        if priority > best_priority:
+                            best_label = label
+                            best_priority = priority
 
-            if self.verbose and n_batches > 1:
+                # Assign the label with the highest priority
+                if best_label > 0:
+                    labels[start_idx + i] = best_label
+
+            if self.verbose and n_batches > 1 and (batch_idx + 1) % 10 == 0:
                 pct = 100 * (batch_idx + 1) / n_batches
                 logger.info(f"    Progress: {pct:.1f}%")
 
@@ -752,8 +731,10 @@ class GroundTruthOptimizer:
             logger.info("  Creating point GeoDataFrame...")
 
         point_geoms = [Point(p[0], p[1]) for p in points]
+        # FIXED: Set CRS to match ground truth features (EPSG:2154 for Lambert 93)
         points_gdf = gpd.GeoDataFrame(
-            {"geometry": point_geoms, "index": np.arange(len(points))}
+            {"geometry": point_geoms, "index": np.arange(len(points))},
+            crs="EPSG:2154",  # Lambert 93 - standard for IGN data
         )
 
         # Process each feature type in reverse priority
@@ -836,9 +817,6 @@ class GroundTruthOptimizer:
 
         return labels
 
-    # ========================================================================
-    # V2 Batch Processing (Task #12)
-    # ========================================================================
 
     def label_points_batch(
         self,
@@ -852,11 +830,10 @@ class GroundTruthOptimizer:
         """
         Batch process multiple tiles for ground truth labeling.
 
-        V2 Feature (Task #12): Optimizes processing of multiple tiles by:
+        V2 Feature: Optimizes processing of multiple tiles by:
         - Reusing spatial indexes across tiles
         - Leveraging cache for previously processed tiles
         - Reducing I/O overhead
-        - 30-50% speedup for repeated tiles
 
         Args:
             tile_data_list: List of tile data dicts, each with 'points' and optionally 'ndvi'
@@ -873,9 +850,6 @@ class GroundTruthOptimizer:
             >>> optimizer = GroundTruthOptimizer(enable_cache=True)
             >>> tiles = [{'points': points1}, {'points': points2, 'ndvi': ndvi2}]
             >>> labels_list = optimizer.label_points_batch(tiles, ground_truth_features)
-            >>> print(f"Processed {len(labels_list)} tiles")
-            >>> stats = optimizer.get_cache_stats()
-            >>> print(f"Cache hit ratio: {stats['hit_ratio']:.1%}")
         """
         if not tile_data_list:
             return []
@@ -884,7 +858,7 @@ class GroundTruthOptimizer:
         n_tiles = len(tile_data_list)
 
         if self.verbose:
-            total_points = sum(len(tile["points"]) for tile in tile_data_list)
+            total_points = sum(len(tile['points']) for tile in tile_data_list)
             logger.info(
                 f"Batch ground truth labeling: {n_tiles} tiles, {total_points:,} total points"
             )
@@ -893,13 +867,10 @@ class GroundTruthOptimizer:
         cached_tiles = 0
 
         for i, tile_data in enumerate(tile_data_list):
-            points = tile_data["points"]
-            ndvi = tile_data.get("ndvi", None)
+            points = tile_data['points']
+            ndvi = tile_data.get('ndvi')
 
-            if self.verbose:
-                logger.info(f"  Tile {i+1}/{n_tiles}: {len(points):,} points")
-
-            # Process tile (cache will be checked internally)
+            # Process tile (will use cache if available)
             labels = self.label_points(
                 points=points,
                 ground_truth_features=ground_truth_features,
@@ -912,14 +883,20 @@ class GroundTruthOptimizer:
 
             results.append(labels)
 
+            # Track cache hits (simple heuristic: if processing was very fast, likely cached)
+            if self.verbose and i > 0:
+                progress = (i + 1) / n_tiles * 100
+                if (i + 1) % max(1, n_tiles // 10) == 0:
+                    logger.info(f"  Batch progress: {progress:.0f}%")
+
         elapsed = time.time() - start_time
 
         if self.verbose:
             cache_stats = self.get_cache_stats()
-            logger.info(f"Batch processing completed in {elapsed:.2f}s")
+            avg_time_per_tile = elapsed / n_tiles if n_tiles > 0 else 0
             logger.info(
-                f"  Cache: {cache_stats['hits']} hits, {cache_stats['misses']} misses "
-                f"(hit ratio: {cache_stats['hit_ratio']:.1%})"
+                f"Batch processing completed in {elapsed:.2f}s "
+                f"({avg_time_per_tile:.2f}s/tile, cache hit ratio: {cache_stats['hit_ratio']:.1%})"
             )
 
         return results

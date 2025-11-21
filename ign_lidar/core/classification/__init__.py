@@ -5,7 +5,7 @@ This package contains classification components for ASPRS/BD TOPO point cloud la
 ground truth refinement, and advanced classification strategies.
 
 v3.2+ Changes:
-    - New unified BaseClassifier interface for all classifiers
+    - BaseClassifier interface for all classifiers
     - ClassificationResult standardized return type
     - Single Classifier facade for easy access
 

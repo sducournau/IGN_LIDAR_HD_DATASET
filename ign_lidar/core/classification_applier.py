@@ -168,7 +168,7 @@ class ClassificationApplier:
                     points, labels, features, ground_truth_features
                 )
             else:
-                labels = self._apply_unified_classifier(
+                labels = self._apply_classifier(
                     points, labels, features, ground_truth_features
                 )
 
@@ -198,7 +198,7 @@ class ClassificationApplier:
         Returns:
             Updated labels [N]
         """
-        from ..io.ground_truth_optimizer import GroundTruthOptimizer
+        from ..optimization.ground_truth import GroundTruthOptimizer
 
         logger.info(f"  🗺️  Applying ground truth (optimized, GPU-accelerated)")
 
@@ -229,7 +229,7 @@ class ClassificationApplier:
 
         return labels
 
-    def _apply_unified_classifier(
+    def _apply_classifier(
         self,
         points: np.ndarray,
         labels: np.ndarray,

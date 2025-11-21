@@ -8,6 +8,7 @@ This package contains the main processing logic:
 - performance: Unified performance monitoring (consolidated from performance_monitor, performance_monitoring)
 - error_handler: Error handling and recovery
 - verification: Feature and data verification utilities
+- gpu: Centralized GPU detection and management (v3.4.0+)
 """
 
 from .processor import LiDARProcessor
@@ -22,6 +23,7 @@ from .error_handler import (
     ConfigurationError
 )
 from .verification import FeatureVerifier, FeatureStats, verify_laz_files
+from .gpu import GPUManager, get_gpu_manager, GPU_AVAILABLE, HAS_CUPY
 
 __all__ = [
     'LiDARProcessor',
@@ -38,6 +40,10 @@ __all__ = [
     'FeatureVerifier',
     'FeatureStats',
     'verify_laz_files',
+    'GPUManager',
+    'get_gpu_manager',
+    'GPU_AVAILABLE',
+    'HAS_CUPY',
 ]
 
 # Backward compatibility: core.modules moved to core.classification in v3.1.0

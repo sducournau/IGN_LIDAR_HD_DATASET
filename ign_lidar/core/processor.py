@@ -2300,7 +2300,7 @@ class LiDARProcessor:
 
                     if use_optimized_gt:
                         # NEW: Use GroundTruthOptimizer (10-100× faster, GPU-accelerated)
-                        from ..io.ground_truth_optimizer import GroundTruthOptimizer
+                        from ..optimization.ground_truth import GroundTruthOptimizer
 
                         # Prepare ground truth features dictionary
                         ground_truth_features = gt_data["ground_truth"]

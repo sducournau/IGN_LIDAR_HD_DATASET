@@ -162,7 +162,7 @@ class HierarchicalClassifier(BaseClassifier):
         **kwargs,
     ) -> BaseClassificationResult:
         """
-        Classify point cloud using unified BaseClassifier interface (v3.2+).
+        Classify point cloud using BaseClassifier interface (v3.2+).
 
         This method requires 'asprs_labels' in the features dictionary,
         as hierarchical classification refines existing ASPRS labels.
