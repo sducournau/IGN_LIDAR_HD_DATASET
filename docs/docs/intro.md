@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 3.3.5** | Python 3.8+ | MIT License | [GitHub](https://github.com/sducournau/IGN_LIDAR_HD_DATASET)
+**Version 3.4.1** | Python 3.8+ | MIT License | [GitHub](https://github.com/sducournau/IGN_LIDAR_HD_DATASET)
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -18,7 +18,7 @@ Production-ready library featuring GPU acceleration (16× speedup), rich geometr
 
 ---
 
-## 🎯 What's New in v3.3.5
+## 🎯 What's New in v3.4.1
 
 ### Latest Stable Release (November 2025)
 
@@ -31,26 +31,40 @@ Production-ready with critical bug fixes and major performance improvements.
 ### 🌟 Key Highlights
 
 - ✅ **Production Ready** - Stable, tested, optimized for real-world workflows
+- 🚀 **FAISS GPU Boost** - Dynamic VRAM detection enables 10-50× faster k-NN on large datasets
+- 💾 **Smart Memory** - Automatic FP16 precision for 100M+ points on 16GB GPUs
 - 🔴 **Critical Bug Fix** - BD TOPO reclassification corrected (+20-30% accuracy)
-- 🚀 **10× Faster DTM** - RTM spatial indexing for instant elevation lookups
 - 🎯 **95% Fewer Artifacts** - Unified filtering eliminates boundary issues
-- 💾 **Memory Optimized** - Automatic chunking prevents out-of-memory crashes
 - 🏗️ **Enhanced Detection** - +30-40% improvement in facade point capture
 
 ### 📊 Performance Improvements
 
-| Metric                  | Before       | After        | Improvement         |
-| ----------------------- | ------------ | ------------ | ------------------- |
-| Building classification | 70-75%       | 94-97%       | **+20-30%** 🔥      |
-| DTM file lookup         | Sequential   | RTM indexed  | **10× faster** ⚡   |
-| Planarity artifacts     | 100-200/tile | 5-10/tile    | **95% reduction**   |
-| Processing speed        | Baseline     | Optimized    | **40-50% faster**   |
-| Facade detection        | Standard     | Enhanced     | **+30-40%** 📈      |
-| Memory stability        | OOM issues   | Auto-chunked | **100% stable** ✅  |
+| Metric                  | Before       | After        | Improvement          |
+| ----------------------- | ------------ | ------------ | -------------------- |
+| k-NN queries (large)    | 30-90s CPU   | 5-15s GPU    | **10-50× faster** 🔥 |
+| FAISS memory limit      | 15M fixed    | 100M+ adapt. | **6× capacity** 🚀   |
+| Building classification | 70-75%       | 94-97%       | **+20-30%** ✅       |
+| DTM file lookup         | Sequential   | RTM indexed  | **10× faster** ⚡    |
+| Planarity artifacts     | 100-200/tile | 5-10/tile    | **95% reduction** 📉 |
+| Processing speed        | Baseline     | Optimized    | **40-50% faster** ⏱️ |
+| Facade detection        | Standard     | Enhanced     | **+30-40%** 📈       |
+| Memory stability        | OOM issues   | Auto-chunked | **100% stable** ✅   |
 
 ### 🆕 Major Features
 
+**FAISS GPU Memory Optimization** (v3.4.1) 🚀
+
+- Dynamic VRAM detection replaces hardcoded 15M point limit
+- Automatic Float16 (FP16) precision for datasets >50M points (cuts memory in half)
+- Smart memory calculation: query results + index storage + temp memory
+- Adaptive threshold: 80% of detected VRAM limit
+- **Impact on RTX 4080 SUPER (16GB)**: 72M point dataset now runs on GPU (was CPU-only)
+- Expected speedup: **10-50× faster** k-NN queries (5-15s vs 30-90s)
+- Supports up to **100M+ points on 16GB GPUs** with FP16 precision
+- Dynamic temp memory: scales with VRAM (4GB for 16GB GPU, 2GB for 8GB GPU)
+
 **Unified Feature Filtering** (v3.1.0)
+
 - Generic API for planarity, linearity, horizontality filtering
 - Adaptive spatial smoothing with variance detection
 - Eliminates 95% of boundary artifacts (100-200 → 5-10 per tile)
@@ -58,6 +72,7 @@ Production-ready with critical bug fixes and major performance improvements.
 - ~60% code reduction through unified implementation
 
 **Performance Enhancements** (v3.3.3)
+
 - RTM spatial indexing for instant DTM file discovery
 - Intelligent gap filling with nearest-neighbor interpolation
 - Automatic memory-optimized chunking (2M-5M points)
@@ -65,6 +80,7 @@ Production-ready with critical bug fixes and major performance improvements.
 - Enhanced facade detection with +30-40% improvement
 
 **Rules Framework** (v3.2.1)
+
 - Extensible plugin architecture for custom classification rules
 - 7 confidence calculation methods (binary, linear, sigmoid, gaussian, etc.)
 - Hierarchical execution with 4 strategies
@@ -78,7 +94,7 @@ Production-ready with critical bug fixes and major performance improvements.
 pip install --upgrade ign-lidar-hd
 
 # Verify installation
-ign-lidar-hd --version  # Should show 3.3.5
+ign-lidar-hd --version  # Should show 3.4.1
 ```
 
 :::tip Important for BD TOPO Users
@@ -87,7 +103,9 @@ If using BD TOPO classification, consider reprocessing your data to benefit from
 
 ### 📖 Release Notes
 
-- 📍 **[v3.3.5 (Current)](./release-notes/v3.3.5)** - Maintenance release
+- 🚀 **[v3.4.1 (Current)](./release-notes/v3.4.1)** - FAISS GPU memory optimization **← NEW**
+- 🎯 **[v3.4.0](./release-notes/v3.4.0)** - GPU optimizations & road classification
+- 📍 **[v3.3.5](./release-notes/v3.3.5)** - Maintenance release
 - 🔴 **[v3.3.4 (Critical)](./release-notes/v3.3.4)** - BD TOPO priority fix **← IMPORTANT**
 - ⚡ **[v3.3.3](./release-notes/v3.3.3)** - Performance optimizations
 - 🎲 **[v3.2.1](./release-notes/v3.2.1)** - Rules framework
@@ -288,7 +306,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {ImagoData},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {3.3.5}
+  version      = {3.4.1}
 }
 ```
 

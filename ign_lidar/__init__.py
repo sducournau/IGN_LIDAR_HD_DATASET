@@ -12,6 +12,15 @@ Version 3.3.3 - Gap Detection Enhancement:
 - Directional gap identification (N, NE, E, SE, S, SW, W, NW)
 - Export of problematic buildings for manual review
 
+Version 3.4.1 - FAISS GPU Memory Optimization:
+- Dynamic VRAM detection and adaptive GPU usage for FAISS k-NN
+- Automatic Float16 (FP16) precision for large datasets (>50M points)
+- Smart memory calculation: query results + index + temp storage
+- Adaptive threshold: 80% of VRAM limit (vs hardcoded 15M point limit)
+- RTX 4080 SUPER (16GB): 72M point dataset now uses GPU (was CPU-only)
+- Expected speedup: 10-50× faster k-NN queries
+- Supports 100M+ points on 16GB GPUs with FP16
+
 Version 3.4.0 - GPU Optimizations & Road Classification:
 - GPU-accelerated operations (k-NN, STRtree spatial indexing)
 - FAISS GPU integration for ultra-fast k-NN queries
@@ -23,7 +32,7 @@ Version 3.4.0 - GPU Optimizations & Road Classification:
 All features now work with the new configuration architecture.
 """
 
-__version__ = "3.4.0"
+__version__ = "3.4.1"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 
