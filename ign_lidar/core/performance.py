@@ -20,6 +20,9 @@ import json
 from pathlib import Path
 import sys
 
+# Import centralized GPU manager
+from .gpu import GPUManager
+
 # Optional dependencies
 try:
     import psutil
@@ -29,12 +32,13 @@ except ImportError:
     PSUTIL_AVAILABLE = False
     psutil = None
 
-try:
-    import cupy as cp
+# Check GPU availability using centralized manager
+_gpu_manager = GPUManager()
+GPU_AVAILABLE = _gpu_manager.gpu_available
 
-    GPU_AVAILABLE = True
-except ImportError:
-    GPU_AVAILABLE = False
+if GPU_AVAILABLE:
+    import cupy as cp
+else:
     cp = None
 
 try:

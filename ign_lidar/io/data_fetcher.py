@@ -482,6 +482,5 @@ def create_full_fetcher(cache_dir: Optional[Path] = None) -> DataFetcher:
     return DataFetcher(cache_dir=cache_dir, config=config)
 
 
-# Deprecated aliases for backward compatibility
-# Deprecated alias - use DataFetcher instead
-UnifiedDataFetcher = DataFetcher
+# Backward compatibility note:
+# UnifiedDataFetcher was removed in v3.1.0 - use DataFetcher instead

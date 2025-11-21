@@ -44,8 +44,12 @@ def check_gpu_available() -> bool:
     """
     Check if GPU acceleration is available.
     
-    DEPRECATED: Use GPUManager directly instead.
-    This function is kept for backward compatibility.
+    DEPRECATED: Use GPUManager directly instead:
+        from ign_lidar.core.gpu import GPUManager
+        gpu_mgr = GPUManager()
+        gpu_available = gpu_mgr.gpu_available
+    
+    This function is kept for backward compatibility only.
     
     Returns:
         True if CuPy and cuML are available, False otherwise

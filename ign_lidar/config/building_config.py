@@ -80,10 +80,10 @@ class BuildingConfig:
 
     Example:
         >>> # Residential building configuration
-        >>> config = EnhancedBuildingConfig()
+        >>> config = BuildingConfig()
         >>>
         >>> # Urban high-density configuration
-        >>> config = EnhancedBuildingConfig(
+        >>> config = BuildingConfig(
         ...     roof_flat_threshold=10.0,
         ...     chimney_min_height_above_roof=0.5,
         ...     chimney_min_points=15,
@@ -92,7 +92,7 @@ class BuildingConfig:
         ... )
         >>>
         >>> # Industrial configuration (no balconies)
-        >>> config = EnhancedBuildingConfig(
+        >>> config = BuildingConfig(
         ...     enable_balcony_detection=False,
         ...     chimney_min_height_above_roof=2.0,
         ...     chimney_min_points=40
@@ -271,14 +271,14 @@ class BuildingConfig:
             Dictionary representation suitable for Config.advanced.classification
 
         Example:
-            >>> config = EnhancedBuildingConfig()
+            >>> config = BuildingConfig()
             >>> config_dict = config.to_dict()
-            >>> advanced_config.classification = {'enhanced_building': config_dict}
+            >>> advanced_config.classification = {'building': config_dict}
         """
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "EnhancedBuildingConfig":
+    def from_dict(cls, data: Dict) -> "BuildingConfig":
         """
         Create configuration from dictionary.
 
@@ -286,16 +286,16 @@ class BuildingConfig:
             data: Dictionary with configuration parameters
 
         Returns:
-            EnhancedBuildingConfig instance
+            BuildingConfig instance
 
         Example:
             >>> data = {'enable_roof_detection': True, 'roof_flat_threshold': 12.0}
-            >>> config = EnhancedBuildingConfig.from_dict(data)
+            >>> config = BuildingConfig.from_dict(data)
         """
         return cls(**data)
 
     @classmethod
-    def preset_residential(cls) -> "EnhancedBuildingConfig":
+    def preset_residential(cls) -> "BuildingConfig":
         """
         Preset for residential buildings (default).
 
@@ -305,7 +305,7 @@ class BuildingConfig:
         return cls()  # Use defaults
 
     @classmethod
-    def preset_urban_high_density(cls) -> "EnhancedBuildingConfig":
+    def preset_urban_high_density(cls) -> "BuildingConfig":
         """
         Preset for urban high-density areas.
 
@@ -326,7 +326,7 @@ class BuildingConfig:
         )
 
     @classmethod
-    def preset_industrial(cls) -> "EnhancedBuildingConfig":
+    def preset_industrial(cls) -> "BuildingConfig":
         """
         Preset for industrial buildings.
 
@@ -347,7 +347,7 @@ class BuildingConfig:
         )
 
     @classmethod
-    def preset_historic(cls) -> "EnhancedBuildingConfig":
+    def preset_historic(cls) -> "BuildingConfig":
         """
         Preset for historic buildings.
 

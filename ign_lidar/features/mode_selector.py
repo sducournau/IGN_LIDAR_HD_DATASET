@@ -91,7 +91,12 @@ class ModeSelector:
         logger.info(f"  Prefer GPU: {self.prefer_gpu}")
     
     def _check_gpu_availability(self) -> bool:
-        """DEPRECATED: Use GPUManager instead."""
+        """
+        Check GPU availability via GPUManager.
+        
+        DEPRECATED: Access self._gpu_manager.gpu_available directly instead.
+        This method is kept for backward compatibility.
+        """
         return self._gpu_manager.gpu_available
     
     def _get_gpu_memory(self) -> float:

@@ -23,12 +23,14 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# Try to import GPU libraries
-try:
+# GPU availability check (centralized via GPUManager)
+from .gpu import GPUManager
+_gpu_manager = GPUManager()
+GPU_AVAILABLE = _gpu_manager.gpu_available
+
+if GPU_AVAILABLE:
     import cupy as cp
-    GPU_AVAILABLE = True
-except ImportError:
-    GPU_AVAILABLE = False
+else:
     cp = None
 
 try:

@@ -19,23 +19,18 @@ class OptimizationLevel:
     ORIGINAL = "original"
 
 
+# GPU availability check (centralized via GPUManager)
+from ign_lidar.core.gpu import GPUManager
+_gpu_manager = GPUManager()
+
 def check_gpu_available() -> bool:
-    """Check if GPU acceleration is available."""
-    try:
-        import cupy as cp
-        _ = cp.array([1.0])
-        return True
-    except Exception:
-        return False
+    """Check if GPU acceleration is available (uses GPUManager)."""
+    return _gpu_manager.gpu_available
 
 
 def check_cuspatial_available() -> bool:
-    """Check if cuSpatial is available."""
-    try:
-        import cuspatial
-        return True
-    except ImportError:
-        return False
+    """Check if cuSpatial is available (uses GPUManager)."""
+    return _gpu_manager.cuspatial_available
 
 
 def check_geopandas_available() -> bool:

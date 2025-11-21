@@ -25,32 +25,37 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from tqdm import tqdm
 
+# Import centralized GPU manager
+from ..core.gpu import GPUManager
+
 logger = logging.getLogger(__name__)
 
-# GPU imports with fallback
-GPU_AVAILABLE = False
-CUML_AVAILABLE = False
+# GPU imports with centralized detection
+_gpu_manager = GPUManager()
+GPU_AVAILABLE = _gpu_manager.gpu_available
+CUML_AVAILABLE = _gpu_manager.cuml_available
 
-try:
+if GPU_AVAILABLE:
     import cupy as cp
     from cupyx.scipy.spatial import distance as cp_distance
-
-    GPU_AVAILABLE = True
     CpArray = cp.ndarray
     logger.info("✓ CuPy available - GPU enabled")
-except ImportError:
+else:
     logger.warning("⚠ CuPy not available - CPU fallback")
     cp = None
     CpArray = Any
 
-try:
-    from cuml.decomposition import PCA as cuPCA
-    from cuml.neighbors import NearestNeighbors as cuNearestNeighbors
-
-    CUML_AVAILABLE = True
-    logger.info("✓ RAPIDS cuML available - GPU algorithms enabled")
-except ImportError:
-    logger.warning("⚠ RAPIDS cuML not available - sklearn fallback")
+if CUML_AVAILABLE:
+    try:
+        from cuml.decomposition import PCA as cuPCA
+        from cuml.neighbors import NearestNeighbors as cuNearestNeighbors
+        logger.info("✓ RAPIDS cuML available - GPU algorithms enabled")
+    except ImportError:
+        logger.warning("⚠ RAPIDS cuML not available - sklearn fallback")
+        cuNearestNeighbors = None
+        cuPCA = None
+        CUML_AVAILABLE = False
+else:
     cuNearestNeighbors = None
     cuPCA = None
 

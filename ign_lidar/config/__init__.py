@@ -25,10 +25,7 @@ Legacy (v3.1, deprecated):
 import warnings
 
 from .config import AdvancedConfig, Config, FeatureConfig
-from .building_config import (
-    BuildingConfig,
-    EnhancedBuildingConfig,
-)  # EnhancedBuildingConfig is deprecated alias
+from .building_config import BuildingConfig
 
 # Week 3: Modern preset-based configuration loader
 from .preset_loader import (
@@ -58,7 +55,6 @@ __all__ = [
     "FeatureConfig",
     "AdvancedConfig",
     "BuildingConfig",
-    "EnhancedBuildingConfig",  # Deprecated alias, use BuildingConfig
     # Legacy Hydra schemas (deprecated, will be removed in v4.0)
     "ProcessorConfig",
     "FeaturesConfig",

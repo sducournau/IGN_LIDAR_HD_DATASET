@@ -146,14 +146,13 @@ def _select_optimal_mode(n_points: int, **kwargs) -> ComputeMode:
     return ComputeMode.CPU
 
 
-def _check_gpu_available() -> bool:
-    """Check if GPU libraries are available."""
-    try:
-        import cupy
+# GPU availability check (centralized via GPUManager)
+from ign_lidar.core.gpu import GPUManager
+_gpu_manager = GPUManager()
 
-        return cupy.cuda.is_available()
-    except ImportError:
-        return False
+def _check_gpu_available() -> bool:
+    """Check if GPU libraries are available (uses GPUManager)."""
+    return _gpu_manager.gpu_available
 
 
 def _compute_all_features_cpu(

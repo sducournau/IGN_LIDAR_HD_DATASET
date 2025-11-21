@@ -16,20 +16,19 @@ import gc
 
 logger = logging.getLogger(__name__)
 
-# GPU detection
-try:
+# GPU detection (centralized via GPUManager)
+from .gpu import GPUManager
+_gpu_manager = GPUManager()
+GPU_AVAILABLE = _gpu_manager.gpu_available
+
+if GPU_AVAILABLE:
     import cupy as cp
-    import torch
-    GPU_AVAILABLE = True
-    # Check GPU memory
     try:
         gpu_memory_gb = cp.cuda.Device().mem_info[1] / (1024**3)
         logger.info(f"✓ GPU detected: {gpu_memory_gb:.1f}GB VRAM available")
     except Exception:
         gpu_memory_gb = 0
-        GPU_AVAILABLE = False
-except ImportError:
-    GPU_AVAILABLE = False
+else:
     gpu_memory_gb = 0
 
 try:

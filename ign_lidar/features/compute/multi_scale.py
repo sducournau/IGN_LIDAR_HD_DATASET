@@ -45,17 +45,24 @@ from dataclasses import dataclass
 
 from ign_lidar.optimization.gpu_accelerated_ops import eigh, knn  # GPU-accelerated operations
 
+# Import centralized GPU manager
+from ...core.gpu import GPUManager
+
 logger = logging.getLogger(__name__)
 
-# GPU support
-try:
+# GPU support with centralized detection
+_gpu_manager = GPUManager()
+GPU_AVAILABLE = _gpu_manager.gpu_available
+
+if GPU_AVAILABLE:
     import cupy as cp
-    from ..gpu_processor import GPUProcessor
-    GPU_AVAILABLE = True
-except ImportError:
-    GPU_AVAILABLE = False
-    GPUProcessor = None
+    try:
+        from ..gpu_processor import GPUProcessor
+    except ImportError:
+        GPUProcessor = None
+else:
     cp = None
+    GPUProcessor = None
 
 
 @dataclass

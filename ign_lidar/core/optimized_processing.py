@@ -185,13 +185,8 @@ class OptimizedProcessor(ABC):
     
     def _gpu_available(self) -> bool:
         """Check if GPU is available and working."""
-        try:
-            import cupy as cp
-            test_array = cp.array([1.0])
-            _ = cp.asnumpy(test_array)
-            return True
-        except:
-            return False
+        from .gpu import GPUManager
+        return GPUManager().gpu_available
     
     def update_performance_metrics(self, processing_time: float, data_size: int):
         """Update performance metrics for adaptive optimization."""
@@ -588,10 +583,5 @@ def auto_optimize_config(config: Dict[str, Any]) -> Dict[str, Any]:
 
 def _check_gpu_availability() -> bool:
     """Check if GPU is available."""
-    try:
-        import cupy as cp
-        test_array = cp.array([1.0])
-        _ = cp.asnumpy(test_array)
-        return True
-    except:
-        return False
+    from .gpu import GPUManager
+    return GPUManager().gpu_available

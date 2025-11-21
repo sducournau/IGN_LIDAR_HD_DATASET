@@ -18,15 +18,22 @@ from typing import Dict, Tuple
 import laspy
 import logging
 
+# Import centralized GPU manager
+from ..core.gpu import GPUManager
+
 logger = logging.getLogger(__name__)
 
-# Check GPU availability
-try:
+# Check GPU availability using centralized manager
+_gpu_manager = GPUManager()
+GPU_AVAILABLE = _gpu_manager.gpu_available
+
+if GPU_AVAILABLE:
     import cupy as cp
-    from cuml.neighbors import NearestNeighbors as cuNearestNeighbors
-    GPU_AVAILABLE = True
-except ImportError:
-    GPU_AVAILABLE = False
+    if _gpu_manager.cuml_available:
+        from cuml.neighbors import NearestNeighbors as cuNearestNeighbors
+    else:
+        cuNearestNeighbors = None
+else:
     cp = None
     cuNearestNeighbors = None
 
