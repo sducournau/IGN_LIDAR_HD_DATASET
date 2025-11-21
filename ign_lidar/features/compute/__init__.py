@@ -40,15 +40,16 @@ Migration:
 """
 
 # Optimized feature computation (JIT-compiled, preferred)
+# NOTE: compute_normals() removed from features.py (Phase 2 consolidation Nov 2025)
+# All normal computation now routes through normals.py as the single source of truth
 try:
-    from .features import compute_all_features_optimized, compute_normals
-
+    from .features import compute_all_features_optimized
     OPTIMIZED_AVAILABLE = True
 except ImportError:
-    # Fallback to standard implementation
-    from .normals import compute_normals
-
     OPTIMIZED_AVAILABLE = False
+
+# Normal computation - ALWAYS use normals.py as single source of truth
+from .normals import compute_normals
 
 # Architectural features
 from .architectural import (

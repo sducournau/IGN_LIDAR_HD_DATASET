@@ -140,15 +140,16 @@ class TestFeatureComputer:
         # Should not raise
         computer._report_progress(0.5, "Test message")
 
-    @patch("ign_lidar.features.feature_computer.FeatureComputer._get_cpu_computer")
-    def test_compute_normals_cpu(self, mock_get_cpu, sample_points, mock_mode_selector):
+    @patch("ign_lidar.features.compute.compute_normals")
+    def test_compute_normals_cpu(
+        self, mock_compute_normals, sample_points, mock_mode_selector
+    ):
         """Test compute_normals with CPU mode."""
         # Setup
-        mock_cpu_comp = MagicMock()
-        expected_normals = np.random.rand(len(sample_points), 3)
-        mock_cpu_comp.compute_normals.return_value = expected_normals
-        mock_get_cpu.return_value = mock_cpu_comp
-
+        expected_normals = np.random.rand(len(sample_points), 3).astype(np.float32)
+        # compute_normals returns (normals, eigenvalues) or (normals, None) tuple
+        mock_compute_normals.return_value = (expected_normals, None)
+        
         mock_mode_selector.select_mode.return_value = ComputationMode.CPU
 
         computer = FeatureComputer(mode_selector=mock_mode_selector)
@@ -158,19 +159,18 @@ class TestFeatureComputer:
 
         # Verify
         assert np.array_equal(normals, expected_normals)
-        mock_cpu_comp.compute_normals.assert_called_once_with(
-            sample_points, k_neighbors=10
+        mock_compute_normals.assert_called_once_with(
+            sample_points, k_neighbors=10, return_eigenvalues=False
         )
 
-    @patch("ign_lidar.features.feature_computer.FeatureComputer._get_gpu_computer")
-    def test_compute_normals_gpu(self, mock_get_gpu, sample_points, mock_mode_selector):
+    @patch("ign_lidar.features.gpu_processor.GPUProcessor")
+    def test_compute_normals_gpu(self, mock_gpu_processor_class, sample_points, mock_mode_selector):
         """Test compute_normals with GPU mode."""
         # Setup
-        mock_gpu_comp = MagicMock()
-        expected_normals = np.random.rand(len(sample_points), 3)
-        # GPU strategy returns features dict from compute()
-        mock_gpu_comp.compute.return_value = {"normals": expected_normals}
-        mock_get_gpu.return_value = mock_gpu_comp
+        mock_gpu_instance = MagicMock()
+        expected_normals = np.random.rand(len(sample_points), 3).astype(np.float32)
+        mock_gpu_instance.compute_normals.return_value = expected_normals
+        mock_gpu_processor_class.return_value = mock_gpu_instance
 
         mock_mode_selector.select_mode.return_value = ComputationMode.GPU
 
@@ -181,7 +181,7 @@ class TestFeatureComputer:
 
         # Verify
         assert np.array_equal(normals, expected_normals)
-        mock_gpu_comp.compute.assert_called_once_with(sample_points)
+        mock_gpu_instance.compute_normals.assert_called_once_with(sample_points, k=10)
 
     @patch("ign_lidar.features.feature_computer.FeatureComputer._get_cpu_computer")
     def test_compute_curvature_cpu(

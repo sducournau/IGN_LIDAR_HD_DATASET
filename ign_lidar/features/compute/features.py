@@ -234,79 +234,19 @@ def _compute_all_features_jit(
     return normals, eigenvalues, curvature, planarity, linearity, sphericity
 
 
-def compute_normals(
-    points: np.ndarray,
-    k_neighbors: int = 20,
-    search_radius: Optional[float] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Compute normal vectors and eigenvalues using optimized JIT compilation.
-
-    This is 3-5x faster than standard implementations.
-
-    Parameters
-    ----------
-    points : np.ndarray
-        Point cloud array of shape (N, 3) with XYZ coordinates
-    k_neighbors : int, optional
-        Number of nearest neighbors (default: 20)
-    search_radius : float, optional
-        Search radius. If None, uses k-nearest neighbors.
-
-    Returns
-    -------
-    normals : np.ndarray
-        Normal vectors of shape (N, 3), unit length
-    eigenvalues : np.ndarray
-        Eigenvalues of shape (N, 3), sorted descending
-
-    Examples
-    --------
-    >>> points = np.random.rand(100000, 3).astype(np.float32)
-    >>> normals, eigenvalues = compute_normals(points, k_neighbors=20)
-    >>> assert normals.shape == (100000, 3)
-    """
-    if not NUMBA_AVAILABLE:
-        raise RuntimeError(
-            "Numba is required for optimized features. "
-            "Install with: conda install -c conda-forge numba"
-        )
-
-    # Input validation
-    if not isinstance(points, np.ndarray):
-        raise ValueError("points must be a numpy array")
-    if points.ndim != 2 or points.shape[1] != 3:
-        raise ValueError(f"points must have shape (N, 3), got {points.shape}")
-    if points.shape[0] < k_neighbors:
-        raise ValueError(
-            f"Not enough points ({points.shape[0]}) for k_neighbors={k_neighbors}"
-        )
-
-    # Ensure float32 for performance
-    points = points.astype(np.float32, copy=False)
-
-    # Build KD-tree and find neighbors
-    from sklearn.neighbors import NearestNeighbors
-    import multiprocessing
-
-    if search_radius is not None:
-        logger.warning("Radius search not optimized - using k-NN instead")
-
-    # ✅ FIXED: Avoid sklearn parallelism conflicts with multiprocessing
-    # If we're in a worker process, use n_jobs=1, otherwise use all cores
-    current_process = multiprocessing.current_process()
-    n_jobs = 1 if current_process.name != "MainProcess" else -1
-
-    nbrs = NearestNeighbors(n_neighbors=k_neighbors, algorithm="kd_tree", n_jobs=n_jobs)
-    nbrs.fit(points)
-    distances, indices = nbrs.kneighbors(points)
-
-    # Call JIT-compiled function
-    normals, eigenvalues = _compute_normals_and_eigenvalues_jit(
-        points, indices, k_neighbors
-    )
-
-    return normals, eigenvalues
+# ============================================================================
+# DEPRECATED: compute_normals() removed from this module (Phase 2 consolidation)
+# ============================================================================
+# 
+# This function was a PURE DUPLICATION of features/compute/normals.py
+# It has been removed as part of the Phase 2 code consolidation (Nov 2025).
+#
+# USE INSTEAD:
+#   from ign_lidar.features.compute import compute_normals  # Routes to normals.py
+#   from ign_lidar.features.compute.normals import compute_normals  # Direct import
+#
+# The compute_normals() function is now imported from normals.py in __init__.py
+# ============================================================================
 
 
 def compute_all_features_optimized(

@@ -166,6 +166,10 @@ class FeatureComputer:
         """
         Compute surface normals for point cloud.
         
+        Delegates to appropriate strategy:
+        - CPU: uses compute.normals.compute_normals() (single source of truth)
+        - GPU/GPU_CHUNKED: uses gpu_processor.compute_normals() (optimized GPU path)
+        
         Args:
             points: Point cloud array [N, 3]
             k: Number of neighbors for normal estimation
@@ -184,23 +188,20 @@ class FeatureComputer:
         
         try:
             if selected_mode == ComputationMode.CPU:
-                cpu_features = self._get_cpu_computer()
-                result = cpu_features.compute_normals(points, k_neighbors=k)
-                # Handle both tuple return (normals, eigenvalues) and single array return
-                if isinstance(result, tuple):
-                    normals = result[0]
-                else:
-                    normals = result
+                # CPU mode: use compute.normals.compute_normals() (single source of truth)
+                from ign_lidar.features.compute import compute_normals
+                result = compute_normals(points, k_neighbors=k, return_eigenvalues=False)
+                # Result is (normals, None) tuple when return_eigenvalues=False
+                normals = result[0] if isinstance(result, tuple) else result
             
-            elif selected_mode == ComputationMode.GPU:
-                strategy = self._get_gpu_computer()
-                features = strategy.compute(points)
-                normals = features['normals']
-            
-            elif selected_mode == ComputationMode.GPU_CHUNKED:
-                strategy = self._get_gpu_chunked_computer()
-                features = strategy.compute(points)
-                normals = features['normals']
+            elif selected_mode in (ComputationMode.GPU, ComputationMode.GPU_CHUNKED):
+                # GPU modes: use gpu_processor directly (optimized for normals-only computation)
+                from ign_lidar.features.gpu_processor import GPUProcessor
+                gpu_proc = GPUProcessor(
+                    chunk_size=self.chunk_size if selected_mode == ComputationMode.GPU_CHUNKED else None,
+                    show_progress=False
+                )
+                normals = gpu_proc.compute_normals(points, k=k)
             
             else:  # BOUNDARY
                 raise ValueError(
