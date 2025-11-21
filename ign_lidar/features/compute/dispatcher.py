@@ -50,7 +50,7 @@ def compute_all_features(
     **kwargs,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
     """
-    Unified feature computation API replacing all compute_all_features* variants.
+    Feature computation API replacing all compute_all_features* variants.
 
     This function provides a single entry point for computing all features,
     automatically selecting the best computation strategy based on the mode

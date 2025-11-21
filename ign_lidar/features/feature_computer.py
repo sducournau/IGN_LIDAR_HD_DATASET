@@ -1,7 +1,7 @@
 """
 Feature Computer - Single Entry Point for All Computation Modes
 
-This module provides a unified interface for feature computation that automatically
+This module provides an interface for feature computation that automatically
 selects the optimal computation mode (CPU, GPU, GPU Chunked, or Boundary) based on
 point cloud characteristics and hardware availability.
 
@@ -56,7 +56,7 @@ class FeatureComputer:
         **kwargs
     ):
         """
-        Initialize the unified feature computer.
+        Initialize the feature computer.
         
         Args:
             mode_selector: Custom mode selector (auto-created if None)

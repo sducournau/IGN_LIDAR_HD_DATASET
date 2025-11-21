@@ -120,7 +120,7 @@ class CPUStrategy(BaseFeatureStrategy):
         # Determine k value (use default if auto_k not needed)
         k = self.k_neighbors
 
-        # Compute all geometric features using unified optimized function
+        # Compute all geometric features using optimized function
         features = compute_all_features_optimized(
             points=points, k_neighbors=k, compute_advanced=self.include_extra
         )

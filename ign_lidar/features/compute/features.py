@@ -117,7 +117,7 @@ def _compute_all_features_jit(
     epsilon: float = 1e-10,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    JIT-compiled unified feature computation.
+    JIT-compiled feature computation.
 
     Computes normals, eigenvalues, curvature, planarity, linearity, and
     sphericity all in one pass from shared covariance computation.

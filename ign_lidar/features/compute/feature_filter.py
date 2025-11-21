@@ -25,7 +25,7 @@ For each point:
 - ~5-10 seconds for 1M points with k=15 (CPU)
 - Memory efficient: processes features in-place when possible
 
-Version: 3.1.0 (Unified from planarity_filter.py v3.0.6)
+Version: 3.1.0 (Consolidated from planarity_filter.py v3.0.6)
 Author: IGN LiDAR HD Development Team
 Date: 2025-10-30
 """

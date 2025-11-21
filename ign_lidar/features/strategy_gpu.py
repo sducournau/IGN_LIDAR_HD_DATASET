@@ -1,7 +1,7 @@
 """
 GPU-based feature computation strategy (single batch).
 
-This strategy uses the unified GPUProcessor for GPU-accelerated feature computation.
+This strategy uses GPUProcessor for GPU-accelerated feature computation.
 Best for medium datasets (1-10M points) that fit in GPU memory.
 
 For larger datasets (> 10M points), use GPUChunkedStrategy instead.
@@ -41,7 +41,7 @@ class GPUStrategy(BaseFeatureStrategy):
     """
     GPU-based feature computation for medium datasets (single batch).
 
-    Uses the unified GPUProcessor which automatically selects batch vs chunked strategy.
+    Uses GPUProcessor which automatically selects batch vs chunked strategy.
 
     This strategy is optimal for:
     - Medium datasets (1-10M points) - uses batch processing
@@ -64,7 +64,7 @@ class GPUStrategy(BaseFeatureStrategy):
     Attributes:
         k_neighbors (int): Number of neighbors for geometric features
         batch_size (int): Maximum batch size for GPU processing
-        gpu_processor (GPUProcessor): Unified GPU processor
+        gpu_processor (GPUProcessor): GPU processor
     """
 
     def __init__(
@@ -75,7 +75,7 @@ class GPUStrategy(BaseFeatureStrategy):
         verbose: bool = False,
     ):
         """
-        Initialize GPU strategy with unified GPUProcessor.
+        Initialize GPU strategy with GPUProcessor.
 
         Args:
             k_neighbors: Number of neighbors for local features
@@ -96,7 +96,7 @@ class GPUStrategy(BaseFeatureStrategy):
 
         self.batch_size = batch_size
 
-        # Initialize unified GPU processor with auto-chunking
+        # Initialize GPU processor with auto-chunking
         self.gpu_processor = GPUProcessor(
             batch_size=batch_size,
             chunk_threshold=10_000_000,  # Auto-chunk for >10M points
@@ -105,7 +105,7 @@ class GPUStrategy(BaseFeatureStrategy):
 
         if verbose:
             logger.info(
-                f"Initialized GPU strategy (unified processor): k={k_neighbors}, batch_size={batch_size:,}"
+                f"Initialized GPU strategy: k={k_neighbors}, batch_size={batch_size:,}"
             )
             logger.info(f"  GPU available: {self.gpu_processor.use_gpu}")
             logger.info(f"  Auto-chunking threshold: 10,000,000 points")
@@ -120,7 +120,7 @@ class GPUStrategy(BaseFeatureStrategy):
         **kwargs,
     ) -> Dict[str, np.ndarray]:
         """
-        Compute features using unified GPUProcessor (auto batch/chunked).
+        Compute features using GPUProcessor (auto batch/chunked).
 
         Args:
             points: (N, 3) array of XYZ coordinates
@@ -137,12 +137,12 @@ class GPUStrategy(BaseFeatureStrategy):
 
         if self.verbose:
             logger.info(
-                f"Computing features for {n_points:,} points using GPU strategy (unified processor)"
+                f"Computing features for {n_points:,} points using GPU strategy"
             )
             if n_points > 10_000_000:
                 logger.info(f"  Auto-chunking will be used for >10M points")
 
-        # Compute geometric features with unified processor
+        # Compute geometric features with GPU processor
         # Automatically uses batch (<10M) or chunked (>10M) strategy
         normals = self.gpu_processor.compute_normals(
             points, k=self.k_neighbors, show_progress=self.verbose
@@ -207,7 +207,7 @@ class GPUStrategy(BaseFeatureStrategy):
         """
         Adapter method for compatibility with FeatureOrchestrator.
 
-        Uses the unified GPUProcessor for feature computation.
+        Uses GPUProcessor for feature computation.
 
         Args:
             points: (N, 3) array of XYZ coordinates

@@ -1,5 +1,5 @@
 """
-Unified GPU Feature Processor (Phase 2A Consolidation)
+GPU Feature Processor (Phase 2A Consolidation)
 
 This module consolidates features_gpu.py and features_gpu_chunked.py into a
 single, intelligent GPU processor with automatic chunking based on dataset size

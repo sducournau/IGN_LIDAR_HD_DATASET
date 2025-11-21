@@ -1,7 +1,7 @@
 """
 Canonical implementation of density feature computation.
 
-This module provides unified density-based features.
+This module provides density-based features.
 """
 
 import numpy as np

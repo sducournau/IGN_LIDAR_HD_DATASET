@@ -96,7 +96,7 @@ from .eigenvalues import (
     compute_verticality,
 )
 
-# Feature filtering (artifact reduction) - Unified module v3.1.0
+# Feature filtering (artifact reduction) - v3.1.0
 from .feature_filter import (
     smooth_feature_spatial,
     validate_feature,
@@ -148,7 +148,7 @@ from .is_ground import (
 # Additional normal computation utilities
 from .normals import compute_normals_accurate, compute_normals_fast
 
-# Unified API dispatcher - this is the main public API for compute_all_features
+# API dispatcher - this is the main public API for compute_all_features
 from .dispatcher import compute_all_features  # Main public API
 from .dispatcher import ComputeMode
 
@@ -191,7 +191,7 @@ __all__ = [
     "compute_linearity",
     "compute_planarity",
     "compute_sphericity",
-    # Feature filtering (artifact reduction) - v3.1.0 unified
+    # Feature filtering (artifact reduction) - v3.1.0
     "smooth_feature_spatial",
     "validate_feature",
     "smooth_planarity_spatial",
@@ -252,7 +252,7 @@ __all__ = [
     "compute_covariances_from_neighbors",
     # Geometric features (consolidated)
     "extract_geometric_features",
-    # Unified API (main public API for feature computation)
+    # Main public API for feature computation
     "compute_all_features",  # High-level API with mode selection
     "compute_all_features_optimized",  # Low-level CPU-optimized implementation
     "ComputeMode",

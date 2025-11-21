@@ -1,7 +1,7 @@
 """
 Canonical implementation of eigenvalue-based features.
 
-This module provides unified eigenvalue feature computation.
+This module provides eigenvalue feature computation.
 """
 
 import numpy as np

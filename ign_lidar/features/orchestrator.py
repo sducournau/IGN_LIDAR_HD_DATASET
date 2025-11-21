@@ -1,5 +1,5 @@
 """
-Feature Orchestrator - Unified Feature Computation System
+Feature Orchestrator - Feature Computation System
 
 Consolidates FeatureManager, FeatureComputer, and FeatureComputerFactory into a
 single, cohesive orchestrator that manages all aspects of feature computation.
@@ -71,7 +71,7 @@ __all__ = ["FeatureOrchestrator"]
 
 class FeatureOrchestrator:
     """
-    Unified orchestrator for all feature computation operations.
+    Orchestrator for all feature computation operations.
 
     This class consolidates three previously separate concerns:
     1. Resource Management (RGB, NIR, GPU) - from FeatureManager

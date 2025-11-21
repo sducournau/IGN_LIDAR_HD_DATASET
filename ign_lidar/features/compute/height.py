@@ -1,7 +1,7 @@
 """
 Canonical implementation of height-based features.
 
-This module provides unified height computation replacing duplicates in:
+This module provides height computation replacing duplicates in:
 - features.py (CPU)
 - features_gpu.py (GPU)
 - features_gpu_chunked.py (GPU chunked)

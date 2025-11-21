@@ -111,7 +111,7 @@ FEATURE_DESCRIPTIONS = {
     "legacy_corner_likelihood": "Legacy corner detection (replaced by corner_likelihood)",
     "legacy_overhang_indicator": "Legacy overhang detection (replaced by overhang_indicator)",
     "legacy_surface_roughness": "Legacy surface texture (replaced by surface_roughness)",
-    # NEW: Enhanced Building Classification Features (8 features)
+    # NEW: Building Classification Features (8 features)
     "horizontality": "Horizontality score [0,1] - 1 for horizontal surfaces (roofs)",
     "facade_score": "Facade likelihood (combined vertical + planar + elevated)",
     "flat_roof_score": "Flat roof likelihood (horizontal + planar + elevated)",
@@ -119,7 +119,7 @@ FEATURE_DESCRIPTIONS = {
     "steep_roof_score": "Steep roof likelihood (45-70° tilt)",
     "opening_likelihood": "Window/door likelihood (low planarity + high linearity)",
     "structural_element_score": "Pillar/column likelihood (linear + vertical + organized)",
-    "edge_strength_enhanced": "Enhanced edge strength from eigenvalues (λ1-λ2)/λ1",
+    "edge_strength_enhanced": "Edge strength from eigenvalues (λ1-λ2)/λ1",
     # Spectral Features (5 features)
     "red": "Red channel [0-255]",
     "green": "Green channel [0-255]",

@@ -1,7 +1,7 @@
 """
 Canonical implementation of curvature feature computation.
 
-This module provides unified curvature computation replacing duplicates in:
+This module provides curvature computation replacing duplicates in:
 - features.py (CPU)
 - features_gpu.py (GPU)
 - features_gpu_chunked.py (GPU chunked)

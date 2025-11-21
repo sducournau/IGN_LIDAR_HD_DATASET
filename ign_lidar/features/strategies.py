@@ -1,5 +1,5 @@
 """
-Unified feature computation strategies.
+Feature computation strategies.
 
 This module consolidates 8+ feature computer implementations into
 a clean Strategy pattern with automatic hardware-aware selection.
