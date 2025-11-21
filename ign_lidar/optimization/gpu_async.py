@@ -412,11 +412,11 @@ class AsyncGPUProcessor:
         self._cleanup_gpu_memory()
 
 
-def create_enhanced_gpu_processor(enable_streams: bool = True,
-                                num_streams: int = 4,
-                                vram_target: float = 0.85) -> AsyncGPUProcessor:
+def create_async_gpu_processor(enable_streams: bool = True,
+                               num_streams: int = 4,
+                               vram_target: float = 0.85) -> AsyncGPUProcessor:
     """
-    Factory function to create enhanced GPU processor with optimal settings.
+    Factory function to create async GPU processor with optimal settings.
     
     Args:
         enable_streams: Enable CUDA streams for async processing
