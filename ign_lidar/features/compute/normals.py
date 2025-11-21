@@ -11,17 +11,27 @@ import numpy as np
 from typing import Optional, Tuple
 from sklearn.neighbors import NearestNeighbors
 import logging
+import multiprocessing
 
 from ign_lidar.optimization.gpu_accelerated_ops import eigh
 
 logger = logging.getLogger(__name__)
 
 
+def _get_safe_n_jobs() -> int:
+    """Get safe n_jobs for sklearn avoiding multiprocessing conflicts."""
+    if multiprocessing.current_process().name != 'MainProcess':
+        return 1  # Disable sklearn parallelism in workers
+    return -1  # Use all CPUs in main process
+
+
 def compute_normals(
     points: np.ndarray,
     k_neighbors: int = 20,
     search_radius: Optional[float] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    method: str = 'standard',
+    return_eigenvalues: bool = True,
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
     Compute normal vectors and eigenvalues using standard CPU implementation.
     
@@ -36,21 +46,37 @@ def compute_normals(
         Number of nearest neighbors to use for normal estimation (default: 20)
     search_radius : float, optional
         Search radius for neighborhood. If None, uses k-nearest neighbors.
+    method : str, optional
+        Computation method: 'fast' (k=10), 'accurate' (k=50), or 'standard' (use k_neighbors)
+    return_eigenvalues : bool, optional
+        Whether to return eigenvalues (default: True). Set False for faster computation.
         
     Returns
     -------
     normals : np.ndarray
         Normal vectors of shape (N, 3), unit length
-    eigenvalues : np.ndarray
-        Eigenvalues of shape (N, 3), sorted in descending order
+    eigenvalues : np.ndarray or None
+        Eigenvalues of shape (N, 3), sorted in descending order.
+        None if return_eigenvalues=False.
         
     Examples
     --------
     >>> points = np.random.rand(1000, 3)
+    >>> # Standard computation
     >>> normals, eigenvalues = compute_normals(points, k_neighbors=20)
-    >>> assert normals.shape == (1000, 3)
-    >>> assert np.allclose(np.linalg.norm(normals, axis=1), 1.0)
+    >>> # Fast computation (fewer neighbors, normals only)
+    >>> normals, _ = compute_normals(points, method='fast', return_eigenvalues=False)
+    >>> # Accurate computation (more neighbors)
+    >>> normals, eigenvalues = compute_normals(points, method='accurate')
     """
+    # Adjust k_neighbors based on method
+    if method == 'fast':
+        k_neighbors = 10
+    elif method == 'accurate':
+        k_neighbors = 50
+    elif method != 'standard':
+        raise ValueError(f"Invalid method '{method}'. Use 'fast', 'accurate', or 'standard'")
+    
     # Input validation
     if not isinstance(points, np.ndarray):
         raise ValueError("points must be a numpy array")
@@ -62,7 +88,11 @@ def compute_normals(
         raise ValueError(f"k_neighbors must be >= 3, got {k_neighbors}")
     
     # CPU computation
-    return _compute_normals_cpu(points, k_neighbors, search_radius)
+    normals, eigenvalues = _compute_normals_cpu(points, k_neighbors, search_radius)
+    
+    if not return_eigenvalues:
+        return normals, None
+    return normals, eigenvalues
 
 
 def _compute_normals_cpu(
@@ -143,9 +173,11 @@ def _compute_normals_cpu(
     return normals, eigenvalues
 
 
-# Convenience functions for common use cases
+# Convenience functions for common use cases (DEPRECATED - use method parameter instead)
 def compute_normals_fast(points: np.ndarray) -> np.ndarray:
     """
+    DEPRECATED: Use compute_normals(points, method='fast', return_eigenvalues=False) instead.
+    
     Fast normal computation with default parameters (returns only normals).
     
     Parameters
@@ -158,7 +190,13 @@ def compute_normals_fast(points: np.ndarray) -> np.ndarray:
     normals : np.ndarray
         Normal vectors of shape (N, 3)
     """
-    normals, _ = compute_normals(points, k_neighbors=10)
+    import warnings
+    warnings.warn(
+        "compute_normals_fast() is deprecated. Use compute_normals(points, method='fast', return_eigenvalues=False) instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    normals, _ = compute_normals(points, method='fast', return_eigenvalues=False)
     return normals
 
 
@@ -167,6 +205,8 @@ def compute_normals_accurate(
     k: int = 50
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
+    DEPRECATED: Use compute_normals(points, method='accurate') instead.
+    
     Accurate normal computation with more neighbors.
     
     Parameters
@@ -183,4 +223,10 @@ def compute_normals_accurate(
     eigenvalues : np.ndarray
         Eigenvalues of shape (N, 3)
     """
-    return compute_normals(points, k_neighbors=k)
+    import warnings
+    warnings.warn(
+        "compute_normals_accurate() is deprecated. Use compute_normals(points, method='accurate') instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return compute_normals(points, k_neighbors=k, method='standard')

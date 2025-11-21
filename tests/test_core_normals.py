@@ -92,24 +92,66 @@ class TestComputeNormals:
             assert eigenvalues[i, 0] >= eigenvalues[i, 1]
             assert eigenvalues[i, 1] >= eigenvalues[i, 2]
     
-    def test_normals_fast(self):
-        """Test fast normal computation convenience function."""
+    def test_normals_fast_method(self):
+        """Test fast normal computation using method parameter (recommended)."""
         points = np.random.rand(100, 3)
-        normals = compute_normals_fast(points)
+        normals, _ = compute_normals(points, method='fast', return_eigenvalues=False)
         
         assert normals.shape == (100, 3)
         norms = np.linalg.norm(normals, axis=1)
         np.testing.assert_allclose(norms, 1.0, rtol=1e-5)
     
-    def test_normals_accurate(self):
-        """Test accurate normal computation with more neighbors."""
+    def test_normals_fast_deprecated(self):
+        """Test fast normal computation convenience function (DEPRECATED)."""
         points = np.random.rand(100, 3)
-        normals, eigenvalues = compute_normals_accurate(points, k=50)
+        
+        # Should emit deprecation warning
+        with pytest.warns(DeprecationWarning, match="compute_normals_fast.*deprecated"):
+            normals = compute_normals_fast(points)
+        
+        assert normals.shape == (100, 3)
+        norms = np.linalg.norm(normals, axis=1)
+        np.testing.assert_allclose(norms, 1.0, rtol=1e-5)
+    
+    def test_normals_accurate_method(self):
+        """Test accurate normal computation using method parameter (recommended)."""
+        points = np.random.rand(100, 3)
+        normals, eigenvalues = compute_normals(points, method='accurate')
         
         assert normals.shape == (100, 3)
         assert eigenvalues.shape == (100, 3)
         norms = np.linalg.norm(normals, axis=1)
         np.testing.assert_allclose(norms, 1.0, rtol=1e-5)
+    
+    def test_normals_accurate_deprecated(self):
+        """Test accurate normal computation with more neighbors (DEPRECATED)."""
+        points = np.random.rand(100, 3)
+        
+        # Should emit deprecation warning
+        with pytest.warns(DeprecationWarning, match="compute_normals_accurate.*deprecated"):
+            normals, eigenvalues = compute_normals_accurate(points, k=50)
+        
+        assert normals.shape == (100, 3)
+        assert eigenvalues.shape == (100, 3)
+        norms = np.linalg.norm(normals, axis=1)
+        np.testing.assert_allclose(norms, 1.0, rtol=1e-5)
+    
+    def test_return_eigenvalues_parameter(self):
+        """Test return_eigenvalues parameter."""
+        points = np.random.rand(100, 3)
+        
+        # With eigenvalues (default)
+        normals1, eigenvalues1 = compute_normals(points, return_eigenvalues=True)
+        assert normals1.shape == (100, 3)
+        assert eigenvalues1.shape == (100, 3)
+        
+        # Without eigenvalues
+        normals2, eigenvalues2 = compute_normals(points, return_eigenvalues=False)
+        assert normals2.shape == (100, 3)
+        assert eigenvalues2 is None
+        
+        # Normals should be identical
+        np.testing.assert_array_equal(normals1, normals2)
     
     @pytest.mark.skip(reason="GPU functionality moved to gpu_bridge.py - test obsolete")
     @pytest.mark.gpu
