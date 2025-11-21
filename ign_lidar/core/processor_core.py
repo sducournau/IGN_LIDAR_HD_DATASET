@@ -243,7 +243,7 @@ class ProcessorCore:
     ===============
 
     - v3.4.0: Extracted from LiDARProcessor (god class refactoring)
-    - v3.2.0: Added unified Config support
+    - v3.2.0: Added Config support
     - v3.1.0: Added auto-optimization
     - v3.0.0: Added GPU configuration support
 

@@ -23,7 +23,7 @@ class ClassificationApplier:
     Handles:
     - Ground truth data fetching (BD TOPO, BD Forêt, RPG, Cadastre)
     - Optimized ground truth classification (GPU-accelerated)
-    - Unified classifier with comprehensive strategy
+    - Classifier with comprehensive strategy
     - Classification change tracking and reporting
     - ASPRS → LOD mapping
 

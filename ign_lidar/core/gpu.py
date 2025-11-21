@@ -4,7 +4,7 @@ Centralized GPU Detection and Management
 Single source of truth for GPU availability across the entire codebase.
 
 This module replaces 6+ scattered GPU detection implementations with
-a unified singleton pattern, providing:
+a singleton pattern, providing:
 - Consistent GPU availability checking
 - Lazy initialization with caching
 - Support for multiple GPU libraries (CuPy, cuML, cuSpatial, FAISS-GPU)

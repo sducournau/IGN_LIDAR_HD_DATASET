@@ -2,7 +2,7 @@
 Core Module Refactoring - Consolidated Optimizations
 ================================================
 
-This module consolidates all optimization strategies into a unified interface
+This module consolidates all optimization strategies into a single interface
 for maximum performance across GPU computing, feature computation, and data processing.
 """
 
@@ -39,7 +39,7 @@ class OptimizedProcessor(ABC):
     """
     Abstract base class for optimized processors.
     
-    Provides a unified interface for all processing strategies with
+    Provides an interface for all processing strategies with
     automatic optimization and performance monitoring.
     """
     

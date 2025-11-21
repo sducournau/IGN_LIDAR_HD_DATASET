@@ -4,8 +4,8 @@ Core processing modules for IGN LiDAR HD.
 This package contains the main processing logic:
 - processor: Main LiDAR processor  
 - tile_stitcher: Tile stitching with boundary handling
-- memory: Unified memory management (consolidated from memory_manager, memory_utils, modules/memory)
-- performance: Unified performance monitoring (consolidated from performance_monitor, performance_monitoring)
+- memory: Memory management (consolidated from memory_manager, memory_utils, modules/memory)
+- performance: Performance monitoring (consolidated from performance_monitor, performance_monitoring)
 - error_handler: Error handling and recovery
 - verification: Feature and data verification utilities
 - gpu: Centralized GPU detection and management (v3.4.0+)

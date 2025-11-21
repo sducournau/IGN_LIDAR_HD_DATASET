@@ -1,5 +1,5 @@
 """
-Configuration integration for enhanced tile stitching.
+Configuration integration for tile stitching.
 
 This module provides configuration loaders and validators for the advanced
 tile stitching functionality.

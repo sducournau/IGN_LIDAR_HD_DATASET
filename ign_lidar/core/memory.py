@@ -1,5 +1,5 @@
 """
-Unified Memory Management Module for LiDAR Processing
+Memory Management Module for LiDAR Processing
 
 This module consolidates memory management functionality from:
 - memory_manager.py: Adaptive memory management with real-time monitoring

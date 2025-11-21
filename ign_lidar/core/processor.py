@@ -28,11 +28,11 @@ from ..classification_schema import ASPRS_TO_LOD2, ASPRS_TO_LOD3
 from ..datasets.dataset_manager import DatasetConfig, DatasetManager
 from ..features.architectural_styles import get_architectural_style_id
 
-# Phase 4.3: New unified orchestrator V5 (consolidated)
+# Phase 4.3: FeatureOrchestrator V5 (consolidated)
 from ..features.orchestrator import FeatureOrchestrator
 from ..io.metadata import MetadataManager
 
-# Classification module (unified in v3.1.0, renamed in v3.3.0)
+# Classification module (consolidated in v3.1.0, renamed in v3.3.0)
 from .classification import Classifier, refine_classification
 
 # Import refactored modules from classification package
@@ -154,7 +154,7 @@ class LiDARProcessor:
        - Progress tracking with tqdm
        - Graceful error handling
 
-    3. **Configuration**: Unified config system with smart defaults
+    3. **Configuration**: Modern config system with smart defaults
        - Preset configurations (asprs_production, lod2_buildings, etc.)
        - Hardware detection and auto-tuning
        - Validation and conflict detection
@@ -225,7 +225,7 @@ class LiDARProcessor:
     Version History:
     ===============
 
-    - v3.2: Unified Config class replacing multiple schemas
+    - v3.2: Single Config class replacing multiple schemas
     - v3.1: Classifier replacing multiple classifier classes
     - v3.0: GPU acceleration with CuPy/cuML support
     - v2.x: Multi-scale features and architectural style detection
@@ -372,7 +372,7 @@ class LiDARProcessor:
         # Validate processing mode
         ConfigValidator.validate_processing_mode(self.processing_mode)
 
-        # Phase 4.3: Initialize unified feature orchestrator V5 (consolidated)
+        # Phase 4.3: Initialize FeatureOrchestrator V5 (consolidated)
         # All optimizations are now built into the main FeatureOrchestrator
         logger.info("🚀 Using FeatureOrchestrator V5 with integrated optimizations")
         self.feature_orchestrator = FeatureOrchestrator(config)
@@ -2859,7 +2859,7 @@ class LiDARProcessor:
                 if "ground_truth_road_mask" in tile_data:
                     ground_truth_data["road_mask"] = tile_data["ground_truth_road_mask"]
 
-            # Apply refinement using unified classifier
+            # Apply refinement using classifier
             if refinement_features:
                 labels_v, refinement_stats = refine_classification(
                     labels=labels_v,

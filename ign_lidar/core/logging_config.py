@@ -1,4 +1,4 @@
-"""Unified logging configuration for IGN LiDAR HD.
+"""Logging configuration for IGN LiDAR HD.
 
 This module provides consistent logging setup across the entire package,
 replacing scattered print() statements and inconsistent logging patterns.

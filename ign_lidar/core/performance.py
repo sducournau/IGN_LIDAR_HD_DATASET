@@ -2,7 +2,7 @@
 Real-time Performance Monitoring for IGN LiDAR HD Processing
 ===========================================================
 
-Unified performance monitoring module that combines real-time metrics display,
+Performance monitoring module that combines real-time metrics display,
 GPU utilization tracking, and optimization recommendations.
 
 This module consolidates the functionality from both performance_monitor.py
@@ -224,7 +224,7 @@ def get_memory_info() -> Dict[str, float]:
 
 class PerformanceMonitor:
     """
-    Unified performance monitor with real-time tracking and optimization recommendations.
+    Performance monitor with real-time tracking and optimization recommendations.
 
     This class combines stage-based performance tracking with continuous monitoring
     and provides comprehensive reporting capabilities.
