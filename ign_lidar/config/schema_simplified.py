@@ -4,7 +4,7 @@ Simplified configuration schema for IGN LiDAR HD (v3.0).
 DEPRECATED: This module is deprecated in v3.2+ in favor of ign_lidar.config.Config
 
 Both schema.py and schema_simplified.py have been replaced with a single
-unified Config class that is even simpler and more intuitive.
+Config class that is even simpler and more intuitive.
 
 Migration Guide:
     # Old (v3.0-3.1, deprecated)

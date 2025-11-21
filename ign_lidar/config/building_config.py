@@ -1,5 +1,5 @@
 """
-Enhanced building classification configuration.
+Building classification configuration.
 
 This module defines configuration options for LOD3 building classification
 using the BuildingClassifier (Phase 2.1-2.4).
@@ -8,7 +8,7 @@ Usage:
     >>> from ign_lidar.config import Config
     >>> from ign_lidar.config.enhanced_building import EnhancedBuildingConfig
     >>>
-    >>> # Create config with enhanced building detection
+    >>> # Create config with detailed building detection
     >>> config = Config.preset('lod3_buildings')
     >>> config.advanced.classification = {
     ...     'enhanced_building': EnhancedBuildingConfig(

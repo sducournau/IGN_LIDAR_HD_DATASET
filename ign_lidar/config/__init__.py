@@ -2,7 +2,7 @@
 Configuration module for IGN LiDAR HD.
 
 v3.2+ Changes:
-    - New unified Config class (replaces ProcessorConfig + FeaturesConfig)
+    - New Config class (replaces ProcessorConfig + FeaturesConfig)
     - Smart presets for common use cases
     - Auto-configuration from environment
     - Simplified parameter structure (15 vs 118 params)
@@ -19,7 +19,7 @@ Legacy (v3.1, deprecated):
 """
 
 # ============================================================================
-# New Unified Configuration (v3.2+) - RECOMMENDED
+# New Configuration (v3.2+) - RECOMMENDED
 # ============================================================================
 
 import warnings
@@ -53,7 +53,7 @@ from .schema import (
 
 
 __all__ = [
-    # NEW UNIFIED API (v3.2+) - Use this!
+    # NEW API (v3.2+) - Use this!
     "Config",
     "FeatureConfig",
     "AdvancedConfig",

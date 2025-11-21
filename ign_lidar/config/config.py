@@ -1,5 +1,5 @@
 """
-Unified Configuration System for IGN LiDAR HD v3.2+
+Configuration System for IGN LiDAR HD v3.2+
 
 This module replaces both schema.py and schema_simplified.py with a single,
 intuitive configuration system that dramatically simplifies user experience.
@@ -141,7 +141,7 @@ class AdvancedConfig:
 @dataclass
 class Config:
     """
-    Unified configuration for IGN LiDAR HD processing.
+    Configuration for IGN LiDAR HD processing.
 
     This is the main configuration class that replaces both schema.py
     and schema_simplified.py. It provides a clean, intuitive interface

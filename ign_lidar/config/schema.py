@@ -4,7 +4,7 @@ Structured configuration schema for IGN LiDAR HD.
 DEPRECATED: This module is deprecated in v3.2+ in favor of ign_lidar.config.Config
 
 The old ProcessorConfig/FeaturesConfig approach has been replaced with a
-unified Config class that is much simpler to use.
+Config class that is much simpler to use.
 
 Migration Guide:
     # Old (v3.1, deprecated)
