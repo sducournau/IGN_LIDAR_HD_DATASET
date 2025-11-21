@@ -8,8 +8,16 @@ import numpy as np
 from typing import Dict, Optional, Tuple
 from sklearn.neighbors import NearestNeighbors
 import logging
+import multiprocessing
 
 logger = logging.getLogger(__name__)
+
+
+def _get_safe_n_jobs() -> int:
+    """Get safe n_jobs for sklearn avoiding multiprocessing conflicts."""
+    if multiprocessing.current_process().name != 'MainProcess':
+        return 1  # Disable sklearn parallelism in workers
+    return -1  # Use all CPUs in main process
 
 
 def compute_density_features(
@@ -290,7 +298,11 @@ def compute_neighborhood_size(
     neighbor_count : np.ndarray
         Number of neighbors within radius for each point, shape (N,)
     """
-    nbrs = NearestNeighbors(radius=search_radius, algorithm='kd_tree')
+    nbrs = NearestNeighbors(
+        radius=search_radius, 
+        algorithm='kd_tree',
+        n_jobs=_get_safe_n_jobs()
+    )
     nbrs.fit(points)
     
     neighbor_count = np.zeros(points.shape[0], dtype=np.int32)

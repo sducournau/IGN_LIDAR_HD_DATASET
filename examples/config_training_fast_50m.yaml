@@ -1,0 +1,451 @@
+# ============================================================================
+# IGN LiDAR HD - FAST Training Configuration (50m patches, optimized speed)
+# ============================================================================
+# Created: November 21, 2025
+#
+# Optimized for MAXIMUM SPEED:
+# - Larger GPU batches (5M points)
+# - Minimal preprocessing
+# - Essential features only
+# - Reduced k_neighbors (20 instead of 30)
+# - Smaller search radius (2.0m instead of 2.5m)
+# - NO stitching overhead
+# - GPU: NVIDIA RTX 4080 (16GB VRAM)
+#
+# Speed: ~50% faster than standard config
+# ============================================================================
+
+defaults:
+  - base/processor
+  - base/features
+  - base/data_sources
+  - base/output
+  - base/monitoring
+  - _self_
+
+config_version: "6.3.0"
+preset_name: "training_fast_50m"
+
+# ============================================================================
+# PROCESSOR CONFIGURATION - SPEED OPTIMIZED
+# ============================================================================
+processor:
+  lod_level: "LOD2"
+  architecture: "hybrid"
+  processing_mode: "both"
+  output_format: "laz"
+
+  # GPU Configuration - LARGER BATCHES
+  use_gpu: true
+  gpu_device: 0
+  gpu_batch_size: 15_000_000 # 15M points (increased from 10M)
+  gpu_memory_target: 0.90 # Use more VRAM
+  vram_limit_gb: 14
+
+  num_workers: 0
+
+  # Patch Configuration
+  patch_size: 50.0
+  num_points: 32000
+  overlap: 0.10 # Reduced overlap (5m instead of 7.5m)
+
+  sampling_method: "fps"
+  augment: false
+  num_augmentations: 0
+
+  batch_size: "auto"
+  prefetch_factor: 2
+  pin_memory: true
+
+# ============================================================================
+# PREPROCESSING - MINIMAL FOR SPEED
+# ============================================================================
+preprocess:
+  enabled: true
+
+  # Less aggressive outlier removal
+  sor_k: 12 # Reduced from 16
+  sor_std: 2.5 # More permissive
+
+  ror_radius: 1.0
+  ror_neighbors: 4 # Reduced from 5
+
+  voxel_enabled: false
+
+# ============================================================================
+# STITCHING - DISABLED FOR SPEED
+# ============================================================================
+stitching:
+  enabled: false # DISABLED for maximum speed
+
+# ============================================================================
+# FEATURES - SPEED OPTIMIZED
+# ============================================================================
+features:
+  mode: "lod2"
+
+  # REDUCED NEIGHBORHOOD SIZE FOR SPEED
+  k_neighbors: 20 # Reduced from 30 (33% less neighbors = faster)
+  search_radius: 2.0 # Reduced from 2.5m
+
+  compute_normals: true
+  compute_curvature: true
+  compute_height: true
+  compute_geometric: true
+  compute_density: true
+  compute_anisotropy: true
+  compute_ndvi: true
+
+  use_rgb: true
+  use_infrared: false
+  use_nir: false
+
+  height_method: "local"
+  compute_height_above_ground: true
+  compute_height_local: true
+
+  multi_scale_computation: false
+
+  normalize_xyz: true
+  normalize_features: true
+  normalize_method: "z_score"
+
+  # LARGER GPU BATCHES FOR SPEED
+  gpu_batch_size: 5_000_000 # Increased from 3M
+  use_gpu_chunked: true
+  force_gpu: true
+
+  # RGB augmentation - cached
+  rgb_augmentation:
+    enabled: true
+    method: "orthophoto"
+    resolution: 0.2
+    cache_enabled: true
+    cache_dir: null
+
+  # Essential features only
+  feature_selection:
+    geometric_features:
+      - normals
+      - planarity
+      - sphericity
+      - verticality
+      - horizontality
+      - linearity
+      - curvature
+      - anisotropy
+
+    height_features:
+      - height
+      - height_above_ground
+      - height_local
+
+    density_features:
+      - point_density
+
+    spectral_features:
+      - rgb
+      - ndvi
+
+    radiometric_features:
+      - intensity
+      - return_number
+
+    contextual_features:
+      - local_point_count
+
+# ============================================================================
+# GROUND TRUTH - OPTIMIZED
+# ============================================================================
+ground_truth:
+  enabled: true
+
+  method: "gpu"
+  chunk_size: 5_000_000 # Larger chunks
+
+  cache_dir: null
+  cache_ttl_days: 30
+  cache_compression: true
+
+  preclassify: true
+  show_progress: false # Disable progress bars for speed
+
+  bd_topo:
+    enabled: true
+    features:
+      buildings:
+        enabled: false
+      roads:
+        enabled: true
+        buffer_distance: 1.5
+      vegetation:
+        enabled: false
+      water:
+        enabled: false
+      railways:
+        enabled: false
+      bridges:
+        enabled: false
+      power_lines:
+        enabled: false
+
+    parameters:
+      road_width_fallback: 4.0
+      use_spatial_index: true
+
+    cache_enabled: true
+
+# ============================================================================
+# DATA SOURCES
+# ============================================================================
+data_sources:
+  rge_alti:
+    enabled: false
+
+  bd_topo:
+    enabled: true
+    path: "./data/ground_truth/BDTOPO/"
+    assign_building_cluster_ids: false # Disabled for speed
+    assign_parcel_cluster_ids: false
+
+    features:
+      buildings:
+        enabled: false
+      roads:
+        enabled: true
+        file: "TRONCON_DE_ROUTE.shp"
+        buffer_distance: 1.5
+        classification_method: "surface_type"
+      vegetation:
+        enabled: false
+      water:
+        enabled: false
+      ground:
+        enabled: false
+
+# ============================================================================
+# CLASSIFICATION
+# ============================================================================
+classification:
+  mode: "lod2"
+  normalize_classes: true
+  strict_normalization: false
+
+  lod2_classes:
+    enabled: true
+    classes:
+      - 1 # Unclassified
+      - 2 # Ground
+      - 3 # Low Vegetation
+      - 4 # Medium Vegetation
+      - 5 # High Vegetation
+      - 6 # Building
+      - 9 # Water
+      - 11 # Road
+
+  height_classification:
+    enabled: true
+    low_vegetation_max: 0.5
+    medium_vegetation_max: 2.0
+    high_vegetation_min: 2.0
+
+  ndvi_classification:
+    enabled: true
+    vegetation_threshold: 0.3
+    strong_vegetation_threshold: 0.5
+
+  thresholds:
+    buildings:
+      min_height: 1.5
+      min_verticality: 0.55 # Slightly relaxed
+      min_roof_planarity: 0.65
+      max_roof_curvature: 0.20
+
+    ground:
+      max_height: 0.5
+      min_planarity: 0.75
+      min_horizontality: 0.70
+
+    vegetation:
+      min_ndvi: 0.3
+      max_planarity: 0.6
+      max_verticality: 0.4
+
+# ============================================================================
+# RECLASSIFICATION
+# ============================================================================
+reclassification:
+  enabled: false # Disabled for speed
+
+# ============================================================================
+# OUTPUT
+# ============================================================================
+output:
+  format: "laz"
+
+  enriched_laz:
+    enabled: true
+    output_dir: "enriched_tiles"
+    compression: true
+
+  patches:
+    enabled: true
+    format: "npz"
+    output_dir: "patches"
+    save_laz: true
+    laz_output_dir: "patches_laz"
+
+  output_structure: "flat"
+  patch_naming: "coordinates"
+
+  # Essential extra dimensions only
+  extra_dims:
+    - planarity
+    - verticality
+    - horizontality
+    - linearity
+    - height
+    - height_above_ground
+    - point_density
+    - ndvi
+    - intensity
+    - confidence_score
+
+  save_classification: true
+  save_confidence_scores: true
+
+  include_metadata: true
+  metadata_format: "json"
+
+  save_split_info: true
+  split_ratios:
+    train: 0.70
+    val: 0.15
+    test: 0.15
+
+# ============================================================================
+# PYTORCH
+# ============================================================================
+pytorch:
+  enabled: true
+  dataset_class: "IGNLiDARMultiArchDataset"
+  preset: "buildings"
+  architecture: "hybrid"
+
+  input_features:
+    - xyz
+    - normals
+    - planarity
+    - verticality
+    - height_above_ground
+    - rgb
+    - intensity
+
+  target: "classification"
+
+  batch_size: 8
+  num_workers: 4
+  shuffle: true
+  pin_memory: true
+  drop_last: true
+
+  augmentation:
+    enabled: false
+
+# ============================================================================
+# MONITORING - REDUCED OVERHEAD
+# ============================================================================
+monitoring:
+  enabled: true
+  log_level: "INFO"
+
+  track_memory: true
+  track_gpu_usage: true
+  track_processing_time: true
+
+  progress_interval: 10 # Less frequent updates
+
+  compute_statistics: true
+  save_statistics: true
+  statistics_output: "training_dataset_stats.json"
+
+  save_class_distribution: true
+  warn_class_imbalance: true
+  max_class_imbalance_ratio: 10.0
+
+# ============================================================================
+# CACHE
+# ============================================================================
+cache:
+  enabled: true
+  cache_dir: null
+
+  cache_features: false
+  cache_ground_truth: true
+  cache_rgb: true
+  cache_kdtrees: true
+
+  ground_truth_ttl_days: 90
+  rgb_ttl_days: 180
+
+# ============================================================================
+# VALIDATION - RELAXED FOR SPEED
+# ============================================================================
+validation:
+  enabled: true
+
+  check_point_density: true
+  min_points_per_tile: 50_000 # Reduced threshold
+
+  check_patch_completeness: true
+  min_points_per_patch: 28000 # Slightly relaxed
+  reject_incomplete_patches: false # Don't reject for speed
+
+  check_feature_range: true
+  flag_invalid_features: true
+  check_nan_values: true
+  reject_patches_with_nans: false # Flag but don't reject
+
+  check_class_distribution: false # Disabled for speed
+  check_output_completeness: true
+  verify_extra_dims: true
+# ============================================================================
+# USAGE & NOTES
+# ============================================================================
+#
+# USAGE:
+#   ign-lidar-hd process \
+#     -c examples/config_training_fast_50m.yaml \
+#     input_dir="/mnt/c/Users/Simon/ign_lidar/unified_dataset_rgb" \
+#     output_dir="/mnt/c/Users/Simon/ign_lidar/training_fast"
+#
+# SPEED OPTIMIZATIONS:
+#   ✅ Larger GPU batches (15M points)
+#   ✅ Reduced k_neighbors (20 vs 30) = 33% less computation
+#   ✅ Smaller search radius (2.0m vs 2.5m)
+#   ✅ NO stitching overhead
+#   ✅ Minimal preprocessing
+#   ✅ NO reclassification
+#   ✅ Essential features only
+#   ✅ Less frequent progress updates
+#   ✅ Relaxed validation (don't reject patches)
+#
+# EXPECTED SPEEDUP:
+#   - ~50% faster than standard config
+#   - ~2-3 min per tile (vs 4-6 min)
+#   - 154 tiles in ~5-8 hours (vs 10-15 hours)
+#
+# TRADE-OFFS:
+#   ✅ Much faster processing
+#   ✅ Still produces good features
+#   ❌ NO boundary artifact handling (no stitching)
+#   ❌ Slightly less accurate features (smaller k)
+#   ❌ Less robust classification (no reclassification)
+#
+# WHEN TO USE:
+#   - Quick prototyping
+#   - Testing pipeline changes
+#   - Time-constrained processing
+#   - Large datasets (>100 tiles)
+#
+# ============================================================================

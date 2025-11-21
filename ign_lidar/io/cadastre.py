@@ -275,32 +275,32 @@ class CadastreFetcher:
         # OPTIMIZED: Use STRtree spatial indexing for O(log N) point-in-polygon queries
         # Performance gain: 10-100× faster than nested loops with .iterrows()
         try:
-            # Build spatial index for parcels
-            valid_parcels = []
-            parcel_metadata = []
+            # VECTORIZED: Filter valid parcels without iterrows()
+            mask_valid_geom = parcels_gdf.geometry.apply(
+                lambda g: isinstance(g, (Polygon, MultiPolygon))
+            )
+            valid_gdf = parcels_gdf[mask_valid_geom].copy()
             
-            for idx, parcel_row in parcels_gdf.iterrows():
-                parcel_geom = parcel_row['geometry']
-                
-                if not isinstance(parcel_geom, (Polygon, MultiPolygon)):
-                    continue
-                
-                # Get parcel attributes
-                parcel_id = str(parcel_row.get('id_parcelle', f'parcel_{idx}'))
-                commune = str(parcel_row.get('commune', 'unknown'))
-                section = str(parcel_row.get('section', 'unknown'))
-                numero = str(parcel_row.get('numero', 'unknown'))
-                area_m2 = float(parcel_row.get('contenance', 0.0))
-                
-                valid_parcels.append(parcel_geom)
-                parcel_metadata.append({
-                    'id': parcel_id,
-                    'commune': commune,
-                    'section': section,
-                    'numero': numero,
-                    'area_m2': area_m2,
-                    'bounds': parcel_geom.bounds
-                })
+            if len(valid_gdf) == 0:
+                logger.warning("  No valid parcel geometries found")
+                return parcel_info_list
+            
+            # VECTORIZED: Extract all metadata at once
+            valid_gdf['parcel_id'] = valid_gdf.get('id_parcelle', pd.Series(dtype=str)).fillna(
+                pd.Series([f'parcel_{i}' for i in range(len(valid_gdf))], index=valid_gdf.index)
+            ).astype(str)
+            valid_gdf['commune'] = valid_gdf.get('commune', 'unknown').fillna('unknown').astype(str)
+            valid_gdf['section'] = valid_gdf.get('section', 'unknown').fillna('unknown').astype(str)
+            valid_gdf['numero'] = valid_gdf.get('numero', 'unknown').fillna('unknown').astype(str)
+            valid_gdf['area_m2'] = valid_gdf.get('contenance', 0.0).fillna(0.0).astype(float)
+            
+            # Extract geometries and metadata as lists (O(N) operation)
+            valid_parcels = valid_gdf.geometry.tolist()
+            parcel_metadata = valid_gdf[['parcel_id', 'commune', 'section', 'numero', 'area_m2']].to_dict('records')
+            
+            # Add bounds to metadata (vectorized)
+            for i, geom in enumerate(valid_parcels):
+                parcel_metadata[i]['bounds'] = geom.bounds
             
             if valid_parcels:
                 # Build R-tree spatial index
@@ -361,19 +361,32 @@ class CadastreFetcher:
         except Exception as e:
             logger.warning(f"  STRtree optimization failed ({e}), falling back to bbox filtering")
             
-            # FALLBACK: Original bbox filtering approach
-            for idx, parcel_row in parcels_gdf.iterrows():
+            # FALLBACK: Vectorized bbox filtering (no iterrows())
+            mask_valid_geom = parcels_gdf.geometry.apply(
+                lambda g: isinstance(g, (Polygon, MultiPolygon))
+            )
+            valid_gdf = parcels_gdf[mask_valid_geom].copy()
+            
+            # Extract metadata vectorially
+            valid_gdf['parcel_id'] = valid_gdf.get('id_parcelle', pd.Series(dtype=str)).fillna(
+                pd.Series([f'parcel_{i}' for i in range(len(valid_gdf))], index=valid_gdf.index)
+            ).astype(str)
+            valid_gdf['commune'] = valid_gdf.get('commune', 'unknown').fillna('unknown').astype(str)
+            valid_gdf['section'] = valid_gdf.get('section', 'unknown').fillna('unknown').astype(str)
+            valid_gdf['numero'] = valid_gdf.get('numero', 'unknown').fillna('unknown').astype(str)
+            valid_gdf['area_m2'] = valid_gdf.get('contenance', 0.0).fillna(0.0).astype(float)
+            
+            # Process each parcel (still need loop for contains check)
+            for idx in valid_gdf.index:
+                parcel_row = valid_gdf.loc[idx]
                 parcel_geom = parcel_row['geometry']
                 
-                if not isinstance(parcel_geom, (Polygon, MultiPolygon)):
-                    continue
-                
-                # Get parcel attributes
-                parcel_id = str(parcel_row.get('id_parcelle', f'parcel_{idx}'))
-                commune = str(parcel_row.get('commune', 'unknown'))
-                section = str(parcel_row.get('section', 'unknown'))
-                numero = str(parcel_row.get('numero', 'unknown'))
-                area_m2 = float(parcel_row.get('contenance', 0.0))
+                # Get parcel attributes (already extracted vectorially)
+                parcel_id = parcel_row['parcel_id']
+                commune = parcel_row['commune']
+                section = parcel_row['section']
+                numero = parcel_row['numero']
+                area_m2 = parcel_row['area_m2']
                 
                 # Get parcel bounds for quick filtering
                 bounds = parcel_geom.bounds
@@ -472,16 +485,24 @@ class CadastreFetcher:
         
         # OPTIMIZED: Use STRtree spatial indexing for O(log N) lookups
         try:
-            # Build spatial index
-            valid_parcels = []
-            parcel_id_map = []
+            # VECTORIZED: Filter and extract data without iterrows()
+            mask_valid_geom = parcels_gdf.geometry.apply(
+                lambda g: isinstance(g, (Polygon, MultiPolygon))
+            )
+            valid_gdf = parcels_gdf[mask_valid_geom].copy()
             
-            for idx, parcel_row in parcels_gdf.iterrows():
-                parcel_geom = parcel_row['geometry']
-                if isinstance(parcel_geom, (Polygon, MultiPolygon)):
-                    parcel_id = str(parcel_row.get('id_parcelle', f'parcel_{idx}'))
-                    valid_parcels.append(parcel_geom)
-                    parcel_id_map.append(parcel_id)
+            if len(valid_gdf) == 0:
+                logger.warning("  No valid parcel geometries found")
+                return parcel_ids
+            
+            # Extract parcel IDs vectorially
+            valid_gdf['parcel_id'] = valid_gdf.get('id_parcelle', pd.Series(dtype=str)).fillna(
+                pd.Series([f'parcel_{i}' for i in range(len(valid_gdf))], index=valid_gdf.index)
+            ).astype(str)
+            
+            # Build spatial index
+            valid_parcels = valid_gdf.geometry.tolist()
+            parcel_id_map = valid_gdf['parcel_id'].tolist()
             
             if valid_parcels:
                 parcel_tree = STRtree(valid_parcels)
@@ -503,14 +524,22 @@ class CadastreFetcher:
         except Exception as e:
             logger.warning(f"  STRtree optimization failed ({e}), falling back to bbox filtering")
             
-            # FALLBACK: Original bbox filtering
-            for idx, parcel_row in parcels_gdf.iterrows():
+            # FALLBACK: Vectorized bbox filtering
+            mask_valid_geom = parcels_gdf.geometry.apply(
+                lambda g: isinstance(g, (Polygon, MultiPolygon))
+            )
+            valid_gdf = parcels_gdf[mask_valid_geom].copy()
+            
+            # Extract parcel IDs vectorially
+            valid_gdf['parcel_id'] = valid_gdf.get('id_parcelle', pd.Series(dtype=str)).fillna(
+                pd.Series([f'parcel_{i}' for i in range(len(valid_gdf))], index=valid_gdf.index)
+            ).astype(str)
+            
+            # Process each parcel
+            for idx in valid_gdf.index:
+                parcel_row = valid_gdf.loc[idx]
                 parcel_geom = parcel_row['geometry']
-                
-                if not isinstance(parcel_geom, (Polygon, MultiPolygon)):
-                    continue
-                
-                parcel_id = str(parcel_row.get('id_parcelle', f'parcel_{idx}'))
+                parcel_id = parcel_row['parcel_id']
                 
                 # Get parcel bounds for quick filtering
                 bounds = parcel_geom.bounds

@@ -107,8 +107,12 @@ def _compute_normals_cpu(
             normal = eigvecs[:, idx[2]]
             normals[i] = normal.astype(np.float32)
     else:
-        # K-nearest neighbors search
-        nbrs = NearestNeighbors(n_neighbors=k_neighbors, algorithm='kd_tree')
+        # K-nearest neighbors search with safe parallelization
+        nbrs = NearestNeighbors(
+            n_neighbors=k_neighbors, 
+            algorithm='kd_tree',
+            n_jobs=_get_safe_n_jobs()
+        )
         nbrs.fit(points)
         distances, indices = nbrs.kneighbors(points)
         

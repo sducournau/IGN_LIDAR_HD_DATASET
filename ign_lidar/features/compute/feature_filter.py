@@ -165,13 +165,13 @@ def smooth_feature_spatial(
     # 🔥 GPU-accelerated KNN for spatial filtering
     k_query = min(k_neighbors + 1, len(points))
     
-    distances, neighbor_indices = knn(
+    distances, all_neighbor_indices = knn(
         points,
         points,
         k=k_query
     )
-    # Remove self (first neighbor)
-    neighbor_indices = neighbor_indices[:, 1:]
+    # Remove self (first neighbor) from neighbor indices
+    all_neighbor_indices = all_neighbor_indices[:, 1:]
 
     # Initialize output (copy on write)
     smoothed = feature.copy()
@@ -181,12 +181,14 @@ def smooth_feature_spatial(
     # Process each point
     for i in range(n_points):
         current_value = feature[i]
+        
+        # Get pre-computed neighbors for this point
+        neighbor_idx = all_neighbor_indices[i]
+        neighbor_values = feature[neighbor_idx]
 
         # Case 1: Handle invalid values (NaN/Inf)
         if not np.isfinite(current_value):
             # Find valid neighbors
-            _, neighbor_indices = tree.query(points[i], k=k_neighbors + 1)
-            neighbor_values = feature[neighbor_indices[1:]]  # Exclude self
             valid_neighbors = neighbor_values[np.isfinite(neighbor_values)]
 
             if len(valid_neighbors) > 0:
@@ -200,9 +202,6 @@ def smooth_feature_spatial(
             continue
 
         # Case 2: Detect artifacts via deviation from local median
-        _, neighbor_indices = tree.query(points[i], k=k_neighbors + 1)
-        neighbor_values = feature[neighbor_indices[1:]]  # Exclude self
-
         # Filter out invalid neighbors
         valid_mask = np.isfinite(neighbor_values)
         valid_neighbors = neighbor_values[valid_mask]
