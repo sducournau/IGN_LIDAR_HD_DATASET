@@ -17,6 +17,8 @@ from enum import Enum
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 
+from ..core.gpu import GPUManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -77,7 +79,8 @@ class ModeSelector:
             prefer_gpu: Whether to prefer GPU modes when possible
         """
         self.prefer_gpu = prefer_gpu
-        self.gpu_available = self._check_gpu_availability()
+        self._gpu_manager = GPUManager()
+        self.gpu_available = self._gpu_manager.gpu_available
         self.gpu_memory_gb = gpu_memory_gb or self._get_gpu_memory()
         self.cpu_memory_gb = cpu_memory_gb or self._get_cpu_memory()
         
@@ -88,15 +91,8 @@ class ModeSelector:
         logger.info(f"  Prefer GPU: {self.prefer_gpu}")
     
     def _check_gpu_availability(self) -> bool:
-        """Check if GPU (CUDA) is available."""
-        try:
-            import cupy as cp
-            # Try a simple operation to verify GPU works
-            _ = cp.array([1, 2, 3])
-            return True
-        except (ImportError, Exception) as e:
-            logger.debug(f"GPU not available: {e}")
-            return False
+        """DEPRECATED: Use GPUManager instead."""
+        return self._gpu_manager.gpu_available
     
     def _get_gpu_memory(self) -> float:
         """Get available GPU memory in GB."""

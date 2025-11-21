@@ -15,21 +15,20 @@ import logging
 from typing import Union, Optional
 import numpy as np
 
+from ..core.gpu import GPUManager
+
 logger = logging.getLogger(__name__)
 
-# GPU availability check
-GPU_AVAILABLE = False
+# GPU availability check (centralized)
+_gpu_manager = GPUManager()
+GPU_AVAILABLE = _gpu_manager.gpu_available
 cp = None
 
-try:
+if GPU_AVAILABLE:
     import cupy as cp
-    GPU_AVAILABLE = cp.cuda.is_available()
-    if GPU_AVAILABLE:
-        logger.debug("CuPy available - GPU normalization enabled")
-except ImportError:
+    logger.debug("CuPy available - GPU normalization enabled")
+else:
     logger.debug("CuPy not available - using CPU normalization")
-except Exception as e:
-    logger.debug(f"GPU check failed: {e} - using CPU normalization")
 
 
 def normalize_uint8_to_float(

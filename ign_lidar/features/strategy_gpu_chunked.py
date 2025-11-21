@@ -17,17 +17,23 @@ import numpy as np
 import logging
 
 from .strategies import BaseFeatureStrategy
+from ..core.gpu import GPUManager
 
 logger = logging.getLogger(__name__)
 
-# Try to import GPU dependencies
-try:
-    import cupy as cp
-    from .gpu_processor import GPUProcessor
+# GPU availability check (centralized)
+_gpu_manager = GPUManager()
+GPU_AVAILABLE = _gpu_manager.gpu_available
 
-    GPU_AVAILABLE = True
-except ImportError:
-    GPU_AVAILABLE = False
+if GPU_AVAILABLE:
+    try:
+        import cupy as cp
+        from .gpu_processor import GPUProcessor
+    except ImportError:
+        GPU_AVAILABLE = False
+        cp = None
+        GPUProcessor = None
+else:
     cp = None
     GPUProcessor = None
 

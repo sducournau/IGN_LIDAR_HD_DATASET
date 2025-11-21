@@ -33,36 +33,25 @@ from functools import wraps
 from typing import Callable, Any, Optional
 import logging
 
+from ..core.gpu import GPUManager
+
 logger = logging.getLogger(__name__)
 
-# GPU availability check
-_GPU_AVAILABLE = None
+# GPU availability check (centralized)
+_gpu_manager = GPUManager()
 
 
 def check_gpu_available() -> bool:
     """
     Check if GPU acceleration is available.
     
+    DEPRECATED: Use GPUManager directly instead.
+    This function is kept for backward compatibility.
+    
     Returns:
         True if CuPy and cuML are available, False otherwise
     """
-    global _GPU_AVAILABLE
-    
-    if _GPU_AVAILABLE is not None:
-        return _GPU_AVAILABLE
-    
-    try:
-        import cupy as cp
-        from cuml.neighbors import NearestNeighbors
-        # Test GPU access
-        cp.cuda.Device(0).compute_capability
-        _GPU_AVAILABLE = True
-        logger.debug("GPU acceleration available")
-    except Exception as e:
-        _GPU_AVAILABLE = False
-        logger.debug(f"GPU acceleration not available: {e}")
-    
-    return _GPU_AVAILABLE
+    return _gpu_manager.gpu_available and _gpu_manager.cuml_available
 
 
 def gpu_accelerated(

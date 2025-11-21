@@ -72,6 +72,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 
+from ..core.gpu import GPUManager
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -112,9 +114,8 @@ class GroundTruthOptimizer:
     - CPU Vectorized: 5-10× speedup, GeoPandas fallback
     """
 
-    # Hardware detection cache
-    _gpu_available = None
-    _cuspatial_available = None
+    # Hardware detection cache (now uses GPUManager singleton)
+    _gpu_manager = None
 
     def __init__(
         self,
@@ -160,11 +161,19 @@ class GroundTruthOptimizer:
             if self.verbose:
                 logger.info(f"Ground truth cache directory: {self.cache_dir}")
 
-        # Detect hardware on first use
-        if GroundTruthOptimizer._gpu_available is None:
-            GroundTruthOptimizer._gpu_available = self._check_gpu()
-        if GroundTruthOptimizer._cuspatial_available is None:
-            GroundTruthOptimizer._cuspatial_available = self._check_cuspatial()
+        # Detect hardware on first use (centralized via GPUManager)
+        if GroundTruthOptimizer._gpu_manager is None:
+            GroundTruthOptimizer._gpu_manager = GPUManager()
+
+    @property
+    def _gpu_available(self) -> bool:
+        """Check GPU availability via GPUManager."""
+        return self._gpu_manager.gpu_available
+
+    @property
+    def _cuspatial_available(self) -> bool:
+        """Check cuSpatial availability via GPUManager."""
+        return self._gpu_manager.cuspatial_available
 
     def __repr__(self) -> str:
         """String representation of the optimizer."""
@@ -380,22 +389,15 @@ class GroundTruthOptimizer:
 
     @staticmethod
     def _check_gpu() -> bool:
-        """Check if GPU is available."""
-        if not HAS_CUPY:
-            return False
-        try:
-            _ = cp.array([1.0])
-            return True
-        except (RuntimeError, AttributeError, ImportError):
-            # RuntimeError: CUDA not available or initialization failed
-            # AttributeError: cp.array not available
-            # ImportError: CuPy module issue
-            return False
+        """DEPRECATED: Use GPUManager instead. Kept for backward compatibility."""
+        gpu_manager = GPUManager()
+        return gpu_manager.gpu_available
 
     @staticmethod
     def _check_cuspatial() -> bool:
-        """Check if cuSpatial is available."""
-        return HAS_CUSPATIAL
+        """DEPRECATED: Use GPUManager instead. Kept for backward compatibility."""
+        gpu_manager = GPUManager()
+        return gpu_manager.cuspatial_available
 
     def select_method(self, n_points: int, n_polygons: int) -> str:
         """
@@ -412,7 +414,7 @@ class GroundTruthOptimizer:
             return self.force_method
 
         # GPU methods (if available)
-        if GroundTruthOptimizer._gpu_available:
+        if self._gpu_available:
             # Use chunked for large datasets (lowered from 10M to 1M for better GPU utilization)
             if n_points > 1_000_000:
                 return "gpu_chunked"

@@ -25,27 +25,28 @@ from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 import threading
 
+from ..core.gpu import GPUManager
+
 logger = logging.getLogger(__name__)
 
-# GPU imports with fallback
-try:
+# GPU imports with centralized detection
+_gpu_manager = GPUManager()
+HAS_CUPY = _gpu_manager.gpu_available
+HAS_CUML = _gpu_manager.cuml_available
+cp = None
+cuNearestNeighbors = None
+cuPCA = None
+
+if HAS_CUPY:
     import cupy as cp
     from cupyx.scipy.spatial import distance as cp_distance
-    HAS_CUPY = True
     logger.info("✓ CuPy available - Enhanced GPU mode enabled")
-except ImportError:
-    HAS_CUPY = False
-    cp = None
+else:
     logger.warning("⚠ CuPy not available - Enhanced GPU mode disabled")
 
-try:
+if HAS_CUML:
     from cuml.neighbors import NearestNeighbors as cuNearestNeighbors
     from cuml.decomposition import PCA as cuPCA
-    HAS_CUML = True
-except ImportError:
-    HAS_CUML = False
-    cuNearestNeighbors = None
-    cuPCA = None
 
 
 @dataclass

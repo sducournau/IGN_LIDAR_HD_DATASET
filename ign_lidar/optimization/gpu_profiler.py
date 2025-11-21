@@ -20,14 +20,17 @@ from dataclasses import dataclass, field
 from collections import defaultdict
 import numpy as np
 
+from ..core.gpu import GPUManager
+
 logger = logging.getLogger(__name__)
 
-try:
+# GPU availability check (centralized)
+_gpu_manager = GPUManager()
+HAS_CUPY = _gpu_manager.gpu_available
+cp = None
+
+if HAS_CUPY:
     import cupy as cp
-    HAS_CUPY = True
-except ImportError:
-    HAS_CUPY = False
-    cp = None
 
 
 @dataclass
@@ -156,8 +159,8 @@ class GPUProfiler:
         self.current_session = ProfilerSession(session_name=session_name)
         self.sessions[session_name] = self.current_session
         
-        # GPU availability
-        self.gpu_available = HAS_CUPY
+        # GPU availability (centralized via GPUManager)
+        self.gpu_available = _gpu_manager.gpu_available
         
         if enable and not self.gpu_available:
             logger.warning("GPU profiler enabled but CuPy not available")
