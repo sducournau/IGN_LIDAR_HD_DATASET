@@ -470,6 +470,8 @@ class CUDAKernels:
             (gpu_covariance, gpu_normals, gpu_eigenvalues, n_points)
         )
         
+        # ⚡ OPTIMIZATION: Could batch these, but they're already computed together
+        # Keep separate for type clarity (normals: float32, eigenvalues: float32)
         return cp.asnumpy(gpu_normals), cp.asnumpy(gpu_eigenvalues)
     
     def compute_geometric_features(

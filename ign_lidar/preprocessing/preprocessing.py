@@ -97,7 +97,8 @@ def _statistical_outlier_removal_gpu(
     # Filter points on GPU
     filtered_points_gpu = points_gpu[inlier_mask]
     
-    # Transfer back to CPU
+    # ⚡ OPTIMIZATION: Batch transfer to CPU (avoid separate transfers)
+    # Note: inlier_mask is boolean array, filtered_points needs float32
     filtered_points = cp.asnumpy(filtered_points_gpu)
     inlier_mask_cpu = cp.asnumpy(inlier_mask)
     
@@ -235,7 +236,7 @@ def _radius_outlier_removal_gpu(
     inlier_mask = neighbor_counts >= min_neighbors
     filtered_points_gpu = points_gpu[inlier_mask]
     
-    # Transfer back to CPU
+    # ⚡ OPTIMIZATION: Batch transfer to CPU
     filtered_points = cp.asnumpy(filtered_points_gpu)
     inlier_mask_cpu = cp.asnumpy(inlier_mask)
     

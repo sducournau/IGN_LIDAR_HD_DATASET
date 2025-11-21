@@ -494,7 +494,7 @@ tests/
 # Vérifier que le fichier agent existe
 ls .github/agents/lidarTrainer.agent.md
 
-# Vérifier syntaxe YAML front matter
+# Vérifier syntaxe TOON
 head -20 .github/agents/lidarTrainer.agent.md
 ````
 

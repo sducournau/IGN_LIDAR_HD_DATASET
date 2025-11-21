@@ -200,11 +200,8 @@ Sélection automatique dans ign_lidar
 # Vérifier fichier agent
 cat .github/agents/lidarTrainer.agent.md | head -5
 
-# Syntaxe front matter correcte ?
----
-description: "..."
-tools: []
----
+# Syntaxe TOON correcte ?
+description: Agent IA spécialisé...
 ```
 
 ### GPU non utilisé

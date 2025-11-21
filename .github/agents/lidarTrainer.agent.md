@@ -1,7 +1,4 @@
----
-description: "Agent IA spécialisé Deep Learning pour entraînement de modèles sur nuages de points 3D LiDAR (PointNet++, Point Transformer, Intelligent Indexing, Octree, Attention Mechanisms)"
-tools: []
----
+description: Agent IA spécialisé Deep Learning pour entraînement de modèles sur nuages de points 3D LiDAR (PointNet++, Point Transformer, Intelligent Indexing, Octree, Attention Mechanisms)
 
 # LiDAR Trainer Agent - Expert Deep Learning pour Nuages de Points 3D
 
