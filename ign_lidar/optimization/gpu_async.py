@@ -1,5 +1,5 @@
 """
-Enhanced GPU Processing with CUDA Streams and Async Capabilities
+GPU Processing with CUDA Streams and Async Capabilities
 
 This module provides advanced GPU optimizations for maximum CUDA utilization:
 - CUDA streams for overlapped processing
@@ -40,9 +40,9 @@ cuPCA = None
 if HAS_CUPY:
     import cupy as cp
     from cupyx.scipy.spatial import distance as cp_distance
-    logger.info("✓ CuPy available - Enhanced GPU mode enabled")
+    logger.info("✓ CuPy available - Advanced GPU mode enabled")
 else:
-    logger.warning("⚠ CuPy not available - Enhanced GPU mode disabled")
+    logger.warning("⚠ CuPy not available - Advanced GPU mode disabled")
 
 if HAS_CUML:
     from cuml.neighbors import NearestNeighbors as cuNearestNeighbors
@@ -146,7 +146,7 @@ class AsyncGPUProcessor:
             self.total_vram_gb = total_mem / (1024**3)
             self.available_vram_gb = free_mem / (1024**3)
             
-            logger.info(f"🚀 Enhanced GPU processor initialized:")
+            logger.info(f"🚀 Advanced GPU processor initialized:")
             logger.info(f"   CUDA streams: {len(self.streams)}")
             logger.info(f"   Total VRAM: {self.total_vram_gb:.1f}GB")
             logger.info(f"   Available VRAM: {self.available_vram_gb:.1f}GB")
@@ -161,7 +161,7 @@ class AsyncGPUProcessor:
                                    feature_mode: str = 'minimal',
                                    safety_factor: float = 0.9) -> int:
         """
-        Calculate optimal batch size for enhanced GPU processing.
+        Calculate optimal batch size for GPU processing.
         
         Uses aggressive VRAM utilization while maintaining stability.
         """

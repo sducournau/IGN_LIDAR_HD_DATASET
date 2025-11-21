@@ -25,7 +25,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# Optional imports for enhanced monitoring
+# Optional imports for advanced monitoring
 try:
     import psutil
     HAS_PSUTIL = True

@@ -1,8 +1,8 @@
 """
-Command-line tool to migrate old configuration files to v3.2 format.
+"""Command-line tool to migrate old configuration files to v3.2 format.
 
 This tool helps users migrate from the old dual-schema configuration
-(ProcessorConfig + FeaturesConfig) to the new unified Config format.
+(ProcessorConfig + FeaturesConfig) to the new v3.2 Config format.
 
 Usage:
     ign-lidar migrate-config old_config.yaml
@@ -42,10 +42,10 @@ import yaml
 )
 def migrate_config(input_file: str, output: str, dry_run: bool, verbose: bool) -> None:
     """
-    Migrate old configuration format to v3.2 unified format.
+    Migrate old configuration format to v3.2 format.
 
     This command converts old v3.0-3.1 configurations (with separate
-    processor and features sections) to the new v3.2 unified format.
+    processor and features sections) to the new v3.2 format.
 
     Examples:
         \b
