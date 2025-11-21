@@ -31,7 +31,7 @@ preset_name: "training_enhanced_50m"
 processor:
   lod_level: "LOD2"
   architecture: "hybrid"
-  processing_mode: "both"
+  processing_mode: "both" # Generate both enriched LAZ tiles AND patches
   output_format: "laz"
 
   # GPU Configuration - LARGER BATCHES
@@ -186,7 +186,7 @@ ground_truth:
         enabled: true
         buffer_distance: 1.5
       vegetation:
-        enabled: true
+        enabled: false
         buffer_distance: 0.0
       water:
         enabled: true
@@ -231,7 +231,7 @@ data_sources:
         buffer_distance: 1.5
         classification_method: "surface_type"
       vegetation:
-        enabled: true
+        enabled: false
         file: "ZONE_DE_VEGETATION.shp"
         buffer_distance: 0.0
       water:

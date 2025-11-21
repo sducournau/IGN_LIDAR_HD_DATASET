@@ -259,8 +259,27 @@ class GPUAcceleratedOps:
 
         d = points_f32.shape[1]
 
-        # Créer ressources GPU
+        # Créer ressources GPU avec temp memory limité
         res = faiss.StandardGpuResources()
+        
+        # Calculer temp memory safe pour éviter OOM
+        # Estimer: k × N × (4 bytes distance + 4 bytes index)
+        search_memory_gb = (len(query_f32) * k * 8) / (1024**3)
+        
+        # Obtenir mémoire GPU disponible
+        try:
+            import cupy as cp
+            free_bytes = cp.cuda.Device().mem_info[0]
+            free_gb = free_bytes / (1024**3)
+            # Utiliser max 20% de la mémoire libre pour temp memory
+            temp_memory_gb = min(1.0, free_gb * 0.2, search_memory_gb * 1.5)
+        except Exception:
+            # Fallback conservateur si CuPy indisponible
+            temp_memory_gb = 0.5
+        
+        temp_memory_bytes = int(temp_memory_gb * 1024**3)
+        res.setTempMemory(temp_memory_bytes)
+        logger.debug(f"FAISS temp memory set to {temp_memory_gb:.2f}GB")
 
         # Choix index selon taille dataset
         if len(points_f32) > 100000:
