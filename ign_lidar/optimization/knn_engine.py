@@ -343,10 +343,9 @@ class KNNEngine:
         nn.fit(points)
         distances, indices = nn.kneighbors(query_points)
         
-        # Convert to numpy if needed
-        if hasattr(distances, 'get'):
+        # Convert to numpy if needed (unless return_gpu=True)
+        if not return_gpu and hasattr(distances, 'get'):
             distances = distances.get()
-        if hasattr(indices, 'get'):
             indices = indices.get()
         
         return distances, indices

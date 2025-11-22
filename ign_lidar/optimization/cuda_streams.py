@@ -442,3 +442,12 @@ def create_stream_manager(
         enable_async_transfers=True
     )
     return CUDAStreamManager(config)
+
+
+__all__ = [
+    'CUDAStreamManager',
+    'StreamConfig',
+    'create_stream_manager',
+    'HAS_CUPY',
+]
+

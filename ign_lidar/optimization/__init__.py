@@ -66,6 +66,20 @@ from .knn_engine import (
     HAS_FAISS_GPU,
 )
 
+# Phase 2: GPU Transfer Profiler (November 2025)
+from .gpu_transfer_profiler import (
+    GPUTransferProfiler,
+    TransferEvent,
+    get_global_profiler,
+    enable_automatic_tracking,
+)
+
+# Phase 2: CUDA Stream Manager (November 2025)
+from .cuda_streams import (
+    CUDAStreamManager,
+    StreamConfig,
+)
+
 # Backward compatibility: gpu_dataframe_ops moved to io/ in v3.1.0
 # Maintain import for v3.x compatibility
 try:
@@ -111,6 +125,10 @@ __all__ = [
     'HAS_CUPY', 'HAS_FAISS', 'HAS_CUML',
     # Phase 2: Unified KNN Engine (Nov 2025)
     'KNNEngine', 'KNNBackend', 'knn_search', 'build_knn_graph', 'HAS_FAISS_GPU',
+    # Phase 2: GPU Transfer Profiler (Nov 2025)
+    'GPUTransferProfiler', 'TransferEvent', 'get_global_profiler', 'enable_automatic_tracking',
+    # Phase 2: CUDA Stream Manager (Nov 2025)
+    'CUDAStreamManager', 'StreamConfig',
     # GPU dataframe operations (relocated to io/ in v3.1.0)
     'GPUDataFrameOps',  # Backward compatibility alias
     # Legacy interfaces (backward compatibility)
