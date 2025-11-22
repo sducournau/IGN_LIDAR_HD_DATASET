@@ -378,6 +378,9 @@ class GPUProcessor:
     ) -> np.ndarray:
         """
         Compute normal vectors with automatic strategy selection.
+        
+        DEPRECATED: Use canonical compute_normals from ign_lidar.features.compute instead.
+        This method will be removed in v4.0.
 
         Args:
             points: Point cloud (N, 3)
@@ -388,6 +391,15 @@ class GPUProcessor:
             normals: (N, 3) array of unit normal vectors
         """
         n_points = len(points)
+        import warnings
+        warnings.warn(
+            "GPUProcessor.compute_normals() is deprecated since v3.6.0. "
+            "Use 'from ign_lidar.features.compute import compute_normals' instead. "
+            "This method will be removed in v4.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         show_progress = (
             show_progress if show_progress is not None else self.show_progress
         )
@@ -727,8 +739,23 @@ class GPUProcessor:
         """
         Compute normals on CPU using sklearn KDTree.
 
+        
+        DEPRECATED: Use canonical compute_normals from ign_lidar.features.compute instead.
+        This method will be removed in v4.0.
+        
+        DEPRECATED: Use canonical compute_normals from ign_lidar.features.compute instead.
+        This method will be removed in v4.0.
+
         Uses Numba JIT compilation when available for 3-10x speedup,
         with automatic fallback to vectorized NumPy implementation.
+        import warnings
+        warnings.warn(
+            "GPUProcessor._compute_normals_cpu() is deprecated since v3.6.0. "
+            "Use 'from ign_lidar.features.compute import compute_normals' instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         """
         from sklearn.neighbors import KDTree as SklearnKDTree
         from ign_lidar.features.numba_accelerated import (
