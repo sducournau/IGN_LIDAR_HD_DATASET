@@ -13,8 +13,20 @@ Key improvements over previous implementations:
 - Memory management from chunked version
 - Performance optimizations from both versions
 
+**Architecture Note (Phase 2 Consolidation - Nov 21, 2025)**:
+This module contains OPTIMIZED GPU implementations for maximum performance.
+- GPU implementations use batch cuML operations (different algorithms than CPU)
+- For CPU computation, use `ign_lidar.features.compute.compute_normals()` (canonical)
+- For unified API, use `FeatureOrchestrator` which routes to appropriate strategy
+
+**Normal Computation Hierarchy**:
+1. High-level: `FeatureOrchestrator.compute_features()` (recommended entry point)
+2. GPU-optimized: `GPUProcessor.compute_normals()` (this file, for GPU performance)
+3. CPU canonical: `compute.normals.compute_normals()` (CPU fallback, single source)
+4. Low-level: `numba_accelerated.compute_normals_from_eigenvectors()` (helper)
+
 Version: 4.0.0 (Phase 2A Consolidation)
-Date: October 19, 2025
+Date: October 19, 2025 (Phase 2 notes: November 21, 2025)
 """
 
 import gc

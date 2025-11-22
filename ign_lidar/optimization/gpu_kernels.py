@@ -1,9 +1,25 @@
 """
 Custom CUDA Kernels for High-Performance LiDAR Processing
 
-This module provides hand-optimized CUDA kernels for critical operations
-in the LiDAR processing pipeline. These kernels are written using CuPy's
-RawKernel interface for maximum performance.
+ARCHITECTURE NOTE - FUSED GPU KERNELS:
+This module provides hand-optimized CUDA kernels for maximum GPU performance.
+These are FUSED operations combining multiple steps for efficiency.
+
+Call Hierarchy:
+  1. FeatureOrchestrator.compute_features() - Entry point (routes to GPU if enabled)
+     ↓
+  2. GPUProcessor.compute_normals() - High-level GPU processing
+     ↓
+  3. THIS FILE - Fused GPU kernels:
+     - compute_normals_and_eigenvalues() - Combined normal+eigenvalue computation
+     - knn_distance_kernel() - Fast KNN on GPU
+     - feature_aggregation_kernel() - Multi-feature computation in one pass
+
+Usage Guidelines:
+  - DO NOT call these kernels directly unless you're implementing GPU features
+  - Use GPUProcessor or FeatureOrchestrator instead
+  - These kernels fuse multiple operations for GPU efficiency
+  - Require CuPy and CUDA runtime
 
 Performance Targets:
 - KNN search: 10-20x faster than CPU
@@ -17,7 +33,7 @@ Key Optimizations:
 - Loop unrolling
 
 Author: IGN LiDAR HD Development Team
-Date: October 18, 2025
+Date: 2025-11-22 (Architecture doc update)
 Version: 1.0.0
 """
 

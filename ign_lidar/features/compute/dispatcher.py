@@ -50,7 +50,11 @@ def compute_all_features(
     **kwargs,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
     """
-    Feature computation API replacing all compute_all_features* variants.
+    HIGH-LEVEL feature computation API with mode selection.
+
+    This is the DISPATCHER function that routes to appropriate implementations
+    (CPU, GPU, GPU_chunked, boundary_aware). For low-level CPU-only optimized
+    computation, see features.compute_all_features_optimized().
 
     This function provides a single entry point for computing all features,
     automatically selecting the best computation strategy based on the mode

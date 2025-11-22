@@ -1,12 +1,34 @@
 """
 Numba-accelerated computational kernels for feature computation.
 
-This module provides JIT-compiled versions of performance-critical operations
-to accelerate CPU fallback paths. All functions gracefully degrade to NumPy
-implementations if Numba is not available.
+ARCHITECTURE NOTE - LOW-LEVEL HELPERS:
+This module provides JIT-compiled helper functions for performance-critical operations.
+These are LOW-LEVEL utilities called by canonical implementations, NOT standalone features.
+
+Call Hierarchy:
+  1. FeatureOrchestrator.compute_features() - Entry point
+     ↓
+  2. compute.normals.compute_normals() - Canonical CPU implementation
+     ↓
+  3. THIS FILE - Low-level Numba-accelerated helpers:
+     - compute_covariance_matrices_numba()
+     - compute_normals_from_eigenvectors_numba()
+     - compute_normals_from_eigenvectors_numpy()
+     - compute_normals_from_eigenvectors() (dispatcher)
+
+Usage Guidelines:
+  - DO NOT call these functions directly in application code
+  - Use compute.normals.compute_normals() or FeatureOrchestrator instead
+  - These provide JIT-compiled speedups for CPU fallback paths
+  - Gracefully degrade to NumPy when Numba unavailable
+
+Implementation Details:
+  - All functions have @jit decorators with nopython=True for performance
+  - Parallel execution with prange where applicable
+  - Pure NumPy fallbacks when Numba not available
 
 Author: IGN LiDAR HD Team
-Date: 2025-11-21
+Date: 2025-11-22 (Architecture doc update)
 """
 
 import numpy as np
@@ -177,6 +199,11 @@ def compute_normals_from_eigenvectors_numba(
     """
     Extract and orient normals from eigenvectors (Numba-accelerated).
     
+    **NOTE**: This is a low-level optimization function for extracting normals from 
+    pre-computed eigenvectors. For complete normal computation, use:
+    - `ign_lidar.features.compute.compute_normals()` (CPU, canonical implementation)
+    - `ign_lidar.features.GPUProcessor.compute_normals()` (GPU-accelerated)
+    
     Extracts the normal (smallest eigenvector) and ensures upward orientation.
     
     Args:
@@ -215,6 +242,11 @@ def compute_normals_from_eigenvectors_numpy(
     """
     Extract and orient normals from eigenvectors (NumPy fallback).
     
+    **NOTE**: This is a low-level optimization function for extracting normals from 
+    pre-computed eigenvectors. For complete normal computation, use:
+    - `ign_lidar.features.compute.compute_normals()` (CPU, canonical implementation)
+    - `ign_lidar.features.GPUProcessor.compute_normals()` (GPU-accelerated)
+    
     Args:
         eigenvectors: Eigenvector matrices [N, 3, 3]
         
@@ -236,6 +268,14 @@ def compute_normals_from_eigenvectors(
 ) -> np.ndarray:
     """
     Extract and orient normals from eigenvectors with automatic selection.
+    
+    **NOTE**: This is a low-level optimization function for extracting normals from 
+    pre-computed eigenvectors. For complete normal computation, use:
+    - `ign_lidar.features.compute.compute_normals()` (CPU, canonical implementation)
+    - `ign_lidar.features.GPUProcessor.compute_normals()` (GPU-accelerated)
+    
+    This function is useful when you already have eigenvectors and only need to extract
+    the normal vectors (smallest eigenvector) with proper orientation.
     
     Args:
         eigenvectors: Eigenvector matrices [N, 3, 3]

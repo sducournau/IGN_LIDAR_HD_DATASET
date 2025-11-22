@@ -1,10 +1,27 @@
 """
-Standard normal vector computation (fallback implementation).
+Normal Vector Computation - CPU Canonical Implementation
 
-This module provides the standard CPU implementation without JIT compilation.
-Use this when Numba is not available or for small datasets.
+ARCHITECTURE NOTE:
+This is the CANONICAL CPU implementation for normal computation.
 
-For optimized computation, use the features module instead.
+Call Hierarchy:
+  1. FeatureOrchestrator.compute_features() - RECOMMENDED ENTRY POINT
+     ↓ (routes automatically based on use_gpu flag)
+  2. compute_normals() - THIS FILE (CPU canonical)
+  3. GPUProcessor.compute_normals() - GPU optimized (features/gpu_processor.py)
+  4. numba_accelerated.* - Low-level helpers (features/numba_accelerated.py)
+  5. gpu_kernels.compute_normals_and_eigenvalues() - Fused GPU kernel
+
+Usage Guidelines:
+  - For new code: Use FeatureOrchestrator (handles CPU/GPU routing)
+  - For CPU-only: Import from this file directly
+  - For GPU: Use features.gpu_processor.GPUProcessor
+  - DO NOT duplicate this implementation - extend or optimize it
+
+Implementation Details:
+  - Standard CPU implementation without JIT compilation
+  - Fallback when Numba is not available
+  - Variants: compute_normals(), compute_normals_fast(), compute_normals_accurate()
 """
 
 import numpy as np

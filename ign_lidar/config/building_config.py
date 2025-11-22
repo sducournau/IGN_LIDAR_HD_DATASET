@@ -6,12 +6,12 @@ using the BuildingClassifier (Phase 2.1-2.4).
 
 Usage:
     >>> from ign_lidar.config import Config
-    >>> from ign_lidar.config.enhanced_building import EnhancedBuildingConfig
+    >>> from ign_lidar.config.building_config import BuildingConfig
     >>>
     >>> # Create config with detailed building detection
     >>> config = Config.preset('lod3_buildings')
     >>> config.advanced.classification = {
-    ...     'enhanced_building': EnhancedBuildingConfig(
+    ...     'building': BuildingConfig(
     ...         enable_roof_detection=True,
     ...         enable_chimney_detection=True,
     ...         enable_balcony_detection=True
@@ -369,28 +369,8 @@ class BuildingConfig:
 
 
 # ============================================================================
-# Deprecated aliases for backward compatibility
+# Convenience aliases for backward compatibility
 # ============================================================================
-
-import warnings
-
-
-class EnhancedBuildingConfig(BuildingConfig):
-    """
-    Deprecated: Use BuildingConfig instead.
-
-    This class is deprecated and will be removed in v4.0.
-    Use BuildingConfig for the same functionality.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "EnhancedBuildingConfig is deprecated, " "use BuildingConfig instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
 
 # Convenience aliases
 RoofDetectionConfig = BuildingConfig
@@ -400,7 +380,6 @@ BalconyDetectionConfig = BuildingConfig
 
 __all__ = [
     "BuildingConfig",
-    "EnhancedBuildingConfig",  # Deprecated
     "RoofDetectionConfig",
     "ChimneyDetectionConfig",
     "BalconyDetectionConfig",

@@ -256,12 +256,16 @@ def compute_all_features_optimized(
     chunk_size: int = 2_000_000,  # Optimized for 64GB systems
 ) -> Dict[str, np.ndarray]:
     """
-    Compute all geometric features in a single optimized pass
-    (CPU-only, JIT-compiled).
+    LOW-LEVEL CPU-only optimized feature computation (JIT-compiled).
 
-    This is the low-level optimized implementation. For high-level API
-    with mode selection (CPU/GPU/etc), use compute_all_features() from
-    the orchestrator module instead.
+    This is the IMPLEMENTATION function for single-pass CPU feature computation.
+    For high-level API with automatic mode selection (CPU/GPU/boundary-aware),
+    use dispatcher.compute_all_features() instead.
+
+    Relationship:
+    - dispatcher.compute_all_features() → HIGH-LEVEL (mode selection dispatcher)
+    - features.compute_all_features_optimized() → LOW-LEVEL (CPU implementation)
+    - These are COMPLEMENTARY, not duplicates!
 
     This is 5-8x faster than calling individual feature functions because:
     1. KD-tree built only once

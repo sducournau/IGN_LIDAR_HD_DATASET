@@ -4,6 +4,9 @@ GPU-Accelerated KDTree Wrapper
 Drop-in replacement for scipy.spatial.cKDTree and sklearn.neighbors.KDTree
 that uses FAISS-GPU for massive speedup (9.7x measured on 1M points).
 
+⚠️ **MIGRATION NOTE (Phase 3 - Nov 21, 2025)**: For new KNN operations,
+prefer KNNEngine: `from ign_lidar.optimization import knn_search`
+
 This module provides API-compatible wrappers that:
 - Use FAISS-GPU when available (9.7x faster)
 - Fallback to scipy.cKDTree or sklearn.KDTree transparently

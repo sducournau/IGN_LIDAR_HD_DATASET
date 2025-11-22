@@ -1,8 +1,29 @@
 """
 FAISS-GPU k-Nearest Neighbors - High-Performance Spatial Queries
 
+⚠️ **DEPRECATION WARNING (Phase 3 - November 21, 2025)**:
+This module is being phased out in favor of the unified KNNEngine.
+
+**For new code, use**:
+```python
+from ign_lidar.optimization import knn_search, KNNEngine
+
+# Simple k-NN search (automatic backend selection)
+distances, indices = knn_search(points, k=30, backend='auto')
+
+# Or with explicit FAISS-GPU backend
+engine = KNNEngine(backend='faiss-gpu')
+distances, indices = engine.search(points, k=30)
+```
+
 This module provides GPU-accelerated k-NN using FAISS, offering 10-50x speedup
 over scikit-learn on large point clouds.
+
+**Why consolidate?**
+- KNNEngine provides the same FAISS-GPU functionality
+- Plus automatic backend selection (FAISS-GPU → FAISS-CPU → sklearn)
+- Unified API for all KNN operations across the codebase
+- Better error handling and graceful degradation
 
 FAISS (Facebook AI Similarity Search) is optimized for:
 - Massive scale nearest neighbor search
@@ -17,6 +38,7 @@ Performance comparison (1M points, k=30):
 
 Author: Performance Optimization Team
 Date: November 21, 2025
+**Deprecation**: Phase 3 consolidation (November 21, 2025)
 """
 
 from __future__ import annotations
