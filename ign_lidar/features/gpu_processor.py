@@ -28,6 +28,36 @@ This module contains OPTIMIZED GPU implementations for maximum performance.
 Version: 4.0.0 (Phase 2A Consolidation)
 Date: October 19, 2025 (Phase 2 notes: November 21, 2025)
 """
+"""
+DEPRECATED: This module is deprecated as of v3.6.0 and will be removed in v4.0.0.
+
+Use FeatureOrchestrator instead:
+    from ign_lidar.features import FeatureOrchestrator
+    
+    orchestrator = FeatureOrchestrator(config)
+    features = orchestrator.compute_features(points, mode='lod2')
+
+Rationale:
+    - FeatureOrchestrator provides unified CPU/GPU feature computation
+    - Better integration with configuration system
+    - Cleaner API with strategy pattern
+    - Better memory management and performance
+
+Migration guide: docs/migration_guides/gpu_processor_to_orchestrator.md
+"""
+
+import warnings
+
+warnings.warn(
+    "ign_lidar.features.gpu_processor is deprecated since v3.6.0. "
+    "Use ign_lidar.features.FeatureOrchestrator instead. "
+    "This module will be removed in v4.0.0. "
+    "See migration guide: docs/migration_guides/gpu_processor_to_orchestrator.md",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+
 
 import gc
 import logging
@@ -373,43 +403,6 @@ class GPUProcessor:
         else:
             return self._compute_features_batch(points, feature_types, k, show_progress)
 
-    def compute_normals(
-        self, points: np.ndarray, k: int = 10, show_progress: Optional[bool] = None
-    ) -> np.ndarray:
-        """
-        Compute normal vectors with automatic strategy selection.
-        
-        DEPRECATED: Use canonical compute_normals from ign_lidar.features.compute instead.
-        This method will be removed in v4.0.
-
-        Args:
-            points: Point cloud (N, 3)
-            k: Number of neighbors (default: 10)
-            show_progress: Override show_progress setting
-
-        Returns:
-            normals: (N, 3) array of unit normal vectors
-        """
-        n_points = len(points)
-        import warnings
-        warnings.warn(
-            "GPUProcessor.compute_normals() is deprecated since v3.6.0. "
-            "Use 'from ign_lidar.features.compute import compute_normals' instead. "
-            "This method will be removed in v4.0.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-
-        show_progress = (
-            show_progress if show_progress is not None else self.show_progress
-        )
-        strategy = self._select_strategy(n_points)
-
-        if strategy == "chunk":
-            return self._compute_normals_chunked(points, k, show_progress)
-        else:
-            return self._compute_normals_batch(points, k, show_progress)
-
     def compute_curvature(
         self,
         points: np.ndarray,
@@ -737,17 +730,11 @@ class GPUProcessor:
 
     def _compute_normals_cpu(self, points: np.ndarray, k: int) -> np.ndarray:
         """
+        DEPRECATED: Use canonical compute_normals from ign_lidar.features.compute instead.
+        This method will be removed in v4.0.
+        
         Compute normals on CPU using sklearn KDTree.
-
-        
-        DEPRECATED: Use canonical compute_normals from ign_lidar.features.compute instead.
-        This method will be removed in v4.0.
-        
-        DEPRECATED: Use canonical compute_normals from ign_lidar.features.compute instead.
-        This method will be removed in v4.0.
-
-        Uses Numba JIT compilation when available for 3-10x speedup,
-        with automatic fallback to vectorized NumPy implementation.
+        """
         import warnings
         warnings.warn(
             "GPUProcessor._compute_normals_cpu() is deprecated since v3.6.0. "
@@ -755,74 +742,9 @@ class GPUProcessor:
             DeprecationWarning,
             stacklevel=2
         )
-
-        """
-        from sklearn.neighbors import KDTree as SklearnKDTree
-        from ign_lidar.features.numba_accelerated import (
-            compute_covariance_matrices,
-            compute_normals_from_eigenvectors,
-            is_numba_available
-        )
-        
-        N = len(points)
-        normals = np.zeros((N, 3), dtype=np.float32)
-
-        # Build KDTree (use sklearn's KDTree for CPU)
-        tree = SklearnKDTree(points, metric="euclidean", leaf_size=40)
-
-        # Batch processing
-        batch_size = 50_000
-        num_batches = (N + batch_size - 1) // batch_size
-        
-        # Log Numba status once
-        if not hasattr(self, '_numba_status_logged'):
-            self._numba_status_logged = True
-            if is_numba_available():
-                logger.info("Using Numba JIT compilation for CPU normal computation (3-10x faster)")
-            else:
-                logger.debug("Numba not available - using NumPy fallback (install with: pip install numba)")
-
-        def process_batch(batch_idx):
-            start_idx = batch_idx * batch_size
-            end_idx = min((batch_idx + 1) * batch_size, N)
-            batch_points = points[start_idx:end_idx]
-
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=RuntimeWarning)
-
-                # Query KNN
-                _, indices = tree.query(batch_points, k=k)
-
-                # Compute covariance matrices (Numba-accelerated when available)
-                cov_matrices = compute_covariance_matrices(points, indices, k)
-
-                # Eigendecomposition
-                eigenvalues, eigenvectors = np.linalg.eigh(cov_matrices)
-                
-                # Extract and orient normals (Numba-accelerated when available)
-                batch_normals = compute_normals_from_eigenvectors(eigenvectors)
-
-                return start_idx, end_idx, batch_normals
-
-        # Parallel processing
-        if num_batches > 1:
-            try:
-                from joblib import Parallel, delayed
-
-                results = Parallel(n_jobs=-1, backend="threading")(
-                    delayed(process_batch)(i) for i in range(num_batches)
-                )
-                for start_idx, end_idx, batch_normals in results:
-                    normals[start_idx:end_idx] = batch_normals
-            except ImportError:
-                # Fallback to sequential
-                for i in range(num_batches):
-                    start_idx, end_idx, batch_normals = process_batch(i)
-                    normals[start_idx:end_idx] = batch_normals
-        else:
-            start_idx, end_idx, batch_normals = process_batch(0)
-            normals[start_idx:end_idx] = batch_normals
-
+        # Delegate to canonical implementation
+        from ign_lidar.features.compute import compute_normals
+        normals, _ = compute_normals(points, k_neighbors=k, return_eigenvalues=False)
         return normals
 
     def _compute_curvature_batch(
