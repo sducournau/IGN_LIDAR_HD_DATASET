@@ -18,7 +18,7 @@ import logging
 
 # Try to import formatters
 try:
-    from ..formatters import MultiArchitectureFormatter
+    from ..io.formatters import MultiArchitectureFormatter
 except ImportError:
     MultiArchitectureFormatter = None
 

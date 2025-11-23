@@ -317,22 +317,18 @@ class KNNEngine:
         n_points, n_dims = points.shape
         n_queries = len(query_points)
         
-        # Select backend (for now, avoid FAISS as radius search is more complex)
-        if HAS_CUML and self.backend_preference in ['auto', 'cuml']:
-            backend = KNNBackend.CUML
-        else:
-            backend = KNNBackend.SKLEARN
+        # Select backend
+        # Note: cuML NearestNeighbors doesn't have radius_neighbors method,
+        # so we always use sklearn for radius search
+        backend = KNNBackend.SKLEARN
         
         logger.debug(
             f"Radius search: {n_queries} queries, {n_points} points, "
             f"radius={radius}, backend={backend.value}"
         )
         
-        # Dispatch to backend
-        if backend == KNNBackend.CUML:
-            return self._radius_search_cuml(points, query_points, radius, max_neighbors)
-        else:
-            return self._radius_search_sklearn(points, query_points, radius, max_neighbors)
+        # Always use sklearn for radius search
+        return self._radius_search_sklearn(points, query_points, radius, max_neighbors)
     
     def _radius_search_cuml(
         self,

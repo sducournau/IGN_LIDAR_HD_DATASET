@@ -170,8 +170,10 @@ class TileOrchestrator:
         logger.info(f"{progress_prefix} ✓ Features computed in {features_time:.1f}s")
 
         # 5. Apply classification and refinement
+        # Extract ground truth from tile_data if available
+        ground_truth = tile_data.get("ground_truth")
         classification = self._apply_classification_and_refinement(
-            points, features, classification, progress_prefix
+            points, features, classification, ground_truth, progress_prefix
         )
 
         # 6. Extract patches
@@ -404,6 +406,7 @@ class TileOrchestrator:
         points: np.ndarray,
         features: Dict[str, np.ndarray],
         classification: np.ndarray,
+        ground_truth: Optional[Any] = None,
         progress_prefix: str = "",
     ) -> np.ndarray:
         """
@@ -413,22 +416,43 @@ class TileOrchestrator:
             points: Point coordinates
             features: Computed features
             classification: Current classification
+            ground_truth: Optional ground truth data (GeoDataFrame or dict)
             progress_prefix: Prefix for log messages
             
         Returns:
             Updated classification array
         """
         if self.classifier is None:
+            logger.debug(f"{progress_prefix} No classifier configured, keeping original classification")
             return classification
 
-        logger.info(f"{progress_prefix} Applying classification...")
+        logger.info(f"{progress_prefix} Applying classification with {len(points)} points...")
         
-        # Apply classifier
-        # Note: This is a simplified version. Full implementation needs
-        # ground truth data to be passed through.
-        # TODO: Complete classification integration
-        
-        return classification
+        try:
+            # Use standardized v3.2+ classify() method
+            result = self.classifier.classify(
+                points=points,
+                features=features,
+                ground_truth=ground_truth,
+                verbose=False  # Reduce logging noise
+            )
+            
+            # Extract labels from result
+            labels = result.labels
+            
+            # Log classification statistics
+            unique, counts = np.unique(labels, return_counts=True)
+            logger.info(f"{progress_prefix} Classification complete:")
+            for cls, count in zip(unique, counts):
+                percentage = 100.0 * count / len(labels)
+                logger.info(f"  Class {cls}: {count:,} points ({percentage:.1f}%)")
+            
+            return labels
+            
+        except Exception as e:
+            logger.error(f"{progress_prefix} Classification failed: {e}", exc_info=True)
+            logger.warning(f"{progress_prefix} Falling back to original classification")
+            return classification
 
     def _extract_and_save_patches(
         self,

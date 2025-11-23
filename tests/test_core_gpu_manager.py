@@ -69,18 +69,17 @@ class TestGPUDetection:
         
         assert isinstance(result, bool)
     
-    @patch('ign_lidar.core.gpu.cp')
-    def test_gpu_detection_with_cupy(self, mock_cp):
-        """Test GPU detection when CuPy is available."""
-        # Setup mock
-        mock_cp.array = MagicMock(return_value=MagicMock())
-        
+    def test_gpu_detection_with_cupy(self):
+        """Test GPU detection method returns boolean."""
         gpu = GPUManager()
         gpu.reset_cache()  # Force re-check
         
-        # Should detect GPU
+        # Should return boolean (True if GPU available, False otherwise)
         result = gpu._check_cupy()
         assert isinstance(result, bool)
+        
+        # Result should match cached property
+        assert result == gpu.gpu_available
     
     def test_cuml_requires_gpu(self):
         """Test that cuML check returns False if no GPU."""

@@ -221,7 +221,7 @@ def test_classifier_init_custom_config():
 
 def test_classifier_requires_spatial_libs():
     """Test that classifier fails gracefully without spatial libraries."""
-    with patch("ign_lidar.core.modules.parcel_classifier.HAS_SPATIAL", False):
+    with patch("ign_lidar.core.classification.parcel_classifier.HAS_SPATIAL", False):
         with pytest.raises(ImportError, match="shapely and geopandas required"):
             ParcelClassifier()
 

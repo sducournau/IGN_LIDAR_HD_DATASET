@@ -191,8 +191,17 @@ class ParcelClassifier(BaseClassifier):
         ... )
     """
 
-    # ASPRS Classification codes
-    # Use ASPRSClass from constants module
+    # ASPRS Classification codes - expose as class attributes for convenience
+    ASPRS_UNCLASSIFIED = int(ASPRSClass.UNCLASSIFIED)
+    ASPRS_GROUND = int(ASPRSClass.GROUND)
+    ASPRS_LOW_VEGETATION = int(ASPRSClass.LOW_VEGETATION)
+    ASPRS_MEDIUM_VEGETATION = int(ASPRSClass.MEDIUM_VEGETATION)
+    ASPRS_HIGH_VEGETATION = int(ASPRSClass.HIGH_VEGETATION)
+    ASPRS_BUILDING = int(ASPRSClass.BUILDING)
+    ASPRS_LOW_POINT = int(ASPRSClass.LOW_POINT)
+    ASPRS_WATER = int(ASPRSClass.WATER)
+    ASPRS_RAIL = int(ASPRSClass.RAIL)
+    ASPRS_ROAD_SURFACE = int(ASPRSClass.ROAD_SURFACE)
 
     def __init__(self, config: Optional[ParcelClassificationConfig] = None):
         """

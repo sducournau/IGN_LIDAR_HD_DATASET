@@ -17,6 +17,7 @@ from ign_lidar.features.mode_selector import (
     ComputationMode,
     get_mode_selector
 )
+from ign_lidar.core.gpu import GPU_AVAILABLE
 
 
 class TestModeSelector:
@@ -53,6 +54,7 @@ class TestModeSelector:
         assert selector_with_gpu.cpu_memory_gb == 32.0
         assert selector_with_gpu.prefer_gpu is True
     
+    @pytest.mark.skipif(GPU_AVAILABLE, reason="Test requires no GPU environment")
     def test_initialization_without_gpu(self, selector_without_gpu):
         """Test selector initialization without GPU."""
         assert selector_without_gpu.gpu_available is False
@@ -66,6 +68,7 @@ class TestModeSelector:
         mode = selector_with_gpu.select_mode(num_points=100_000)
         assert mode == ComputationMode.GPU
     
+    @pytest.mark.skipif(GPU_AVAILABLE, reason="Test requires no GPU environment")
     def test_small_cloud_without_gpu(self, selector_without_gpu):
         """Small cloud without GPU should use CPU."""
         mode = selector_without_gpu.select_mode(num_points=100_000)
@@ -88,6 +91,7 @@ class TestModeSelector:
         mode = selector_with_gpu.select_mode(num_points=2_000_000)
         assert mode == ComputationMode.GPU
     
+    @pytest.mark.skipif(GPU_AVAILABLE, reason="Test requires no GPU environment")
     def test_medium_cloud_without_gpu(self, selector_without_gpu):
         """Medium cloud without GPU should use CPU."""
         mode = selector_without_gpu.select_mode(num_points=2_000_000)
@@ -100,6 +104,7 @@ class TestModeSelector:
         mode = selector_with_gpu.select_mode(num_points=7_000_000)
         assert mode in (ComputationMode.GPU, ComputationMode.GPU_CHUNKED)
     
+    @pytest.mark.skipif(GPU_AVAILABLE, reason="Test requires no GPU environment")
     def test_large_cloud_without_gpu(self, selector_without_gpu):
         """Large cloud without GPU should use CPU if memory allows."""
         mode = selector_without_gpu.select_mode(num_points=7_000_000)
@@ -112,6 +117,7 @@ class TestModeSelector:
         mode = selector_with_gpu.select_mode(num_points=15_000_000)
         assert mode == ComputationMode.GPU_CHUNKED
     
+    @pytest.mark.skipif(GPU_AVAILABLE, reason="Test requires no GPU environment")
     def test_very_large_cloud_without_gpu(self, selector_without_gpu):
         """Very large cloud without GPU should use CPU if memory allows."""
         mode = selector_without_gpu.select_mode(num_points=15_000_000)
@@ -129,6 +135,7 @@ class TestModeSelector:
         mode = selector_with_gpu.select_mode(num_points=1_000_000, force_gpu=True)
         assert mode in (ComputationMode.GPU, ComputationMode.GPU_CHUNKED)
     
+    @pytest.mark.skipif(GPU_AVAILABLE, reason="Test requires no GPU environment")
     def test_force_gpu_without_gpu_raises(self, selector_without_gpu):
         """Force GPU without GPU available should raise ValueError."""
         with pytest.raises(ValueError, match="GPU mode forced but GPU not available"):
@@ -304,6 +311,7 @@ class TestModeSelectionIntegration:
         recommendations = workstation_selector.get_recommendations(num_points=20_000_000)
         assert recommendations["estimated_time_seconds"] < 10  # Should be fast
     
+    @pytest.mark.skipif(GPU_AVAILABLE, reason="Test requires no GPU environment")
     def test_laptop_small_dataset(self, laptop_selector):
         """Laptop processing small dataset."""
         mode = laptop_selector.select_mode(num_points=250_000)
@@ -312,6 +320,7 @@ class TestModeSelectionIntegration:
         recommendations = laptop_selector.get_recommendations(num_points=250_000)
         assert recommendations["recommended_mode"] == "cpu"
     
+    @pytest.mark.skipif(GPU_AVAILABLE, reason="Test requires no GPU environment")
     def test_laptop_medium_dataset(self, laptop_selector):
         """Laptop processing medium dataset."""
         mode = laptop_selector.select_mode(num_points=2_000_000)

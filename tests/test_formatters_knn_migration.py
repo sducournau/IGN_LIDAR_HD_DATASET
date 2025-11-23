@@ -124,14 +124,14 @@ class TestMultiArchFormatterKNNMigration:
     @pytest.fixture
     def multi_arch_formatter(self):
         """Create multi-arch formatter instance."""
-        from ign_lidar.io.formatters.multi_arch_formatter import MultiArchFormatter
+        from ign_lidar.io.formatters.multi_arch_formatter import MultiArchitectureFormatter
         
         config = {
             'num_points': 16384,
             'k_neighbors': 16,
             'architecture': 'pointnet++'
         }
-        return MultiArchFormatter(config)
+        return MultiArchitectureFormatter(config)
     
     @pytest.fixture
     def sample_points(self):
@@ -299,10 +299,10 @@ class TestBackwardCompatibility:
     
     def test_multi_arch_formatter_api_unchanged(self):
         """Test that MultiArchFormatter API is unchanged."""
-        from ign_lidar.io.formatters.multi_arch_formatter import MultiArchFormatter
+        from ign_lidar.io.formatters.multi_arch_formatter import MultiArchitectureFormatter
         
         config = {'num_points': 16384, 'k_neighbors': 16}
-        formatter = MultiArchFormatter(config)
+        formatter = MultiArchitectureFormatter(config)
         
         # Methods should exist
         assert hasattr(formatter, '_build_knn_graph')
