@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 3.8.1-dev** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
+**Version 3.5.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -42,7 +42,7 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ## 🚀 Performance Highlights
 
-**Version 3.8.1** delivers exceptional performance through advanced GPU optimization:
+**Version 3.5.0** continues the exceptional performance delivered through advanced GPU optimization:
 
 | Metric                       | Baseline | Optimized | Speedup     |
 | ---------------------------- | -------- | --------- | ----------- |
@@ -1199,7 +1199,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {GitHub},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {3.0.0}
+  version      = {3.5.0}
 }
 ```
 

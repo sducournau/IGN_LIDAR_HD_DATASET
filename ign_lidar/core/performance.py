@@ -226,12 +226,15 @@ def get_memory_info() -> Dict[str, float]:
 # ============================================================================
 
 
-class PerformanceMonitor:
+class ProcessorPerformanceMonitor:
     """
-    Performance monitor with real-time tracking and optimization recommendations.
+    Performance monitor for LiDAR processing with real-time tracking.
 
     This class combines stage-based performance tracking with continuous monitoring
-    and provides comprehensive reporting capabilities.
+    and provides comprehensive reporting capabilities for the main processing pipeline.
+    
+    Note: This is distinct from GroundTruthPerformanceMonitor (optimization module)
+    which is specialized for ground truth optimization benchmarking.
     """
 
     def __init__(
@@ -598,17 +601,17 @@ class PerformanceMonitor:
 
 def create_monitor(
     session_id: str = None, config: Dict[str, Any] = None, **kwargs
-) -> PerformanceMonitor:
+) -> ProcessorPerformanceMonitor:
     """
-    Create a performance monitor with configuration.
+    Create a processor performance monitor with configuration.
 
     Args:
         session_id: Unique session identifier
         config: Configuration dictionary
-        **kwargs: Additional arguments passed to PerformanceMonitor
+        **kwargs: Additional arguments passed to ProcessorPerformanceMonitor
 
     Returns:
-        Configured PerformanceMonitor instance
+        Configured ProcessorPerformanceMonitor instance
     """
     config = config or {}
     monitoring_config = config.get("monitoring", {})
@@ -622,7 +625,11 @@ def create_monitor(
         **kwargs,
     }
 
-    return PerformanceMonitor(session_id=session_id, **settings)
+    return ProcessorPerformanceMonitor(session_id=session_id, **settings)
+
+
+# Backward compatibility alias
+PerformanceMonitor = ProcessorPerformanceMonitor
 
 
 # Backward compatibility alias
@@ -630,7 +637,8 @@ PerformanceSnapshot = PerformanceSnapshot
 
 # Export all public classes and functions
 __all__ = [
-    "PerformanceMonitor",
+    "ProcessorPerformanceMonitor",
+    "PerformanceMonitor",  # Backward compatibility alias
     "PerformanceMetrics",
     "PerformanceSnapshot",
     "create_monitor",

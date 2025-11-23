@@ -31,7 +31,7 @@ except ImportError:
 
 # Try to import GPU components (Phase 4.3, 4.4)
 try:
-    from ..optimization.gpu_memory import GPUMemoryPool
+    from ..optimization.gpu_cache import GPUMemoryPool
     GPU_MEMORY_POOL_AVAILABLE = True
 except ImportError:
     GPU_MEMORY_POOL_AVAILABLE = False

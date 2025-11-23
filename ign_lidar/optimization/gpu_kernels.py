@@ -902,10 +902,10 @@ class CUDAKernels:
         
         n_points = len(points)
         
-        # Initialize outputs
-        normals = np.zeros((n_points, 3), dtype=np.float32)
-        eigenvalues = np.zeros((n_points, 3), dtype=np.float32)
-        curvature = np.zeros(n_points, dtype=np.float32)
+        # Initialize outputs on GPU (OPTIMIZATION: keep data on GPU)
+        normals_gpu = cp.zeros((n_points, 3), dtype=cp.float32)
+        eigenvalues_gpu = cp.zeros((n_points, 3), dtype=cp.float32)
+        curvature_gpu = cp.zeros(n_points, dtype=cp.float32)
         
         # Transfer to GPU
         gpu_points = cp.asarray(points, dtype=cp.float32)
@@ -944,10 +944,15 @@ class CUDAKernels:
             eigenvalue_sum = cp.sum(evals_sorted)
             curv = evals_sorted[2] / (eigenvalue_sum + 1e-10)
             
-            # Store results (transfer back to CPU)
-            normals[i] = cp.asnumpy(normal)
-            eigenvalues[i] = cp.asnumpy(evals_sorted)
-            curvature[i] = float(cp.asnumpy(curv))
+            # Store results on GPU (OPTIMIZATION: no transfer in loop)
+            normals_gpu[i] = normal
+            eigenvalues_gpu[i] = evals_sorted
+            curvature_gpu[i] = curv
+        
+        # OPTIMIZATION: Single vectorized transfer at the end (3 transfers instead of N×3)
+        normals = cp.asnumpy(normals_gpu)
+        eigenvalues = cp.asnumpy(eigenvalues_gpu)
+        curvature = cp.asnumpy(curvature_gpu)
         
         logger.debug(
             f"Sequential fallback completed for {n_points:,} points"

@@ -70,15 +70,21 @@ class OptimizationConfig:
     max_workers: Optional[int] = None
 
 
-class PerformanceMonitor:
+class GroundTruthPerformanceMonitor:
     """
     Real-time performance monitoring for ground truth optimization.
+    
+    Specialized monitor for ground truth computation methods including
+    CPU, GPU, and GPU chunked implementations.
     
     Provides detailed tracking of:
     - Processing time and throughput
     - Memory usage (CPU and GPU)
     - CPU/GPU utilization
     - Method-specific performance characteristics
+    
+    Note: This is distinct from ProcessorPerformanceMonitor (core module)
+    which handles general LiDAR processing pipeline monitoring.
     """
     
     def __init__(self, enable_detailed_monitoring: bool = True):
@@ -275,7 +281,7 @@ class OptimizationBenchmark:
         self.output_dir = output_dir or Path("benchmark_results")
         self.output_dir.mkdir(exist_ok=True)
         
-        self.monitor = PerformanceMonitor()
+        self.monitor = GroundTruthPerformanceMonitor()
         self.benchmark_results: List[PerformanceMetrics] = []
         
         logger.info(f"Benchmark suite initialized, output dir: {self.output_dir}")

@@ -359,6 +359,16 @@ class GPUProfiler:
                 )
             logger.info("")
         
+        # Transfer vs Compute analysis (migrated from optimization/gpu_profiler.py)
+        bottleneck_analysis = self.get_bottleneck_analysis()
+        if bottleneck_analysis['bottleneck'] != 'unknown':
+            logger.info("Transfer vs Compute Analysis:")
+            logger.info(f"  Transfer: {bottleneck_analysis['transfer_pct']:.1f}%")
+            logger.info(f"  Compute: {bottleneck_analysis['compute_pct']:.1f}%")
+            logger.info(f"  Bottleneck: {bottleneck_analysis['bottleneck']}")
+            logger.info(f"  Recommendation: {bottleneck_analysis['recommendation']}")
+            logger.info("")
+        
         # Detailed breakdown
         if detailed:
             logger.info("Detailed Operation Breakdown:")
@@ -419,6 +429,77 @@ class GPUProfiler:
             summary[op_name]['avg_time_ms'] = summary[op_name]['total_time_ms'] / count
         
         return summary
+    
+    def get_bottleneck_analysis(self) -> Dict[str, Any]:
+        """
+        Analyze transfer vs compute bottlenecks.
+        
+        Migrated from optimization/gpu_profiler.py for unified profiling.
+        Determines whether memory transfers or computation is the bottleneck.
+        
+        Returns:
+            Dictionary with bottleneck analysis including:
+            - bottleneck: 'memory_transfer', 'compute', 'balanced', or 'unknown'
+            - transfer_pct: Percentage of time spent in transfers
+            - compute_pct: Percentage of time spent in compute
+            - recommendation: Performance optimization suggestions
+        """
+        # Separate transfer and compute operations
+        transfer_time = sum(
+            e.elapsed_ms for e in self.entries 
+            if e.transfer_type in ('upload', 'download')
+        )
+        compute_time = sum(
+            e.elapsed_ms for e in self.entries 
+            if e.transfer_type is None
+        )
+        total_time = transfer_time + compute_time
+        
+        if total_time == 0:
+            return {
+                'bottleneck': 'unknown',
+                'transfer_pct': 0.0,
+                'compute_pct': 0.0,
+                'recommendation': 'No data available'
+            }
+        
+        transfer_pct = (transfer_time / total_time) * 100
+        compute_pct = (compute_time / total_time) * 100
+        
+        # Determine bottleneck
+        if transfer_pct > 50:
+            bottleneck = 'memory_transfer'
+            recommendation = (
+                "Memory transfers are the bottleneck. Recommendations:\n"
+                "  - Increase chunk size to reduce transfer frequency\n"
+                "  - Enable CUDA streams for overlapped transfers\n"
+                "  - Use pinned memory for faster transfers\n"
+                "  - Keep more data on GPU between operations"
+            )
+        elif compute_pct > 70:
+            bottleneck = 'compute'
+            recommendation = (
+                "Computation is the bottleneck. Recommendations:\n"
+                "  - Optimize kernel algorithms\n"
+                "  - Increase parallelism\n"
+                "  - Use cuML for accelerated algorithms\n"
+                "  - Consider reducing feature complexity"
+            )
+        else:
+            bottleneck = 'balanced'
+            recommendation = (
+                "Performance is well balanced. Minor optimizations:\n"
+                "  - Monitor VRAM usage to maximize batch sizes\n"
+                "  - Enable all available optimizations\n"
+                "  - Consider pipeline optimization for further gains"
+            )
+        
+        return {
+            'bottleneck': bottleneck,
+            'transfer_pct': transfer_pct,
+            'compute_pct': compute_pct,
+            'recommendation': recommendation
+        }
 
 
 def create_profiler(

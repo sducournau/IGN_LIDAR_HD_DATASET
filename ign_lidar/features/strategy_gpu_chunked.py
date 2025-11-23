@@ -24,7 +24,7 @@ import logging
 from .strategies import BaseFeatureStrategy
 from ..core.gpu import GPUManager
 from ..optimization.adaptive_chunking import auto_chunk_size, get_recommended_strategy
-from ..optimization.gpu_memory import GPUArrayCache
+from ..optimization.gpu_cache import GPUArrayCache
 
 logger = logging.getLogger(__name__)
 

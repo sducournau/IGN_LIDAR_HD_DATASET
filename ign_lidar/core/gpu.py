@@ -368,7 +368,7 @@ class GPUManager:
             >>> gpu_arr = gpu.cache.get_or_upload('normals', normals_cpu)
         """
         if self._array_cache is None:
-            from ..optimization.gpu_memory import GPUArrayCache
+            from ..optimization.gpu_cache import GPUArrayCache
             self._array_cache = GPUArrayCache()
             logger.debug("Lazy-loaded GPUArrayCache")
         return self._array_cache

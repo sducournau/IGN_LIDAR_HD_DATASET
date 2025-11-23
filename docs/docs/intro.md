@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 3.4.1** | Python 3.8+ | MIT License | [GitHub](https://github.com/sducournau/IGN_LIDAR_HD_DATASET)
+**Version 3.5.0** | Python 3.8+ | MIT License | [GitHub](https://github.com/sducournau/IGN_LIDAR_HD_DATASET)
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -18,14 +18,14 @@ Production-ready library featuring GPU acceleration (16× speedup), rich geometr
 
 ---
 
-## 🎯 What's New in v3.4.1
+## 🎯 What's New in v3.5.0
 
 ### Latest Stable Release (November 2025)
 
-Production-ready with critical bug fixes and major performance improvements.
+Package harmonization and documentation consolidation release.
 
-:::danger Critical Fix in v3.3.4
-**BD TOPO users must upgrade!** Version 3.3.4 fixed a critical bug where roads overwrote buildings, causing 20-30% accuracy loss. [Read more →](./release-notes/v3.3.4)
+:::info Documentation Update
+**Version 3.5.0** harmonizes all version references, consolidates documentation, and improves package consistency across all files.
 :::
 
 ### 🌟 Key Highlights
@@ -94,7 +94,7 @@ Production-ready with critical bug fixes and major performance improvements.
 pip install --upgrade ign-lidar-hd
 
 # Verify installation
-ign-lidar-hd --version  # Should show 3.4.1
+ign-lidar-hd --version  # Should show 3.5.0
 ```
 
 :::tip Important for BD TOPO Users
@@ -103,7 +103,8 @@ If using BD TOPO classification, consider reprocessing your data to benefit from
 
 ### 📖 Release Notes
 
-- 🚀 **[v3.4.1 (Current)](./release-notes/v3.4.1)** - FAISS GPU memory optimization **← NEW**
+- 📦 **[v3.5.0 (Current)](./release-notes/v3.5.0)** - Package harmonization & documentation **← NEW**
+- 🚀 **[v3.4.1](./release-notes/v3.4.1)** - FAISS GPU memory optimization
 - 🎯 **[v3.4.0](./release-notes/v3.4.0)** - GPU optimizations & road classification
 - 📍 **[v3.3.5](./release-notes/v3.3.5)** - Maintenance release
 - 🔴 **[v3.3.4 (Critical)](./release-notes/v3.3.4)** - BD TOPO priority fix **← IMPORTANT**
@@ -306,7 +307,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {ImagoData},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {3.4.1}
+  version      = {3.5.0}
 }
 ```
 

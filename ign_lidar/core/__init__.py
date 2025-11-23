@@ -17,7 +17,7 @@ This package contains the main processing logic:
 
 from .processor import LiDARProcessor
 from .memory import AdaptiveMemoryManager, MemoryConfig
-from .performance import PerformanceMonitor, PerformanceSnapshot, PerformanceMetrics
+from .performance import ProcessorPerformanceMonitor, PerformanceMonitor, PerformanceSnapshot, PerformanceMetrics
 from .error_handler import (
     ProcessingError, 
     GPUMemoryError, 
@@ -40,7 +40,8 @@ __all__ = [
     'LiDARProcessor',
     'AdaptiveMemoryManager', 
     'MemoryConfig',
-    'PerformanceMonitor',
+    'ProcessorPerformanceMonitor',
+    'PerformanceMonitor',  # Backward compatibility
     'PerformanceSnapshot', 
     'ProcessingError',
     'GPUMemoryError',

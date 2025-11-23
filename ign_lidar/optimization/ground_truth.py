@@ -581,7 +581,7 @@ class GroundTruthOptimizer:
         ndvi_building_threshold: float,
     ) -> np.ndarray:
         """GPU chunked implementation for large datasets."""
-        from ..optimization.gpu import GPUGroundTruthClassifier
+        from ..optimization.ground_truth_classifier import GPUGroundTruthClassifier
 
         classifier = GPUGroundTruthClassifier(
             gpu_chunk_size=self.gpu_chunk_size,
@@ -611,7 +611,7 @@ class GroundTruthOptimizer:
     ) -> np.ndarray:
         """GPU implementation for small-medium datasets."""
         # Same as chunked but with larger chunk size
-        from ..optimization.gpu import GPUGroundTruthClassifier
+        from ..optimization.ground_truth_classifier import GPUGroundTruthClassifier
 
         classifier = GPUGroundTruthClassifier(
             gpu_chunk_size=len(points),  # Process all at once

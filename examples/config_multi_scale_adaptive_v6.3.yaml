@@ -1,7 +1,8 @@
 # ============================================================================
 # IGN LiDAR HD - Multi-Scale with Adaptive Aggregation v6.3
 # ============================================================================
-# LAST UPDATED: October 25, 2025
+# LAST UPDATED: November 23, 2025
+# COMPATIBLE WITH: IGN LiDAR HD v3.5.0+
 #
 # Demonstrates adaptive per-point scale selection (NEW in v6.3)
 # Use this for complex urban geometry with edges, corners, and varied surfaces

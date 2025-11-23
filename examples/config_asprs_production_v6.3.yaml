@@ -1,7 +1,8 @@
 # ============================================================================
 # IGN LiDAR HD - ASPRS Production Configuration v6.3
 # ============================================================================
-# LAST UPDATED: October 25, 2025
+# LAST UPDATED: November 23, 2025
+# COMPATIBLE WITH: IGN LiDAR HD v3.5.0+
 #
 # Complete production-ready ASPRS classification with:
 # - DTM augmentation (1m² resolution for accurate ground reference)

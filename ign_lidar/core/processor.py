@@ -383,6 +383,21 @@ class LiDARProcessor:
         self.feature_orchestrator = self.feature_engine.orchestrator
         self.feature_manager = self.feature_orchestrator  # Backward compatibility alias
 
+        # OPTIMIZATION: Enable GPU transfer profiling if requested (November 2025 Audit)
+        use_gpu = OmegaConf.select(config, "processor.use_gpu", default=False)
+        profile_gpu = OmegaConf.select(config, "processor.profile_gpu", default=False)
+        
+        if use_gpu and profile_gpu:
+            try:
+                from ..optimization.gpu_transfer_profiler import enable_automatic_tracking
+                enable_automatic_tracking()
+                logger.info("📊 GPU transfer profiling enabled (audit mode)")
+                logger.info("   This adds overhead - disable in production")
+            except ImportError:
+                logger.warning("⚠️  GPU transfer profiler not available")
+        elif use_gpu and not profile_gpu:
+            logger.debug("GPU profiling disabled (set profile_gpu=true to enable)")
+
         # Setup stitching configuration and initialize stitcher if needed
         # Handle both old (processor.use_stitching) and new (stitching.enabled) config structures
         if hasattr(config, "stitching") and hasattr(config.stitching, "enabled"):

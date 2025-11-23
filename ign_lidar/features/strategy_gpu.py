@@ -22,7 +22,7 @@ import logging
 
 from .strategies import BaseFeatureStrategy
 from ..core.gpu import GPUManager
-from ..optimization.gpu_memory import GPUArrayCache
+from ..optimization.gpu_cache import GPUArrayCache
 
 logger = logging.getLogger(__name__)
 

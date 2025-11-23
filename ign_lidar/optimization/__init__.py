@@ -89,6 +89,18 @@ from .cuda_streams import (
     StreamConfig,
 )
 
+# Phase 3: Transfer Optimizer (November 23, 2025 - Audit Optimizations)
+from .transfer_optimizer import (
+    TransferOptimizer,
+    TransferEvent,
+    TransferProfile,
+    create_transfer_optimizer,
+)
+
+# Phase 3: GPU Cache and Performance (November 23, 2025 - Audit Optimizations)
+from .gpu_cache.arrays import GPUArrayCache
+from .performance_monitor import GroundTruthPerformanceMonitor
+
 # Backward compatibility: gpu_dataframe_ops moved to io/ in v3.1.0
 # Maintain import for v3.x compatibility
 try:
@@ -141,6 +153,10 @@ __all__ = [
     'calculate_optimal_chunk_count',
     # Phase 2: CUDA Stream Manager (Nov 2025)
     'CUDAStreamManager', 'StreamConfig',
+    # Phase 3: Transfer Optimizer (Nov 23, 2025 - Audit Optimizations)
+    'TransferOptimizer', 'TransferProfile', 'create_transfer_optimizer',
+    # Phase 3: GPU Cache and Performance (Nov 23, 2025 - Audit Optimizations)
+    'GPUArrayCache', 'GroundTruthPerformanceMonitor',
     # GPU dataframe operations (relocated to io/ in v3.1.0)
     'GPUDataFrameOps',  # Backward compatibility alias
     # Legacy interfaces (backward compatibility)

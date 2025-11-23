@@ -12,6 +12,14 @@ Version 3.3.3 - Gap Detection Enhancement:
 - Directional gap identification (N, NE, E, SE, S, SW, W, NW)
 - Export of problematic buildings for manual review
 
+Version 3.5.0 - Package Harmonization & Documentation Consolidation:
+- Consolidated and harmonized all version references to 3.5.0
+- Updated CHANGELOG with comprehensive release history
+- Harmonized README, Docusaurus intro, and documentation
+- Cleaned up configuration file examples
+- Improved consistency across all package files
+- Enhanced documentation structure and clarity
+
 Version 3.4.1 - FAISS GPU Memory Optimization:
 - Dynamic VRAM detection and adaptive GPU usage for FAISS k-NN
 - Automatic Float16 (FP16) precision for large datasets (>50M points)
@@ -32,7 +40,7 @@ Version 3.4.0 - GPU Optimizations & Road Classification:
 All features now work with the new configuration architecture.
 """
 
-__version__ = "3.4.1"
+__version__ = "3.5.0"
 __author__ = "imagodata"
 __email__ = "simon.ducournau@google.com"
 
