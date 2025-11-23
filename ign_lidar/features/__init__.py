@@ -110,12 +110,14 @@ from .feature_modes import (
     get_feature_config,
 )
 
-# Backward compatibility aliases (v3.x only - will be removed in v4.0)
-# These allow old code to continue working with deprecation warnings
+# GPU Processor (internal use by strategies)
+# Note: GPUProcessor is the canonical GPU implementation used internally by
+# GPUStrategy and GPUChunkedStrategy. For user-facing API, use FeatureOrchestrator
+# or the strategy classes directly.
 try:
     from .gpu_processor import GPUProcessor
 
-    # Aliases for deprecated classes
+    # Legacy aliases (maintained for backward compatibility)
     GPUFeatureComputer = GPUProcessor  # Alias for features_gpu.GPUFeatureComputer
     GPUFeatureComputerChunked = (
         GPUProcessor  # Alias for features_gpu_chunked.GPUChunkedFeatureComputer
@@ -139,11 +141,11 @@ __all__ = [
     "GPUChunkedStrategy",
     "BoundaryAwareStrategy",
     "estimate_optimal_batch_size",
-    # Backward compatibility aliases (v3.x - deprecated, remove in v4.0)
+    # GPU Processor (internal use by strategies)
     "GPUProcessor",
-    "GPUFeatureComputer",  # Deprecated alias for GPUProcessor
-    "GPUFeatureComputerChunked",  # Deprecated alias for GPUProcessor
-    "GPUChunkedFeatureComputer",  # Deprecated alias for GPUProcessor
+    "GPUFeatureComputer",  # Legacy alias for GPUProcessor
+    "GPUFeatureComputerChunked",  # Legacy alias for GPUProcessor
+    "GPUChunkedFeatureComputer",  # Legacy alias for GPUProcessor
     # Main API (recommended)
     "FeatureMode",
     "compute_verticality",

@@ -641,10 +641,10 @@ class ASPRSClassRulesEngine:
                 if length >= cfg.min_length:
                     global_indices = overhead_indices[cluster_mask]
                     classification[global_indices] = int(
-                        ASPRSClass.WIRE_CONDUCTOR_OVERHEAD
+                        ASPRSClass.WIRE_CONDUCTOR
                     )
 
-        n_overhead = (classification == int(ASPRSClass.WIRE_CONDUCTOR_OVERHEAD)).sum()
+        n_overhead = (classification == int(ASPRSClass.WIRE_CONDUCTOR)).sum()
         if n_overhead > 0:
             logger.info(f"  Overhead structures: {n_overhead:,} points classified")
 
@@ -706,7 +706,7 @@ class ASPRSClassRulesEngine:
 
         n_noise = noise_mask.sum()
         if n_noise > 0:
-            classification[noise_mask] = int(ASPRSClass.LOW_POINT_NOISE)
+            classification[noise_mask] = int(ASPRSClass.LOW_POINT)
             logger.info(f"  Noise: {n_noise:,} points classified")
 
         return classification

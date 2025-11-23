@@ -33,14 +33,12 @@ class GroundTruthRefinementConfig:
     WATER_NORMAL_Z_MIN = 0.95  # Minimum normal Z for horizontal water
 
     # Road refinement (DTM-based strict filtering)
-    ROAD_HEIGHT_MAX = (
-        0.20  # FURTHER REDUCED from 0.25 - Ultra-strict ground level (20cm)
-    )
+    ROAD_HEIGHT_MAX = 0.30  # Strict DTM-based: +30cm above ground (aligned with Classifier)
     ROAD_HEIGHT_MIN = -0.2  # Minimum height (tolerance for slight embedding in ground)
     ROAD_PLANARITY_MIN = 0.85  # Minimum planarity for roads
     ROAD_CURVATURE_MAX = 0.05  # Maximum curvature for smooth roads
     ROAD_NORMAL_Z_MIN = 0.90  # Minimum normal Z for horizontal roads
-    ROAD_NDVI_MAX = 0.12  # REDUCED from 0.15 - Stricter vegetation exclusion
+    ROAD_NDVI_MAX = 0.15  # Maximum NDVI for roads (aligned with GeometricRulesEngine)
 
     # Vegetation refinement
     VEG_NDVI_MIN = 0.25  # Minimum NDVI for vegetation

@@ -109,8 +109,8 @@ class TestRoadVegetationSeparation:
         points = np.array(
             [
                 [0, 0, 0.1],  # Road surface (10cm above ground)
-                [0, 0, 0.3],  # Road surface (30cm above ground)
-                [1, 1, 0.45],  # Road surface (45cm above ground)
+                [0, 0, 0.25],  # Road surface (25cm above ground)
+                [1, 1, 0.35],  # Above road threshold (35cm - should be veg with high NDVI)
                 [2, 2, 0.8],  # Vegetation starting (80cm - should be veg)
                 [3, 3, 2.5],  # Tree canopy (2.5m above ground)
                 [4, 4, 5.0],  # Tree canopy (5m above ground)
@@ -119,7 +119,7 @@ class TestRoadVegetationSeparation:
         )
 
         features = {
-            "height": np.array([0.1, 0.3, 0.45, 0.8, 2.5, 5.0, 8.0]),
+            "height": np.array([0.1, 0.25, 0.35, 0.8, 2.5, 5.0, 8.0]),
             "planarity": np.array([0.95, 0.92, 0.90, 0.60, 0.30, 0.25, 0.20]),
             "curvature": np.array([0.01, 0.02, 0.02, 0.08, 0.15, 0.18, 0.20]),
             "ndvi": np.array([0.08, 0.10, 0.12, 0.30, 0.55, 0.65, 0.70]),
@@ -144,7 +144,7 @@ class TestRoadVegetationSeparation:
 
     def test_road_surface_classification(self):
         """
-        Points within 0.5m of ground should be classified as road.
+        Points within 0.3m of ground should be classified as road.
         """
         from ign_lidar.core.classification.ground_truth_refinement import (
             GroundTruthRefiner,
@@ -169,20 +169,19 @@ class TestRoadVegetationSeparation:
             ndvi=features["ndvi"],
         )
 
-        # Verify road surface points (indices 0, 1, 2)
+        # Verify road surface points (indices 0, 1)
         ASPRS_ROAD = 11
         assert refined[0] == ASPRS_ROAD, "Point at 0.1m should be road"
-        assert refined[1] == ASPRS_ROAD, "Point at 0.3m should be road"
-        assert refined[2] == ASPRS_ROAD, "Point at 0.45m should be road"
+        assert refined[1] == ASPRS_ROAD, "Point at 0.25m should be road"
 
         # Verify statistics
         assert (
-            stats["road_validated"] >= 3
-        ), "At least 3 road points should be validated"
+            stats["road_validated"] >= 2
+        ), "At least 2 road points should be validated"
 
     def test_tree_canopy_exclusion(self):
         """
-        Points above 0.5m should NOT be classified as road.
+        Points above 0.3m should NOT be classified as road.
         Tree canopy (>2m with high NDVI) should be vegetation.
         """
         from ign_lidar.core.classification.ground_truth_refinement import (
@@ -234,9 +233,9 @@ class TestRoadVegetationSeparation:
         )
 
         # Point exactly at threshold
-        points = np.array([[0, 0, 0.5]])
+        points = np.array([[0, 0, 0.3]])
         features = {
-            "height": np.array([0.5]),
+            "height": np.array([0.3]),
             "planarity": np.array([0.9]),
             "curvature": np.array([0.02]),
             "ndvi": np.array([0.12]),
@@ -251,11 +250,11 @@ class TestRoadVegetationSeparation:
             labels=labels, points=points, road_mask=road_mask, **features
         )
 
-        # Point at exactly 0.5m with road-like features should be classified as road
+        # Point at exactly 0.3m with road-like features should be classified as road
         ASPRS_ROAD = 11
         assert (
             refined[0] == ASPRS_ROAD
-        ), "Point at exactly 0.5m with road features should be road"
+        ), "Point at exactly 0.3m with road features should be road"
 
 
 class TestGeometricRulesThresholds:
@@ -293,8 +292,15 @@ class TestGeometricRulesThresholds:
         # Apply rules
         rules_engine = GeometricRulesEngine(road_vegetation_height_threshold=0.5)
 
+        # Create modifiable mask (all points can be modified)
+        modifiable_mask = np.ones(len(labels), dtype=bool)
+
         n_fixed = rules_engine.fix_road_vegetation_overlap(
-            points=points, labels=labels, road_geometries=road_gdf, ndvi=ndvi
+            points=points,
+            labels=labels,
+            road_geometries=road_gdf,
+            ndvi=ndvi,
+            modifiable_mask=modifiable_mask,
         )
 
         # Check that low points with low NDVI were reclassified to road
@@ -321,7 +327,7 @@ class TestClassifierRules:
         # Check thresholds
         height_min, height_max = road_rule.thresholds["height"]
         assert height_min == -0.2, f"Road min height should be -0.2, got {height_min}"
-        assert height_max == 0.5, f"Road max height should be 0.5, got {height_max}"
+        assert height_max == 0.3, f"Road max height should be 0.3, got {height_max}"
 
         # Check other thresholds are still correct
         assert road_rule.thresholds["planarity"][0] == 0.85

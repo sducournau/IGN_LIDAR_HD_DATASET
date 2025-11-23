@@ -27,35 +27,20 @@ This module contains OPTIMIZED GPU implementations for maximum performance.
 
 Version: 4.0.0 (Phase 2A Consolidation)
 Date: October 19, 2025 (Phase 2 notes: November 21, 2025)
-"""
-"""
-DEPRECATED: This module is deprecated as of v3.6.0 and will be removed in v4.0.0.
 
-Use FeatureOrchestrator instead:
+**Status**: Active - Canonical GPU implementation used by GPUStrategy and GPUChunkedStrategy
+
+**Usage**: This module should not be used directly. Instead use:
+    - FeatureOrchestrator (recommended): High-level unified API
+    - GPUStrategy/GPUChunkedStrategy: Direct strategy usage
+    - This module is for internal use by strategies
+
+For direct usage example:
     from ign_lidar.features import FeatureOrchestrator
     
-    orchestrator = FeatureOrchestrator(config)
+    orchestrator = FeatureOrchestrator(use_gpu=True)
     features = orchestrator.compute_features(points, mode='lod2')
-
-Rationale:
-    - FeatureOrchestrator provides unified CPU/GPU feature computation
-    - Better integration with configuration system
-    - Cleaner API with strategy pattern
-    - Better memory management and performance
-
-Migration guide: docs/migration_guides/gpu_processor_to_orchestrator.md
 """
-
-import warnings
-
-warnings.warn(
-    "ign_lidar.features.gpu_processor is deprecated since v3.6.0. "
-    "Use ign_lidar.features.FeatureOrchestrator instead. "
-    "This module will be removed in v4.0.0. "
-    "See migration guide: docs/migration_guides/gpu_processor_to_orchestrator.md",
-    DeprecationWarning,
-    stacklevel=2
-)
 
 
 
