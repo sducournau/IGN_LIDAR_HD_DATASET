@@ -1,0 +1,243 @@
+name: Performance Benchmarks
+
+on:
+  # Run on PRs to main
+  pull_request:
+    branches: [main]
+    paths:
+      - "ign_lidar/**"
+      - "scripts/benchmark_performance.py"
+      - "baseline_v*.json"
+
+  # Run on pushes to main
+  push:
+    branches: [main]
+
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Benchmark mode"
+        required: true
+        default: "quick"
+        type: choice
+        options:
+          - quick
+          - full
+
+jobs:
+  benchmark-cpu:
+    name: CPU Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install numpy scipy scikit-learn
+
+      - name: Run CPU benchmarks
+        run: |
+          python scripts/benchmark_performance.py \
+            --quick \
+            --save benchmark_results_cpu.json
+
+      - name: Upload CPU results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-cpu
+          path: benchmark_results_cpu.json
+          retention-days: 30
+
+  benchmark-regression-check:
+    name: Regression Check (CPU)
+    runs-on: ubuntu-latest
+    needs: benchmark-cpu
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install numpy scipy scikit-learn
+
+      - name: Download CPU results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results-cpu
+
+      - name: Check for regressions
+        id: regression-check
+        run: |
+          set +e  # Don't fail immediately
+
+          # Run regression check
+          python scripts/benchmark_performance.py \
+            --baseline baseline_v3.8.0.json \
+            --threshold 0.05 \
+            --ci \
+            2>&1 | tee regression_check.log
+
+          EXIT_CODE=$?
+
+          # Save exit code for later
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+          # Always continue to comment on PR
+          exit 0
+
+      - name: Comment on PR (if regression)
+        if: github.event_name == 'pull_request' && steps.regression-check.outputs.exit_code != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const log = fs.readFileSync('regression_check.log', 'utf8');
+
+            const comment = `## ⚠️ Performance Regression Detected
+
+            The benchmark suite detected performance regressions in this PR.
+
+            <details>
+            <summary>Benchmark Results</summary>
+
+            \`\`\`
+            ${log}
+            \`\`\`
+
+            </details>
+
+            **Action Required:**
+            - Review the performance impact
+            - Optimize the code or update baseline if expected
+            - Consider using profiling: \`python scripts/benchmark_performance.py --verbose\`
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Comment on PR (if no regression)
+        if: github.event_name == 'pull_request' && steps.regression-check.outputs.exit_code == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `## ✅ Performance Check Passed
+
+            No performance regressions detected in this PR.
+
+            The benchmark suite completed successfully with all metrics within acceptable thresholds.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail if regression detected
+        if: steps.regression-check.outputs.exit_code != '0'
+        run: |
+          echo "❌ Performance regression detected - failing workflow"
+          exit 1
+
+  benchmark-full:
+    name: Full Benchmarks (on main)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install numpy scipy scikit-learn
+
+      - name: Run full benchmarks
+        run: |
+          python scripts/benchmark_performance.py \
+            --save benchmark_results_full.json
+
+      - name: Upload full results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-full
+          path: benchmark_results_full.json
+          retention-days: 90
+
+      - name: Create performance report
+        run: |
+          echo "# Performance Benchmark Report" > performance_report.md
+          echo "" >> performance_report.md
+          echo "**Date:** $(date)" >> performance_report.md
+          echo "**Commit:** ${{ github.sha }}" >> performance_report.md
+          echo "" >> performance_report.md
+          python -c "
+          import json
+          with open('benchmark_results_full.json', 'r') as f:
+              data = json.load(f)
+          print('## Metrics')
+          print('')
+          print('| Metric | Value | Unit |')
+          print('|--------|-------|------|')
+          for m in data['metrics']:
+              print(f\"| {m['name']} | {m['value']:.3f} | {m['unit']} |\")
+          " >> performance_report.md
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report
+          path: performance_report.md
+          retention-days: 90
+
+  # Optional: GPU benchmarks (requires self-hosted runner with GPU)
+  # benchmark-gpu:
+  #   name: GPU Benchmarks
+  #   runs-on: self-hosted  # Requires GPU-enabled runner
+  #   if: false  # Disabled by default
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Run GPU benchmarks
+  #       run: |
+  #         python scripts/benchmark_performance.py \
+  #           --quick \
+  #           --save benchmark_results_gpu.json
+  #
+  #     - name: Upload GPU results
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: benchmark-results-gpu
+  #         path: benchmark_results_gpu.json

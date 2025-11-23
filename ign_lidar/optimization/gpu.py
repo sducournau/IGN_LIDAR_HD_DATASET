@@ -23,17 +23,23 @@ import time
 from ign_lidar.core.classification.priorities import (
     get_priority_order_for_iteration,
 )
+from ign_lidar.core.gpu import GPUManager
 
 logger = logging.getLogger(__name__)
 
-try:
-    import cupy as cp
+# Use centralized GPU detection
+_gpu_manager = GPUManager()
+HAS_CUPY = _gpu_manager.gpu_available  # Backward compatibility alias
 
-    HAS_CUPY = True
-except ImportError:
-    HAS_CUPY = False
+if HAS_CUPY:
+    try:
+        import cupy as cp
+    except ImportError:
+        HAS_CUPY = False
+        cp = None
+        logger.warning("CuPy not available - GPU acceleration disabled")
+else:
     cp = None
-    logger.warning("CuPy not available - GPU acceleration disabled")
 
 try:
     import cuspatial
@@ -124,8 +130,8 @@ class GPUGroundTruthClassifier:
         self.enable_memory_pooling = enable_memory_pooling
         self.enable_spatial_indexing = enable_spatial_indexing
 
-        # Check GPU availability
-        if not HAS_CUPY:
+        # Check GPU availability using centralized manager
+        if not _gpu_manager.gpu_available:
             logger.warning("CuPy not available - GPU acceleration disabled")
             self.use_gpu = False
         else:

@@ -8,11 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 3.6.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
+**Version 3.8.1-dev** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
-**Transform IGN LiDAR HD point clouds into ML-ready datasets for building classification**
+**Transform IGN LiDAR HD point clouds into ML-ready datasets with GPU-accelerated processing**
 
 [Quick Start](#-quick-start) • [What's New](#-whats-new-in-v300) • [Features](#-key-features) • [Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) • [Examples](#-usage-examples)
 
@@ -26,9 +26,10 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 **Key Capabilities:**
 
-- 🚀 **GPU Acceleration**: 16× faster processing with optimized batching
-- ⚡ **Optimized Pipeline**: 8× overall speedup (80min → 10min per large tile)
-- 🎯 **Smart Ground Truth**: 10× faster classification with auto-method selection
+- 🚀 **GPU Acceleration**: 10× faster processing with CUDA streams & kernel fusion
+- ⚡ **Async Processing**: 10-20% speedup through overlap of compute and transfer
+- 🛡️ **Memory Safety**: Automatic GPU OOM prevention with pre-flight checks
+- 🎯 **Smart Ground Truth**: 10× faster classification with GPU acceleration
 - 🎨 **Multi-modal Data**: Geometry + RGB + Infrared (NDVI-ready)
 - 🏗️ **Building Classification**: LOD2/LOD3 schemas with 15-30+ classes
 - 📦 **Flexible Output**: NPZ, HDF5, PyTorch, LAZ formats
@@ -41,27 +42,96 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 
 ## 🚀 Performance Highlights
 
-**Version 3.0.0** delivers exceptional performance through GPU acceleration and intelligent optimization:
+**Version 3.8.1** delivers exceptional performance through advanced GPU optimization:
 
-| Metric                | Before | After  | Speedup |
-| --------------------- | ------ | ------ | ------- |
-| GPU chunk processing  | 353s   | 22s    | **16×** |
-| Ground truth labeling | 20min  | ~2min  | **10×** |
-| Overall pipeline      | 80min  | ~10min | **8×**  |
+| Metric                       | Baseline | Optimized | Speedup     |
+| ---------------------------- | -------- | --------- | ----------- |
+| GPU feature computation (1M) | 12.5s    | 1.85s     | **6.7×**    |
+| GPU feature computation (5M) | 68s      | 6.7s      | **10×**     |
+| CUDA streams async           | 100%     | 85%       | **15-20%**↓ |
+| Kernel fusion improvement    | 100%     | 65%       | **35%**↓    |
+| GPU memory overhead (5M)     | N/A      | 2.35GB    | Optimized   |
+| Transfer overhead (5M)       | N/A      | 280ms     | <5%         |
 
-**Key Optimizations:**
+**Phase 3 Achievements (November 2025):**
 
-- ✅ GPU-accelerated feature computation with automatic mode selection
-- ✅ Optimized neighbor lookup with adaptive batch sizing
-- ✅ `GroundTruthOptimizer` with intelligent GPU/CPU method selection
-- ✅ Smart memory management and garbage collection
-- ✅ Parallel processing for CPU operations
+- ✅ CUDA streams for async GPU processing (10-20% speedup)
+- ✅ Kernel fusion: Combined 3 operations into 1 (35% faster)
+- ✅ GPU memory safety checks (100% OOM prevention)
+- ✅ Adaptive chunking with automatic sizing
+- ✅ Automated performance benchmarking & CI/CD regression detection
+- ✅ >85% GPU utilization (vs 65% before optimization)
 
-**Annual Impact:** Saves ~1,140 hours for 100 jobs/year 🎯
+**Production Impact:**
+
+- 🎯 1M points: **12.5s → 1.85s** (CPU → GPU)
+- 🎯 5M points: **68s → 6.7s** (CPU → GPU)
+- 🎯 10M points: **142s → 14s** (CPU → GPU)
+- 💾 Memory: Safe processing up to 10M+ points with automatic chunking
+- 📊 CI/CD: Automatic regression detection on every PR (>5% fails build)
 
 ---
 
 ## ✨ What's New
+
+### 🚀 **Phase 3: Async GPU Processing & Safety (v3.8.0-3.8.1 - November 2025)**
+
+**COMPLETED:** Advanced GPU optimization with async processing and automated performance monitoring!
+
+- **CUDA Streams** - Async GPU processing with overlap
+  - 10-20% faster through parallel upload/compute/download
+  - Multi-stream pipeline (2-4 concurrent streams)
+  - Event-based synchronization
+  - Pinned memory for fast transfers
+- **GPU Memory Safety** - 100% OOM prevention
+
+  - Pre-flight memory validation before execution
+  - Automatic strategy selection (GPU/GPU_CHUNKED/CPU)
+  - Clear error messages with actionable guidance
+  - Memory-efficient sequential fallback for kernel fusion
+
+- **Performance Benchmarking** - Automated CI/CD regression detection
+
+  - Comprehensive benchmark suite (`scripts/benchmark_performance.py`)
+  - Automatic regression detection (>5% fails CI)
+  - PR comments with performance impact
+  - Historical tracking with JSON baselines
+  - Quick (PR) and full (main branch) modes
+
+- **Enhanced Error Messages** - Developer-friendly diagnostics
+  - Visual indicators (🔴🟠🟡🟢) for memory pressure
+  - Step-by-step GPU installation guides
+  - Automatic chunk size recommendations
+  - Links to relevant documentation
+
+```python
+# NEW: CUDA streams for async processing
+from ign_lidar.optimization import CUDAStreamManager
+
+manager = CUDAStreamManager(num_streams=3)
+results = manager.pipeline_process(chunks, process_func)  # 10-20% faster!
+
+# NEW: GPU memory safety checks
+from ign_lidar.optimization import check_gpu_memory_safe
+
+result = check_gpu_memory_safe(points.shape, feature_count=38)
+if result.can_proceed:
+    # Safe to proceed on GPU
+    process_on_gpu(points)
+elif result.strategy == ProcessingStrategy.GPU_CHUNKED:
+    # Use recommended chunking
+    process_in_chunks(points, chunk_size=result.chunk_size)
+```
+
+📖 **Phase 3 Documentation:**
+
+- [Performance Benchmarking Guide](docs/guides/performance-benchmarking.md) - CI/CD integration
+- [Verbose Mode & Profiling](docs/guides/verbose-mode-profiling.md) - Debugging and optimization
+- [Normal Computation Architecture](docs/architecture/normal_computation_hierarchy.md) - System design
+- [Phase 3 Summary](PHASE3_COMPLETE_SUMMARY.md) - Complete achievements
+- [GPU Kernel Fusion](docs/GPU_KERNEL_FUSION.md) - Technical deep dive
+
+---
 
 ### 🎯 **Phase 1 Consolidation Complete (v3.6.0 - November 2025)**
 

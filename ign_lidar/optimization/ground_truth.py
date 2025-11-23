@@ -86,12 +86,18 @@ except ImportError:
     HAS_SPATIAL = False
     logger.warning("Spatial libraries not available")
 
-try:
-    import cupy as cp
+# Use centralized GPU detection
+from ign_lidar.core.gpu import GPUManager as _GPUManager
+_local_gpu_mgr = _GPUManager()
+HAS_CUPY = _local_gpu_mgr.gpu_available
 
-    HAS_CUPY = True
-except ImportError:
-    HAS_CUPY = False
+if HAS_CUPY:
+    try:
+        import cupy as cp
+    except ImportError:
+        HAS_CUPY = False
+        cp = None
+else:
     cp = None
 
 try:

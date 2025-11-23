@@ -50,10 +50,21 @@ def check_gpu_available() -> bool:
         gpu_available = gpu_mgr.gpu_available
     
     This function is kept for backward compatibility only.
+    Will be removed in v4.0.0.
     
     Returns:
         True if CuPy and cuML are available, False otherwise
     """
+    import warnings
+    warnings.warn(
+        "check_gpu_available() is deprecated and will be removed in v4.0.0.\n"
+        "Use GPUManager instead:\n"
+        "  from ign_lidar.core.gpu import GPUManager\n"
+        "  gpu = GPUManager()\n"
+        "  if gpu.gpu_available: ...",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return _gpu_manager.gpu_available and _gpu_manager.cuml_available
 
 

@@ -75,6 +75,14 @@ from .gpu_transfer_profiler import (
     enable_automatic_tracking,
 )
 
+# Phase 3: Adaptive Chunking (November 2025 Audit)
+from .adaptive_chunking import (
+    auto_chunk_size,
+    estimate_gpu_memory_required,
+    get_recommended_strategy,
+    calculate_optimal_chunk_count,
+)
+
 # Phase 2: CUDA Stream Manager (November 2025)
 from .cuda_streams import (
     CUDAStreamManager,
@@ -128,6 +136,9 @@ __all__ = [
     'KNNEngine', 'KNNBackend', 'knn_search', 'radius_search', 'build_knn_graph', 'HAS_FAISS_GPU',
     # Phase 2: GPU Transfer Profiler (Nov 2025)
     'GPUTransferProfiler', 'TransferEvent', 'get_global_profiler', 'enable_automatic_tracking',
+    # Phase 3: Adaptive Chunking (Nov 2025 Audit)
+    'auto_chunk_size', 'estimate_gpu_memory_required', 'get_recommended_strategy',
+    'calculate_optimal_chunk_count',
     # Phase 2: CUDA Stream Manager (Nov 2025)
     'CUDAStreamManager', 'StreamConfig',
     # GPU dataframe operations (relocated to io/ in v3.1.0)

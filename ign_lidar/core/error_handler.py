@@ -56,7 +56,7 @@ class ProcessingError(Exception):
 
 
 class GPUMemoryError(ProcessingError):
-    """GPU out of memory error with detailed diagnostics."""
+    """GPU out of memory error with detailed diagnostics and recovery guidance."""
     
     @staticmethod
     def from_cuda_error(
@@ -66,70 +66,172 @@ class GPUMemoryError(ProcessingError):
         chunk_size: Optional[int] = None,
         num_points: Optional[int] = None
     ) -> 'GPUMemoryError':
-        """Create error from CUDA exception with context."""
+        """Create error from CUDA exception with comprehensive context and solutions."""
         context = {}
         
         if current_vram_gb is not None and total_vram_gb is not None:
             context['VRAM Usage'] = (
-                f"{current_vram_gb:.1f}GB / {total_vram_gb:.1f}GB"
+                f"{current_vram_gb:.1f}GB / {total_vram_gb:.1f}GB "
+                f"({100*current_vram_gb/total_vram_gb:.0f}% full)"
             )
             context['VRAM Free'] = f"{total_vram_gb - current_vram_gb:.1f}GB"
+            
+            # Memory pressure indicator
+            pressure = current_vram_gb / total_vram_gb
+            if pressure > 0.95:
+                context['Memory Pressure'] = "🔴 CRITICAL (>95%)"
+            elif pressure > 0.85:
+                context['Memory Pressure'] = "🟠 HIGH (>85%)"
+            elif pressure > 0.70:
+                context['Memory Pressure'] = "🟡 MODERATE (>70%)"
+            else:
+                context['Memory Pressure'] = "🟢 LOW (<70%)"
         
         if chunk_size is not None:
-            context['Chunk Size'] = f"{chunk_size:,} points"
+            context['Current Chunk Size'] = f"{chunk_size:,} points"
+            
+            # Suggest new chunk size (50% reduction)
+            new_chunk_size = int(chunk_size * 0.5)
+            context['Suggested Chunk Size'] = f"{new_chunk_size:,} points (-50%)"
         
         if num_points is not None:
             context['Total Points'] = f"{num_points:,}"
             if chunk_size:
                 num_chunks = (num_points + chunk_size - 1) // chunk_size
                 context['Number of Chunks'] = num_chunks
+                
+                # Estimate new chunk count with reduced size
+                if chunk_size > 0:
+                    new_chunk_size = int(chunk_size * 0.5)
+                    new_num_chunks = (num_points + new_chunk_size - 1) // new_chunk_size
+                    context['New Chunk Count'] = f"{new_num_chunks} (was {num_chunks})"
         
         suggestions = [
-            "Reduce chunk size: Edit config or use smaller value",
-            "Use CPU mode: Remove --use-gpu flag",
-            "Close other GPU applications to free VRAM",
-            "Process fewer files simultaneously",
-            "Upgrade to GPU with more VRAM (≥8GB recommended)"
+            "🔧 Quick Fixes (choose one):",
+            "",
+            "1️⃣  Reduce chunk size (RECOMMENDED):",
+            "   • Config file: Set smaller 'chunk_size' value",
+            "   • Command line: --chunk-size 500000",
+            f"   • Try: {int(chunk_size * 0.5):,} points (50% of current)" if chunk_size else "",
+            "",
+            "2️⃣  Switch to CPU mode:",
+            "   • Remove --use-gpu flag",
+            "   • Or set use_gpu: false in config.yaml",
+            "   • Slower but no memory limits",
+            "",
+            "3️⃣  Free GPU memory:",
+            "   • Close other GPU applications",
+            "   • Check: nvidia-smi (kill process if needed)",
+            "   • Use: fuser -v /dev/nvidia*",
+            "",
+            "4️⃣  Process fewer files:",
+            "   • Reduce num_workers in config",
+            "   • Process one tile at a time",
+            "   • Use sequential processing",
+            "",
+            "5️⃣  Hardware upgrade:",
+            "   • Current GPU may be insufficient",
+            "   • Recommended: ≥8GB VRAM",
+            "   • Ideal: ≥16GB VRAM for large tiles",
+            "",
+            "📊 Memory Estimation Guide:",
+            "   • 1M points ≈ 500MB VRAM",
+            "   • 5M points ≈ 2.5GB VRAM",
+            "   • 10M points ≈ 5GB VRAM",
+            "",
+            "🔍 Debug Mode:",
+            "   • Enable: --verbose",
+            "   • Shows memory usage per operation",
+            "   • Helps identify memory peaks"
         ]
         
+        # Filter empty suggestions
+        suggestions = [s for s in suggestions if s.strip() or not s]
+        
         return GPUMemoryError(
-            message="GPU out of memory (VRAM limit exceeded)",
+            message="🚫 GPU out of memory (VRAM limit exceeded)",
             suggestions=suggestions,
             context=context
         )
 
 
 class GPUNotAvailableError(ProcessingError):
-    """GPU requested but not available."""
+    """GPU requested but not available with detailed installation guidance."""
     
     @staticmethod
     def create(reason: str = "Unknown") -> 'GPUNotAvailableError':
-        """Create error with diagnostics."""
+        """Create error with comprehensive diagnostics and installation guidance."""
         context = {
             'Reason': reason,
             'CuPy Available': GPU_AVAILABLE,
             'Python Version': sys.version.split()[0]
         }
         
+        # Determine CUDA version if nvidia-smi available
+        try:
+            import subprocess
+            result = subprocess.run(
+                ['nvidia-smi', '--query-gpu=driver_version', '--format=csv,noheader'],
+                capture_output=True, text=True, timeout=2
+            )
+            if result.returncode == 0:
+                context['NVIDIA Driver'] = result.stdout.strip()
+        except Exception:
+            context['NVIDIA Driver'] = 'Not detected'
+        
         suggestions = []
         
         if not GPU_AVAILABLE:
+            # CuPy not installed - provide detailed installation guide
             suggestions.extend([
-                "Install CuPy: pip install cupy-cuda11x (or cuda12x)",
-                "Verify CUDA installation: nvidia-smi",
-                "Check NVIDIA drivers are installed",
-                "Use CPU mode: Remove --use-gpu flag"
+                "📦 Install CuPy for your CUDA version:",
+                "   • CUDA 11.x: pip install cupy-cuda11x",
+                "   • CUDA 12.x: pip install cupy-cuda12x",
+                "   • Auto-detect: pip install cupy",
+                "",
+                "🔍 Check your CUDA version:",
+                "   • Run: nvidia-smi",
+                "   • Look for 'CUDA Version: X.Y'",
+                "",
+                "🐧 Install NVIDIA drivers (if missing):",
+                "   • Ubuntu/Debian: sudo apt install nvidia-driver-535",
+                "   • Windows: Download from nvidia.com/drivers",
+                "   • Verify: nvidia-smi should show GPU info",
+                "",
+                "🔄 Alternative: Use CPU mode",
+                "   • Remove --use-gpu flag from command",
+                "   • Or set use_gpu: false in config.yaml",
+                "",
+                "📚 Full guide: docs/guides/gpu-setup.md"
             ])
         else:
+            # CuPy installed but GPU not detected
             suggestions.extend([
-                "Check GPU availability: nvidia-smi",
-                "Verify CUDA drivers: nvidia-smi",
-                "Restart Python interpreter",
-                "Use CPU mode: Remove --use-gpu flag"
+                "🔍 Diagnose GPU availability:",
+                "   • Run: nvidia-smi",
+                "   • Should show GPU name and memory",
+                "",
+                "⚡ Possible issues:",
+                "   • GPU being used by another process",
+                "   • Driver version mismatch with CUDA",
+                "   • CUDA_VISIBLE_DEVICES set incorrectly",
+                "",
+                "🔧 Quick fixes:",
+                "   • Restart Python interpreter",
+                "   • Check: echo $CUDA_VISIBLE_DEVICES",
+                "   • Kill other GPU processes",
+                "",
+                "🔄 Fallback to CPU:",
+                "   • Remove --use-gpu flag",
+                "   • Or set use_gpu: false in config",
+                "",
+                "🆘 Still broken? Report issue:",
+                "   • GitHub: github.com/sducournau/IGN_LIDAR_HD_DATASET/issues",
+                "   • Include output of nvidia-smi"
             ])
         
         return GPUNotAvailableError(
-            message="GPU requested but not available",
+            message="🚫 GPU requested but not available",
             suggestions=suggestions,
             context=context
         )
