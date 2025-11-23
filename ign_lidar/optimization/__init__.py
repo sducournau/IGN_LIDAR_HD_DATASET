@@ -57,7 +57,7 @@ from .gpu_kdtree import (
     KDTree,   # Drop-in replacement for sklearn.neighbors.KDTree
 )
 
-# Phase 2: Unified KNN Engine (November 2025)
+# Phase 2: KNN Engine (November 2025)
 from .knn_engine import (
     KNNEngine,
     KNNBackend,

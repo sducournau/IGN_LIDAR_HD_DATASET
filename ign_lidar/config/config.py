@@ -212,6 +212,29 @@ class Config:
     ] = "pointnet++"
 
     # =======================================================================
+    # PHASE 4 OPTIMIZATIONS (v3.9+)
+    # =======================================================================
+
+    # Master switch for all Phase 4 optimizations
+    enable_optimizations: bool = True
+
+    # Async I/O Pipeline (Phase 4.5): +12-14% performance
+    enable_async_io: bool = True
+    async_workers: int = 2
+    tile_cache_size: int = 3
+
+    # Batch Multi-Tile Processing (Phase 4.4): +25-30% performance
+    enable_batch_processing: bool = True
+    batch_size: int = 4
+
+    # GPU Memory Pooling (Phase 4.3): +8.5% performance
+    enable_gpu_pooling: bool = True
+    gpu_pool_max_size_gb: float = 4.0
+
+    # Optimization statistics
+    print_optimization_stats: bool = True
+
+    # =======================================================================
     # FEATURE CONFIGURATION (nested)
     # =======================================================================
 

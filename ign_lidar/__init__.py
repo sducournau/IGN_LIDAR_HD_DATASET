@@ -48,7 +48,7 @@ from .core.classification import BaseClassifier, ClassificationResult
 
 # Core processing modules
 from .core.processor import LiDARProcessor
-from .core import ground_truth  # New v2.0 unified API
+from .core import ground_truth
 
 # Feature extraction
 from .features import (
@@ -328,7 +328,7 @@ __all__ = [
     # ========== Core v2.0 ==========
     # Processor
     "LiDARProcessor",
-    # Ground Truth v2.0 (NEW - Unified API)
+    # Ground Truth v2.0
     "ground_truth",
     # Features
     "compute_normals",

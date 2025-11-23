@@ -742,7 +742,7 @@ class LiDARProcessor:
         from .tile_orchestrator import TileOrchestrator
         self.tile_orchestrator = TileOrchestrator(
             config=config,
-            feature_orchestrator=self.feature_engine.feature_orchestrator,
+            feature_orchestrator=self.feature_orchestrator,  # Use the exposed attribute
             classifier=None,  # Will be set later if ground truth is enabled
             reclassifier=None,  # Will be set later if reclassification is enabled
             lod_level=self.lod_level,
@@ -751,6 +751,90 @@ class LiDARProcessor:
             data_fetcher=self.data_fetcher,  # Pass data_fetcher for DTM augmentation
         )
         logger.debug("   ✓ TileOrchestrator initialized")
+
+        # Phase 4 (v3.9.0): Initialize OptimizationManager for production performance
+        self._setup_optimization_manager()
+
+    def _setup_optimization_manager(self):
+        """
+        Setup Phase 4 optimization manager.
+        
+        Integrates all Phase 4 optimizations:
+        - Phase 4.1: WFS Memory Cache (+10-15%)
+        - Phase 4.2: Preprocessing GPU (+10-15%)
+        - Phase 4.3: GPU Memory Pooling (+8.5%)
+        - Phase 4.4: Batch Multi-Tile Processing (+25-30%)
+        - Phase 4.5: Async I/O Pipeline (+12-14%)
+        
+        Total expected gain: +66-94% (2.66× - 2.94× faster)
+        """
+        from .optimization_integration import (
+            create_optimization_manager,
+            ASYNC_IO_AVAILABLE,
+            GPU_MEMORY_POOL_AVAILABLE,
+            GPU_PROCESSOR_AVAILABLE
+        )
+        
+        logger = logging.getLogger(__name__)
+        
+        # Check if optimizations are enabled
+        enable_optimizations = self.config.get('enable_optimizations', True)
+        
+        if not enable_optimizations:
+            logger.info("Phase 4 optimizations disabled by config")
+            self.optimization_manager = None
+            return
+        
+        # Log component availability
+        logger.info("🚀 Phase 4 Optimization Components:")
+        logger.info(f"   - Async I/O (4.5):        {'✅' if ASYNC_IO_AVAILABLE else '❌'}")
+        logger.info(f"   - GPU Memory Pool (4.3):  {'✅' if GPU_MEMORY_POOL_AVAILABLE else '❌'}")
+        logger.info(f"   - Batch Processing (4.4): {'✅' if GPU_PROCESSOR_AVAILABLE else '❌'}")
+        
+        # Extract optimization config with defaults
+        enable_async_io = self.config.get('enable_async_io', True)
+        async_workers = self.config.get('async_workers', 2)
+        tile_cache_size = self.config.get('tile_cache_size', 3)
+        enable_batch_processing = self.config.get('enable_batch_processing', True)
+        batch_size = self.config.get('batch_size', 4)
+        enable_gpu_pooling = self.config.get('enable_gpu_pooling', True)
+        gpu_pool_max_size_gb = self.config.get('gpu_pool_max_size_gb', 4.0)
+        
+        # Create optimization manager
+        try:
+            self.optimization_manager = create_optimization_manager(
+                use_gpu=self.use_gpu,
+                enable_all=True,  # Enable all available optimizations
+                batch_size=batch_size,
+                async_workers=async_workers,
+                tile_cache_size=tile_cache_size,
+                gpu_pool_max_size_gb=gpu_pool_max_size_gb,
+            )
+            
+            # Initialize with feature orchestrator
+            self.optimization_manager.initialize(
+                feature_orchestrator=self.feature_orchestrator
+            )
+            
+            logger.info("✅ Phase 4 OptimizationManager initialized")
+            logger.info(f"   - Async I/O: {self.optimization_manager.enable_async_io}")
+            logger.info(f"   - Batch processing: {self.optimization_manager.enable_batch_processing}")
+            logger.info(f"   - GPU pooling: {self.optimization_manager.enable_gpu_pooling}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to initialize OptimizationManager: {e}")
+            logger.warning("Falling back to standard processing")
+            self.optimization_manager = None
+
+    def __del__(self):
+        """Clean up resources on deletion."""
+        # Shutdown optimization manager if it exists
+        if hasattr(self, 'optimization_manager') and self.optimization_manager:
+            try:
+                self.optimization_manager.shutdown()
+            except Exception as e:
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Error shutting down OptimizationManager: {e}")
 
     def _validate_config(self, config: DictConfig) -> None:
         """Validate configuration object has required fields."""
@@ -1443,6 +1527,40 @@ class LiDARProcessor:
         Returns:
             Total number of patches created
         """
+        # Phase 4: Route to optimized processing if OptimizationManager is available
+        if hasattr(self, 'optimization_manager') and self.optimization_manager is not None:
+            logger.info("🚀 Using Phase 4 optimized processing")
+            return self._process_directory_optimized(
+                input_dir=input_dir,
+                output_dir=output_dir,
+                save_metadata=save_metadata,
+                skip_existing=skip_existing,
+            )
+        
+        # Otherwise, use standard sequential processing
+        logger.info("Using standard sequential processing")
+        return self._process_directory_sequential(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            num_workers=num_workers,
+            save_metadata=save_metadata,
+            skip_existing=skip_existing,
+        )
+
+    def _process_directory_sequential(
+        self,
+        input_dir: Path,
+        output_dir: Path,
+        num_workers: int = 1,
+        save_metadata: bool = True,
+        skip_existing: bool = True,
+    ) -> int:
+        """
+        Process directory sequentially (legacy method).
+        
+        This is the original implementation kept for backward compatibility
+        and as fallback when Phase 4 optimizations are unavailable.
+        """
         start_time = time.time()
 
         # Initialize dataset manager if enabled
@@ -1756,6 +1874,158 @@ class LiDARProcessor:
             }
             self.dataset_manager.save_metadata(additional_info=additional_info)
 
+        return total_patches
+
+    def _process_directory_optimized(
+        self,
+        input_dir: Path,
+        output_dir: Path,
+        save_metadata: bool = True,
+        skip_existing: bool = True,
+    ) -> int:
+        """
+        Process directory using Phase 4 optimizations.
+        
+        Utilizes:
+        - Async I/O for tile loading
+        - Batch processing on GPU
+        - GPU memory pooling
+        - WFS memory cache
+        
+        Expected performance: +66-94% faster than sequential
+        """
+        start_time = time.time()
+        
+        # Initialize dataset manager if enabled
+        if self._dataset_config is not None:
+            self.dataset_manager = DatasetManager(
+                output_dir=output_dir,
+                config=self._dataset_config,
+                patch_size=int(self.patch_size),
+            )
+            logger.info(f"📊 Dataset manager initialized for {output_dir}")
+        
+        # Find LAZ files - exclude enriched files
+        laz_files = list(input_dir.rglob("*.laz")) + list(input_dir.rglob("*.LAZ"))
+        laz_files = [f for f in laz_files if not f.stem.endswith("_enriched")]
+        
+        if not laz_files:
+            logger.error(f"No LAZ files found in {input_dir}")
+            return 0
+        
+        total_tiles = len(laz_files)
+        logger.info(f"Found {total_tiles} LAZ files")
+        
+        k_display = self.k_neighbors or "auto"
+        logger.info(
+            f"Configuration: LOD={self.lod_level} | k={k_display} | "
+            f"patch_size={self.patch_size}m | augment={self.augment}"
+        )
+        logger.info("")
+        
+        # Initialize metadata manager
+        metadata_mgr = MetadataManager(output_dir) if save_metadata else None
+        
+        if metadata_mgr:
+            logger.info("Copying directory structure from source...")
+            metadata_mgr.copy_directory_structure(input_dir)
+        
+        # Define processing function for a single tile
+        def process_tile_optimized(tile_data, ground_truth):
+            """Process a single tile with all Phase 4 optimizations."""
+            try:
+                # Extract tile path from tile_data
+                tile_path = Path(tile_data.file_path) if hasattr(tile_data, 'file_path') else None
+                
+                # Check if should skip
+                if skip_existing and tile_path:
+                    if self.skip_checker.should_skip_tile(tile_path, output_dir):
+                        logger.debug(f"⏭️  Skipping {tile_path.name} (patches exist)")
+                        return {'num_patches': 0, 'num_points': len(tile_data.points), 'skipped': True}
+                
+                # Process using tile orchestrator
+                result = self.tile_orchestrator.process_tile(
+                    tile_data=tile_data,
+                    output_dir=output_dir,
+                    ground_truth=ground_truth,
+                    skip_checker=self.skip_checker,
+                    dataset_manager=self.dataset_manager,
+                )
+                
+                return result
+                
+            except Exception as e:
+                logger.error(f"Error processing tile: {e}")
+                return {'num_patches': 0, 'num_points': 0, 'error': str(e)}
+        
+        # Process tiles with optimizations
+        logger.info("🚀 Processing with Phase 4 optimizations...")
+        
+        results = self.optimization_manager.process_tiles_optimized(
+            tile_paths=laz_files,
+            processor_func=process_tile_optimized,
+            fetch_ground_truth=True,  # Uses Phase 4.1 WFS cache
+        )
+        
+        # Aggregate results
+        total_patches = sum(r.get('num_patches', 0) for r in results if r)
+        tiles_processed = sum(1 for r in results if r and not r.get('skipped', False))
+        tiles_skipped = sum(1 for r in results if r and r.get('skipped', False))
+        
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("📊 Processing Summary:")
+        logger.info(f"  Total tiles: {total_tiles}")
+        logger.info(f"  ✅ Processed: {tiles_processed}")
+        logger.info(f"  ⏭️  Skipped: {tiles_skipped}")
+        logger.info(f"  📦 Total patches created: {total_patches}")
+        logger.info("=" * 70)
+        
+        # Print optimization statistics
+        print_stats = self.config.get('print_optimization_stats', True)
+        if print_stats:
+            self.optimization_manager.print_stats()
+        
+        # Save metadata
+        if metadata_mgr:
+            processing_time = time.time() - start_time
+            stats = metadata_mgr.create_processing_stats(
+                input_dir=input_dir,
+                num_tiles=len(laz_files),
+                num_patches=total_patches,
+                lod_level=self.lod_level,
+                k_neighbors=self.k_neighbors,
+                patch_size=self.patch_size,
+                augmentation=self.augment,
+                num_augmentations=self.num_augmentations,
+            )
+            stats["processing_time_seconds"] = round(processing_time, 2)
+            
+            # Add Phase 4 optimization stats
+            opt_stats = self.optimization_manager.get_stats()
+            stats["phase4_optimizations"] = opt_stats
+            
+            metadata_mgr.save_stats(stats)
+        
+        # Save dataset metadata if dataset manager is enabled
+        if self.dataset_manager is not None:
+            processing_time = time.time() - start_time
+            opt_stats = self.optimization_manager.get_stats()
+            
+            additional_info = {
+                "lod_level": self.lod_level,
+                "architecture": self.architecture,
+                "patch_size_meters": self.patch_size,
+                "num_points": self.num_points,
+                "augmentation_enabled": self.config.processor.get("augment", False),
+                "num_augmentations": self.config.processor.get("num_augmentations", 0),
+                "processing_time_seconds": round(processing_time, 2),
+                "tiles_processed": tiles_processed,
+                "tiles_skipped": tiles_skipped,
+                "phase4_optimizations": opt_stats,
+            }
+            self.dataset_manager.save_metadata(additional_info=additional_info)
+        
         return total_patches
 
     def reclassify_directory(

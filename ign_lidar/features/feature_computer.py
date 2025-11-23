@@ -1,6 +1,12 @@
 """
 Feature Computer - Single Entry Point for All Computation Modes
 
+⚠️ DEPRECATED: This class is deprecated and will be removed in v4.0.
+Use FeatureOrchestrator directly instead:
+    from ign_lidar.features import FeatureOrchestrator
+    orchestrator = FeatureOrchestrator(config)
+    features = orchestrator.compute_features(tile_data)
+
 This module provides an interface for feature computation that automatically
 selects the optimal computation mode (CPU, GPU, GPU Chunked, or Boundary) based on
 point cloud characteristics and hardware availability.
@@ -58,6 +64,8 @@ class FeatureComputer:
         """
         Initialize the feature computer.
         
+        ⚠️ DEPRECATED: Use FeatureOrchestrator directly instead.
+        
         Args:
             mode_selector: Custom mode selector (auto-created if None)
             force_mode: Force specific computation mode
@@ -65,6 +73,14 @@ class FeatureComputer:
             prefer_gpu: Whether to prefer GPU modes when possible
             **kwargs: Additional arguments passed to mode-specific computers
         """
+        import warnings
+        warnings.warn(
+            "FeatureComputer is deprecated and will be removed in v4.0. "
+            "Use FeatureOrchestrator directly: "
+            "from ign_lidar.features import FeatureOrchestrator",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.mode_selector = mode_selector or get_mode_selector(prefer_gpu=prefer_gpu)
         self.force_mode = force_mode
         self.progress_callback = progress_callback

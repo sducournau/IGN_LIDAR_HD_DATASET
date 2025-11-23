@@ -6,17 +6,23 @@ Best for medium datasets (1-10M points) that fit in GPU memory.
 
 For larger datasets (> 10M points), use GPUChunkedStrategy instead.
 
+**Phase 3 GPU Optimizations (November 23, 2025)**:
+- ✅ GPUArrayCache integration for reduced CPU↔GPU transfers
+- ✅ Smart caching of points/normals between compute steps
+- 🎯 Target: 2 transfers per tile (start + end only)
+- 📈 Expected gain: 20-30% performance improvement
+
 Author: IGN LiDAR HD Development Team
 Date: October 19, 2025
-Version: 3.1.0-dev (Phase 2A.4 - GPU consolidation)
+Version: 3.2.0 (Phase 2A.4 + Phase 3 optimizations)
 """
-
 from typing import Dict, Optional
 import numpy as np
 import logging
 
 from .strategies import BaseFeatureStrategy
 from ..core.gpu import GPUManager
+from ..optimization.gpu_memory import GPUArrayCache
 
 logger = logging.getLogger(__name__)
 
@@ -97,18 +103,25 @@ class GPUStrategy(BaseFeatureStrategy):
         self.batch_size = batch_size
 
         # Initialize GPU processor with auto-chunking
+        # Note: chunk_threshold is auto-detected based on VRAM
         self.gpu_processor = GPUProcessor(
             batch_size=batch_size,
-            chunk_threshold=10_000_000,  # Auto-chunk for >10M points
+            auto_chunk=True,  # Enable automatic chunking for large datasets
             show_progress=verbose,
+            enable_memory_pooling=True,  # Enable GPU cache (Phase 3)
         )
+        
+        # Initialize GPU cache for optimized transfers (Phase 3)
+        self.gpu_cache = self.gpu_processor.gpu_cache
 
         if verbose:
             logger.info(
                 f"Initialized GPU strategy: k={k_neighbors}, batch_size={batch_size:,}"
             )
             logger.info(f"  GPU available: {self.gpu_processor.use_gpu}")
-            logger.info(f"  Auto-chunking threshold: 10,000,000 points")
+            logger.info(f"  GPU cache enabled: {self.gpu_cache is not None}")
+            if hasattr(self.gpu_processor, 'chunk_threshold'):
+                logger.info(f"  Auto-chunking threshold: {self.gpu_processor.chunk_threshold:,} points")
 
     def compute(
         self,

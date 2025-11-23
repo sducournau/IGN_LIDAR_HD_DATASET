@@ -1,10 +1,10 @@
 """
-Unified K-Nearest Neighbors Engine
+K-Nearest Neighbors Engine
 
 Single source of truth for all KNN operations across the codebase.
 
 This module consolidates 18+ scattered KNN/KDTree implementations into
-a unified, high-performance engine with:
+a high-performance engine with:
 - Multi-backend support (FAISS-GPU, cuML, sklearn)
 - Automatic backend selection based on data size and hardware
 - Consistent API across all backends
@@ -68,12 +68,12 @@ from sklearn.neighbors import NearestNeighbors
 
 
 # ============================================================================
-# KNN Engine - Unified API
+# KNN Engine
 # ============================================================================
 
 class KNNEngine:
     """
-    Unified K-Nearest Neighbors engine with multi-backend support.
+    K-Nearest Neighbors engine with multi-backend support.
     
     This class provides a single, consistent API for KNN operations
     across all backends (FAISS-GPU, FAISS-CPU, cuML, sklearn).

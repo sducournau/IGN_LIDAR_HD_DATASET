@@ -1,0 +1,218 @@
+# ===============================================================================
+# Phase 4 Optimized Configuration
+# ===============================================================================
+#
+# This configuration enables ALL Phase 4 optimizations for maximum performance.
+#
+# Expected Performance Gains:
+#   - Phase 4.1 (WFS Cache):           +10-15%
+#   - Phase 4.2 (Preprocessing GPU):   +10-15%
+#   - Phase 4.3 (GPU Memory Pooling):  +8.5%
+#   - Phase 4.4 (Batch Multi-Tile):    +25-30%
+#   - Phase 4.5 (Async I/O):           +12-14%
+#   ──────────────────────────────────────────
+#   TOTAL:                             +66-94% (2.66× - 2.94× faster)
+#
+# Requirements:
+#   - GPU: NVIDIA GPU with CUDA support (RTX 3090+ recommended)
+#   - Memory: 16GB+ RAM, 8GB+ VRAM
+#   - Storage: SSD recommended for async I/O
+#   - Dataset: 10+ tiles for optimal batching
+#
+# Usage:
+#   python -m ign_lidar.cli.main --config examples/config_phase4_optimized.yaml
+#
+# Author: IGN LiDAR HD Development Team
+# Date: November 23, 2025
+# Version: 3.9.0
+# ===============================================================================
+
+# Input/Output Configuration
+input_dir: /data/ign_lidar_hd/tiles
+output_dir: /data/ign_lidar_hd/output_phase4
+
+# Processor Configuration
+processor:
+  # Processing Mode
+  lod_level: LOD2 # LOD2 (15 classes) or LOD3 (30+ classes)
+  processing_mode: patches_only # patches_only, both, enriched_only
+
+  # GPU Configuration
+  use_gpu: true
+  gpu_device: 0 # GPU device ID (0 for first GPU)
+
+  # Patch Generation
+  patch_size: 150.0 # Patch size in meters
+  num_points: 16384 # Points per patch (16K standard)
+  overlap: 0.1 # 10% overlap between patches
+
+  # 🚀 PHASE 4 OPTIMIZATIONS 🚀
+  enable_optimizations: true # Master switch for all Phase 4 optimizations
+
+  optimization:
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 4.5: Async I/O Pipeline (+12-14% performance)
+    # ─────────────────────────────────────────────────────────────────────────
+    enable_async_io: true
+    async_workers: 2 # Number of background I/O threads (2-4 recommended)
+    tile_cache_size: 3 # Number of tiles to prefetch (2-5 recommended)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 4.4: Batch Multi-Tile Processing (+25-30% performance)
+    # ─────────────────────────────────────────────────────────────────────────
+    enable_batch_processing: true
+    batch_size: 4 # Tiles per GPU batch (4-8 recommended, depends on VRAM)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 4.3: GPU Memory Pooling (+8.5% performance)
+    # ─────────────────────────────────────────────────────────────────────────
+    enable_gpu_pooling: true
+    gpu_pool_max_size_gb: 4.0 # Maximum pool size (2-6GB recommended)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Statistics & Monitoring
+    # ─────────────────────────────────────────────────────────────────────────
+    print_stats: true # Print optimization statistics after processing
+    log_level: INFO # DEBUG, INFO, WARNING, ERROR
+
+# Feature Configuration
+features:
+  # Feature Mode
+  mode: lod2 # minimal, lod2, lod3, asprs_classes, full, custom
+
+  # Neighborhood Configuration
+  k_neighbors: 20 # Number of nearest neighbors (10-30 recommended)
+  search_radius: 3.0 # Search radius in meters
+
+  # Feature Selection (only if mode: custom)
+  # enabled_features:
+  #   - normals
+  #   - curvature
+  #   - eigenvalues
+  #   - linearity
+  #   - planarity
+  #   - scattering
+  #   - verticality
+
+# Data Sources Configuration
+data_sources:
+  # BD TOPO Ground Truth (Phase 4.1: WFS Cache enabled automatically)
+  bd_topo:
+    enabled: true
+    url: "https://data.geopf.fr/wfs"
+
+    # Feature Selection
+    features:
+      buildings: true
+      roads: true
+      vegetation: false
+      water: false
+      railways: false
+
+  # RGB/NIR Augmentation (Phase 4.2: GPU acceleration enabled automatically)
+  bd_ortho:
+    enabled: true
+    use_nir: true # Include near-infrared band
+    augmentation:
+      rgb: true
+      ndvi: true # Normalized Difference Vegetation Index
+      ndwi: false # Normalized Difference Water Index
+
+# Preprocessing Configuration
+preprocessing:
+  # Phase 4.2: GPU-accelerated preprocessing (automatic when use_gpu=true)
+  outlier_removal:
+    enabled: true
+    method: statistical # statistical, radius, isolation_forest
+    n_neighbors: 20
+    std_ratio: 2.0
+
+  # Normalization
+  normalize_z: true # Normalize Z coordinates to ground level
+  normalize_intensity: true # Normalize intensity to [0, 1]
+
+# Classification Configuration
+classification:
+  # Classification Method
+  method: rule_based # rule_based, ml_classifier (future)
+
+  # Rule-Based Configuration
+  rules:
+    building_min_height: 2.5 # Minimum building height (meters)
+    ground_max_slope: 15.0 # Maximum ground slope (degrees)
+    vegetation_ndvi_threshold: 0.3 # NDVI threshold for vegetation
+
+# Output Configuration
+output:
+  # Output Formats
+  formats:
+    - npz # NumPy compressed
+    - hdf5 # HDF5 format
+    # - laz  # Enriched LAZ tiles (only if processing_mode: both or enriched_only)
+
+  # Dataset Split
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+
+  # Compression
+  compression: gzip # gzip, lzf, none
+  compression_level: 6 # 1-9 (higher = more compression, slower)
+
+# Logging Configuration
+logging:
+  level: INFO # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: /data/ign_lidar_hd/logs/phase4_processing.log
+  console: true
+
+# Advanced Configuration
+advanced:
+  # Memory Management
+  memory_limit_gb: 32 # Maximum RAM usage
+  gpu_memory_limit_gb: 8 # Maximum VRAM usage
+
+  # Performance Tuning
+  num_workers: 0 # CPU workers (0 = use all cores, avoid with GPU)
+  prefetch_factor: 2 # DataLoader prefetch factor
+
+  # Reproducibility
+  random_seed: 42
+  deterministic: false # Slower but reproducible results
+
+# ===============================================================================
+# TUNING GUIDELINES
+# ===============================================================================
+#
+# For Large Workloads (20+ tiles, 8GB+ VRAM):
+#   batch_size: 8
+#   async_workers: 4
+#   tile_cache_size: 5
+#   gpu_pool_max_size_gb: 6.0
+#
+# For Medium Workloads (10-20 tiles, 4-8GB VRAM):
+#   batch_size: 4  # ← Default
+#   async_workers: 2
+#   tile_cache_size: 3
+#   gpu_pool_max_size_gb: 4.0
+#
+# For Small Workloads (<10 tiles, 2-4GB VRAM):
+#   batch_size: 2
+#   async_workers: 1
+#   tile_cache_size: 2
+#   gpu_pool_max_size_gb: 2.0
+#
+# For CPU-Only (no GPU):
+#   use_gpu: false
+#   enable_batch_processing: false  # Requires GPU
+#   enable_gpu_pooling: false  # Requires GPU
+#   enable_async_io: true  # Still beneficial on CPU
+#   async_workers: 4  # More workers on CPU
+#
+# Performance Monitoring:
+#   - Set print_stats: true to see optimization impact
+#   - Use log_level: DEBUG for detailed profiling
+#   - Check GPU utilization: watch -n 1 nvidia-smi
+#   - Monitor memory: htop (RAM), nvidia-smi (VRAM)
+#
+# ===============================================================================

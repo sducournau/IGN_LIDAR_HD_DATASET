@@ -1,5 +1,11 @@
-"""
+"""  
 Feature Engine - Wrapper for FeatureOrchestrator
+
+⚠️ DEPRECATED: This wrapper class is deprecated and will be removed in v4.0.
+Use FeatureOrchestrator directly instead:
+    from ign_lidar.features import FeatureOrchestrator
+    orchestrator = FeatureOrchestrator(config)
+    features = orchestrator.compute_features(tile_data)
 
 This module provides a thin wrapper around FeatureOrchestrator to decouple
 LiDARProcessor from direct feature computation logic.
@@ -61,6 +67,8 @@ class FeatureEngine:
         """
         Initialize the feature engine.
         
+        ⚠️ DEPRECATED: Use FeatureOrchestrator directly instead.
+        
         Args:
             config: OmegaConf configuration containing:
                 - features: Feature computation settings
@@ -70,6 +78,14 @@ class FeatureEngine:
         Raises:
             InitializationError: If FeatureOrchestrator initialization fails
         """
+        import warnings
+        warnings.warn(
+            "FeatureEngine is deprecated and will be removed in v4.0. "
+            "Use FeatureOrchestrator directly: "
+            "from ign_lidar.features import FeatureOrchestrator",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.config = config
         self.orchestrator = FeatureOrchestrator(config)
         logger.debug("✅ FeatureEngine initialized with FeatureOrchestrator V5")
