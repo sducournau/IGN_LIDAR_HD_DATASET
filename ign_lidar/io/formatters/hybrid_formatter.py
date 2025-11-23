@@ -237,7 +237,7 @@ class HybridFormatter(BaseFormatter):
         
     def _build_knn_graph_gpu(self, points: np.ndarray, k: int) -> np.ndarray:
         """
-        GPU-accelerated KNN graph using cuML.
+        GPU-accelerated KNN graph using KNNEngine (unified API).
         
         Args:
             points: [N, 3] point coordinates
@@ -245,59 +245,69 @@ class HybridFormatter(BaseFormatter):
             
         Returns:
             [N, K, 2] edge indices
+            
+        Note:
+            Now uses KNNEngine for automatic backend selection (FAISS-GPU, cuML, etc.)
+            This replaces the manual cuML implementation with the unified API.
         """
-        # Transfer to GPU
-        points_gpu = cp.asarray(points, dtype=cp.float32)
+        from ...optimization import KNNEngine
         
-        # Build KNN using cuML (k+1 to include self, then skip)
-        nbrs = cuNearestNeighbors(n_neighbors=k+1, algorithm='brute')
-        nbrs.fit(points_gpu)
-        distances, indices = nbrs.kneighbors(points_gpu)
+        # Use KNNEngine with GPU backend (auto-selects FAISS-GPU or cuML)
+        engine = KNNEngine()
         
-        # Build edge list on GPU (skip self-connection at index 0)
+        # Query k+1 neighbors (includes self)
+        distances, indices = engine.query(points, k=k+1, use_gpu=True)
+        
+        # Build edge list (skip self-connection at index 0)
         n_points = len(points)
-        edges = cp.zeros((n_points, k, 2), dtype=cp.int32)
+        edges = np.zeros((n_points, k, 2), dtype=np.int32)
         
         for j in range(k):
-            edges[:, j, 0] = cp.arange(n_points)
+            edges[:, j, 0] = np.arange(n_points)
             edges[:, j, 1] = indices[:, j+1]  # Skip j=0 (self)
         
-        # Transfer back to CPU
-        return cp.asnumpy(edges)
+        return edges
 
     def _build_knn_graph(self, points: np.ndarray, k: int, use_gpu: bool = False) -> np.ndarray:
         """
-        Build KNN graph.
+        Build KNN graph using unified KNNEngine API.
         
         **GPU Acceleration**: Set use_gpu=True for 10-20x speedup on large point clouds.
         
         Args:
             points: [N, 3] point coordinates
             k: number of neighbors
-            use_gpu: Use GPU acceleration via cuML (default False)
+            use_gpu: Use GPU acceleration (default False)
             
         Returns:
             [N, K, 2] edge indices
+            
+        Note:
+            Now uses KNNEngine for automatic backend selection.
+            This provides better performance and avoids code duplication.
         """
-        # Try GPU if requested and available
-        if use_gpu and GPU_AVAILABLE:
-            try:
-                return self._build_knn_graph_gpu(points, k)
-            except Exception as e:
-                logger.warning(f"GPU KNN graph construction failed ({e}), falling back to CPU")
+        from ...optimization import KNNEngine
         
-        # CPU implementation
-        from sklearn.neighbors import NearestNeighbors
+        # Use unified KNNEngine (auto-selects optimal backend)
+        engine = KNNEngine()
         
-        nbrs = NearestNeighbors(n_neighbors=k+1, algorithm='kd_tree').fit(points)
-        distances, indices = nbrs.kneighbors(points)
+        try:
+            # Query k+1 neighbors (includes self)
+            distances, indices = engine.query(points, k=k+1, use_gpu=use_gpu)
+        except Exception as e:
+            logger.warning(f"KNN engine failed ({e}), using fallback")
+            # Fallback to sklearn
+            from sklearn.neighbors import NearestNeighbors
+            nbrs = NearestNeighbors(n_neighbors=k+1, algorithm='kd_tree').fit(points)
+            distances, indices = nbrs.kneighbors(points)
         
-        # Build edge list (skip self-connection)
-        edges = np.zeros((len(points), k, 2), dtype=np.int32)
-        for i in range(len(points)):
-            for j in range(k):
-                edges[i, j, 0] = i
-                edges[i, j, 1] = indices[i, j+1]  # Skip j=0 (self)
+        # Build edge list (skip self-connection at index 0)
+        n_points = len(points)
+        edges = np.zeros((n_points, k, 2), dtype=np.int32)
+        
+        for j in range(k):
+            edges[:, j, 0] = np.arange(n_points)
+            edges[:, j, 1] = indices[:, j+1]  # Skip j=0 (self)
                 
         return edges
         

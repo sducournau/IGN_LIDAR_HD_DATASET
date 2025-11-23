@@ -120,15 +120,17 @@ def _compute_normals_cpu(
     eigenvalues = np.zeros((n_points, 3), dtype=np.float32)
     
     if search_radius is not None:
-        # Radius-based search - use sklearn fallback for radius queries
-        # TODO: Add radius search to KNN engine in future version
-        from sklearn.neighbors import NearestNeighbors
-        nbrs = NearestNeighbors(radius=search_radius, algorithm='kd_tree')
-        nbrs.fit(points)
+        # Radius-based search using unified KNN engine (v3.6.0+)
+        from ign_lidar.optimization import KNNEngine
+        
+        engine = KNNEngine(backend='auto')
+        distances_list, indices_list = engine.radius_search(
+            points,
+            radius=search_radius
+        )
         
         for i in range(n_points):
-            distances, indices = nbrs.radius_neighbors(points[i:i+1])
-            neighbors = points[indices[0]]
+            neighbors = points[indices_list[i]]
             
             if len(neighbors) < 3:
                 # Not enough neighbors, use default normal

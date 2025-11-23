@@ -429,87 +429,12 @@ class BDForetFetcher:
         # Map forest types to heights, default to 10.0
         return gdf["forest_type"].map(height_map).fillna(10.0)
 
-    def _classify_forest_type(self, row: pd.Series) -> str:
-        """Classify forest type from BD Forêt® attributes.
-        
-        DEPRECATED: Use _classify_forest_type_vectorized() for 5-20x better performance.
-        Kept for backward compatibility only.
-        """
-        # Check lib_tfv or code_tfv for forest type
-        if "lib_tfv" in row and row["lib_tfv"]:
-            label = str(row["lib_tfv"]).lower()
-
-            if "résineux" in label or "conifère" in label:
-                return ForestType.CONIFEROUS
-            elif "feuillu" in label:
-                return ForestType.DECIDUOUS
-            elif "mélangé" in label or "mixte" in label:
-                return ForestType.MIXED
-            elif "jeune" in label or "taillis" in label:
-                return ForestType.YOUNG
-            elif "mature" in label or "futaie" in label:
-                return ForestType.MATURE
-
-        # Fallback: analyze species composition
-        if "essence_1" in row and row["essence_1"]:
-            essence = str(row["essence_1"]).upper()
-
-            # Coniferous species codes
-            if essence in ["PIN", "SAP", "EPI", "MEL", "CED", "DOU", "IF"]:
-                return ForestType.CONIFEROUS
-            # Deciduous species codes
-            elif essence in ["CHE", "HET", "CHA", "FRA", "ERA", "PEU", "ALI", "BOU"]:
-                return ForestType.DECIDUOUS
-
-        return "unknown"
-
-    def _get_dominant_species(self, row: pd.Series) -> str:
-        """Extract dominant tree species."""
-        if "essence_1" in row and row["essence_1"]:
-            return str(row["essence_1"])
-        return "unknown"
-
-    def _classify_density(self, density_value) -> str:
-        """Classify forest density category."""
-        if density_value is None or density_value == "":
-            return "unknown"
-
-        try:
-            density_str = str(density_value).lower()
-            if "ouvert" in density_str or "faible" in density_str:
-                return "open"
-            elif "fermé" in density_str or "dense" in density_str:
-                return "closed"
-            elif "moyen" in density_str:
-                return "medium"
-        except (AttributeError, TypeError, ValueError):
-            # AttributeError: density_value has no expected attributes
-            # TypeError: cannot convert density_value to string
-            # ValueError: unexpected string format
-            pass
-
-        return "unknown"
-
-    def _estimate_height(self, row: pd.Series) -> float:
-        """
-        Estimate tree height from forest type and structure.
-
-        Returns:
-            Estimated height in meters
-        """
-        # Default heights by forest type
-        heights = {
-            ForestType.CONIFEROUS: 15.0,
-            ForestType.DECIDUOUS: 12.0,
-            ForestType.MIXED: 13.0,
-            ForestType.YOUNG: 5.0,
-            ForestType.MATURE: 20.0,
-            ForestType.OPEN_FOREST: 8.0,
-            ForestType.CLOSED_FOREST: 18.0,
-        }
-
-        forest_type = row.get("forest_type", "unknown")
-        return heights.get(forest_type, 10.0)  # Default 10m
+    # NOTE: Removed deprecated row-wise methods (_classify_forest_type,
+    # _get_dominant_species, _classify_density, _estimate_height) as of v3.6.0.
+    # All processing now uses vectorized methods for 5-20x better performance:
+    # - _classify_forest_type_vectorized()
+    # - _classify_density_vectorized()
+    # - _estimate_height_vectorized()
 
     def label_points_with_forest_type(
         self,

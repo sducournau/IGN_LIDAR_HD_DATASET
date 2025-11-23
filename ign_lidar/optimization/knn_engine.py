@@ -267,6 +267,137 @@ class KNNEngine:
         else:  # SKLEARN
             return self._search_sklearn(points, query_points, k)
     
+    def radius_search(
+        self,
+        points: np.ndarray,
+        radius: float,
+        query_points: Optional[np.ndarray] = None,
+        max_neighbors: Optional[int] = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Search for all neighbors within a given radius.
+        
+        Args:
+            points: Reference points [N, D] (if not fitted) or query points (if fitted)
+            radius: Search radius (same units as point coordinates)
+            query_points: Query points [M, D] (optional)
+            max_neighbors: Maximum neighbors per query (None = unlimited)
+            
+        Returns:
+            Tuple of:
+            - distances: List/array of distances (variable length per query)
+            - indices: List/array of indices (variable length per query)
+            
+        Note:
+            Returns may be list of arrays (sklearn/cuML) or padded arrays
+            (FAISS with -1 for invalid entries).
+            
+        Example:
+            >>> engine = KNNEngine()
+            >>> 
+            >>> # Search within 3 meters
+            >>> distances, indices = engine.radius_search(points, radius=3.0)
+            >>> 
+            >>> # Limit to 50 neighbors max
+            >>> distances, indices = engine.radius_search(
+            ...     points, radius=5.0, max_neighbors=50
+            ... )
+        """
+        # Handle fit-then-query workflow
+        if query_points is None:
+            if self._fitted:
+                query_points = points
+                points = self._points
+            else:
+                query_points = points
+        
+        if points.ndim != 2 or query_points.ndim != 2:
+            raise ValueError("points and query_points must be 2D arrays")
+        
+        n_points, n_dims = points.shape
+        n_queries = len(query_points)
+        
+        # Select backend (for now, avoid FAISS as radius search is more complex)
+        if HAS_CUML and self.backend_preference in ['auto', 'cuml']:
+            backend = KNNBackend.CUML
+        else:
+            backend = KNNBackend.SKLEARN
+        
+        logger.debug(
+            f"Radius search: {n_queries} queries, {n_points} points, "
+            f"radius={radius}, backend={backend.value}"
+        )
+        
+        # Dispatch to backend
+        if backend == KNNBackend.CUML:
+            return self._radius_search_cuml(points, query_points, radius, max_neighbors)
+        else:
+            return self._radius_search_sklearn(points, query_points, radius, max_neighbors)
+    
+    def _radius_search_cuml(
+        self,
+        points: np.ndarray,
+        query_points: np.ndarray,
+        radius: float,
+        max_neighbors: Optional[int]
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Radius search using cuML (GPU)."""
+        from cuml.neighbors import NearestNeighbors as cuMLNN
+        
+        logger.debug(f"Using cuML radius search for {len(points)} points")
+        
+        nn = cuMLNN(
+            algorithm='brute',
+            metric=self.metric
+        )
+        nn.fit(points)
+        distances, indices = nn.radius_neighbors(
+            query_points,
+            radius=radius,
+            return_distance=True
+        )
+        
+        # Convert to numpy
+        if hasattr(distances, 'get'):
+            distances = [d.get() for d in distances]
+            indices = [i.get() for i in indices]
+        
+        # Apply max_neighbors limit if specified
+        if max_neighbors is not None:
+            distances = [d[:max_neighbors] for d in distances]
+            indices = [i[:max_neighbors] for i in indices]
+        
+        return distances, indices
+    
+    def _radius_search_sklearn(
+        self,
+        points: np.ndarray,
+        query_points: np.ndarray,
+        radius: float,
+        max_neighbors: Optional[int]
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Radius search using sklearn (CPU fallback)."""
+        logger.debug(f"Using sklearn radius search for {len(points)} points")
+        
+        nn = NearestNeighbors(
+            algorithm='auto',
+            metric=self.metric,
+            n_jobs=self.n_jobs
+        )
+        nn.fit(points)
+        distances, indices = nn.radius_neighbors(
+            query_points,
+            radius=radius,
+            return_distance=True
+        )
+        
+        # Apply max_neighbors limit if specified
+        if max_neighbors is not None:
+            distances = [d[:max_neighbors] for d in distances]
+            indices = [i[:max_neighbors] for i in indices]
+        
+        return distances, indices
+    
     def _search_faiss_gpu(
         self,
         points: np.ndarray,
@@ -450,6 +581,54 @@ def build_knn_graph(
     return indices
 
 
+def radius_search(
+    points: np.ndarray,
+    radius: float,
+    query_points: Optional[np.ndarray] = None,
+    backend: str = 'auto',
+    metric: str = 'euclidean',
+    max_neighbors: Optional[int] = None
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Convenience function for radius-based neighbor search.
+    
+    Finds all neighbors within a given radius for each query point.
+    
+    Args:
+        points: Reference points [N, D]
+        radius: Search radius (same units as coordinates)
+        query_points: Query points [M, D] (None = self-query)
+        backend: Backend to use ('auto', 'cuml', 'sklearn')
+        metric: Distance metric ('euclidean' or 'cosine')
+        max_neighbors: Maximum neighbors per query (None = unlimited)
+        
+    Returns:
+        Tuple of (distances, indices) - lists of variable-length arrays
+        
+    Example:
+        >>> from ign_lidar.optimization import radius_search
+        >>> 
+        >>> # Find all neighbors within 3 meters
+        >>> distances, indices = radius_search(points, radius=3.0)
+        >>> 
+        >>> # Limit to 50 neighbors per point
+        >>> distances, indices = radius_search(
+        ...     points, radius=5.0, max_neighbors=50
+        ... )
+        >>> 
+        >>> # Access results for first query point
+        >>> print(f"Query 0 has {len(indices[0])} neighbors")
+        >>> print(f"Closest neighbor at distance {distances[0][0]:.2f}m")
+    """
+    engine = KNNEngine(backend=backend, metric=metric)
+    return engine.radius_search(
+        points,
+        radius=radius,
+        query_points=query_points,
+        max_neighbors=max_neighbors
+    )
+
+
 # ============================================================================
 # Module Exports
 # ============================================================================
@@ -458,6 +637,7 @@ __all__ = [
     'KNNEngine',
     'KNNBackend',
     'knn_search',
+    'radius_search',
     'build_knn_graph',
     'HAS_FAISS',
     'HAS_FAISS_GPU',

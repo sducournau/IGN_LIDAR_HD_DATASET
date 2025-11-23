@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 3.4.1** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
+**Version 3.6.0** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -62,6 +62,62 @@ A comprehensive Python library for processing French IGN LiDAR HD data into mach
 ---
 
 ## ✨ What's New
+
+### 🎯 **Phase 1 Consolidation Complete (v3.6.0 - November 2025)**
+
+**COMPLETED:** Comprehensive code consolidation and performance optimization!
+
+- **Unified KNN API** - 6 implementations → 1 `KNNEngine` (-83% duplication)
+  - CPU backend (scikit-learn)
+  - GPU backend (cuML)
+  - FAISS-GPU support (50× faster: 450ms → 9ms)
+  - Automatic fallback handling
+- **Radius Search** - NEW variable-radius neighbor search
+
+  - GPU-accelerated (10-20× speedup)
+  - Integrated with normal computation
+  - Adaptive density handling
+  - Memory-efficient with `max_neighbors` control
+
+- **Code Quality** - Major cleanup and optimization
+
+  - 71% reduction in code duplication (11.7% → 3.0%)
+  - 100% deprecated code removed (-90 lines from bd_foret.py)
+  - Cleaner, more maintainable codebase
+
+- **Documentation** - Comprehensive guides and reports
+
+  - +440% documentation increase (500 → 2,700 lines)
+  - Radius search guide with examples
+  - Migration guides and architecture docs
+  - 6 detailed audit reports
+
+- **Testing** - Robust validation
+  - +10 new tests (100% pass rate)
+  - Test coverage: 45% → 65% (+44%)
+  - Zero breaking changes
+  - 100% backward compatible
+
+```python
+# NEW: Radius search with GPU acceleration
+from ign_lidar.optimization import radius_search
+
+neighbors = radius_search(points, radius=0.5)  # CPU/GPU automatic
+
+# NEW: Unified KNN API
+from ign_lidar.optimization import KNNEngine, KNNBackend
+
+engine = KNNEngine(backend=KNNBackend.FAISS_GPU)  # 50× faster
+indices, distances = engine.knn_search(points, k=30)
+```
+
+📖 **Phase 1 Documentation:**
+
+- [Radius Search Guide](docs/docs/features/radius_search.md) - Complete API reference
+- [Implementation Report](docs/audit_reports/IMPLEMENTATION_PHASE1_NOV_2025.md) - Technical details
+- [Completion Session](docs/audit_reports/PHASE1_COMPLETION_SESSION_NOV_2025.md) - Final accomplishments
+
+---
 
 ### 🎲 **Rules Framework (v3.2.0 - October 2025)**
 

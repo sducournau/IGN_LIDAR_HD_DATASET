@@ -373,7 +373,7 @@ class MultiArchitectureFormatter(BaseFormatter):
         k: int
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        GPU-accelerated KNN graph construction using cuML.
+        GPU-accelerated KNN graph construction using KNNEngine (unified API).
 
         Args:
             points: [N, 3] XYZ coordinates
@@ -382,27 +382,26 @@ class MultiArchitectureFormatter(BaseFormatter):
         Returns:
             edges: [N, K, 2] indices
             distances: [N, K] distances
+            
+        Note:
+            Now uses KNNEngine for automatic backend selection (FAISS-GPU, cuML, etc.)
+            This replaces the manual cuML implementation with the unified API.
         """
-        # Transfer to GPU
-        points_gpu = cp.asarray(points, dtype=cp.float32)
+        from ...optimization import KNNEngine
         
-        # Build KNN using cuML
-        nbrs = cuNearestNeighbors(n_neighbors=k, algorithm='brute')
-        nbrs.fit(points_gpu)
-        distances, indices = nbrs.kneighbors(points_gpu)
+        # Use KNNEngine with GPU backend (auto-selects FAISS-GPU or cuML)
+        engine = KNNEngine()
         
-        # Build edge list on GPU
+        # Query k neighbors
+        distances, indices = engine.query(points, k=k, use_gpu=True)
+        
+        # Build edge list
         n_points = len(points)
-        edges = cp.zeros((n_points, k, 2), dtype=cp.int32)
-        edges[:, :, 0] = cp.arange(n_points)[:, None]
+        edges = np.zeros((n_points, k, 2), dtype=np.int32)
+        edges[:, :, 0] = np.arange(n_points)[:, None]
         edges[:, :, 1] = indices
         
-        # ⚡ OPTIMIZATION: Stack and batch transfer (2→1 transfer)
-        # Stack edges and distances for single GPU→CPU transfer
-        edges_cpu = cp.asnumpy(edges)
-        distances_cpu = cp.asnumpy(distances).astype(np.float32)
-        
-        return edges_cpu, distances_cpu
+        return edges, distances.astype(np.float32)
 
     def _build_knn_graph(
         self,
@@ -411,41 +410,47 @@ class MultiArchitectureFormatter(BaseFormatter):
         use_gpu: bool = False
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Build KNN graph for Point Transformers.
+        Build KNN graph for Point Transformers using unified KNNEngine API.
         
         **GPU Acceleration**: Set use_gpu=True for 10-20x speedup on large point clouds.
 
         Args:
             points: [N, 3] XYZ coordinates
             k: Number of neighbors
-            use_gpu: Use GPU acceleration via cuML (default False)
+            use_gpu: Use GPU acceleration (default False)
 
         Returns:
             edges: [N, K, 2] indices
             distances: [N, K] distances
+            
+        Note:
+            Now uses KNNEngine for automatic backend selection.
+            This provides better performance and avoids code duplication.
         """
-        # Try GPU if requested and available
-        if use_gpu and GPU_AVAILABLE:
-            try:
-                return self._build_knn_graph_gpu(points, k)
-            except Exception as e:
-                logger.warning(f"GPU KNN graph construction failed ({e}), falling back to CPU")
+        from ...optimization import KNNEngine
         
-        # CPU implementation
+        # Use unified KNNEngine (auto-selects optimal backend)
+        engine = KNNEngine()
+        
         try:
-            from sklearn.neighbors import NearestNeighbors
-        except ImportError:
-            raise ImportError("sklearn required for KNN graph. Install: pip install scikit-learn")
+            # Query k neighbors
+            distances, indices = engine.query(points, k=k, use_gpu=use_gpu)
+        except Exception as e:
+            logger.warning(f"KNN engine failed ({e}), using fallback")
+            # Fallback to sklearn
+            try:
+                from sklearn.neighbors import NearestNeighbors
+            except ImportError:
+                raise ImportError("sklearn required for KNN graph. Install: pip install scikit-learn")
 
-        nbrs = NearestNeighbors(n_neighbors=k, algorithm='kd_tree')
-        nbrs.fit(points)
-        distances, indices = nbrs.kneighbors(points)
+            nbrs = NearestNeighbors(n_neighbors=k, algorithm='kd_tree')
+            nbrs.fit(points)
+            distances, indices = nbrs.kneighbors(points)
 
         # Build edge list
         edges = np.zeros((len(points), k, 2), dtype=np.int32)
-        for i in range(len(points)):
-            edges[i, :, 0] = i
-            edges[i, :, 1] = indices[i]
+        edges[:, :, 0] = np.arange(len(points))[:, None]
+        edges[:, :, 1] = indices
 
         return edges, distances.astype(np.float32)
 

@@ -62,6 +62,7 @@ from .knn_engine import (
     KNNEngine,
     KNNBackend,
     knn_search,
+    radius_search,
     build_knn_graph,
     HAS_FAISS_GPU,
 )
@@ -124,7 +125,7 @@ __all__ = [
     'GPUKDTree', 'create_kdtree', 'cKDTree', 'KDTree',
     'HAS_CUPY', 'HAS_FAISS', 'HAS_CUML',
     # Phase 2: Unified KNN Engine (Nov 2025)
-    'KNNEngine', 'KNNBackend', 'knn_search', 'build_knn_graph', 'HAS_FAISS_GPU',
+    'KNNEngine', 'KNNBackend', 'knn_search', 'radius_search', 'build_knn_graph', 'HAS_FAISS_GPU',
     # Phase 2: GPU Transfer Profiler (Nov 2025)
     'GPUTransferProfiler', 'TransferEvent', 'get_global_profiler', 'enable_automatic_tracking',
     # Phase 2: CUDA Stream Manager (Nov 2025)
