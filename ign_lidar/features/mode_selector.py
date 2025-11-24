@@ -104,12 +104,13 @@ class ModeSelector:
         if not self.gpu_available:
             return 0.0
         
+        # ✅ Use centralized GPU info (v3.5.3 consolidation)
+        from ign_lidar.core.gpu import GPUManager
+        gpu = GPUManager()
+        
         try:
-            import cupy as cp
-            mempool = cp.get_default_memory_pool()
-            device = cp.cuda.Device()
-            total_memory = device.mem_info[1]  # Total memory in bytes
-            return total_memory / (1024**3)  # Convert to GB
+            mem_info = gpu.get_memory_info()
+            return mem_info.get('total_gb', 8.0)
         except Exception as e:
             logger.warning(f"Could not determine GPU memory: {e}")
             return 8.0  # Default assumption: 8 GB

@@ -34,12 +34,16 @@ import logging
 
 from ign_lidar.optimization.gpu_accelerated_ops import eigh, eigvalsh
 
+# ✅ NEW (v3.5.2): Centralized GPU imports via GPUManager
+from ign_lidar.core.gpu import GPUManager
+
+gpu = GPUManager()
+CUPY_AVAILABLE = gpu.gpu_available
+
 # Optional GPU support
-try:
-    import cupy as cp
-    CUPY_AVAILABLE = True
-except ImportError:
-    CUPY_AVAILABLE = False
+if CUPY_AVAILABLE:
+    cp = gpu.get_cupy()
+else:
     cp = None
 
 from .eigenvalues import compute_eigenvalue_features

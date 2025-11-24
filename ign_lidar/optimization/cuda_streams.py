@@ -30,12 +30,16 @@ from queue import Queue
 
 logger = logging.getLogger(__name__)
 
+# ✅ NEW (v3.5.2): Centralized GPU imports via GPUManager
+from ign_lidar.core.gpu import GPUManager
+
+gpu = GPUManager()
+HAS_CUPY = gpu.gpu_available
+
 # GPU imports with fallback
-try:
-    import cupy as cp
-    HAS_CUPY = True
-except ImportError:
-    HAS_CUPY = False
+if HAS_CUPY:
+    cp = gpu.get_cupy()
+else:
     cp = None
     if TYPE_CHECKING:
         import cupy as cp  # For type checking only
@@ -410,9 +414,11 @@ class CUDAStreamManager:
         gc.collect()
         
         if HAS_CUPY:
-            mempool = cp.get_default_memory_pool()
+            from ign_lidar.core.gpu import GPUManager
+            mempool = GPUManager().get_memory_pool()
+            if mempool:
+                mempool.free_all_blocks()
             pinned_mempool = cp.get_default_pinned_memory_pool()
-            mempool.free_all_blocks()
             pinned_mempool.free_all_blocks()
     
     def __enter__(self):

@@ -113,16 +113,33 @@ from .stitching import (
 # Classification Interface (v3.2+)
 # ============================================================================
 
+# Unified Classification Engine (NEW in v3.6.0)
+try:
+    from .engine import (
+        ClassificationEngine,
+        ClassificationMode,
+        ClassificationStrategy,
+        SpectralClassificationStrategy,
+        GeometricClassificationStrategy,
+        ASPRSClassificationStrategy,
+    )
+
+    _HAS_CLASSIFICATION_ENGINE = True
+except ImportError:
+    _HAS_CLASSIFICATION_ENGINE = False
+    ClassificationEngine = None
+    ClassificationMode = None
+
 # Reclassification modules (optional - may not be available)
 try:
     from .geometric_rules import GeometricRulesEngine
-    from .reclassifier import OptimizedReclassifier, reclassify_tile_optimized
+    from .reclassifier import Reclassifier, reclassify_tile
 
     _HAS_RECLASSIFIER = True
 except ImportError:
     _HAS_RECLASSIFIER = False
-    OptimizedReclassifier = None
-    reclassify_tile_optimized = None
+    Reclassifier = None
+    reclassify_tile = None
     GeometricRulesEngine = None
 
 # Ground truth refinement module (new in v5.2)
@@ -285,9 +302,16 @@ __all__ = [
     "extract_and_normalize_features",
     "should_use_stitching",
     "get_stitching_stats",
+    # Classification Engine (new in v3.6.0)
+    "ClassificationEngine",
+    "ClassificationMode",
+    "ClassificationStrategy",
+    "SpectralClassificationStrategy",
+    "GeometricClassificationStrategy",
+    "ASPRSClassificationStrategy",
     # Reclassification (optional)
-    "OptimizedReclassifier",
-    "reclassify_tile_optimized",
+    "Reclassifier",
+    "reclassify_tile",
     "GeometricRulesEngine",
     # Ground truth refinement (optional, v5.2)
     "GroundTruthRefiner",

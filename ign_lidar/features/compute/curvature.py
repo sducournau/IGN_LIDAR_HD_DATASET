@@ -18,11 +18,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-try:
-    import cupy as cp
-    CUPY_AVAILABLE = True
-except ImportError:
-    CUPY_AVAILABLE = False
+# ✅ NEW (v3.5.2): Centralized GPU imports via GPUManager
+from ign_lidar.core.gpu import GPUManager
+
+gpu = GPUManager()
+CUPY_AVAILABLE = gpu.gpu_available
+
+if CUPY_AVAILABLE:
+    cp = gpu.get_cupy()
+else:
     cp = None
 
 

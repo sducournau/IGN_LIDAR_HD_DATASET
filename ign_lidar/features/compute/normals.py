@@ -44,6 +44,15 @@ def compute_normals(
     """
     Compute normal vectors and eigenvalues using standard CPU implementation.
     
+    ✅ **CANONICAL CPU IMPLEMENTATION (v3.5.2+)**
+    This is the recommended public API for computing normals on CPU.
+    
+    For JIT-optimized computation, this automatically dispatches to:
+    - `features.compute.features.compute_all_features_optimized()` (Numba JIT)
+    
+    For GPU computation, use:
+    - `optimization.gpu_kernels.compute_normals_eigenvalues_fused()` (CUDA)
+    
     This is the fallback implementation without JIT compilation.
     For optimized computation, use features.compute_normals() instead.
     
@@ -184,61 +193,3 @@ def _compute_normals_cpu(
     
     return normals, eigenvalues
 
-
-# Convenience functions for common use cases (DEPRECATED - use method parameter instead)
-def compute_normals_fast(points: np.ndarray) -> np.ndarray:
-    """
-    DEPRECATED: Use compute_normals(points, method='fast', return_eigenvalues=False) instead.
-    
-    Fast normal computation with default parameters (returns only normals).
-    
-    Parameters
-    ----------
-    points : np.ndarray
-        Point cloud array of shape (N, 3)
-        
-    Returns
-    -------
-    normals : np.ndarray
-        Normal vectors of shape (N, 3)
-    """
-    import warnings
-    warnings.warn(
-        "compute_normals_fast() is deprecated. Use compute_normals(points, method='fast', return_eigenvalues=False) instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    normals, _ = compute_normals(points, method='fast', return_eigenvalues=False)
-    return normals
-
-
-def compute_normals_accurate(
-    points: np.ndarray, 
-    k: int = 50
-) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    DEPRECATED: Use compute_normals(points, method='accurate') instead.
-    
-    Accurate normal computation with more neighbors.
-    
-    Parameters
-    ----------
-    points : np.ndarray
-        Point cloud array of shape (N, 3)
-    k : int, optional
-        Number of neighbors (default: 50)
-        
-    Returns
-    -------
-    normals : np.ndarray
-        Normal vectors of shape (N, 3)
-    eigenvalues : np.ndarray
-        Eigenvalues of shape (N, 3)
-    """
-    import warnings
-    warnings.warn(
-        "compute_normals_accurate() is deprecated. Use compute_normals(points, method='accurate') instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    return compute_normals(points, k_neighbors=k, method='standard')

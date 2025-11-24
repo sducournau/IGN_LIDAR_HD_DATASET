@@ -240,9 +240,9 @@ class GroundTruthPerformanceMonitor:
     def _get_gpu_memory_usage(self) -> float:
         """Get current GPU memory usage in MB."""
         try:
-            import cupy as cp
-            if cp.cuda.is_available():
-                mempool = cp.get_default_memory_pool()
+            from ign_lidar.core.gpu import GPUManager
+            mempool = GPUManager().get_memory_pool()
+            if mempool:
                 return mempool.used_bytes() / (1024 * 1024)
         except ImportError:
             pass

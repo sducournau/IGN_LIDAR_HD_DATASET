@@ -12,9 +12,13 @@ Call Hierarchy:
      ↓
   3. THIS FILE - Low-level Numba-accelerated helpers:
      - compute_covariance_matrices_numba()
-     - compute_normals_from_eigenvectors_numba()
-     - compute_normals_from_eigenvectors_numpy()
-     - compute_normals_from_eigenvectors() (dispatcher)
+     - compute_local_point_density_numba()
+
+Note (v4.0): Removed deprecated normal extraction functions:
+  - compute_normals_from_eigenvectors_numba() (removed)
+  - compute_normals_from_eigenvectors_numpy() (removed)
+  - compute_normals_from_eigenvectors() (removed)
+  Use compute.normals.compute_normals() instead.
 
 Usage Guidelines:
   - DO NOT call these functions directly in application code
@@ -191,114 +195,6 @@ def compute_covariance_matrices(
     else:
         return compute_covariance_matrices_numpy(points, indices, k)
 
-
-@jit(nopython=True, parallel=True, cache=True)
-def compute_normals_from_eigenvectors_numba(
-    eigenvectors: np.ndarray
-) -> np.ndarray:
-    """
-    Extract and orient normals from eigenvectors (Numba-accelerated).
-    
-    **NOTE**: This is a low-level optimization function for extracting normals from 
-    pre-computed eigenvectors. For complete normal computation, use:
-    - `ign_lidar.features.compute.compute_normals()` (CPU, canonical implementation)
-    - `ign_lidar.features.GPUProcessor.compute_normals()` (GPU-accelerated)
-    
-    Extracts the normal (smallest eigenvector) and ensures upward orientation.
-    
-    Args:
-        eigenvectors: Eigenvector matrices [N, 3, 3]
-        
-    Returns:
-        Normal vectors [N, 3] oriented upward
-    """
-    N = eigenvectors.shape[0]
-    normals = np.zeros((N, 3), dtype=np.float32)
-    
-    for i in prange(N):
-        # Extract smallest eigenvector (first column, sorted ascending)
-        normal = np.array([
-            eigenvectors[i, 0, 0],
-            eigenvectors[i, 1, 0],
-            eigenvectors[i, 2, 0]
-        ], dtype=np.float32)
-        
-        # Ensure upward orientation (positive Z component)
-        if normal[2] < 0:
-            normal[0] = -normal[0]
-            normal[1] = -normal[1]
-            normal[2] = -normal[2]
-        
-        normals[i, 0] = normal[0]
-        normals[i, 1] = normal[1]
-        normals[i, 2] = normal[2]
-    
-    return normals
-
-
-def compute_normals_from_eigenvectors_numpy(
-    eigenvectors: np.ndarray
-) -> np.ndarray:
-    """
-    Extract and orient normals from eigenvectors (NumPy fallback).
-    
-    **NOTE**: This is a low-level optimization function for extracting normals from 
-    pre-computed eigenvectors. For complete normal computation, use:
-    - `ign_lidar.features.compute.compute_normals()` (CPU, canonical implementation)
-    - `ign_lidar.features.GPUProcessor.compute_normals()` (GPU-accelerated)
-    
-    Args:
-        eigenvectors: Eigenvector matrices [N, 3, 3]
-        
-    Returns:
-        Normal vectors [N, 3] oriented upward
-    """
-    # Extract smallest eigenvector (vectorized)
-    normals = eigenvectors[:, :, 0].astype(np.float32)
-    
-    # Ensure upward orientation
-    normals[normals[:, 2] < 0] *= -1
-    
-    return normals
-
-
-def compute_normals_from_eigenvectors(
-    eigenvectors: np.ndarray,
-    use_numba: Optional[bool] = None
-) -> np.ndarray:
-    """
-    Extract and orient normals from eigenvectors with automatic selection.
-    
-    **NOTE**: This is a low-level optimization function for extracting normals from 
-    pre-computed eigenvectors. For complete normal computation, use:
-    - `ign_lidar.features.compute.compute_normals()` (CPU, canonical implementation)
-    - `ign_lidar.features.GPUProcessor.compute_normals()` (GPU-accelerated)
-    
-    This function is useful when you already have eigenvectors and only need to extract
-    the normal vectors (smallest eigenvector) with proper orientation.
-    
-    Args:
-        eigenvectors: Eigenvector matrices [N, 3, 3]
-        use_numba: Force Numba usage (True), force NumPy (False), or auto (None)
-        
-    Returns:
-        Normal vectors [N, 3] oriented upward
-        
-    Example:
-        >>> eigenvectors = np.random.rand(1000, 3, 3).astype(np.float32)
-        >>> normals = compute_normals_from_eigenvectors(eigenvectors)
-        >>> normals.shape
-        (1000, 3)
-    """
-    if use_numba is None:
-        use_numba = NUMBA_AVAILABLE
-    elif use_numba and not NUMBA_AVAILABLE:
-        use_numba = False
-    
-    if use_numba:
-        return compute_normals_from_eigenvectors_numba(eigenvectors)
-    else:
-        return compute_normals_from_eigenvectors_numpy(eigenvectors)
 
 
 @jit(nopython=True, parallel=True, cache=True)

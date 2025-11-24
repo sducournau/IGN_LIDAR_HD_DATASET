@@ -104,10 +104,9 @@ def _statistical_outlier_removal_gpu(
     # Filter points on GPU
     filtered_points_gpu = points_gpu[inlier_mask]
     
-    # ⚡ OPTIMIZATION: Batch transfer to CPU (avoid separate transfers)
+    # ⚡ OPTIMIZATION: Batch transfer to CPU (single PCIe transaction)
     # Note: inlier_mask is boolean array, filtered_points needs float32
-    filtered_points = cp.asnumpy(filtered_points_gpu)
-    inlier_mask_cpu = cp.asnumpy(inlier_mask)
+    filtered_points, inlier_mask_cpu = gpu.batch_download(filtered_points_gpu, inlier_mask)
     
     removed_count = N - len(filtered_points)
     removed_pct = removed_count / N * 100
@@ -243,9 +242,8 @@ def _radius_outlier_removal_gpu(
     inlier_mask = neighbor_counts >= min_neighbors
     filtered_points_gpu = points_gpu[inlier_mask]
     
-    # ⚡ OPTIMIZATION: Batch transfer to CPU
-    filtered_points = cp.asnumpy(filtered_points_gpu)
-    inlier_mask_cpu = cp.asnumpy(inlier_mask)
+    # ⚡ OPTIMIZATION: Batch transfer to CPU (single PCIe transaction)
+    filtered_points, inlier_mask_cpu = gpu.batch_download(filtered_points_gpu, inlier_mask)
     
     removed_count = N - len(filtered_points)
     removed_pct = removed_count / N * 100
@@ -411,8 +409,10 @@ def voxel_downsample(
 
             else:  # random
                 # Keep first point of each voxel (acts like random after sorting)
-                keep_indices = cp.asnumpy(sort_idx[cp.where(unique_mask)[0]])
-                downsampled = cp.asnumpy(sorted_points[unique_mask])
+                keep_indices, downsampled = gpu.batch_download(
+                    sort_idx[cp.where(unique_mask)[0]],
+                    sorted_points[unique_mask]
+                )
 
             downsampled = cp.asnumpy(downsampled).astype(np.float32)
 

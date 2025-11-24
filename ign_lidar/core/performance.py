@@ -171,10 +171,10 @@ def get_gpu_utilization() -> float:
     if not GPU_AVAILABLE:
         return 0.0
     try:
-        mempool = cp.get_default_memory_pool()
-        used_bytes = mempool.used_bytes()
-        total_bytes = cp.cuda.Device().mem_info[1]
-        return (used_bytes / total_bytes) * 100.0
+        # ✅ Use centralized GPU info (v3.5.3)
+        from ign_lidar.core.gpu import GPUManager
+        mem_info = GPUManager().get_memory_info()
+        return mem_info.get('utilization', 0.0)
     except Exception:
         return 0.0
 
@@ -185,14 +185,14 @@ def get_gpu_memory_info() -> Dict[str, float]:
         return {"used_mb": 0.0, "total_mb": 0.0, "percent": 0.0}
 
     try:
-        mempool = cp.get_default_memory_pool()
-        used_bytes = mempool.used_bytes()
-        total_bytes = cp.cuda.Device().mem_info[1]
-
+        # ✅ Use centralized GPU info (v3.5.3)
+        from ign_lidar.core.gpu import GPUManager
+        mem_info = GPUManager().get_memory_info()
+        
         return {
-            "used_mb": used_bytes / (1024 * 1024),
-            "total_mb": total_bytes / (1024 * 1024),
-            "percent": (used_bytes / total_bytes) * 100.0,
+            "used_mb": (mem_info['total_gb'] - mem_info['free_gb']) * 1024,
+            "total_mb": mem_info['total_gb'] * 1024,
+            "percent": mem_info['utilization']
         }
     except Exception:
         return {"used_mb": 0.0, "total_mb": 0.0, "percent": 0.0}

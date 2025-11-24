@@ -40,32 +40,8 @@ logger = logging.getLogger(__name__)
 _gpu_manager = GPUManager()
 
 
-def check_gpu_available() -> bool:
-    """
-    Check if GPU acceleration is available.
-    
-    DEPRECATED: Use GPUManager directly instead:
-        from ign_lidar.core.gpu import GPUManager
-        gpu_mgr = GPUManager()
-        gpu_available = gpu_mgr.gpu_available
-    
-    This function is kept for backward compatibility only.
-    Will be removed in v4.0.0.
-    
-    Returns:
-        True if CuPy and cuML are available, False otherwise
-    """
-    import warnings
-    warnings.warn(
-        "check_gpu_available() is deprecated and will be removed in v4.0.0.\n"
-        "Use GPUManager instead:\n"
-        "  from ign_lidar.core.gpu import GPUManager\n"
-        "  gpu = GPUManager()\n"
-        "  if gpu.gpu_available: ...",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    return _gpu_manager.gpu_available and _gpu_manager.cuml_available
+# Note: check_gpu_available() removed in v4.0
+# Use: GPUManager().gpu_available instead
 
 
 def gpu_accelerated(
@@ -109,7 +85,7 @@ def gpu_accelerated(
                 return cpu_func(*args, **kwargs)
             
             # Check if GPU is available
-            if not check_gpu_available():
+            if not (_gpu_manager.gpu_available and _gpu_manager.cuml_available):
                 if cpu_fallback:
                     logger.debug(f"{cpu_func.__name__}: GPU not available, using CPU")
                     return cpu_func(*args, **kwargs)
@@ -202,7 +178,7 @@ class GPUContext:
             cleanup_on_exit: Free GPU memory on context exit (default True)
         """
         self.cleanup_on_exit = cleanup_on_exit
-        self.available = check_gpu_available()
+        self.available = _gpu_manager.gpu_available and _gpu_manager.cuml_available
         self.cp = None
         
         if self.available:
@@ -262,8 +238,10 @@ class GPUContext:
         """Free GPU memory."""
         if self.available and self.cp is not None:
             try:
-                mempool = self.cp.get_default_memory_pool()
-                mempool.free_all_blocks()
+                from ign_lidar.core.gpu import GPUManager
+                mempool = GPUManager().get_memory_pool()
+                if mempool:
+                    mempool.free_all_blocks()
                 pinned_mempool = self.cp.get_default_pinned_memory_pool()
                 pinned_mempool.free_all_blocks()
             except Exception as e:
@@ -284,7 +262,7 @@ def require_gpu(func: Callable) -> Callable:
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if not check_gpu_available():
+        if not (_gpu_manager.gpu_available and _gpu_manager.cuml_available):
             raise RuntimeError(
                 f"{func.__name__} requires GPU acceleration. "
                 "Install cupy-cuda11x or cupy-cuda12x and cuml."
@@ -297,5 +275,4 @@ __all__ = [
     'gpu_accelerated',
     'GPUContext',
     'require_gpu',
-    'check_gpu_available',
 ]

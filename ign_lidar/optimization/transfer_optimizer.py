@@ -24,11 +24,15 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-try:
-    import cupy as cp
-    HAS_CUPY = True
-except ImportError:
-    HAS_CUPY = False
+# ✅ NEW (v3.5.2): Centralized GPU imports via GPUManager
+from ign_lidar.core.gpu import GPUManager
+
+gpu = GPUManager()
+HAS_CUPY = gpu.gpu_available
+
+if HAS_CUPY:
+    cp = gpu.get_cupy()
+else:
     cp = None
 
 

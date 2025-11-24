@@ -256,15 +256,18 @@ def compute_all_features_optimized(
     chunk_size: int = 2_000_000,  # Optimized for 64GB systems
 ) -> Dict[str, np.ndarray]:
     """
-    LOW-LEVEL CPU-only optimized feature computation (JIT-compiled).
-
-    This is the IMPLEMENTATION function for single-pass CPU feature computation.
+    ✅ **CANONICAL CPU IMPLEMENTATION (v3.5.2+)** - JIT-compiled feature computation.
+    
+    This is the LOW-LEVEL OPTIMIZED implementation for CPU-based feature computation.
+    DO NOT DUPLICATE - this is the single source of truth for CPU feature computation.
+    
     For high-level API with automatic mode selection (CPU/GPU/boundary-aware),
     use dispatcher.compute_all_features() instead.
 
     Relationship:
     - dispatcher.compute_all_features() → HIGH-LEVEL (mode selection dispatcher)
-    - features.compute_all_features_optimized() → LOW-LEVEL (CPU implementation)
+    - features.compute_all_features_optimized() → LOW-LEVEL (CPU implementation) ✅ THIS FILE
+    - gpu_kernels.compute_normals_eigenvalues_fused() → LOW-LEVEL (GPU implementation)
     - These are COMPLEMENTARY, not duplicates!
 
     This is 5-8x faster than calling individual feature functions because:

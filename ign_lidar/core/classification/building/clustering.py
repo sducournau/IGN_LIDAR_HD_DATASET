@@ -51,12 +51,16 @@ except ImportError:
     STRtree = None
 
 # GPU acceleration support
-try:
-    import cupy as cp
-    HAS_CUPY = True
+# ✅ NEW (v3.5.2): Centralized GPU imports via GPUManager
+from ign_lidar.core.gpu import GPUManager
+
+gpu = GPUManager()
+HAS_CUPY = gpu.gpu_available
+
+if HAS_CUPY:
+    cp = gpu.get_cupy()
     logger.debug("✅ CuPy available for GPU bbox optimization")
-except ImportError:
-    HAS_CUPY = False
+else:
     cp = None
     logger.debug("CuPy not available, using CPU for bbox optimization")
 
@@ -443,12 +447,14 @@ class BuildingClusterer:
             dy_flat = dy_grid.flatten()
             n_positions = len(dx_flat)
             
-            # Transfer to GPU
-            xs_gpu = cp.asarray(pts_xy[:, 0], dtype=cp.float32)
-            ys_gpu = cp.asarray(pts_xy[:, 1], dtype=cp.float32)
-            hg_gpu = cp.asarray(heights, dtype=cp.float32)
-            dx_gpu = cp.asarray(dx_flat, dtype=cp.float32)
-            dy_gpu = cp.asarray(dy_flat, dtype=cp.float32)
+            # Transfer to GPU (batch upload for efficiency)
+            xs_gpu, ys_gpu, hg_gpu, dx_gpu, dy_gpu = gpu.batch_upload(
+                pts_xy[:, 0].astype(np.float32),
+                pts_xy[:, 1].astype(np.float32),
+                heights.astype(np.float32),
+                dx_flat.astype(np.float32),
+                dy_flat.astype(np.float32)
+            )
             
             # Vectorized bbox computation for all grid positions
             # Shape: (n_positions, n_points)

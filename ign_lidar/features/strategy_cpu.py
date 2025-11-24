@@ -16,6 +16,8 @@ from typing import Dict, Optional
 import numpy as np
 
 from .compute.features import compute_all_features_optimized
+from .compute.curvature import compute_curvature as compute_curvature_canonical
+from .compute.eigenvalues import compute_eigenvalue_features
 from .strategies import BaseFeatureStrategy
 from ..utils.normalization import normalize_rgb
 
@@ -120,10 +122,54 @@ class CPUStrategy(BaseFeatureStrategy):
         # Determine k value (use default if auto_k not needed)
         k = self.k_neighbors
 
-        # Compute all geometric features using optimized function
-        features = compute_all_features_optimized(
-            points=points, k_neighbors=k, compute_advanced=self.include_extra
-        )
+        # ✅ OPTIMIZATION (v3.5.3): Check for cached normals/eigenvalues
+        cached_intermediates = self.get_cached_intermediates()
+        
+        if cached_intermediates is not None:
+            # Use cached normals and eigenvalues - recompute only derived features
+            normals, eigenvalues = cached_intermediates
+            
+            if self.verbose:
+                logger.debug(f"♻️  Using cached normals/eigenvalues, computing only derived features")
+            
+            # ✅ Use canonical implementations (v3.5.3 consolidation)
+            # Compute curvature from eigenvalues
+            curvature = compute_curvature_canonical(eigenvalues, method='standard')
+            
+            # Compute all geometric features from eigenvalues using canonical implementation
+            eigenvalue_features = compute_eigenvalue_features(
+                eigenvalues, 
+                epsilon=1e-10, 
+                include_all=self.include_extra
+            )
+            
+            # Build result from cached data + canonical features
+            features = {
+                "normals": normals,
+                "eigenvalues": eigenvalues,
+                "curvature": curvature,
+                "planarity": eigenvalue_features["planarity"],
+                "linearity": eigenvalue_features["linearity"],
+                "sphericity": eigenvalue_features["sphericity"],
+            }
+            
+            # Add additional features if requested (already computed by canonical implementation)
+            if self.include_extra:
+                features["anisotropy"] = eigenvalue_features["anisotropy"]
+                features["omnivariance"] = eigenvalue_features["omnivariance"]
+                features["eigenentropy"] = eigenvalue_features["eigenentropy"]
+                features["verticality"] = np.clip(1.0 - np.abs(normals[:, 2]), 0.0, 1.0)
+                features["roughness"] = curvature  # Alias
+            
+        else:
+            # No cache - compute all features from scratch
+            if self.verbose:
+                logger.debug(f"Computing all features from scratch (k={k})")
+            
+            # Compute all geometric features using optimized function
+            features = compute_all_features_optimized(
+                points=points, k_neighbors=k, compute_advanced=self.include_extra
+            )
 
         # Build result dictionary compatible with strategy interface
         # 🔧 FIX: Return ALL computed features, not just a subset

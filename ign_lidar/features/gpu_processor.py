@@ -31,7 +31,9 @@ This module contains OPTIMIZED GPU implementations for maximum performance.
 1. High-level: `FeatureOrchestrator.compute_features()` (recommended entry point)
 2. GPU-optimized: `GPUProcessor.compute_normals()` (this file, for GPU performance)
 3. CPU canonical: `compute.normals.compute_normals()` (CPU fallback, single source)
-4. Low-level: `numba_accelerated.compute_normals_from_eigenvectors()` (helper)
+4. Low-level: `numba_accelerated.*` (covariance computation helpers)
+
+Note (v4.0): Removed deprecated compute_normals_from_eigenvectors() functions.
 
 Version: 4.0.0 (Phase 2A Consolidation)
 Date: October 19, 2025 (Phase 2 notes: November 21, 2025)
@@ -388,12 +390,14 @@ class GPUProcessor:
             knn.fit(points_gpu)
             distances_gpu, indices_gpu = knn.kneighbors(points_gpu)
         else:
-            # Fallback to CPU KNN but keep results on GPU
+            # Fallback to CPU KNN but keep results on GPU (batch upload)
             knn_cpu = NearestNeighbors(n_neighbors=k, algorithm='auto', n_jobs=-1)
             knn_cpu.fit(points)
             distances, indices = knn_cpu.kneighbors(points)
-            distances_gpu = cp.asarray(distances, dtype=cp.float32)
-            indices_gpu = cp.asarray(indices, dtype=cp.int32)
+            distances_gpu, indices_gpu = gpu.batch_upload(
+                distances.astype(np.float32),
+                indices.astype(np.int32)
+            )
         
         # 2. Compute normals and eigenvalues on GPU (fused operation)
         normals_gpu, eigenvalues_gpu = self._compute_normals_eigenvalues_gpu(
@@ -437,17 +441,27 @@ class GPUProcessor:
                 normalized * cp.log(normalized + 1e-10), axis=1
             )
         
-        # ===== SINGLE GPU→CPU TRANSFER =====
+        # ===== BATCH GPU→CPU TRANSFER =====
+        # Transfer all features in one batch operation to reduce PCIe overhead
         features_cpu = {}
-        for name, feat_gpu in features_gpu.items():
-            features_cpu[name] = cp.asnumpy(feat_gpu).astype(np.float32)
         
-        # Add normals if requested
+        # Build lists of GPU arrays to transfer
+        gpu_arrays = list(features_gpu.values())
+        feature_names = list(features_gpu.keys())
+        
+        # Add intermediates if requested
         if return_intermediates:
-            features_cpu['normals'] = cp.asnumpy(normals_gpu).astype(np.float32)
-            features_cpu['eigenvalues'] = cp.asnumpy(eigenvalues_gpu).astype(np.float32)
+            gpu_arrays.extend([normals_gpu, eigenvalues_gpu])
+            feature_names.extend(['normals', 'eigenvalues'])
         
-        logger.debug("  ⬇️  GPU→CPU: all features (single batched transfer)")
+        # Batch download all arrays
+        cpu_arrays = gpu.batch_download(*gpu_arrays)
+        
+        # Map back to dictionary with proper dtype
+        for name, arr_cpu in zip(feature_names, cpu_arrays):
+            features_cpu[name] = arr_cpu.astype(np.float32)
+        
+        logger.debug(f"  ⬇️  GPU→CPU: {len(features_cpu)} features (batched transfer)")
         logger.info(f"✅ GPU Pipeline: Computed {len(features_cpu)} features")
         
         return features_cpu
@@ -1686,8 +1700,11 @@ class GPUProcessor:
         """Clean up GPU resources."""
         if self.use_gpu and cp is not None:
             try:
-                mempool = cp.get_default_memory_pool()
-                mempool.free_all_blocks()
+                # ✅ Use centralized memory pool (v3.5.3)
+                from ign_lidar.core.gpu import GPUManager
+                mempool = GPUManager().get_memory_pool()
+                if mempool:
+                    mempool.free_all_blocks()
                 gc.collect()
                 logger.debug("GPU memory cleaned up")
             except Exception as e:

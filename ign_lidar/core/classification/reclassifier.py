@@ -505,11 +505,13 @@ class Reclassifier:
                     geometry_offsets.append(current_geom)
                     road_natures.append(nature)
 
-            # Transfer polygon data to GPU
-            poly_x_gpu = cp.asarray(road_polygons_x, dtype=cp.float64)
-            poly_y_gpu = cp.asarray(road_polygons_y, dtype=cp.float64)
-            ring_offsets_gpu = cp.asarray(ring_offsets, dtype=cp.int32)
-            geometry_offsets_gpu = cp.asarray(geometry_offsets, dtype=cp.int32)
+            # Transfer polygon data to GPU (batch upload for efficiency)
+            poly_x_gpu, poly_y_gpu, ring_offsets_gpu, geometry_offsets_gpu = gpu.batch_upload(
+                road_polygons_x.astype(np.float64),
+                road_polygons_y.astype(np.float64),
+                ring_offsets.astype(np.int32),
+                geometry_offsets.astype(np.int32)
+            )
 
             # Run GPU point-in-polygon query
             # Returns boolean matrix [n_points, n_polygons]
@@ -1095,9 +1097,11 @@ class Reclassifier:
         n_classified = 0
 
         try:
-            # 🔥 Convert all points to GPU once (minimize transfers)
-            points_x_gpu = cp.asarray(points[:, 0], dtype=cp.float32)
-            points_y_gpu = cp.asarray(points[:, 1], dtype=cp.float32)
+            # 🔥 Convert all points to GPU once (batch upload to minimize transfers)
+            points_x_gpu, points_y_gpu = gpu.batch_upload(
+                points[:, 0].astype(np.float32),
+                points[:, 1].astype(np.float32)
+            )
             
             # 🔥 Prepare all polygons in GPU format once with optimized extraction
             polygon_data = []
@@ -1301,38 +1305,7 @@ def reclassify_tile(
     )
 
 
+
 # ============================================================================
-# Deprecated aliases for backward compatibility
+# Deprecated classes and functions removed in v4.0
 # ============================================================================
-
-
-class OptimizedReclassifier(Reclassifier):
-    """
-    Deprecated: Use Reclassifier instead.
-
-    This class is deprecated and will be removed in v4.0.
-    Use Reclassifier for the same functionality.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "OptimizedReclassifier is deprecated, " "use Reclassifier instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-def reclassify_tile_optimized(*args, **kwargs):
-    """
-    Deprecated: Use reclassify_tile() instead.
-
-    This function is deprecated and will be removed in v4.0.
-    Use reclassify_tile() for the same functionality.
-    """
-    warnings.warn(
-        "reclassify_tile_optimized() is deprecated, " "use reclassify_tile() instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return reclassify_tile(*args, **kwargs)

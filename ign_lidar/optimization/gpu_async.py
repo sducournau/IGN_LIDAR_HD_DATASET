@@ -377,7 +377,10 @@ class AsyncGPUProcessor:
                 stream.synchronize()
             
             # Free GPU memory
-            cp.get_default_memory_pool().free_all_blocks()
+            from ign_lidar.core.gpu import GPUManager
+            mempool = GPUManager().get_memory_pool()
+            if mempool:
+                mempool.free_all_blocks()
             gc.collect()
     
     def _fallback_cpu_processing(self, points, classification, feature_mode, k_neighbors):

@@ -1,9 +1,9 @@
 """
 Feature Filtering Example - Remove Line/Dash Artifacts
 
-This example demonstrates how to use the unified feature filtering module
-to remove line/dash artifacts from geometric features (planarity, linearity,
-horizontality) that occur at object boundaries due to k-NN crossing surfaces.
+This example demonstrates feature filtering to remove line/dash artifacts
+from geometric features (planarity, linearity, horizontality) that occur at 
+object boundaries due to k-NN crossing surfaces.
 
 **Use Cases:**
 1. Remove artifacts before ground truth classification

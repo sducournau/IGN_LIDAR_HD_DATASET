@@ -383,18 +383,34 @@ class LiDARProcessor:
         self.feature_orchestrator = self.feature_engine.orchestrator
         self.feature_manager = self.feature_orchestrator  # Backward compatibility alias
 
-        # OPTIMIZATION: Enable GPU transfer profiling if requested (November 2025 Audit)
+        # OPTIMIZATION: Enable GPU profiling if requested (November 2025 Audit - Priority 2 Task 8)
         use_gpu = OmegaConf.select(config, "processor.use_gpu", default=False)
         profile_gpu = OmegaConf.select(config, "processor.profile_gpu", default=False)
         
+        # Initialize GPU profiler reference (Priority 2 Task 8: integrate gpu.profiler)
+        self.gpu_profiler = None
+        
         if use_gpu and profile_gpu:
             try:
+                # Enable comprehensive GPU profiling via GPUManager
+                from ..core.gpu import GPUManager
+                gpu = GPUManager()
+                if gpu.gpu_available:
+                    self.gpu_profiler = gpu.profiler
+                    logger.info("📊 GPU profiling enabled (comprehensive + transfers)")
+                    logger.info("   - CUDA event timing")
+                    logger.info("   - Memory tracking")
+                    logger.info("   - Bottleneck detection")
+                    logger.info("   ⚠️  Adds overhead - disable in production")
+                else:
+                    logger.warning("⚠️  GPU profiling requested but GPU unavailable")
+                
+                # Also enable transfer profiling for detailed transfer tracking
                 from ..optimization.gpu_transfer_profiler import enable_automatic_tracking
                 enable_automatic_tracking()
-                logger.info("📊 GPU transfer profiling enabled (audit mode)")
-                logger.info("   This adds overhead - disable in production")
-            except ImportError:
-                logger.warning("⚠️  GPU transfer profiler not available")
+                logger.info("   - Transfer profiling enabled")
+            except ImportError as e:
+                logger.warning(f"⚠️  GPU profiler not available: {e}")
         elif use_gpu and not profile_gpu:
             logger.debug("GPU profiling disabled (set profile_gpu=true to enable)")
 
@@ -1873,6 +1889,18 @@ class LiDARProcessor:
             stats["processing_time_seconds"] = round(processing_time, 2)
             metadata_mgr.save_stats(stats)
 
+        # Priority 2 Task 8: Print GPU profiling report if enabled
+        if self.gpu_profiler is not None:
+            try:
+                logger.info("")
+                logger.info("=" * 70)
+                logger.info("📊 GPU Profiling Report:")
+                logger.info("=" * 70)
+                self.gpu_profiler.print_report()
+                logger.info("=" * 70)
+            except Exception as e:
+                logger.warning(f"⚠️  Failed to print GPU profiling report: {e}")
+
         # Save dataset metadata if dataset manager is enabled
         if self.dataset_manager is not None:
             processing_time = time.time() - start_time
@@ -2021,6 +2049,18 @@ class LiDARProcessor:
             stats["phase4_optimizations"] = opt_stats
             
             metadata_mgr.save_stats(stats)
+        
+        # Priority 2 Task 8: Print GPU profiling report if enabled
+        if self.gpu_profiler is not None:
+            try:
+                logger.info("")
+                logger.info("=" * 70)
+                logger.info("📊 GPU Profiling Report:")
+                logger.info("=" * 70)
+                self.gpu_profiler.print_report()
+                logger.info("=" * 70)
+            except Exception as e:
+                logger.warning(f"⚠️  Failed to print GPU profiling report: {e}")
         
         # Save dataset metadata if dataset manager is enabled
         if self.dataset_manager is not None:

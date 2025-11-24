@@ -29,6 +29,7 @@ from .error_handler import (
 from .verification import FeatureVerifier, FeatureStats, verify_laz_files
 from .gpu import GPUManager, get_gpu_manager, GPU_AVAILABLE, HAS_CUPY
 from .gpu_memory import GPUMemoryManager, get_gpu_memory_manager, cleanup_gpu_memory, check_gpu_memory
+from .gpu_unified import UnifiedGPUManager
 from .ground_truth_hub import GroundTruthHub, ground_truth
 from .ground_truth_manager import GroundTruthManager
 from .tile_io_manager import TileIOManager

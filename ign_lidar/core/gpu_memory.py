@@ -26,6 +26,7 @@ Version: 1.0
 
 import logging
 from typing import Optional, Tuple
+from contextlib import contextmanager
 import gc
 
 logger = logging.getLogger(__name__)
@@ -280,6 +281,82 @@ class GPUMemoryManager:
                 logger.info(f"✅ GPU memory limit set to {limit_gb:.2f} GB")
         except Exception as e:
             logger.warning(f"⚠️ Failed to set GPU memory limit: {e}")
+    
+    @contextmanager
+    def managed_context(self, size_gb: Optional[float] = None, cleanup: bool = True):
+        """
+        Context manager for automatic GPU memory management.
+        
+        This context manager provides automatic memory allocation checking,
+        usage monitoring, and cleanup when exiting the context.
+        
+        Args:
+            size_gb: Required memory in GB (optional, for pre-allocation check)
+            cleanup: Whether to perform cleanup on exit (default: True)
+            
+        Yields:
+            GPUMemoryManager instance for operations within context
+            
+        Raises:
+            RuntimeError: If GPU is not available
+            MemoryError: If required memory cannot be allocated
+            
+        Example:
+            >>> gpu_mem = get_gpu_memory_manager()
+            >>> 
+            >>> # Automatic cleanup after processing
+            >>> with gpu_mem.managed_context(size_gb=2.5):
+            ...     result = process_large_dataset_gpu(data)
+            >>> 
+            >>> # Memory is automatically freed here
+            >>> 
+            >>> # Without pre-allocation check
+            >>> with gpu_mem.managed_context():
+            ...     result = process_gpu(data)
+            
+        Performance:
+            - Reduces memory leaks
+            - Prevents OOM errors
+            - Automatic fragmentation cleanup
+            - Thread-safe operations
+            
+        Note:
+            This is the RECOMMENDED way to manage GPU memory in the codebase.
+            Replaces manual try/finally cleanup blocks throughout the code.
+        """
+        if not self._gpu_available:
+            raise RuntimeError("GPU not available for memory context")
+        
+        # Pre-allocation check if size specified
+        if size_gb is not None:
+            if not self.allocate(size_gb):
+                available = self.get_available_memory()
+                raise MemoryError(
+                    f"Cannot allocate {size_gb:.2f} GB GPU memory. "
+                    f"Only {available:.2f} GB available."
+                )
+            logger.debug(f"✅ Pre-allocated {size_gb:.2f} GB GPU memory")
+        
+        # Track initial memory state
+        initial_used = self.get_used_memory()
+        logger.debug(f"🔹 Entering GPU memory context (used: {initial_used:.2f} GB)")
+        
+        try:
+            # Yield self for operations within context
+            yield self
+            
+        finally:
+            # Cleanup on exit if requested
+            if cleanup:
+                self.free_cache()
+                final_used = self.get_used_memory()
+                freed = initial_used - final_used
+                logger.debug(
+                    f"🔹 Exiting GPU memory context "
+                    f"(freed: {freed:.2f} GB, used: {final_used:.2f} GB)"
+                )
+            else:
+                logger.debug("🔹 Exiting GPU memory context (no cleanup)")
     
     def get_usage_percentage(self) -> float:
         """

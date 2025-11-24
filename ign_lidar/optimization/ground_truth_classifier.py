@@ -167,9 +167,10 @@ class GPUGroundTruthClassifier:
                 # Initialize memory pooling for better performance
                 if self.enable_memory_pooling:
                     try:
-                        mempool = cp.get_default_memory_pool()
-                        mempool.set_limit(size=int(1024**3 * 16))  # 16GB limit
-                        logger.info("✓ GPU memory pooling enabled for ground truth")
+                        mempool = _gpu_manager.get_memory_pool()
+                        if mempool:
+                            mempool.set_limit(size=int(1024**3 * 16))  # 16GB limit
+                            logger.info("✓ GPU memory pooling enabled for ground truth")
                     except Exception as e:
                         logger.warning(f"⚠ Memory pooling failed: {e}")
 

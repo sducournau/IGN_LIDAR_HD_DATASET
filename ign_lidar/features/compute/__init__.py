@@ -145,8 +145,9 @@ from .is_ground import (
     identify_ground_gaps,
 )
 
-# Additional normal computation utilities
-from .normals import compute_normals_accurate, compute_normals_fast
+# Note: Deprecated functions removed in v4.0:
+# - compute_normals_fast (use compute_normals(points, method='fast', return_eigenvalues=False))
+# - compute_normals_accurate (use compute_normals(points, method='accurate'))
 
 # API dispatcher - this is the main public API for compute_all_features
 from .dispatcher import compute_all_features  # Main public API
@@ -178,8 +179,6 @@ from .utils import (
 __all__ = [
     # Normal computation
     "compute_normals",
-    "compute_normals_fast",
-    "compute_normals_accurate",
     # Curvature features
     "compute_curvature",
     "compute_mean_curvature",
