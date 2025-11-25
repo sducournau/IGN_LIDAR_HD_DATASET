@@ -22,6 +22,7 @@ import logging
 
 from .strategies import BaseFeatureStrategy
 from .compute.rgb_nir import compute_rgb_features
+from .compute.gpu_memory_integration import get_gpu_memory_pool
 from ..core.gpu import GPUManager
 from ..optimization.gpu_cache import GPUArrayCache
 
@@ -103,6 +104,9 @@ class GPUStrategy(BaseFeatureStrategy):
 
         self.batch_size = batch_size
 
+        # Initialize GPU memory pool (Phase 2.2)
+        self.memory_pool = get_gpu_memory_pool(enable=True)
+
         # Initialize GPU processor with auto-chunking
         # Note: chunk_threshold is auto-detected based on VRAM
         self.gpu_processor = GPUProcessor(
@@ -121,6 +125,7 @@ class GPUStrategy(BaseFeatureStrategy):
             )
             logger.info(f"  GPU available: {self.gpu_processor.use_gpu}")
             logger.info(f"  GPU cache enabled: {self.gpu_cache is not None}")
+            logger.info(f"  Memory pooling enabled: {self.memory_pool.enable_pooling}")
             if hasattr(self.gpu_processor, 'chunk_threshold'):
                 logger.info(f"  Auto-chunking threshold: {self.gpu_processor.chunk_threshold:,} points")
 
