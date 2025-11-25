@@ -16,20 +16,20 @@
 ### Combined Impact
 
 - ✅ **660 lines**: PyTorch integration module
-- ✅ **550 lines**: Distributed processing module  
+- ✅ **550 lines**: Distributed processing module
 - ✅ **500+ lines**: Comprehensive test coverage
 - ✅ **100% backward compatible**: All existing APIs unchanged
 - ✅ **Production ready**: Full error handling and documentation
 
 ### Key Achievements
 
-| Capability | Before | After | Gain |
-| --- | --- | --- | --- |
-| PyTorch Support | None | Full | ✅ New |
-| Multi-GPU Support | Single GPU | Multi-GPU coordinated | ✅ New |
-| Model Inference | Manual | Automated pipeline | ✅ New |
-| Distributed Features | None | Across GPUs/nodes | ✅ New |
-| Data Loading | NumPy only | PyTorch DataLoader | ✅ New |
+| Capability           | Before     | After                 | Gain   |
+| -------------------- | ---------- | --------------------- | ------ |
+| PyTorch Support      | None       | Full                  | ✅ New |
+| Multi-GPU Support    | Single GPU | Multi-GPU coordinated | ✅ New |
+| Model Inference      | Manual     | Automated pipeline    | ✅ New |
+| Distributed Features | None       | Across GPUs/nodes     | ✅ New |
+| Data Loading         | NumPy only | PyTorch DataLoader    | ✅ New |
 
 ---
 
@@ -71,6 +71,7 @@ stacked = converter.stack_tensors(tensors)
 ```
 
 **Features**:
+
 - Automatic device placement (CPU/CUDA/MPS)
 - Pinned memory for faster GPU transfers
 - Batch operations for efficiency
@@ -92,7 +93,7 @@ class FeatureClassifier(nn.Module):
         self.fc1 = nn.Linear(38, 128)
         self.fc2 = nn.Linear(128, 15)
         self.relu = nn.ReLU()
-    
+
     def forward(self, x):
         x = self.relu(self.fc1(x))
         return self.fc2(x)
@@ -124,6 +125,7 @@ embeddings = inference.get_embeddings(
 ```
 
 **Features**:
+
 - Batch inference with configurable batch size
 - Confidence filtering
 - Intermediate layer embeddings
@@ -160,6 +162,7 @@ loaded_model = ModelLoader.load_model(
 ```
 
 **Features**:
+
 - Save/load models with full state
 - Optimizer state preservation
 - Metadata storage
@@ -198,6 +201,7 @@ for batch_features, batch_labels in dataloader:
 ```
 
 **Features**:
+
 - Automatic feature stacking
 - Optional label handling
 - Pinned memory for faster transfers
@@ -233,7 +237,7 @@ class Classifier(nn.Module):
             nn.ReLU(),
             nn.Linear(64, num_classes)
         )
-    
+
     def forward(self, x):
         return self.net(x)
 
@@ -315,6 +319,7 @@ batch_size = manager.get_optimal_batch_size(
 ```
 
 **Features**:
+
 - Real-time memory monitoring
 - GPU capability detection
 - Load balancing recommendations
@@ -350,6 +355,7 @@ results = processor.process_batch(
 ```
 
 **Features**:
+
 - Automatic GPU selection
 - Load-balanced data distribution
 - Thread-based parallelization
@@ -387,6 +393,7 @@ features = dist_compute.compute_features(
 ```
 
 **Features**:
+
 - Spatial or balanced partitioning
 - Automatic aggregation
 - GPU-CPU pipeline optimization
@@ -417,6 +424,7 @@ for batch in loader:
 ```
 
 **Features**:
+
 - Automatic data sharding
 - Per-rank batch generation
 - Shuffling support
@@ -439,21 +447,22 @@ try:
         backend='nccl',  # For GPU
         init_method='env://'
     )
-    
+
     # Run distributed training
     rank = torch.distributed.get_rank()
     world_size = torch.distributed.get_world_size()
-    
+
     # Training code
     model = DDP(model)
     for epoch in range(num_epochs):
         train_epoch(model, loader)
-    
+
 finally:
     cleanup_distributed_env()
 ```
 
 **Features**:
+
 - NCCL backend for GPU
 - Gloo backend for CPU+GPU
 - Multi-node support
@@ -478,11 +487,11 @@ processor = MultiGPUProcessor(num_gpus='all')
 def process_tile_gpu(tile_path, gpu_id):
     torch.cuda.set_device(gpu_id)
     service = FeatureOrchestrationService(config)
-    
+
     points = load_laz(tile_path)
     classification = load_classification(tile_path)
     features = service.compute_features(points, classification)
-    
+
     # Save features
     save_features(tile_path.replace('.laz', '_features.npy'), features)
     return tile_path
@@ -510,14 +519,14 @@ from ign_lidar.optimization import (
 
 def main():
     initialize_distributed_env(backend='nccl')
-    
+
     try:
         rank = dist.get_rank()
         world_size = dist.get_world_size()
-        
+
         # Load data
         dataset = FeatureDataset('features/')
-        
+
         # Create distributed loader
         loader = DistributedDataLoader(
             dataset,
@@ -527,29 +536,29 @@ def main():
             rank=rank,
             shuffle=True
         )
-        
+
         # Wrap model
         model = FeatureClassifier()
         model = model.to(rank)
         model = DDP(model, device_ids=[rank])
-        
+
         # Training loop
         optimizer = torch.optim.Adam(model.parameters())
         criterion = nn.CrossEntropyLoss()
-        
+
         for epoch in range(10):
             for batch in loader:
                 x, y = batch
                 x = x.to(rank)
                 y = y.to(rank)
-                
+
                 logits = model(x)
                 loss = criterion(logits, y)
-                
+
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-        
+
     finally:
         cleanup_distributed_env()
 
@@ -647,34 +656,40 @@ Point Cloud (NumPy)
 #### Test Categories
 
 1. **Tensor Conversion** (10+ tests)
+
    - NumPy ↔ PyTorch conversion
    - Batch operations
    - Device placement
    - Memory handling
 
 2. **GPU Inference** (8+ tests)
+
    - Model loading/saving
    - Batch inference
    - Confidence filtering
    - Embedding extraction
 
 3. **GPU Management** (8+ tests)
+
    - GPU detection
    - Memory monitoring
    - Load balancing
    - Batch size calculation
 
 4. **Multi-GPU Processing** (6+ tests)
+
    - Partitioning strategies
    - Batch processing
    - Error handling
 
 5. **Distributed Features** (6+ tests)
+
    - Spatial partitioning
    - Balanced partitioning
    - Result aggregation
 
 6. **Performance** (5+ tests)
+
    - Throughput benchmarks
    - Partitioning speed
    - Scaling efficiency
@@ -734,23 +749,23 @@ tensor = converter.numpy_to_tensor(features)
 
 ### Phase 5: PyTorch Integration
 
-| Operation | Throughput | Notes |
-| --- | --- | --- |
-| NumPy → Tensor | >100k samples/sec | CPU→GPU async |
-| GPU Inference | 1M+ samples/sec | Batch=4096 |
-| Tensor → NumPy | >100k samples/sec | GPU→CPU async |
-| Model Loading | <100ms | Typical |
-| Batch Creation | >1M samples/sec | Stack operation |
+| Operation      | Throughput        | Notes           |
+| -------------- | ----------------- | --------------- |
+| NumPy → Tensor | >100k samples/sec | CPU→GPU async   |
+| GPU Inference  | 1M+ samples/sec   | Batch=4096      |
+| Tensor → NumPy | >100k samples/sec | GPU→CPU async   |
+| Model Loading  | <100ms            | Typical         |
+| Batch Creation | >1M samples/sec   | Stack operation |
 
 ### Phase 6: Distributed Processing
 
-| Metric | Value | Notes |
-| --- | --- | --- |
-| Scaling Efficiency | 85-95% | 4-8 GPUs |
-| Overhead | <5% | Per GPU |
-| Partitioning Speed | <1ms | For 10M points |
-| Load Balance | ±5% | Adaptive |
-| Inter-GPU Transfer | 100+ GB/s | NVLink |
+| Metric             | Value     | Notes          |
+| ------------------ | --------- | -------------- |
+| Scaling Efficiency | 85-95%    | 4-8 GPUs       |
+| Overhead           | <5%       | Per GPU        |
+| Partitioning Speed | <1ms      | For 10M points |
+| Load Balance       | ±5%       | Adaptive       |
+| Inter-GPU Transfer | 100+ GB/s | NVLink         |
 
 ---
 
@@ -778,11 +793,13 @@ tensor = converter.numpy_to_tensor(features)
 ### Potential Enhancements
 
 1. **Phase 7: Advanced ML**
+
    - AutoML for model selection
    - Hyperparameter optimization
    - Custom loss functions
 
 2. **Phase 8: Federated Learning**
+
    - Privacy-preserving training
    - Multi-institutional collaboration
    - Differential privacy

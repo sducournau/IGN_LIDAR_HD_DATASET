@@ -117,6 +117,67 @@ except ImportError:
     convert_features_to_pytorch_dataset = None
     PYTORCH_AVAILABLE = False
 
+# Transfer Learning (Phase 7 - Advanced ML - November 25, 2025)
+try:
+    from .transfer_learning import (
+        TransferConfig,
+        FeatureExtractor,
+        DomainAdapter,
+        ProgressiveUnfreezing,
+        TransferLearningPipeline,
+    )
+
+    TRANSFER_LEARNING_AVAILABLE = True
+except ImportError:
+    TransferConfig = None
+    FeatureExtractor = None
+    DomainAdapter = None
+    ProgressiveUnfreezing = None
+    TransferLearningPipeline = None
+    TRANSFER_LEARNING_AVAILABLE = False
+
+# Model Ensemble (Phase 7 - Advanced ML - November 25, 2025)
+try:
+    from .model_ensemble import (
+        EnsembleConfig,
+        VotingEnsemble,
+        StackingEnsemble,
+        BootstrappingEnsemble,
+        EnsembleInference,
+    )
+
+    ENSEMBLE_AVAILABLE = True
+except ImportError:
+    EnsembleConfig = None
+    VotingEnsemble = None
+    StackingEnsemble = None
+    BootstrappingEnsemble = None
+    EnsembleInference = None
+    ENSEMBLE_AVAILABLE = False
+
+# Active Learning (Phase 7 - Advanced ML - November 25, 2025)
+try:
+    from .active_learning import (
+        ActiveLearningConfig,
+        QueryStrategy,
+        UncertaintySampling,
+        DiversitySampling,
+        QueryByCommittee,
+        HybridSampling,
+        ActiveLearner,
+    )
+
+    ACTIVE_LEARNING_AVAILABLE = True
+except ImportError:
+    ActiveLearningConfig = None
+    QueryStrategy = None
+    UncertaintySampling = None
+    DiversitySampling = None
+    QueryByCommittee = None
+    HybridSampling = None
+    ActiveLearner = None
+    ACTIVE_LEARNING_AVAILABLE = False
+
 from .architectural_styles import (
     ARCHITECTURAL_STYLES,
     CHARACTERISTIC_TO_STYLE,
@@ -167,6 +228,26 @@ __all__ = [
     "GPUInference",
     "ModelLoader",
     "convert_features_to_pytorch_dataset",
+    # Transfer Learning (Phase 7 - Advanced ML)
+    "TransferConfig",
+    "FeatureExtractor",
+    "DomainAdapter",
+    "ProgressiveUnfreezing",
+    "TransferLearningPipeline",
+    # Model Ensemble (Phase 7 - Advanced ML)
+    "EnsembleConfig",
+    "VotingEnsemble",
+    "StackingEnsemble",
+    "BootstrappingEnsemble",
+    "EnsembleInference",
+    # Active Learning (Phase 7 - Advanced ML)
+    "ActiveLearningConfig",
+    "QueryStrategy",
+    "UncertaintySampling",
+    "DiversitySampling",
+    "QueryByCommittee",
+    "HybridSampling",
+    "ActiveLearner",
     # Strategy Pattern (NEW - Week 2)
     "BaseFeatureStrategy",
     "FeatureComputeMode",
