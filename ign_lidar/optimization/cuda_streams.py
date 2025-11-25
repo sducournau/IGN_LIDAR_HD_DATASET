@@ -450,6 +450,26 @@ def create_stream_manager(
     return CUDAStreamManager(config)
 
 
+# Deprecation notice (Phase 1 - v3.7.0)
+import warnings
+
+def _show_deprecation_warning():
+    """Show deprecation warning for cuda_streams module."""
+    warnings.warn(
+        "The 'cuda_streams' module is deprecated as of v3.7.0. "
+        "Use 'ign_lidar.core.GPUStreamManager' instead. "
+        "For backward compatibility, CUDAStreamManager still works but wraps GPUStreamManager. "
+        "The old module will be removed in v4.0.0.\n"
+        "  OLD: from ign_lidar.optimization.cuda_streams import CUDAStreamManager\n"
+        "  NEW: from ign_lidar.core import GPUStreamManager",
+        DeprecationWarning,
+        stacklevel=3
+    )
+
+# Show warning on first import
+_show_deprecation_warning()
+
+
 __all__ = [
     'CUDAStreamManager',
     'StreamConfig',

@@ -16,6 +16,7 @@ Date: October 18, 2025
 """
 
 import logging
+import warnings
 from typing import Dict, List, Optional, Callable, Any
 import numpy as np
 from pathlib import Path
@@ -23,6 +24,19 @@ from pathlib import Path
 from .mode_selector import ModeSelector, ComputationMode, get_mode_selector
 
 logger = logging.getLogger(__name__)
+
+# Show deprecation warning on module import
+def _deprecation_warning():
+    warnings.warn(
+        "The 'FeatureComputer' class is deprecated as of v3.7.0 and will be removed in v4.0.0. "
+        "Use 'FeatureOrchestrator' from ign_lidar.features instead.\n"
+        "  OLD: from ign_lidar.features import FeatureComputer\n"
+        "  NEW: from ign_lidar.features import FeatureOrchestrator",
+        DeprecationWarning,
+        stacklevel=3
+    )
+
+_deprecation_warning()
 
 
 class FeatureComputer:
