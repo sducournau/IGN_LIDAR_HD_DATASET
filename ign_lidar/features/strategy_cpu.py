@@ -18,6 +18,7 @@ import numpy as np
 from .compute.features import compute_all_features_optimized
 from .compute.curvature import compute_curvature as compute_curvature_canonical
 from .compute.eigenvalues import compute_eigenvalue_features
+from .compute.rgb_nir import compute_rgb_features
 from .strategies import BaseFeatureStrategy
 from ..utils.normalization import normalize_rgb
 
@@ -222,7 +223,7 @@ class CPUStrategy(BaseFeatureStrategy):
 
         # Compute RGB features if provided
         if rgb is not None:
-            rgb_features = self._compute_rgb_features_cpu(rgb)
+            rgb_features = compute_rgb_features(rgb, use_gpu=False)
             result.update(rgb_features)
 
         # Compute NDVI if NIR and RGB provided
@@ -305,44 +306,6 @@ class CPUStrategy(BaseFeatureStrategy):
 
         return result
 
-    def _compute_rgb_features_cpu(self, rgb: np.ndarray) -> Dict[str, np.ndarray]:
-        """
-        Compute RGB-based features using CPU.
-
-        Args:
-            rgb: (N, 3) array of RGB values [0-255]
-
-        Returns:
-            Dictionary with RGB features
-        """
-        # Normalize to [0, 1] using utility
-        rgb_normalized = normalize_rgb(rgb, use_gpu=False)
-
-        # Basic RGB statistics
-        rgb_mean = np.mean(rgb_normalized, axis=1)
-        rgb_std = np.std(rgb_normalized, axis=1)
-        rgb_range = np.max(rgb_normalized, axis=1) - np.min(rgb_normalized, axis=1)
-
-        # Color indices
-        r, g, b = rgb_normalized[:, 0], rgb_normalized[:, 1], rgb_normalized[:, 2]
-
-        # Excess Green Index
-        with np.errstate(divide="ignore", invalid="ignore"):
-            sum_rgb = r + g + b + 1e-8
-            exg = 2 * g - r - b
-            exg = np.nan_to_num(exg, nan=0.0)
-
-        # Vegetation index (simple)
-        vegetation_index = (g - r) / (g + r + 1e-8)
-        vegetation_index = np.nan_to_num(vegetation_index, nan=0.0)
-
-        return {
-            "rgb_mean": rgb_mean.astype(np.float32),
-            "rgb_std": rgb_std.astype(np.float32),
-            "rgb_range": rgb_range.astype(np.float32),
-            "excess_green": exg.astype(np.float32),
-            "vegetation_index": vegetation_index.astype(np.float32),
-        }
 
     def __repr__(self) -> str:
         """String representation."""

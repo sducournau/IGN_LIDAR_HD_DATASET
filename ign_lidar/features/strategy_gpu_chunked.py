@@ -22,6 +22,7 @@ import numpy as np
 import logging
 
 from .strategies import BaseFeatureStrategy
+from .compute.rgb_nir import compute_rgb_features
 from ..core.gpu import GPUManager
 from ..optimization.adaptive_chunking import auto_chunk_size, get_recommended_strategy
 from ..optimization.gpu_cache import GPUArrayCache
@@ -246,7 +247,7 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
 
         # Compute RGB features if provided
         if rgb is not None:
-            rgb_features = self._compute_rgb_features_gpu(rgb)
+            rgb_features = compute_rgb_features(rgb, use_gpu=True)
             result.update(rgb_features)
 
         # Compute NDVI if NIR and RGB provided
@@ -308,70 +309,6 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
             result["distance_to_center"] = distances.astype(np.float32)
 
         return result
-
-    def _compute_rgb_features_gpu(self, rgb: np.ndarray) -> Dict[str, np.ndarray]:
-        """
-        Compute RGB-based features using GPU with chunking.
-
-        Args:
-            rgb: (N, 3) array of RGB values [0-255]
-
-        Returns:
-            Dictionary with RGB features
-        """
-        n_points = len(rgb)
-
-        # Process in chunks to avoid GPU memory issues
-        results = {
-            "rgb_mean": np.zeros(n_points, dtype=np.float32),
-            "rgb_std": np.zeros(n_points, dtype=np.float32),
-            "rgb_range": np.zeros(n_points, dtype=np.float32),
-            "excess_green": np.zeros(n_points, dtype=np.float32),
-            "vegetation_index": np.zeros(n_points, dtype=np.float32),
-        }
-
-        for start in range(0, n_points, self.chunk_size):
-            end = min(start + self.chunk_size, n_points)
-            rgb_chunk = rgb[start:end]
-
-            # Transfer to GPU
-            rgb_gpu = cp.asarray(rgb_chunk, dtype=cp.float32) / 255.0
-
-            # Basic RGB statistics
-            rgb_mean = cp.mean(rgb_gpu, axis=1)
-            rgb_std = cp.std(rgb_gpu, axis=1)
-            rgb_range = cp.max(rgb_gpu, axis=1) - cp.min(rgb_gpu, axis=1)
-
-            # Color indices
-            r, g, b = rgb_gpu[:, 0], rgb_gpu[:, 1], rgb_gpu[:, 2]
-
-            # Excess Green Index
-            exg = 2 * g - r - b
-
-            # Vegetation index
-            vegetation_index = (g - r) / (g + r + 1e-8)
-
-            # ⚡ OPTIMIZATION: Batch all RGB transfers into single operation
-            # Stack all features on GPU, then single transfer to CPU
-            rgb_features_gpu = cp.stack(
-                [rgb_mean, rgb_std, rgb_range, exg, vegetation_index], axis=1
-            )  # Shape: [N, 5]
-
-            # Single transfer: 5x fewer cp.asnumpy() calls
-            rgb_features_cpu = cp.asnumpy(rgb_features_gpu)
-
-            # Unpack to results
-            results["rgb_mean"][start:end] = rgb_features_cpu[:, 0]
-            results["rgb_std"][start:end] = rgb_features_cpu[:, 1]
-            results["rgb_range"][start:end] = rgb_features_cpu[:, 2]
-            results["excess_green"][start:end] = rgb_features_cpu[:, 3]
-            results["vegetation_index"][start:end] = rgb_features_cpu[:, 4]
-
-            # Cleanup
-            del rgb_features_gpu, rgb_features_cpu
-
-        return results
-
     def __repr__(self) -> str:
         """String representation."""
         return (

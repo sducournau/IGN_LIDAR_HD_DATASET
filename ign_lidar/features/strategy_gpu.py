@@ -21,6 +21,7 @@ import numpy as np
 import logging
 
 from .strategies import BaseFeatureStrategy
+from .compute.rgb_nir import compute_rgb_features
 from ..core.gpu import GPUManager
 from ..optimization.gpu_cache import GPUArrayCache
 
@@ -192,7 +193,7 @@ class GPUStrategy(BaseFeatureStrategy):
 
         # Compute RGB features if provided
         if rgb is not None:
-            rgb_features = self._compute_rgb_features_gpu(rgb)
+            rgb_features = compute_rgb_features(rgb, use_gpu=True)
             result.update(rgb_features)
 
         # Compute NDVI if NIR and RGB provided
@@ -254,52 +255,6 @@ class GPUStrategy(BaseFeatureStrategy):
             result["distance_to_center"] = distances.astype(np.float32)
 
         return result
-
-    def _compute_rgb_features_gpu(self, rgb: np.ndarray) -> Dict[str, np.ndarray]:
-        """
-        Compute RGB-based features using GPU.
-
-        Args:
-            rgb: (N, 3) array of RGB values [0-255]
-
-        Returns:
-            Dictionary with RGB features
-        """
-        # Transfer to GPU
-        rgb_gpu = cp.asarray(rgb, dtype=cp.float32) / 255.0
-
-        # Basic RGB statistics
-        rgb_mean = cp.mean(rgb_gpu, axis=1)
-        rgb_std = cp.std(rgb_gpu, axis=1)
-        rgb_range = cp.max(rgb_gpu, axis=1) - cp.min(rgb_gpu, axis=1)
-
-        # Color indices
-        r, g, b = rgb_gpu[:, 0], rgb_gpu[:, 1], rgb_gpu[:, 2]
-
-        # Excess Green Index
-        exg = 2 * g - r - b
-
-        # Vegetation index
-        vegetation_index = (g - r) / (g + r + 1e-8)
-
-        # ⚡ OPTIMIZATION: Batch all RGB transfers into single operation
-        # Stack all features on GPU, then single transfer to CPU (5x faster)
-        rgb_features_gpu = cp.stack(
-            [rgb_mean, rgb_std, rgb_range, exg, vegetation_index], axis=1
-        )  # Shape: [N, 5]
-        
-        # Single transfer instead of 5 separate cp.asnumpy() calls
-        rgb_features_cpu = cp.asnumpy(rgb_features_gpu).astype(np.float32)
-
-        # Transfer back to CPU
-        return {
-            "rgb_mean": rgb_features_cpu[:, 0],
-            "rgb_std": rgb_features_cpu[:, 1],
-            "rgb_range": rgb_features_cpu[:, 2],
-            "excess_green": rgb_features_cpu[:, 3],
-            "vegetation_index": rgb_features_cpu[:, 4],
-        }
-
     def __repr__(self) -> str:
         """String representation."""
         return f"GPUStrategy(k_neighbors={self.k_neighbors}, batch_size={self.batch_size:,})"
