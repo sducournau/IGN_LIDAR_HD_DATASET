@@ -90,6 +90,15 @@ except ImportError:
     get_feature_computer = None
     FEATURE_COMPUTER_AVAILABLE = False
 
+# FeatureOrchestrationService Facade (Phase 4 - simplified interface)
+try:
+    from .orchestrator_facade import FeatureOrchestrationService
+
+    ORCHESTRATOR_FACADE_AVAILABLE = True
+except ImportError:
+    FeatureOrchestrationService = None
+    ORCHESTRATOR_FACADE_AVAILABLE = False
+
 from .architectural_styles import (
     ARCHITECTURAL_STYLES,
     CHARACTERISTIC_TO_STYLE,
@@ -133,6 +142,8 @@ __all__ = [
     # FeatureComputer (Phase 4 - automatic mode selection)
     "FeatureComputer",
     "get_feature_computer",
+    # FeatureOrchestrationService Facade (Phase 4 - simplified interface)
+    "FeatureOrchestrationService",
     # Strategy Pattern (NEW - Week 2)
     "BaseFeatureStrategy",
     "FeatureComputeMode",
