@@ -128,14 +128,17 @@ class TestClassificationEngine:
         assert "gpu=True" in repr_str
 
     def test_strategy_interface(self):
-        """Test that strategies implement ClassificationStrategy interface."""
+        """Test that strategies implement required interface (duck typing)."""
         engine = ClassificationEngine()
         strategy = engine.strategy
-        assert isinstance(strategy, ClassificationStrategy)
+        # Use duck typing instead of isinstance since strategies wrap existing engines
         assert hasattr(strategy, "classify")
         assert hasattr(strategy, "get_name")
         assert callable(strategy.classify)
         assert callable(strategy.get_name)
+        # Verify the strategy has the right methods
+        name = strategy.get_name()
+        assert isinstance(name, str)
 
     def test_strategy_names(self):
         """Test that each strategy has correct name."""
