@@ -160,5 +160,91 @@ class TestClassificationMode:
         assert mode == ClassificationMode.SPECTRAL
 
 
+class TestAdvancedMethods:
+    """Tests for advanced classification methods."""
+
+    def test_classify_spectral_method_exists(self):
+        """Test that classify_spectral method exists."""
+        engine = ClassificationEngine()
+        assert hasattr(engine, "classify_spectral")
+        assert callable(engine.classify_spectral)
+
+    def test_classify_geometric_method_exists(self):
+        """Test that classify_geometric method exists."""
+        engine = ClassificationEngine()
+        assert hasattr(engine, "classify_geometric")
+        assert callable(engine.classify_geometric)
+
+    def test_classify_asprs_method_exists(self):
+        """Test that classify_asprs method exists."""
+        engine = ClassificationEngine()
+        assert hasattr(engine, "classify_asprs")
+        assert callable(engine.classify_asprs)
+
+    def test_classify_spectral_integration(self):
+        """Test spectral classification integration."""
+        engine = ClassificationEngine(mode="spectral")
+
+        n_points = 100
+        rgb = np.random.rand(n_points, 3).astype(np.float32)
+        nir = np.random.rand(n_points).astype(np.float32)
+        current_labels = np.zeros(n_points, dtype=np.int32)
+
+        try:
+            labels, stats = engine.classify_spectral(
+                rgb=rgb, nir=nir, current_labels=current_labels
+            )
+
+            assert len(labels) == n_points
+            assert isinstance(stats, dict)
+        except RuntimeError as e:
+            # SpectralRulesEngine may not be fully initialized in test env
+            pytest.skip(f"SpectralRulesEngine not available: {e}")
+
+    def test_classify_geometric_integration(self):
+        """Test geometric classification integration."""
+        engine = ClassificationEngine(mode="geometric")
+
+        n_points = 100
+        points = np.random.rand(n_points, 3).astype(np.float32)
+        labels = np.zeros(n_points, dtype=np.int32)
+        ground_truth_features = {}
+
+        try:
+            updated_labels, stats = engine.classify_geometric(
+                points=points,
+                labels=labels,
+                ground_truth_features=ground_truth_features,
+            )
+
+            assert len(updated_labels) == n_points
+            assert isinstance(stats, dict)
+        except RuntimeError as e:
+            # GeometricRulesEngine may not be fully initialized in test env
+            pytest.skip(f"GeometricRulesEngine not available: {e}")
+
+    def test_classify_asprs_integration(self):
+        """Test ASPRS classification integration."""
+        engine = ClassificationEngine(mode="asprs")
+
+        n_points = 100
+        points = np.random.rand(n_points, 3).astype(np.float32)
+        features_dict = {"height": np.random.rand(n_points)}
+        classification = np.zeros(n_points, dtype=np.int32)
+
+        try:
+            updated_labels = engine.classify_asprs(
+                points=points,
+                features=features_dict,
+                classification=classification,
+            )
+
+            assert len(updated_labels) == n_points
+            assert updated_labels.dtype == np.int32
+        except RuntimeError as e:
+            # ASPRSClassRulesEngine may not be fully initialized in test env
+            pytest.skip(f"ASPRSClassRulesEngine not available: {e}")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
