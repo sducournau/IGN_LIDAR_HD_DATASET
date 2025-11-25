@@ -24,6 +24,7 @@ import logging
 from .strategies import BaseFeatureStrategy
 from .compute.rgb_nir import compute_rgb_features
 from .compute.gpu_memory_integration import get_gpu_memory_pool
+from .compute.gpu_stream_overlap import get_gpu_stream_optimizer, StreamPhase
 from ..core.gpu import GPUManager
 from ..optimization.adaptive_chunking import auto_chunk_size, get_recommended_strategy
 from ..optimization.gpu_cache import GPUArrayCache
@@ -137,6 +138,9 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
 
         # Initialize GPU memory pool (Phase 2.2)
         self.memory_pool = get_gpu_memory_pool(enable=True)
+        
+        # Initialize GPU stream overlap optimizer (Phase 2.3)
+        self.stream_optimizer = get_gpu_stream_optimizer(enable=True)
 
         # Initialize GPU processor with chunking parameters
         # Auto-chunks for datasets > 10M points
@@ -154,6 +158,7 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
             logger.info(f"  GPU available: {self.gpu_processor.use_gpu}")
             logger.info(f"  Auto-chunking: {'enabled' if self.auto_chunk else 'disabled'}")
             logger.info(f"  Memory pooling enabled: {self.memory_pool.enable_pooling}")
+            logger.info(f"  Stream overlap enabled: {self.stream_optimizer.enable_overlap}")
             logger.info(f"  Batch strategy: used for <10M points")
             logger.info(f"  Chunked strategy: used for >10M points (auto-selected)")
 

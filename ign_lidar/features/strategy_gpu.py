@@ -23,6 +23,7 @@ import logging
 from .strategies import BaseFeatureStrategy
 from .compute.rgb_nir import compute_rgb_features
 from .compute.gpu_memory_integration import get_gpu_memory_pool
+from .compute.gpu_stream_overlap import get_gpu_stream_optimizer, StreamPhase
 from ..core.gpu import GPUManager
 from ..optimization.gpu_cache import GPUArrayCache
 
@@ -106,6 +107,9 @@ class GPUStrategy(BaseFeatureStrategy):
 
         # Initialize GPU memory pool (Phase 2.2)
         self.memory_pool = get_gpu_memory_pool(enable=True)
+        
+        # Initialize GPU stream overlap optimizer (Phase 2.3)
+        self.stream_optimizer = get_gpu_stream_optimizer(enable=True)
 
         # Initialize GPU processor with auto-chunking
         # Note: chunk_threshold is auto-detected based on VRAM
@@ -126,6 +130,7 @@ class GPUStrategy(BaseFeatureStrategy):
             logger.info(f"  GPU available: {self.gpu_processor.use_gpu}")
             logger.info(f"  GPU cache enabled: {self.gpu_cache is not None}")
             logger.info(f"  Memory pooling enabled: {self.memory_pool.enable_pooling}")
+            logger.info(f"  Stream overlap enabled: {self.stream_optimizer.enable_overlap}")
             if hasattr(self.gpu_processor, 'chunk_threshold'):
                 logger.info(f"  Auto-chunking threshold: {self.gpu_processor.chunk_threshold:,} points")
 
