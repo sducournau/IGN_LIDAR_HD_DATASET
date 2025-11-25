@@ -32,6 +32,7 @@ from .gpu_memory import GPUMemoryManager, get_gpu_memory_manager, cleanup_gpu_me
 from .gpu_unified import UnifiedGPUManager
 from .ground_truth_hub import GroundTruthHub, ground_truth
 from .ground_truth_manager import GroundTruthManager
+from .ground_truth_provider import GroundTruthProvider, get_provider as get_ground_truth_provider
 from .tile_io_manager import TileIOManager
 from .feature_engine import FeatureEngine
 from .classification_engine import ClassificationEngine
@@ -61,9 +62,12 @@ __all__ = [
     'get_gpu_memory_manager',
     'cleanup_gpu_memory',
     'check_gpu_memory',
+    'UnifiedGPUManager',
     'GroundTruthHub',
     'ground_truth',
     'GroundTruthManager',
+    'GroundTruthProvider',
+    'get_ground_truth_provider',
     'TileIOManager',
     'FeatureEngine',
     'ClassificationEngine',
