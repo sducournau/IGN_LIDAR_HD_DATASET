@@ -41,6 +41,17 @@ from .gpu_stream_manager import GPUStreamManager, get_stream_manager
 from .performance_manager import PerformanceManager, get_performance_manager
 from .config_validator import ConfigValidator, get_config_validator
 from .migration_helpers import MigrationHelper, CodeTransformer, create_migration_helper
+from .deprecation_wrappers import (
+    StreamManager,
+    PerformanceTracker,
+    ConfigurationValidator,
+    create_stream_manager,
+    create_performance_tracker,
+    create_configuration_validator,
+    get_legacy_stream_manager,
+    get_legacy_performance_tracker,
+    get_legacy_config_validator,
+)
 
 __all__ = [
     'LiDARProcessor',
@@ -87,6 +98,16 @@ __all__ = [
     'MigrationHelper',
     'CodeTransformer',
     'create_migration_helper',
+    # Phase 7 (v3.6.1+): Deprecation wrappers for backward compatibility
+    'StreamManager',
+    'PerformanceTracker',
+    'ConfigurationValidator',
+    'create_stream_manager',
+    'create_performance_tracker',
+    'create_configuration_validator',
+    'get_legacy_stream_manager',
+    'get_legacy_performance_tracker',
+    'get_legacy_config_validator',
 ]
 
 # Backward compatibility: core.modules moved to core.classification in v3.1.0
