@@ -37,6 +37,9 @@ from .tile_io_manager import TileIOManager
 from .feature_engine import FeatureEngine
 from .classification_engine import ClassificationEngine
 from .tile_orchestrator import TileOrchestrator
+from .gpu_stream_manager import GPUStreamManager, get_stream_manager
+from .performance_manager import PerformanceManager, get_performance_manager
+from .config_validator import ConfigValidator, get_config_validator
 
 __all__ = [
     'LiDARProcessor',
@@ -72,6 +75,13 @@ __all__ = [
     'FeatureEngine',
     'ClassificationEngine',
     'TileOrchestrator',
+    # Phase 5 (v3.6.0+): Unified managers for GPU, performance, and config
+    'GPUStreamManager',
+    'get_stream_manager',
+    'PerformanceManager',
+    'get_performance_manager',
+    'ConfigValidator',
+    'get_config_validator',
 ]
 
 # Backward compatibility: core.modules moved to core.classification in v3.1.0
