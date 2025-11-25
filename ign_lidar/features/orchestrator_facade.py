@@ -1,19 +1,26 @@
 """
-Simplified Feature Orchestrator Facade - High-Level Interface
+Simplified Feature Orchestrator Facade - PRIMARY PUBLIC INTERFACE
 
-This module provides a simplified, user-friendly interface to the Feature Orchestrator,
-following the same pattern as ClassificationEngine and GroundTruthProvider.
+This module provides the primary, user-friendly interface to feature computation.
+It wraps the complex FeatureOrchestrator to provide a simplified but powerful API.
+
+**Phase 3.2 Consolidation (November 25, 2025):**
+- ✅ FeatureOrchestrationService is now the PRIMARY public interface
+- ✅ FeatureOrchestrator is the internal implementation engine
+- ✅ FeatureComputer is DEPRECATED (use FeatureOrchestrationService instead)
+- ✅ Unified entry point eliminates confusion from 3 separate APIs
 
 The facade wraps the existing FeatureOrchestrator to:
 1. Reduce API complexity for common use cases
 2. Provide sensible defaults
 3. Hide internal implementation details
 4. Offer both high-level (easy) and low-level (powerful) APIs
+5. Be the canonical entry point for all feature operations
 
-Usage:
+**Recommended Usage:**
 
     # High-level API (recommended for most users)
-    from ign_lidar.features.orchestrator_facade import FeatureOrchestrationService
+    from ign_lidar.features import FeatureOrchestrationService
     
     service = FeatureOrchestrationService(config)
     features = service.compute_features(points, classification)
@@ -24,26 +31,38 @@ Usage:
         classification,
         mode='LOD3',
         use_gpu=True,
-        use_rgb=True
+        use_rgb=True,
+        k_neighbors=50
     )
+
+**NOT RECOMMENDED (Legacy):**
+
+    # ❌ OLD: Don't use these anymore
+    from ign_lidar.features import FeatureComputer  # DEPRECATED
+    from ign_lidar.features import FeatureOrchestrator  # Internal impl
+    
+    # Use FeatureOrchestrationService instead!
 
 Architecture:
 
-    FeatureOrchestrationService (Facade)
-    └── FeatureOrchestrator (Wrapped)
+    FeatureOrchestrationService (PRIMARY PUBLIC INTERFACE - Phase 3.2)
+    └── FeatureOrchestrator (Internal implementation engine, 3161 lines)
         ├── RGB Fetcher
         ├── Infrared Fetcher
-        └── Feature Computer (Strategy-based)
+        ├── Strategy Selection (CPU/GPU/Chunked/Boundary)
+        └── Feature Computation
 
 Benefits:
 
+    ✓ Single entry point (no confusion from 3 APIs)
     ✓ Simpler API for common workflows
     ✓ Sensible defaults (LOD2, CPU by default, smart GPU detection)
-    ✓ Progressive disclosure of complexity
+    ✓ Progressive disclosure of complexity (simple→advanced)
     ✓ Full backward compatibility with FeatureOrchestrator
     ✓ Better documentation through clear parameter names
+    ✓ Lazy initialization for better startup performance
 
-Version: 1.0.0
+Version: 2.0.0 (Phase 3.2 Consolidation)
 Date: November 25, 2025
 """
 
@@ -57,27 +76,37 @@ logger = logging.getLogger(__name__)
 
 class FeatureOrchestrationService:
     """
-    Simplified facade for feature computation operations.
+    PRIMARY PUBLIC INTERFACE for feature computation operations (Phase 3.2).
 
-    This class provides a high-level, easy-to-use interface to the complex
-    FeatureOrchestrator. It handles:
-    - Configuration management with sensible defaults
-    - Resource initialization
-    - Feature computation coordination
-    - Progress reporting
-    - Caching and optimization
+    This is the canonical entry point for all feature computation operations.
+    Use this class instead of FeatureOrchestrator or FeatureComputer (deprecated).
 
-    Example (Recommended):
-        >>> config = OmegaConf.load("config.yaml")
+    This class provides:
+    - Simplified, easy-to-use interface to complex FeatureOrchestrator
+    - Sensible defaults (LOD2 mode, auto GPU detection, fast setup)
+    - Progressive disclosure (simple→advanced APIs)
+    - Automatic strategy selection (CPU/GPU based on data)
+    - Performance monitoring and caching
+    - Better error messages and debugging
+
+    **RECOMMENDED:**
+        >>> from ign_lidar.features import FeatureOrchestrationService
         >>> service = FeatureOrchestrationService(config)
         >>> features = service.compute_features(points, classification)
 
-    Example (Advanced):
+    **NOT RECOMMENDED (Legacy):**
+        >>> from ign_lidar.features import FeatureComputer  # ❌ DEPRECATED
+        >>> from ign_lidar.features import FeatureOrchestrator  # ❌ Internal
+        
+        Use FeatureOrchestrationService instead!
+
+    **Advanced Example:**
         >>> features = service.compute_with_mode(
         ...     points=points,
         ...     classification=classification,
         ...     mode='LOD3',
         ...     use_gpu=True,
+        ...     use_rgb=True,
         ...     k_neighbors=50
         ... )
     """

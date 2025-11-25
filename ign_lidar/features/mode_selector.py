@@ -408,6 +408,61 @@ class ModeSelector:
         
         return alternatives
 
+    def select_mode_with_profiling(
+        self,
+        num_points: int,
+        enable_profiling: bool = True,
+        force_cpu: bool = False,
+        force_gpu: bool = False,
+    ) -> ComputationMode:
+        """
+        Select computation mode using profiling data for optimal performance.
+
+        Phase 3.3 Enhancement: Uses runtime profiling to decide between CPU and GPU
+        based on actual measured performance rather than static thresholds.
+
+        Args:
+            num_points: Number of points to process
+            enable_profiling: Whether to use profiling data (if available)
+            force_cpu: Force CPU mode
+            force_gpu: Force GPU mode
+
+        Returns:
+            Optimal computation mode
+
+        Example:
+            >>> selector = ModeSelector()
+            >>> # First run: profiles and measures both CPU and GPU
+            >>> mode = selector.select_mode_with_profiling(5_000_000)
+            >>> print(f"Use {mode.value} for best performance")
+            Use gpu for best performance
+        """
+        if force_cpu:
+            return ComputationMode.CPU
+        if force_gpu:
+            return ComputationMode.GPU if num_points < self.LARGE_CLOUD_THRESHOLD else ComputationMode.GPU_CHUNKED
+
+        if enable_profiling:
+            try:
+                from ..optimization.profile_dispatcher import get_profile_dispatcher
+
+                dispatcher = get_profile_dispatcher()
+                recommended_backend = dispatcher.recommend_backend(num_points)
+
+                if recommended_backend == 'GPU':
+                    if num_points > self.LARGE_CLOUD_THRESHOLD:
+                        return ComputationMode.GPU_CHUNKED
+                    else:
+                        return ComputationMode.GPU
+                else:
+                    return ComputationMode.CPU
+
+            except Exception as e:
+                logger.warning(f"Profiling-based selection failed: {e}. Falling back to default.")
+
+        # Fallback to standard selection
+        return self.select_mode(num_points)
+
 
 def get_mode_selector(
     gpu_memory_gb: Optional[float] = None,

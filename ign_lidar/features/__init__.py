@@ -90,7 +90,8 @@ except ImportError:
     get_feature_computer = None
     FEATURE_COMPUTER_AVAILABLE = False
 
-# FeatureOrchestrationService Facade (Phase 4 - simplified interface)
+# FeatureOrchestrationService Facade (Phase 3.2 - PRIMARY PUBLIC INTERFACE)
+# This is the recommended entry point for all feature computation operations
 try:
     from .orchestrator_facade import FeatureOrchestrationService
 

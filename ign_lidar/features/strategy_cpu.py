@@ -22,6 +22,14 @@ from .compute.rgb_nir import compute_rgb_features
 from .strategies import BaseFeatureStrategy
 from ..utils.normalization import normalize_rgb
 
+# Phase 3.4: Try to import vectorized CPU implementation
+try:
+    from .compute.vectorized_cpu import compute_all_features_vectorized
+    VECTORIZED_CPU_AVAILABLE = True
+except ImportError:
+    VECTORIZED_CPU_AVAILABLE = False
+    compute_all_features_vectorized = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,6 +62,7 @@ class CPUStrategy(BaseFeatureStrategy):
         auto_k: bool = True,
         include_extra: bool = False,
         chunk_size: int = 500_000,
+        use_vectorized: bool = True,
         verbose: bool = False,
     ):
         """
@@ -65,17 +74,20 @@ class CPUStrategy(BaseFeatureStrategy):
             auto_k: Automatically estimate optimal k based on point density
             include_extra: Compute expensive extra features
             chunk_size: Process in chunks for large datasets
+            use_vectorized: Use Phase 3.4 vectorized CPU implementation (if available)
             verbose: Enable detailed logging
         """
         super().__init__(k_neighbors=k_neighbors, radius=radius, verbose=verbose)
         self.auto_k = auto_k
         self.include_extra = include_extra
         self.chunk_size = chunk_size
+        self.use_vectorized = use_vectorized and VECTORIZED_CPU_AVAILABLE
 
         if verbose:
             logger.info(
                 f"Initialized CPU strategy: k={k_neighbors}, radius={radius}m, "
-                f"auto_k={auto_k}, chunk_size={chunk_size:,}"
+                f"auto_k={auto_k}, chunk_size={chunk_size:,}, "
+                f"vectorized={self.use_vectorized}"
             )
 
     def compute(
