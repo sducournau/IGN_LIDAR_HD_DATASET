@@ -100,6 +100,23 @@ except ImportError:
     FeatureOrchestrationService = None
     ORCHESTRATOR_FACADE_AVAILABLE = False
 
+# PyTorch Integration (Phase 5 - November 25, 2025)
+try:
+    from .pytorch_integration import (
+        TensorConverter,
+        GPUInference,
+        ModelLoader,
+        convert_features_to_pytorch_dataset,
+    )
+
+    PYTORCH_AVAILABLE = True
+except ImportError:
+    TensorConverter = None
+    GPUInference = None
+    ModelLoader = None
+    convert_features_to_pytorch_dataset = None
+    PYTORCH_AVAILABLE = False
+
 from .architectural_styles import (
     ARCHITECTURAL_STYLES,
     CHARACTERISTIC_TO_STYLE,
@@ -145,6 +162,11 @@ __all__ = [
     "get_feature_computer",
     # FeatureOrchestrationService Facade (Phase 4 - simplified interface)
     "FeatureOrchestrationService",
+    # PyTorch Integration (Phase 5 - November 25, 2025)
+    "TensorConverter",
+    "GPUInference",
+    "ModelLoader",
+    "convert_features_to_pytorch_dataset",
     # Strategy Pattern (NEW - Week 2)
     "BaseFeatureStrategy",
     "FeatureComputeMode",

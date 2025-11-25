@@ -101,6 +101,27 @@ from .transfer_optimizer import (
 from .gpu_cache.arrays import GPUArrayCache
 from .performance_monitor import GroundTruthPerformanceMonitor
 
+# Phase 5 & 6: PyTorch Integration and Distributed Processing (November 25, 2025)
+try:
+    from .distributed_processor import (
+        GPUManager,
+        MultiGPUProcessor,
+        DistributedFeatureCompute,
+        DistributedDataLoader,
+        initialize_distributed_env,
+        cleanup_distributed_env,
+    )
+
+    DISTRIBUTED_AVAILABLE = True
+except ImportError:
+    GPUManager = None
+    MultiGPUProcessor = None
+    DistributedFeatureCompute = None
+    DistributedDataLoader = None
+    initialize_distributed_env = None
+    cleanup_distributed_env = None
+    DISTRIBUTED_AVAILABLE = False
+
 # Backward compatibility: gpu_dataframe_ops moved to io/ in v3.1.0
 # Maintain import for v3.x compatibility
 try:
@@ -157,6 +178,9 @@ __all__ = [
     'TransferOptimizer', 'TransferProfile', 'create_transfer_optimizer',
     # Phase 3: GPU Cache and Performance (Nov 23, 2025 - Audit Optimizations)
     'GPUArrayCache', 'GroundTruthPerformanceMonitor',
+    # Phase 5 & 6: Distributed Processing (Nov 25, 2025)
+    'GPUManager', 'MultiGPUProcessor', 'DistributedFeatureCompute', 'DistributedDataLoader',
+    'initialize_distributed_env', 'cleanup_distributed_env',
     # GPU dataframe operations (relocated to io/ in v3.1.0)
     'GPUDataFrameOps',  # Backward compatibility alias
     # Legacy interfaces (backward compatibility)
@@ -172,4 +196,4 @@ __all__ = [
 ]
 
 # Version info
-__version__ = '2.0.0'  # Week 2: Ground truth optimizer
+__version__ = '3.8.0'  # Phase 5 & 6: PyTorch + Distributed Processing
