@@ -1,10 +1,11 @@
 # IGN LiDAR HD v3.7 - Optimization Roadmap
+
 ## GPU Acceleration Phase Implementation
 
 **Project**: IGN LiDAR HD Processing Library  
 **Version**: 3.7 (Optimization Phase)  
 **Date**: November 27, 2025  
-**Author**: Optimization Audit Team  
+**Author**: Optimization Audit Team
 
 ---
 
@@ -13,24 +14,26 @@
 Implementation of critical GPU optimizations identified in comprehensive audit (v3.6).
 This roadmap outlines 5 phases to achieve **3-4x overall speedup** on large datasets.
 
-| Phase | Focus | Status | Speedup |
-|-------|-------|--------|---------|
-| **1** | GPU KNN (FAISS) | ✅ **COMPLETE** | 10x for large KNN |
-| **2** | GPU Memory Pooling | 🔄 **IN PROGRESS** | 1.2-1.5x |
-| **3** | Batch GPU-CPU Transfers | ⏳ **PLANNED** | 1.1-1.2x |
-| **4** | FAISS Batch Optimization | ⏳ **PLANNED** | 1.1x |
-| **5** | Formatter Optimization | ⏳ **PLANNED** | 1.1x |
-| **TOTAL** | All Phases | ⏳ **IN PROGRESS** | **3-4x** 🚀 |
+| Phase     | Focus                    | Status             | Speedup           |
+| --------- | ------------------------ | ------------------ | ----------------- |
+| **1**     | GPU KNN (FAISS)          | ✅ **COMPLETE**    | 10x for large KNN |
+| **2**     | GPU Memory Pooling       | 🔄 **IN PROGRESS** | 1.2-1.5x          |
+| **3**     | Batch GPU-CPU Transfers  | ⏳ **PLANNED**     | 1.1-1.2x          |
+| **4**     | FAISS Batch Optimization | ⏳ **PLANNED**     | 1.1x              |
+| **5**     | Formatter Optimization   | ⏳ **PLANNED**     | 1.1x              |
+| **TOTAL** | All Phases               | ⏳ **IN PROGRESS** | **3-4x** 🚀       |
 
 ---
 
 ## Phase 1: GPU KNN Migration ✅ COMPLETE
 
 ### Objective
+
 Replace CPU-only K-NN operations with GPU-accelerated KNNEngine providing automatic
 backend selection (FAISS-GPU > FAISS-CPU > sklearn).
 
 ### Implementation Status
+
 - ✅ `ign_lidar/features/utils.py::build_kdtree()` - Delegated to KNNEngine
 - ✅ `ign_lidar/core/tile_stitcher.py::build_spatial_index()` - KNNEngineAdapter wrapper
 - ✅ `ign_lidar/io/formatters/multi_arch_formatter.py` - Migrated to KNNEngine.search()
@@ -38,6 +41,7 @@ backend selection (FAISS-GPU > FAISS-CPU > sklearn).
 - ✅ Tests updated with numerical tolerance for FAISS results
 
 ### Results
+
 ```
 Performance (1M points, k=30):
 - Before: 2000ms (CPU KDTree)
@@ -49,6 +53,7 @@ Tests: All passing ✓
 ```
 
 ### Code Pattern
+
 ```python
 # OLD (CPU-only):
 tree = KDTree(points)
@@ -65,18 +70,22 @@ distances, indices = engine.search(query_points, k=30)
 ## Phase 2: GPU Memory Pooling (STATUS: 60% COMPLETE)
 
 ### Objective
+
 Eliminate GPU memory fragmentation by pooling and reusing allocations across
 operations. Current issue: 20-40% performance loss due to new allocations per
 feature computation.
 
 ### Current State
+
 ✅ Already Implemented:
+
 - `GPUMemoryPool` class in `optimization/gpu_cache/transfer.py`
 - `GPUArrayCache` class for array caching
 - Memory pooling enabled in `GPUProcessor` class
 - Stream optimizer for GPU operation overlap
 
 ❌ Missing:
+
 - Explicit pooling usage in feature compute functions
 - Universal pooling across all compute strategies
 - Performance monitoring & stats collection
@@ -84,9 +93,11 @@ feature computation.
 ### Implementation Plan
 
 #### Step 2.1: Extend GPUMemoryPool with Statistics
+
 **File**: `ign_lidar/optimization/gpu_cache/transfer.py`
 
 Add monitoring capabilities:
+
 ```python
 class GPUMemoryPool:
     def __init__(self, ...):
@@ -96,7 +107,7 @@ class GPUMemoryPool:
         self.reuse_count = 0
         self.peak_memory_gb = 0.0
         self.total_allocated_gb = 0.0
-    
+
     def get_statistics(self):
         """Return pooling efficiency metrics"""
         reuse_rate = self.reuse_count / max(1, self.allocation_count)
@@ -110,9 +121,11 @@ class GPUMemoryPool:
 ```
 
 #### Step 2.2: Integrate Pooling in Strategy GPU Compute
+
 **File**: `ign_lidar/features/strategy_gpu.py::compute()`
 
 **Before** (individual allocations):
+
 ```python
 for feature_name in features:
     feature_data = gpu_processor.compute_feature(...)  # New allocation
@@ -121,6 +134,7 @@ for feature_name in features:
 ```
 
 **After** (pooled allocations):
+
 ```python
 # Pre-allocate feature buffers
 feature_buffers = {}
@@ -143,13 +157,15 @@ for buffer in feature_buffers.values():
 ```
 
 #### Step 2.3: Integrate Pooling in Strategy GPU Chunked
+
 **File**: `ign_lidar/features/strategy_gpu_chunked.py::compute()`
 
 Same pattern as Step 2.2, but for chunked processing:
+
 ```python
 for chunk_start in range(0, n_points, chunk_size):
     chunk = points[chunk_start:chunk_end]
-    
+
     # Allocate chunk buffers from pool
     chunk_features = {}
     for feature_name in features:
@@ -157,20 +173,22 @@ for chunk_start in range(0, n_points, chunk_size):
             shape=(len(chunk),),
             dtype=np.float32
         )
-    
+
     # Process chunk (reuses buffers)
     self.gpu_processor.compute_chunk_features(chunk, chunk_features)
-    
+
     # Store results
     results[feature_name][chunk_start:chunk_end] = chunk_features[feature_name]
-    
+
     # Return buffers for next chunk
     for buffer in chunk_features.values():
         self.memory_pool.return_array(buffer)
 ```
 
 #### Step 2.4: Formatter Memory Pooling
+
 **Files**:
+
 - `ign_lidar/io/formatters/multi_arch_formatter.py`
 - `ign_lidar/io/formatters/hybrid_formatter.py`
 
@@ -193,17 +211,19 @@ for tile in tiles:
         # Create engine once per unique size
         engine = KNNEngine(backend='auto')
         self.knn_cache[cache_key] = engine
-    
+
     distances, indices = self.knn_cache[cache_key].search(tile.points, k=k)
 ```
 
 ### Success Metrics
+
 - Allocation count: Reduced by 80%+ per processing
 - Reuse rate: >90% of allocations reused
 - Memory fragmentation: Reduced by 50%+
 - Performance gain: 1.2-1.5x speedup
 
 ### Timeline
+
 - **Estimate**: 2-3 hours implementation
 - **Testing**: 1-2 hours
 - **Total**: 3-5 hours
@@ -213,13 +233,15 @@ for tile in tiles:
 ## Phase 3: Batch GPU-CPU Transfers
 
 ### Objective
+
 Reduce I/O overhead by batching GPU↔CPU transfers instead of per-feature transfers.
 
-Current issue: 2*N transfers (one per feature per direction) instead of 2 total.
+Current issue: 2\*N transfers (one per feature per direction) instead of 2 total.
 
 ### Implementation Plan
 
 #### Before (Serial Transfers)
+
 ```python
 # 2*N transfers:
 for feature in features:
@@ -230,6 +252,7 @@ for feature in features:
 ```
 
 #### After (Batch Transfers)
+
 ```python
 # 2 transfers total:
 gpu_data = {f: cp.asarray(d) for f, d in data.items()}  # Transfer 1
@@ -238,12 +261,14 @@ cpu_results = {f: cp.asnumpy(r) for f, r in gpu_results.items()}  # Transfer 2
 ```
 
 ### Files to Modify
+
 - `ign_lidar/features/strategy_gpu.py::compute_features()`
 - `ign_lidar/features/strategy_gpu_chunked.py::compute_features()`
 - `ign_lidar/features/compute/geometric.py`
 - `ign_lidar/features/compute/eigenvalues.py`
 
 ### Performance Impact
+
 - Current: 15-25% of GPU time in transfers
 - Target: <5% of GPU time in transfers
 - Speedup: 1.1-1.2x
@@ -253,9 +278,11 @@ cpu_results = {f: cp.asnumpy(r) for f, r in gpu_results.items()}  # Transfer 2
 ## Phase 4: FAISS Batch Size Optimization
 
 ### Objective
+
 Increase GPU utilization by using more aggressive batch sizes for FAISS KNN.
 
 ### Current Parameters
+
 ```python
 available_gb = self.vram_limit_gb * 0.5          # Conservative: 50% VRAM
 bytes_per_point = k * 8 * 3                      # 3x safety factor
@@ -263,6 +290,7 @@ batch_size = min(5_000_000, max(100_000, ...))   # Fixed bounds
 ```
 
 ### Optimized Parameters
+
 ```python
 available_gb = self.vram_limit_gb * 0.7          # Aggressive: 70% VRAM
 bytes_per_point = k * 8 * 2                      # 2x safety factor
@@ -270,9 +298,11 @@ batch_size = max(500_000, min(10_000_000, ...))  # Wider range
 ```
 
 ### File to Modify
+
 - `ign_lidar/features/gpu_processor.py` (lines 1170-1190)
 
 ### Validation
+
 - Benchmark with 50M, 100M, 500M point datasets
 - Monitor memory usage and performance
 - Ensure no OOM errors occur
@@ -283,9 +313,11 @@ batch_size = max(500_000, min(10_000_000, ...))  # Wider range
 ## Phase 5: Formatter Optimization
 
 ### Objective
+
 Eliminate per-tile index rebuilding in point cloud formatters.
 
 ### Current Issue
+
 ```
 for patch in patches:
     tree = build_kdtree(patch.points)  # Rebuild every time!
@@ -293,14 +325,17 @@ for patch in patches:
 ```
 
 ### Solution
+
 Pre-compute KNN indices once, reuse across patches.
 
 ### Files to Modify
+
 - `ign_lidar/io/formatters/multi_arch_formatter.py`
 - `ign_lidar/io/formatters/hybrid_formatter.py`
 - `ign_lidar/io/formatters/base_formatter.py`
 
 ### Expected Speedup
+
 - Reduction: 40% of formatter time
 - Performance gain: 1.1x
 
@@ -310,29 +345,31 @@ Pre-compute KNN indices once, reuse across patches.
 
 ### Feature Computation (50M points, LOD3)
 
-| Phase | Time | Speedup vs Current | Cumulative |
-|-------|------|-------------------|-----------|
-| **Current** | 100s | - | 1x |
-| **Phase 1** | 50s | 2.0x | 2.0x |
-| **Phase 2** | 42s | 2.4x | 2.4x |
-| **Phase 3** | 38s | 2.6x | 2.6x |
-| **Phase 4** | 34s | 2.9x | 2.9x |
-| **Phase 5** | 30s | 3.3x | 3.3x |
+| Phase       | Time | Speedup vs Current | Cumulative |
+| ----------- | ---- | ------------------ | ---------- |
+| **Current** | 100s | -                  | 1x         |
+| **Phase 1** | 50s  | 2.0x               | 2.0x       |
+| **Phase 2** | 42s  | 2.4x               | 2.4x       |
+| **Phase 3** | 38s  | 2.6x               | 2.6x       |
+| **Phase 4** | 34s  | 2.9x               | 2.9x       |
+| **Phase 5** | 30s  | 3.3x               | 3.3x       |
 
 ### GPU Utilization Target
-| Component | Before | Target | Status |
-|-----------|--------|--------|--------|
-| KDTree | CPU-only | 90% GPU | ✅ Phase 1 |
-| Memory | Fragmented | Pooled | 🔄 Phase 2 |
-| Transfers | Serial | Batched | ⏳ Phase 3 |
-| FAISS | Conservative | Aggressive | ⏳ Phase 4 |
-| Formatters | Rebuilt | Cached | ⏳ Phase 5 |
+
+| Component  | Before       | Target     | Status     |
+| ---------- | ------------ | ---------- | ---------- |
+| KDTree     | CPU-only     | 90% GPU    | ✅ Phase 1 |
+| Memory     | Fragmented   | Pooled     | 🔄 Phase 2 |
+| Transfers  | Serial       | Batched    | ⏳ Phase 3 |
+| FAISS      | Conservative | Aggressive | ⏳ Phase 4 |
+| Formatters | Rebuilt      | Cached     | ⏳ Phase 5 |
 
 ---
 
 ## Testing Strategy
 
 ### Unit Tests (Per Phase)
+
 ```bash
 # Phase 1: GPU KNN
 pytest tests/test_feature_utils.py::TestBuildKDTree -v
@@ -352,6 +389,7 @@ pytest tests/test_formatter_optimization.py -v
 ```
 
 ### Integration Tests
+
 ```bash
 # Full pipeline with all optimizations
 pytest tests/test_integration_gpu_optimization.py -v
@@ -361,6 +399,7 @@ python scripts/benchmark_gpu_optimization.py
 ```
 
 ### Performance Validation
+
 ```bash
 # Profile each phase
 python scripts/profile_optimization_phase.py --phase 1
@@ -375,10 +414,12 @@ python scripts/profile_optimization_phase.py --phase 2
 ### Known Risks
 
 1. **FAISS Numerical Precision** ✅ Mitigated
+
    - Solution: Increased tolerance in tests (1e-6)
    - Status: Tests passing
 
 2. **GPU Memory Overflow** 🔄 Mitigating
+
    - Solution: Conservative batch sizes in Phase 4
    - Monitoring: Memory stats collection in Phase 2
 
@@ -388,7 +429,9 @@ python scripts/profile_optimization_phase.py --phase 2
    - No breaking changes
 
 ### Rollback Plan
+
 Each phase is independently deployable:
+
 - Phase 1: Can be deployed immediately (completed ✅)
 - Phase 2-5: Can be disabled via configuration if issues arise
 - Fallback: CPU-only strategies always available
@@ -398,25 +441,27 @@ Each phase is independently deployable:
 ## Configuration & Monitoring
 
 ### Configuration (hydra config)
+
 ```yaml
 gpu_optimization:
-  phase1_gpu_knn: true          # Enable GPU KNN
-  phase2_memory_pool: true      # Enable memory pooling
-  phase3_batch_transfer: true   # Enable batch transfers
-  phase4_faiss_batching: true   # Enable FAISS optimization
-  phase5_formatter_cache: true  # Enable formatter caching
-  
+  phase1_gpu_knn: true # Enable GPU KNN
+  phase2_memory_pool: true # Enable memory pooling
+  phase3_batch_transfer: true # Enable batch transfers
+  phase4_faiss_batching: true # Enable FAISS optimization
+  phase5_formatter_cache: true # Enable formatter caching
+
   # Tunables
-  faiss_batch_size: auto        # or specific size
+  faiss_batch_size: auto # or specific size
   memory_pool_max_arrays: 50
   memory_pool_max_gb: 12.0
-  
+
   # Monitoring
   enable_memory_stats: true
   enable_performance_stats: true
 ```
 
 ### Monitoring & Logging
+
 ```python
 # Memory pooling stats
 pool_stats = gpu_processor.gpu_pool.get_stats()
@@ -456,6 +501,7 @@ git commit -m "FIX 5: Formatter Optimization - 1.1x speedup"
 ## Success Criteria
 
 ✅ All phases complete when:
+
 1. Phase 1-5 fully implemented
 2. All tests passing (unit + integration + performance)
 3. Overall speedup reaches 3-4x on 50M+ point datasets
@@ -469,14 +515,14 @@ git commit -m "FIX 5: Formatter Optimization - 1.1x speedup"
 
 ## Timeline Estimate
 
-| Phase | Implementation | Testing | Total |
-|-------|---------------|---------|----|
-| 1 | ✅ Done | ✅ Done | ✅ |
-| 2 | 2-3h | 1-2h | 3-5h |
-| 3 | 3-4h | 2-3h | 5-7h |
-| 4 | 1-2h | 1-2h | 2-4h |
-| 5 | 2-3h | 1-2h | 3-5h |
-| **TOTAL** | **8-12h** | **5-9h** | **18-30h** |
+| Phase     | Implementation | Testing  | Total      |
+| --------- | -------------- | -------- | ---------- |
+| 1         | ✅ Done        | ✅ Done  | ✅         |
+| 2         | 2-3h           | 1-2h     | 3-5h       |
+| 3         | 3-4h           | 2-3h     | 5-7h       |
+| 4         | 1-2h           | 1-2h     | 2-4h       |
+| 5         | 2-3h           | 1-2h     | 3-5h       |
+| **TOTAL** | **8-12h**      | **5-9h** | **18-30h** |
 
 **Expected Completion**: By end of November 2025
 

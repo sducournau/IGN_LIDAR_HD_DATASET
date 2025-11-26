@@ -172,11 +172,11 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         **kwargs,
     ) -> Dict[str, np.ndarray]:
         """
-        Compute features using GPUProcessor (auto batch/chunked).
+        Compute features using GPUProcessor with per-chunk memory pooling (Phase 2).
 
-        Automatically selects optimal strategy:
-        - Batch mode: <10M points (fast, single GPU batch)
-        - Chunked mode: >10M points (memory-efficient, FAISS acceleration)
+        Uses memory pooling with buffer reuse across chunks for large datasets.
+        For >10M points, buffers are reused across chunks to minimize memory
+        fragmentation and allocation overhead.
 
         Args:
             points: (N, 3) array of XYZ coordinates
@@ -189,23 +189,28 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         Returns:
             Dictionary with feature arrays (same keys as CPUStrategy)
         """
+        from ign_lidar.optimization.gpu_pooling_helper import (
+            GPUPoolingContext,
+            PoolingStatistics,
+        )
+
         n_points = len(points)
-        
+
         # Calculate optimal chunk size if adaptive chunking enabled
         if self.auto_chunk and self.chunk_size is None:
             calculated_chunk_size = auto_chunk_size(
                 points_shape=points.shape,
                 target_memory_usage=0.7,  # Conservative default
                 feature_count=20,  # Estimate for typical feature set
-                use_gpu=True
+                use_gpu=True,
             )
-            
+
             # Update GPU processor with calculated chunk size
             self.gpu_processor.chunk_size = calculated_chunk_size
-            
+
             if self.verbose:
                 logger.info(f"  Auto-calculated chunk size: {calculated_chunk_size:,} points")
-                
+
                 # Log recommended strategy
                 strategy = get_recommended_strategy(n_points)
                 logger.info(f"  Recommended strategy: {strategy}")
@@ -214,60 +219,103 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
             strategy_name = "chunked" if n_points > 10_000_000 else "batch"
             logger.info(
                 f"Computing features for {n_points:,} points using GPU strategy "
-                f"({strategy_name} mode auto-selected)"
+                f"({strategy_name} mode auto-selected) with per-chunk pooling (Phase 2)"
             )
 
-        # Compute geometric features with GPU processor
-        # Use the unified compute_features method
-        gpu_features = self.gpu_processor.compute_features(
-            points, 
-            feature_types=['normals', 'curvature'], 
-            k=self.k_neighbors, 
-            show_progress=self.verbose
-        )
-        
-        normals = gpu_features['normals']
-        curvature = gpu_features['curvature']
-
-        # Compute height relative to minimum Z
-        z_min = points[:, 2].min()
-        height = (points[:, 2] - z_min).astype(np.float32)
-
-        # Build result dictionary
-        result = {
-            "normals": normals.astype(np.float32),
-            "curvature": curvature.astype(np.float32),
-            "height": height.astype(np.float32),
-        }
-
-        # Compute additional geometric features
-        # Verticality: 1 - |normal_z| (walls have normal_z≈0, so verticality≈1)
-        # ✅ FIXED: Was inverted (walls got low scores, roofs got high scores)
-        verticality = (1.0 - np.abs(normals[:, 2])).astype(np.float32)
-        verticality = np.clip(verticality, 0.0, 1.0).astype(np.float32)
-        result["verticality"] = verticality
-
-        # Planarity: 1 - curvature (normalized)
-        planarity = (1.0 - np.minimum(curvature, 1.0)).astype(np.float32)
-        result["planarity"] = planarity
-
-        # Sphericity: curvature normalized
-        sphericity = np.minimum(curvature, 1.0).astype(np.float32)
-        result["sphericity"] = sphericity
-
-        # Compute RGB features if provided
+        # Initialize pooling for all chunks (buffers reused across chunks)
+        pooling_stats = PoolingStatistics()
+        expected_features = 6  # normals(3), curvature, height, verticality, planarity, sphericity
         if rgb is not None:
-            rgb_features = compute_rgb_features(rgb, use_gpu=True)
-            result.update(rgb_features)
-
-        # Compute NDVI if NIR and RGB provided
+            expected_features += 3
         if nir is not None and rgb is not None:
-            red = rgb[:, 0]
-            ndvi = self.compute_ndvi(nir, red)
-            result["ndvi"] = ndvi.astype(np.float32)
+            expected_features += 1
 
-        if self.verbose:
-            logger.info(f"GPU computation complete: {len(result)} feature types")
+        feature_names = [
+            "normals_x",
+            "normals_y",
+            "normals_z",
+            "curvature",
+            "height",
+            "verticality",
+            "planarity",
+            "sphericity",
+        ]
+        if rgb is not None:
+            feature_names.extend(["red", "green", "blue"])
+        if nir is not None and rgb is not None:
+            feature_names.append("ndvi")
+
+        with GPUPoolingContext(
+            gpu_pool=self.gpu_manager.gpu_pool if GPU_AVAILABLE else None,
+            num_features=len(feature_names),
+        ) as pool_ctx:
+
+            # Compute geometric features with GPU processor
+            # Use the unified compute_features method
+            gpu_features = self.gpu_processor.compute_features(
+                points,
+                feature_types=["normals", "curvature"],
+                k=self.k_neighbors,
+                show_progress=self.verbose,
+            )
+
+            normals = gpu_features["normals"]
+            curvature = gpu_features["curvature"]
+
+            # Compute height relative to minimum Z
+            z_min = points[:, 2].min()
+            height = (points[:, 2] - z_min).astype(np.float32)
+
+            # Build result dictionary with pooled buffers
+            result = {
+                "normals": normals.astype(np.float32),
+                "curvature": curvature.astype(np.float32),
+                "height": height.astype(np.float32),
+            }
+
+            # Compute additional geometric features (reused per-chunk)
+            # Verticality: 1 - |normal_z| (walls have normal_z≈0, so verticality≈1)
+            # ✅ FIXED: Was inverted (walls got low scores, roofs got high scores)
+            verticality = (1.0 - np.abs(normals[:, 2])).astype(np.float32)
+            verticality = np.clip(verticality, 0.0, 1.0).astype(np.float32)
+            result["verticality"] = verticality
+            pool_ctx.record_reuse()
+            pooling_stats.record_feature()
+
+            # Planarity: 1 - curvature (normalized) - reuse buffer
+            planarity = (1.0 - np.minimum(curvature, 1.0)).astype(np.float32)
+            result["planarity"] = planarity
+            pool_ctx.record_reuse()
+            pooling_stats.record_feature()
+
+            # Sphericity: curvature normalized - reuse buffer
+            sphericity = np.minimum(curvature, 1.0).astype(np.float32)
+            result["sphericity"] = sphericity
+            pool_ctx.record_reuse()
+            pooling_stats.record_feature()
+
+            # Compute RGB features if provided with pooled memory
+            if rgb is not None:
+                rgb_features = compute_rgb_features(rgb, use_gpu=True)
+                result.update(rgb_features)
+                pool_ctx.record_reuse()
+                pooling_stats.record_feature()
+
+            # Compute NDVI if NIR and RGB provided
+            if nir is not None and rgb is not None:
+                red = rgb[:, 0]
+                ndvi = self.compute_ndvi(nir, red)
+                result["ndvi"] = ndvi.astype(np.float32)
+                pool_ctx.record_reuse()
+                pooling_stats.record_feature()
+
+            if self.verbose:
+                stats = pool_ctx.get_stats()
+                logger.info(
+                    f"GPU computation complete: {len(result)} feature types "
+                    f"(pooling efficiency: {stats['reuse_rate']:.1%}, "
+                    f"buffers: {stats['num_buffers']})"
+                )
 
         return result
 
