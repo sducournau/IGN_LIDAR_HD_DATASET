@@ -46,8 +46,8 @@ def sample_ground_truth():
 # ============================================================================
 
 
-class TestCacheV2:
-    """Test V2 caching features."""
+class TestCacheOptimized:
+    """Test caching optimization features."""
 
     def test_cache_enabled_by_default(self):
         """Cache should be enabled by default."""
@@ -360,8 +360,8 @@ class TestBackwardCompatibility:
 
 
 @pytest.mark.integration
-class TestV2Integration:
-    """Integration tests for V2 features."""
+class TestGroundTruthIntegration:
+    """Integration tests for ground truth optimization features."""
 
     def test_cache_speedup_on_repeated_tiles(self, sample_points, sample_ground_truth):
         """Cache provides speedup on repeated tiles."""

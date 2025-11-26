@@ -4,6 +4,10 @@ Distributed Processing Module - Phase 6
 Multi-GPU and cluster support for large-scale LiDAR processing.
 Handles distributed feature computation across multiple GPUs and nodes.
 
+⚠️ CONSOLIDATION NOTE (v3.8.1):
+The GPUManager class in this module is DEPRECATED.
+Use ign_lidar.core.gpu.MultiGPUManager instead for consistent multi-GPU support.
+
 **Phase 6 Features (November 25, 2025):**
 
 1. **Multi-GPU Coordination**: Automatic GPU load balancing
@@ -14,28 +18,21 @@ Handles distributed feature computation across multiple GPUs and nodes.
 
 Example Usage:
 
-    from ign_lidar.optimization.distributed_processor import (
-        MultiGPUProcessor, DistributedFeatureCompute
-    )
-
-    # Multi-GPU setup (automatic)
-    processor = MultiGPUProcessor(num_gpus='all')
+    from ign_lidar.core.gpu import MultiGPUManager  # RECOMMENDED
     
-    # Process tiles distributed across GPUs
-    results = processor.process_tiles(tile_list, batch_per_gpu=10)
+    # Multi-GPU setup (automatic)
+    multi_gpu = MultiGPUManager()
+    available_gpus = multi_gpu.get_available_gpus()
+    
+    # Get optimal batch size
+    batch_size = multi_gpu.get_optimal_batch_size(gpu_id=0, memory_per_item_mb=50)
 
-    # Distributed feature computation
-    dist_compute = DistributedFeatureCompute(
-        num_gpus=4,
-        num_workers=8
-    )
-    features = dist_compute.compute_features(
-        large_point_cloud,
-        partition_strategy='spatial'
-    )
+    # Legacy: Still works but DEPRECATED
+    from ign_lidar.optimization.distributed_processor import MultiGPUProcessor
+    processor = MultiGPUProcessor(num_gpus='all')
 
-Version: 1.0.0
-Date: November 25, 2025
+Version: 1.0.0 (Consolidated with core.gpu module in v3.8.1)
+Date: November 26, 2025
 """
 
 import logging
@@ -74,13 +71,18 @@ class GPUInfo:
 
 class GPUManager:
     """
+    ⚠️ DEPRECATED: Use ign_lidar.core.gpu.MultiGPUManager instead.
+    
+    This class is kept for backward compatibility but will be removed in v4.0.
+    Use the consolidated MultiGPUManager in the core module for consistent
+    multi-GPU support across the library.
+    
     Manage and coordinate multiple GPUs for distributed processing.
 
     Features:
     - Automatic GPU detection and monitoring
     - Load balancing across GPUs
     - Memory tracking and management
-    - Temperature monitoring
     - Performance profiling per GPU
     """
 
@@ -90,7 +92,18 @@ class GPUManager:
 
         Args:
             verbose: Whether to log GPU info
+            
+        Note:
+            This class is deprecated. Use ign_lidar.core.gpu.MultiGPUManager instead.
         """
+        import warnings
+        warnings.warn(
+            "distributed_processor.GPUManager is deprecated. "
+            "Use ign_lidar.core.gpu.MultiGPUManager instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         if not TORCH_AVAILABLE:
             raise ImportError("PyTorch not installed")
 

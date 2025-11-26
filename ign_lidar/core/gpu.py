@@ -762,6 +762,141 @@ def get_gpu_manager() -> GPUManager:
     return GPUManager()
 
 
+class MultiGPUManager:
+    """
+    Multi-GPU coordination for distributed processing (PyTorch backend).
+    
+    Provides unified interface for:
+    - GPU detection and monitoring
+    - Load balancing across multiple GPUs
+    - Memory management per GPU
+    - Batch size optimization
+    
+    This is an optional extension for multi-GPU workloads.
+    Standard single-GPU workloads use the main GPUManager class.
+    
+    Example:
+        >>> multi_gpu = MultiGPUManager()
+        >>> available_gpus = multi_gpu.get_available_gpus()
+        >>> print(f"Found {len(available_gpus)} GPUs")
+        
+        >>> # Get optimal batch size for GPU 0
+        >>> batch_size = multi_gpu.get_optimal_batch_size(0, memory_per_item_mb=50)
+        >>> print(f"Optimal batch size: {batch_size}")
+    """
+    
+    def __init__(self, verbose: bool = True):
+        """
+        Initialize multi-GPU manager.
+        
+        Args:
+            verbose: Whether to log GPU info
+        """
+        self.verbose = verbose
+        self.torch_available = self._check_torch()
+        self.gpus = {}
+        
+        if self.torch_available:
+            self._detect_gpus()
+    
+    def _check_torch(self) -> bool:
+        """Check if PyTorch is available."""
+        try:
+            import torch
+            return torch.cuda.is_available()
+        except (ImportError, RuntimeError):
+            return False
+    
+    def _detect_gpus(self) -> None:
+        """Detect available GPUs using PyTorch."""
+        if not self.torch_available:
+            return
+        
+        try:
+            import torch
+            
+            num_gpus = torch.cuda.device_count()
+            for i in range(num_gpus):
+                props = torch.cuda.get_device_properties(i)
+                total_mem_gb = props.total_memory / (1024**3)
+                
+                self.gpus[i] = {
+                    'id': i,
+                    'name': props.name,
+                    'total_memory_gb': total_mem_gb,
+                    'compute_capability': (props.major, props.minor),
+                    'available': True
+                }
+                
+                if self.verbose:
+                    logger.info(
+                        f"GPU {i}: {props.name}, "
+                        f"Memory: {total_mem_gb:.1f}GB, "
+                        f"Compute: {props.major}.{props.minor}"
+                    )
+        except Exception as e:
+            logger.warning(f"Error detecting GPUs: {e}")
+    
+    def get_available_gpus(self) -> list:
+        """Get list of available GPU IDs."""
+        return sorted([gpu_id for gpu_id, info in self.gpus.items() if info['available']])
+    
+    def get_gpu_memory_usage(self) -> dict:
+        """Get memory usage for each GPU."""
+        if not self.torch_available:
+            return {}
+        
+        try:
+            import torch
+            usage = {}
+            for gpu_id in self.get_available_gpus():
+                allocated_gb = torch.cuda.memory_allocated(gpu_id) / (1024**3)
+                usage[gpu_id] = allocated_gb
+            return usage
+        except Exception as e:
+            logger.warning(f"Error getting GPU memory: {e}")
+            return {}
+    
+    def get_least_loaded_gpu(self) -> int:
+        """Get GPU ID with least memory usage."""
+        usage = self.get_gpu_memory_usage()
+        if not usage:
+            raise RuntimeError("No GPUs available or memory check failed")
+        return min(usage.keys(), key=lambda k: usage[k])
+    
+    def get_optimal_batch_size(
+        self,
+        gpu_id: int,
+        memory_per_item_mb: float,
+        safety_factor: float = 0.8
+    ) -> int:
+        """
+        Calculate optimal batch size for GPU.
+        
+        Args:
+            gpu_id: GPU ID
+            memory_per_item_mb: Memory required per item
+            safety_factor: Safety margin (0-1)
+        
+        Returns:
+            Recommended batch size
+        """
+        if gpu_id not in self.gpus:
+            raise ValueError(f"GPU {gpu_id} not found")
+        
+        total_mem_mb = self.gpus[gpu_id]['total_memory_gb'] * 1024
+        available_mb = total_mem_mb * safety_factor
+        batch_size = int(available_mb / memory_per_item_mb)
+        
+        return max(1, batch_size)
+
+
+# Convenience function
+def get_multi_gpu_manager(verbose: bool = True) -> MultiGPUManager:
+    """Get MultiGPUManager instance for multi-GPU workloads."""
+    return MultiGPUManager(verbose=verbose)
+
+
 # Backward compatibility aliases
 # These are evaluated at import time for compatibility with old code
 _gpu_manager = get_gpu_manager()
@@ -772,6 +907,8 @@ HAS_CUPY = GPU_AVAILABLE
 __all__ = [
     'GPUManager',
     'get_gpu_manager',
+    'MultiGPUManager',
+    'get_multi_gpu_manager',
     'GPU_AVAILABLE',  # Backward compat
     'HAS_CUPY',       # Backward compat
 ]

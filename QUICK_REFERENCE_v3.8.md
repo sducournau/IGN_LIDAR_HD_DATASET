@@ -2,7 +2,7 @@
 
 **Latest Version**: 3.8.0+  
 **Release Date**: November 26, 2025  
-**Status**: ✅ Production Ready  
+**Status**: ✅ Production Ready
 
 ## What's New in v3.8.0+
 
@@ -36,6 +36,7 @@
 ### GPU Manager (Phase 1)
 
 **Before**:
+
 ```python
 from ign_lidar.core.gpu import GPU_AVAILABLE, get_gpu_info
 from ign_lidar.core.gpu_memory import GPUMemoryManager
@@ -43,6 +44,7 @@ from ign_lidar.core.gpu_stream_manager import GPUStreamManager
 ```
 
 **After** (still works + new unified API):
+
 ```python
 from ign_lidar.core.gpu import GPUManager
 
@@ -55,6 +57,7 @@ stream = gpu.create_stream()        # Stream creation
 ### Feature Computation (Phase 4-5)
 
 **Before**:
+
 ```python
 from ign_lidar.features.orchestrator import FeatureOrchestrator
 from ign_lidar.features.strategy_gpu import GPUStrategy
@@ -66,6 +69,7 @@ features = strategy.compute_features(points)
 ```
 
 **After** (faster + cleaner):
+
 ```python
 from ign_lidar.features.orchestrator import FeatureOrchestrator
 
@@ -81,6 +85,7 @@ features = orch.compute_features(
 ### RGB/NIR Features (Phase 2)
 
 **Before** (duplicated logic):
+
 ```python
 # strategy_cpu.py
 rgb_features = self._compute_rgb_features_cpu(rgb)
@@ -93,6 +98,7 @@ rgb_features = self._compute_rgb_features_gpu(rgb)  # DUPLICATE!
 ```
 
 **After** (single implementation):
+
 ```python
 from ign_lidar.features.compute.rgb_nir import compute_rgb_features
 
@@ -184,11 +190,11 @@ print(f"Recommended mode: {mode}")  # Probably 'GPU' or 'GPU_CHUNKED'
 
 ### 1. Update Imports
 
-| Old Import | New Import | Status |
-| --- | --- | --- |
-| `from ign_lidar.core.gpu import GPU_AVAILABLE` | Still works (alias) | ✅ No change needed |
-| `from ign_lidar.core.gpu_memory import ...` | Integrated in GPUManager | ⚠️ Use `GPUManager().memory.*` |
-| `from ign_lidar.features.strategy_gpu import ...` | Still works (no breaking change) | ✅ No change needed |
+| Old Import                                        | New Import                       | Status                         |
+| ------------------------------------------------- | -------------------------------- | ------------------------------ |
+| `from ign_lidar.core.gpu import GPU_AVAILABLE`    | Still works (alias)              | ✅ No change needed            |
+| `from ign_lidar.core.gpu_memory import ...`       | Integrated in GPUManager         | ⚠️ Use `GPUManager().memory.*` |
+| `from ign_lidar.features.strategy_gpu import ...` | Still works (no breaking change) | ✅ No change needed            |
 
 ### 2. Update Feature Computation (Optional)
 
@@ -432,6 +438,7 @@ opt_mgr.shutdown()
 ### v3.8.0 (November 26, 2025)
 
 **Highlights**:
+
 - ✅ All 8 phases complete (GPU consolidation, kernel fusion, async streams)
 - ✅ 6.7-10× GPU speedup achieved
 - ✅ 1,570 lines of code removed (-28%)
@@ -444,6 +451,6 @@ opt_mgr.shutdown()
 
 ---
 
-*Last Updated: November 26, 2025*  
-*Version: 3.8.0+*  
-*Status: Production Ready ✅*
+_Last Updated: November 26, 2025_  
+_Version: 3.8.0+_  
+_Status: Production Ready ✅_

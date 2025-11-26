@@ -393,7 +393,7 @@ class TestFeatureComputer:
             computer.compute_curvature(sample_points, k=20)
 
 
-class TestUnifiedComputerIntegration:
+class TestFeatureComputerIntegration:
     """Integration tests with real computations (if possible)."""
 
     @pytest.fixture

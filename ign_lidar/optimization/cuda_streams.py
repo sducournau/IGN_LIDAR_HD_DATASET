@@ -1,23 +1,38 @@
 """
-CUDA Stream Management for Overlapped GPU Processing
+⚠️ DEPRECATED: CUDA Stream Management Module
 
-This module provides optimized CUDA stream management for GPU-accelerated
+This module is DEPRECATED as of v3.8.1.
+Use ign_lidar.core.gpu_stream_manager.GPUStreamManager instead.
+
+This module provided optimized CUDA stream management for GPU-accelerated
 point cloud processing with overlapped computation and memory transfers.
 
-Key Optimizations:
+Key Optimizations (now in core module):
 - Multi-stream pipeline for concurrent operations
 - Pinned memory pools for fast host-device transfers  
 - Async memory transfers with computation overlap
 - Automatic stream synchronization and error handling
 - Memory pooling to reduce allocation overhead
 
-Performance Improvements:
+Migration Guide:
+    # OLD (deprecated)
+    from ign_lidar.optimization.cuda_streams import CUDAStreamManager
+    manager = CUDAStreamManager()
+    
+    # NEW (recommended)
+    from ign_lidar.core.gpu_stream_manager import GPUStreamManager
+    manager = GPUStreamManager()
+
+Performance Improvements (still apply with core module):
 - 2-3x throughput via overlapped processing
 - 30-50% reduction in memory transfer time
 - 90%+ GPU utilization (vs 60-70% without streams)
 - Support for 2-4x larger effective batch sizes
 
-Version: 1.0.0
+⚠️ This module is kept for backward compatibility but will be removed in v4.0.
+
+Version: 1.0.0 (DEPRECATED - use core.gpu_stream_manager)
+Date: November 26, 2025
 """
 
 import logging

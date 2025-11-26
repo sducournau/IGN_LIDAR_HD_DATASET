@@ -12,16 +12,16 @@
 
 All 8 implementation phases have been successfully completed:
 
-| Phase | Title | Status | Impact |
-| ----- | ----- | ------ | ------ |
-| 1 | GPU Manager Consolidation | ✅ Complete | -580 lines, unified API |
-| 2 | RGB/NIR Features Deduplication | ✅ Complete | -90 lines, single source of truth |
-| 3 | Covariance Consolidation | ✅ Complete | -200 lines, smart dispatcher |
-| 4 | Feature Orchestration Refactor | ✅ Complete | -700 lines, 3→1 layers |
-| 5 | Kernel Fusion Implementation | ✅ Complete | +25-30% GPU speedup |
-| 6 | GPU Memory Pooling | ✅ Complete | +30-40% allocation speedup |
-| 7 | Stream Pipelining & Advanced ML | ✅ Complete | +15-25% throughput |
-| 8 | Final Optimization & Release | ✅ **Complete** | All tests passing, release ready |
+| Phase | Title                           | Status          | Impact                            |
+| ----- | ------------------------------- | --------------- | --------------------------------- |
+| 1     | GPU Manager Consolidation       | ✅ Complete     | -580 lines, unified API           |
+| 2     | RGB/NIR Features Deduplication  | ✅ Complete     | -90 lines, single source of truth |
+| 3     | Covariance Consolidation        | ✅ Complete     | -200 lines, smart dispatcher      |
+| 4     | Feature Orchestration Refactor  | ✅ Complete     | -700 lines, 3→1 layers            |
+| 5     | Kernel Fusion Implementation    | ✅ Complete     | +25-30% GPU speedup               |
+| 6     | GPU Memory Pooling              | ✅ Complete     | +30-40% allocation speedup        |
+| 7     | Stream Pipelining & Advanced ML | ✅ Complete     | +15-25% throughput                |
+| 8     | Final Optimization & Release    | ✅ **Complete** | All tests passing, release ready  |
 
 **Cumulative Gains**:
 
@@ -283,15 +283,15 @@ FeatureOrchestrator (unified)
 
 ### Measured Improvements
 
-| Operation | Before | After | Gain |
-| --------- | ------ | ----- | ---- |
-| GPU feature computation (1M) | 12.5s | 1.85s | **6.7×** |
-| GPU feature computation (5M) | 68s | 6.7s | **10×** |
-| GPU feature computation (10M) | 142s | 14s | **10.1×** |
-| Covariance computation (GPU) | 100% | 70% | **+30%** |
-| Memory allocation (GPU) | 100% | 60% | **+40%** |
-| GPU utilization | 40-50% | 70-80% | **+50-100%** |
-| Throughput (batched) | 100% | 125% | **+25%** |
+| Operation                     | Before | After  | Gain         |
+| ----------------------------- | ------ | ------ | ------------ |
+| GPU feature computation (1M)  | 12.5s  | 1.85s  | **6.7×**     |
+| GPU feature computation (5M)  | 68s    | 6.7s   | **10×**      |
+| GPU feature computation (10M) | 142s   | 14s    | **10.1×**    |
+| Covariance computation (GPU)  | 100%   | 70%    | **+30%**     |
+| Memory allocation (GPU)       | 100%   | 60%    | **+40%**     |
+| GPU utilization               | 40-50% | 70-80% | **+50-100%** |
+| Throughput (batched)          | 100%   | 125%   | **+25%**     |
 
 ---
 
@@ -378,10 +378,12 @@ FeatureOrchestrator (unified)
 All changes maintain backward compatibility through:
 
 1. **Composition Pattern**: New GPU manager uses composition for subcomponents
+
    - `gpu.memory.*` → Internal implementation (not breaking)
    - `gpu.cache.*` → Internal implementation (not breaking)
 
 2. **Centralized Imports**: Old imports still work through aliases
+
    - `from ign_lidar.core.gpu_memory import GPUMemoryManager` → Still works
    - `from ign_lidar.optimization.cuda_streams import CUDAStreamManager` → Still works
 
@@ -538,7 +540,8 @@ The IGN LiDAR HD library is now more performant, maintainable, and production-re
 
 ---
 
-*For detailed information on each phase, see the corresponding documentation:*
+_For detailed information on each phase, see the corresponding documentation:_
+
 - AUDIT_EXECUTIVE_SUMMARY.md - Overview of issues found
 - REFACTORISATION_IMPLEMENTATION_GUIDE.md - Step-by-step implementation
 - GPU_BOTTLENECKS_DETAILED_ANALYSIS.md - Technical details
