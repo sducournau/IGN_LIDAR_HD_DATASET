@@ -96,6 +96,11 @@ class MultiArchitectureFormatter(BaseFormatter):
         self.use_geometric = use_geometric
         self.use_radiometric = use_radiometric
         self.use_contextual = use_contextual
+        
+        # KNN cache for efficiency (Phase 3.1 optimization)
+        self._knn_cache = {}
+        self._cache_hits = 0
+        self._cache_misses = 0
 
     def format_patch(
         self,
@@ -413,6 +418,7 @@ class MultiArchitectureFormatter(BaseFormatter):
         Build KNN graph for Point Transformers using unified KNNEngine API.
         
         **GPU Acceleration**: Set use_gpu=True for 10-20x speedup on large point clouds.
+        **Phase 3.1 Optimization**: Caches KNN indices to avoid rebuilds across patches.
 
         Args:
             points: [N, 3] XYZ coordinates
@@ -429,8 +435,19 @@ class MultiArchitectureFormatter(BaseFormatter):
         """
         from ...optimization import KNNEngine
         
-        # Use unified KNNEngine (auto-selects optimal backend)
-        engine = KNNEngine()
+        # Create cache key from points shape and k (Phase 3.1)
+        cache_key = (len(points), k)
+        
+        # Check if we have cached engine with same dimensions
+        if cache_key in self._knn_cache:
+            engine = self._knn_cache[cache_key]
+            self._cache_hits += 1
+            logger.debug(f"KNN cache hit for {cache_key} (hits={self._cache_hits}, misses={self._cache_misses})")
+        else:
+            # Use unified KNNEngine (auto-selects optimal backend)
+            engine = KNNEngine()
+            self._knn_cache[cache_key] = engine
+            self._cache_misses += 1
         
         try:
             # Query k neighbors

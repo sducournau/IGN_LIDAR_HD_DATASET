@@ -6,9 +6,10 @@ This module provides density-based features.
 
 import numpy as np
 from typing import Dict, Optional, Tuple
-from sklearn.neighbors import NearestNeighbors
 import logging
 import multiprocessing
+
+from ign_lidar.optimization import KNNEngine
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +73,9 @@ def compute_density_features(
     
     n_points = points.shape[0]
     
-    # Build KD-tree for neighbor search
-    nbrs = NearestNeighbors(n_neighbors=k_neighbors, algorithm='kd_tree')
-    nbrs.fit(points)
-    distances, indices = nbrs.kneighbors(points)
+    # Build KD-tree using KNNEngine (auto GPU/CPU selection)
+    engine = KNNEngine()
+    distances, indices = engine.search(points, k=k_neighbors + 1)  # Include self (will be filtered)
     
     # Mean distance to k-nearest neighbors (excluding self at distance 0)
     mean_distance = np.mean(distances[:, 1:], axis=1).astype(np.float32)
@@ -132,14 +132,9 @@ def compute_extended_density_features(
     """
     n_points = points.shape[0]
     
-    # Build KD-tree for neighbor search
-    nbrs = NearestNeighbors(n_neighbors=k_neighbors, algorithm='kd_tree')
-    nbrs.fit(points)
-    distances, indices = nbrs.kneighbors(points)
-    
-    # Also build radius neighbors for 2m count
-    nbrs_radius = NearestNeighbors(radius=2.0, algorithm='kd_tree')
-    nbrs_radius.fit(points)
+    # Build KD-tree using KNNEngine for k-neighbor search
+    engine = KNNEngine()
+    distances, indices = engine.search(points, k=k_neighbors + 1)  # Include self
     
     # Initialize arrays
     num_points_2m = np.zeros(n_points, dtype=np.int32)
@@ -147,14 +142,14 @@ def compute_extended_density_features(
     height_extent_ratio = np.zeros(n_points, dtype=np.float32)
     vertical_std = np.zeros(n_points, dtype=np.float32)
     
+    # Vectorized computation of neighborhood characteristics
     for i in range(n_points):
-        # Number of points within 2m radius
-        radius_distances, radius_indices = nbrs_radius.radius_neighbors(points[i:i+1])
-        num_points_2m[i] = len(radius_indices[0]) - 1  # Exclude self
-        
-        # Get k-neighbors
-        neighbor_indices = indices[i]
+        # Get k-neighbors (excluding self at index 0)
+        neighbor_indices = indices[i, 1:k_neighbors+1]
         neighbor_points = points[neighbor_indices]
+        
+        # Number of points within 2m radius (count distances <= 2.0)
+        num_points_2m[i] = np.sum(distances[i] <= 2.0) - 1  # Exclude self
         
         # Neighborhood extent (bounding box diagonal)
         min_coords = np.min(neighbor_points, axis=0)

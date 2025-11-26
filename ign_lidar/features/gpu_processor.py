@@ -1171,11 +1171,12 @@ class GPUProcessor:
             # CRITICAL FIX: Calculate safe batch size based on available GPU memory
             # FAISS needs temp memory for: batch_size x k x 8 bytes (distances + indices)
             # Plus internal temporary buffers (can be 2-3x the query size for IVFFlat)
-            available_gb = self.vram_limit_gb * 0.5  # Use at most 50% of VRAM for queries
-            bytes_per_point = k * 8 * 3  # x 3 for FAISS internal buffers
+            # OPTIMIZATION (Phase 2.2): Use 70% VRAM instead of 50%, reduce safety factor from 3x to 2x
+            available_gb = self.vram_limit_gb * 0.7  # Use 70% of VRAM for better utilization
+            bytes_per_point = k * 8 * 2  # x 2 for FAISS internal buffers (reduced from 3x)
             max_batch_points = int((available_gb * 1024**3) / bytes_per_point)
-            batch_size = min(5_000_000, max(100_000, max_batch_points))  # Between 100K and 5M
-            logger.debug(f"  Adaptive batch size: {batch_size:,} points (GPU memory: {available_gb:.1f}GB)")
+            batch_size = min(10_000_000, max(500_000, max_batch_points))  # Between 500K and 10M (increased from 100K-5M)
+            logger.debug(f"  Adaptive batch size: {batch_size:,} points (GPU memory: {available_gb:.1f}GB, vram_limit={self.vram_limit_gb:.1f}GB)")
         else:
             batch_size = 500_000  # 500K points per batch for CPU
         num_batches = (N + batch_size - 1) // batch_size

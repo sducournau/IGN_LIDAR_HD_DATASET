@@ -247,12 +247,10 @@ def benchmark_vectorization():
         # Generate test data
         points = np.random.rand(n_points, 3).astype(np.float32) * 100
 
-        # Build simple neighbor indices (k nearest)
-        from sklearn.neighbors import NearestNeighbors
-
-        nn = NearestNeighbors(n_neighbors=k_neighbors)
-        nn.fit(points)
-        _, neighbor_indices = nn.kneighbors(points[:10000])  # Test on subset
+        # Build neighbor indices using KNNEngine (auto GPU/CPU selection)
+        from ign_lidar.optimization import KNNEngine
+        engine = KNNEngine()
+        _, neighbor_indices = engine.search(points[:10000], k=k_neighbors)
 
         # Benchmark vectorized version
         start = time.time()

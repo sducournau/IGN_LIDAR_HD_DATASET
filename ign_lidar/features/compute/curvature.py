@@ -430,14 +430,12 @@ def compute_curvature_from_normals_batched(
             logger.warning(f"GPU curvature failed: {e}, falling back to CPU")
             # Fall through to CPU path
     
-    # CPU path
-    from sklearn.neighbors import KDTree
+    # CPU path - Use KNNEngine for GPU-accelerated KNN when available
+    from ign_lidar.optimization import KNNEngine
     
-    # Build KDTree
-    tree = KDTree(points, metric='euclidean', leaf_size=40)
-    
-    # Query all neighbors at once (vectorized)
-    _, indices = tree.query(points, k=k)
+    # Build KNN index using KNNEngine (auto GPU/CPU selection)
+    engine = KNNEngine()
+    distances, indices = engine.search(points, k=k)
     
     # Compute curvature
     curvature = compute_curvature_from_normals(points, normals, indices)
