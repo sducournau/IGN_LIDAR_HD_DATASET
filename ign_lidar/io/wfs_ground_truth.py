@@ -1559,6 +1559,7 @@ class IGNGroundTruthFetcher:
 def fetch_ground_truth_for_tile(
     tile_bbox: Tuple[float, float, float, float],
     cache_dir: Optional[Path] = None,
+    use_cache: bool = True,
     include_roads: bool = True,
     include_buildings: bool = True,
     include_water: bool = True,
@@ -1570,6 +1571,7 @@ def fetch_ground_truth_for_tile(
     Args:
         tile_bbox: Tile bounding box in Lambert 93
         cache_dir: Cache directory for fetched data
+        use_cache: Whether to use cached data
         include_roads: Include road polygons
         include_buildings: Include building footprints
         include_water: Include water surfaces
@@ -1582,6 +1584,7 @@ def fetch_ground_truth_for_tile(
 
     features = fetcher.fetch_all_features(
         bbox=tile_bbox,
+        use_cache=use_cache,
         include_roads=include_roads,
         include_buildings=include_buildings,
         include_water=include_water,

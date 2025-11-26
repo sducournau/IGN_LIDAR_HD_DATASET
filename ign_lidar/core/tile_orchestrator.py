@@ -97,7 +97,18 @@ class TileOrchestrator:
         self.num_augmentations = config.processor.num_augmentations
         
         # Initialize skip checker
-        self.skip_checker = PatchSkipChecker(config)
+        processing_mode = config.processor.processing_mode
+        save_enriched = OmegaConf.select(config, "output.enriched_laz.enabled", default=False)
+        only_enriched = processing_mode == "enriched_only"
+        
+        self.skip_checker = PatchSkipChecker(
+            output_format=config.processor.output_format,
+            architecture=config.processor.architecture,
+            num_augmentations=config.processor.num_augmentations,
+            augment=config.processor.augment,
+            validate_content=True,
+            only_enriched_laz=only_enriched,
+        )
 
     def process_tile_core(
         self,
