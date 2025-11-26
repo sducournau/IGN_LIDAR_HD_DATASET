@@ -29,21 +29,25 @@ Successfully implemented all Priority Fixes from the audit roadmap:
 #### Files Modified:
 
 1. **`ign_lidar/features/compute/density.py`**
+
    - Replaced: `sklearn.neighbors.NearestNeighbors` → `KNNEngine`
    - Functions: `compute_density_features()`, `compute_extended_density_features()`
    - Improvement: Auto GPU/CPU selection, 10x faster on GPU
 
 2. **`ign_lidar/features/compute/curvature.py`**
+
    - Replaced: `sklearn.neighbors.KDTree` → `KNNEngine`
    - Function: `compute_curvature_from_normals_gpu()` fallback
    - Improvement: GPU acceleration available for k-NN queries
 
 3. **`ign_lidar/features/compute/vectorized_cpu.py`**
+
    - Replaced: `sklearn.neighbors.NearestNeighbors` → `KNNEngine`
    - Function: `benchmark_vectorization()` (test code)
    - Improvement: Benchmark uses GPU-accelerated KNN
 
 4. **`ign_lidar/io/formatters/multi_arch_formatter.py`**
+
    - Already using: `KNNEngine` with `engine.query()`
    - Added: KNN cache optimization (Phase 3.1)
 
@@ -52,6 +56,7 @@ Successfully implemented all Priority Fixes from the audit roadmap:
    - Added: KNN cache optimization (Phase 3.1)
 
 #### Impact:
+
 - Unified all KNN operations to single implementation
 - 10x speedup on k-NN queries with GPU
 - 1.56x pipeline speedup on 50M points
@@ -64,6 +69,7 @@ Successfully implemented all Priority Fixes from the audit roadmap:
 #### Implementation Details:
 
 1. **`ign_lidar/features/strategy_gpu.py`** - ACTIVE
+
    ```python
    # Already integrated:
    - self.memory_pool = get_gpu_memory_pool(enable=True)
@@ -72,6 +78,7 @@ Successfully implemented all Priority Fixes from the audit roadmap:
    ```
 
 2. **`ign_lidar/features/strategy_gpu_chunked.py`** - ACTIVE
+
    ```python
    # Already integrated:
    - self.memory_pool = get_gpu_memory_pool(enable=True)
@@ -79,6 +86,7 @@ Successfully implemented all Priority Fixes from the audit roadmap:
    ```
 
 3. **`ign_lidar/features/gpu_processor.py`** - ACTIVE
+
    ```python
    # Already integrated:
    - self.gpu_pool = GPUMemoryPool(max_arrays=20, max_size_gb=4.0)
@@ -96,6 +104,7 @@ Successfully implemented all Priority Fixes from the audit roadmap:
    ```
 
 #### Impact:
+
 - 20-40% performance loss eliminated
 - 1.2x speedup through reduced fragmentation
 - No memory leaks or OOM errors
@@ -111,6 +120,7 @@ Successfully implemented all Priority Fixes from the audit roadmap:
 #### Implementation Details:
 
 1. **`ign_lidar/features/compute/gpu_stream_overlap.py`** - ACTIVE
+
    ```python
    # GPUStreamOverlapOptimizer:
    - Multiple GPU streams for concurrent ops
@@ -121,6 +131,7 @@ Successfully implemented all Priority Fixes from the audit roadmap:
    ```
 
 2. **`ign_lidar/features/strategy_gpu.py`** - USES OPTIMIZER
+
    ```python
    # Already integrated:
    - self.stream_optimizer = get_gpu_stream_optimizer(enable=True)
@@ -138,6 +149,7 @@ Successfully implemented all Priority Fixes from the audit roadmap:
    ```
 
 #### Impact:
+
 - 15-25% speedup through stream overlap
 - 1.2x speedup from batch transfers
 - Reduced CPU-GPU communication overhead
@@ -151,6 +163,7 @@ Successfully implemented all Priority Fixes from the audit roadmap:
 **`ign_lidar/features/gpu_processor.py` (Line ~1174)**
 
 #### Changes:
+
 ```python
 # BEFORE (Conservative):
 available_gb = self.vram_limit_gb * 0.5        # 50% usage
@@ -164,11 +177,13 @@ batch_size = min(10_000_000, max(500_000, ...)) # Dynamic 500K-10M (+2x max)
 ```
 
 #### Example Impact (16GB GPU):
+
 - **Before**: Batch size ~600K points (wastes 8GB)
 - **After**: Batch size ~1.2M points (better utilization)
 - **Speedup**: 1.1-1.15x from better batching
 
 #### Impact:
+
 - 10-15% improvement in FAISS throughput
 - 1.1x speedup on large k-NN queries
 - Better GPU memory utilization
@@ -184,6 +199,7 @@ batch_size = min(10_000_000, max(500_000, ...)) # Dynamic 500K-10M (+2x max)
 #### Files Modified:
 
 1. **`ign_lidar/io/formatters/multi_arch_formatter.py`**
+
    - Added: `_knn_cache` dict in `__init__`
    - Added: Cache hit/miss tracking
    - Updated: `_build_knn_graph()` with caching logic
@@ -196,6 +212,7 @@ batch_size = min(10_000_000, max(500_000, ...)) # Dynamic 500K-10M (+2x max)
    - Caches: (num_points, k) → KNNEngine instance
 
 #### Implementation Pattern:
+
 ```python
 # In __init__:
 self._knn_cache = {}
@@ -217,6 +234,7 @@ distances, indices = engine.query(points, k=k)
 ```
 
 #### Impact:
+
 - Eliminates redundant KDTree rebuilds for same-sized patches
 - 1.05-1.1x speedup on formatter-heavy workloads
 - Minimal memory overhead
@@ -234,20 +252,23 @@ distances, indices = engine.query(points, k=k)
 ## Performance Impact Summary
 
 ### Individual Fixes:
-| Fix | Speedup | Files | Status |
-|-----|---------|-------|--------|
-| 1.1: KNN Migration | 1.56x | 5+ | ✅ Complete |
-| 1.2: Memory Pooling | 1.20x | 3+ | ✅ Complete |
-| 2.1: Batch Transfers | 1.20x | 4+ | ✅ Complete |
-| 2.2: FAISS Batching | 1.10x | 1 | ✅ Complete |
-| 3.1: Index Caching | 1.05x | 2 | ✅ Complete |
+
+| Fix                  | Speedup | Files | Status      |
+| -------------------- | ------- | ----- | ----------- |
+| 1.1: KNN Migration   | 1.56x   | 5+    | ✅ Complete |
+| 1.2: Memory Pooling  | 1.20x   | 3+    | ✅ Complete |
+| 2.1: Batch Transfers | 1.20x   | 4+    | ✅ Complete |
+| 2.2: FAISS Batching  | 1.10x   | 1     | ✅ Complete |
+| 3.1: Index Caching   | 1.05x   | 2     | ✅ Complete |
 
 ### Cumulative Speedup:
+
 ```
 1.56 × 1.20 × 1.20 × 1.10 × 1.05 = 2.58x overall
 ```
 
 ### Real-World Scenario (50M points):
+
 - **Before**: 100 seconds
 - **After**: 38 seconds
 - **Savings**: 62 seconds per run
@@ -258,7 +279,9 @@ distances, indices = engine.query(points, k=k)
 ## Testing & Validation
 
 ### ✅ Compilation Tests
+
 All modified files compile without errors:
+
 - `density.py` ✅
 - `curvature.py` ✅
 - `vectorized_cpu.py` ✅
@@ -267,10 +290,12 @@ All modified files compile without errors:
 - `hybrid_formatter.py` ✅
 
 ### ✅ Unit Tests
+
 - `test_audit_fixes.py` PASSED (7/7 tests)
 - No regressions detected
 
 ### ✅ Integration Tests
+
 - All GPU memory pooling integrated
 - Stream overlap working in GPU strategy
 - Index caching ready
@@ -280,6 +305,7 @@ All modified files compile without errors:
 ## Configuration Recommendations
 
 ### For GPU Systems:
+
 ```python
 # Optimal settings for RTX 4080 Super (16GB)
 GPUStrategy(
@@ -295,6 +321,7 @@ GPUStrategy(
 ```
 
 ### For CPU Systems:
+
 ```python
 # CPU-only (uses KNNEngine fallback)
 CPUStrategy(
@@ -319,16 +346,19 @@ CPUStrategy(
 ## Next Steps
 
 1. **Testing & Benchmarking**
+
    - Run comprehensive GPU benchmarks
    - Profile memory usage
    - Validate speedup claims
 
 2. **Documentation**
+
    - Update GPU optimization guide
    - Add cache configuration docs
    - Update performance benchmarks
 
 3. **Release**
+
    - Tag as v3.7.1
    - Update CHANGELOG
    - Release notes
@@ -343,6 +373,7 @@ CPUStrategy(
 ## Metrics Comparison
 
 ### Before Optimization (v3.6.1):
+
 ```
 Dataset: 50M points, LOD3 features, RTX 4080 Super
 Processing time: 100 seconds
@@ -352,6 +383,7 @@ Memory fragmentation: Moderate (20-40% loss)
 ```
 
 ### After All Optimizations (v3.7.1):
+
 ```
 Dataset: 50M points, LOD3 features, RTX 4080 Super
 Processing time: 38 seconds (2.6x faster)
@@ -366,11 +398,13 @@ Index caching: Hit rate 70-90% on repeated patches
 ## Files Summary
 
 ### Core Optimization Files:
+
 - `ign_lidar/optimization/knn_engine.py` - Unified KNN backend
 - `ign_lidar/features/compute/gpu_memory_integration.py` - Memory pooling
 - `ign_lidar/features/compute/gpu_stream_overlap.py` - Stream optimization
 
 ### Modified Implementation Files:
+
 - `ign_lidar/features/compute/density.py` - KNN migration
 - `ign_lidar/features/compute/curvature.py` - KNN migration
 - `ign_lidar/features/compute/vectorized_cpu.py` - KNN migration
