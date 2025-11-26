@@ -6,7 +6,7 @@ title: IGN LiDAR HD Processing Library
 
 # IGN LiDAR HD Processing Library
 
-**Version 3.5.0** | Python 3.8+ | MIT License | [GitHub](https://github.com/sducournau/IGN_LIDAR_HD_DATASET)
+**Version 3.6.2** | Python 3.8+ | MIT License | [GitHub](https://github.com/sducournau/IGN_LIDAR_HD_DATASET)
 
 [![PyPI version](https://badge.fury.io/py/ign-lidar-hd.svg)](https://badge.fury.io/py/ign-lidar-hd)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -18,14 +18,14 @@ Production-ready library featuring GPU acceleration (16× speedup), rich geometr
 
 ---
 
-## 🎯 What's New in v3.5.0
+## 🎯 What's New in v3.6.2
 
 ### Latest Stable Release (November 2025)
 
-Package harmonization and documentation consolidation release.
+Performance optimization and documentation enhancement release.
 
 :::info Documentation Update
-**Version 3.5.0** harmonizes all version references, consolidates documentation, and improves package consistency across all files.
+**Version 3.6.2** includes performance optimizations, enhanced documentation, and improved consistency across all project files.
 :::
 
 ### 🌟 Key Highlights
@@ -103,7 +103,8 @@ If using BD TOPO classification, consider reprocessing your data to benefit from
 
 ### 📖 Release Notes
 
-- 📦 **[v3.5.0 (Current)](./release-notes/v3.5.0)** - Package harmonization & documentation **← NEW**
+- 📦 **[v3.6.2 (Current)](./release-notes/v3.6.2)** - Performance optimization & documentation **← NEW**
+- 📦 **[v3.5.0](./release-notes/v3.5.0)** - Package harmonization & documentation
 - 🚀 **[v3.4.1](./release-notes/v3.4.1)** - FAISS GPU memory optimization
 - 🎯 **[v3.4.0](./release-notes/v3.4.0)** - GPU optimizations & road classification
 - 📍 **[v3.3.5](./release-notes/v3.3.5)** - Maintenance release
@@ -307,7 +308,7 @@ If you use this library in your research or projects, please cite:
   year         = {2025},
   publisher    = {ImagoData},
   url          = {https://github.com/sducournau/IGN_LIDAR_HD_DATASET},
-  version      = {3.5.0}
+  version      = {3.6.2}
 }
 ```
 
