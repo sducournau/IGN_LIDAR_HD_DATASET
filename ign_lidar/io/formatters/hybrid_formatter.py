@@ -304,13 +304,14 @@ class HybridFormatter(BaseFormatter):
             logger.debug(f"KNN cache hit for {cache_key} (hits={self._cache_hits}, misses={self._cache_misses})")
         else:
             # Use unified KNNEngine (auto-selects optimal backend)
-            engine = KNNEngine()
+            backend = 'faiss-gpu' if use_gpu else 'auto'
+            engine = KNNEngine(backend=backend)
             self._knn_cache[cache_key] = engine
             self._cache_misses += 1
         
         try:
-            # Query k+1 neighbors (includes self)
-            distances, indices = engine.query(points, k=k+1, use_gpu=use_gpu)
+            # Query k+1 neighbors (includes self) using KNNEngine.search()
+            distances, indices = engine.search(points, k=k+1)
         except Exception as e:
             logger.warning(f"KNN engine failed ({e}), using fallback")
             # Fallback to sklearn

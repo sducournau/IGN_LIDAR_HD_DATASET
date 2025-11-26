@@ -187,7 +187,8 @@ class TestTileStitcher:
         
         assert distances.shape == (10, 5)
         assert indices.shape == (10, 5)
-        assert np.all(distances[:, 0] == 0)  # First neighbor is self (distance 0)
+        # First neighbor is self (allow small numerical error from FAISS)
+        assert np.allclose(distances[:, 0], 0, atol=1e-6)
     
     def test_compute_bounds(self, sample_tile):
         """Test bounding box computation."""

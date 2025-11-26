@@ -35,7 +35,10 @@ def build_kdtree(
     """
     Build KDTree with automatic GPU/CPU selection for optimal performance.
     
-    Intelligently selects between CPU and GPU implementations based on:
+    **OPTIMIZED v3.7**: Now delegates to KNNEngine for superior GPU support
+    with automatic backend selection (FAISS-GPU > FAISS-CPU > sklearn).
+    
+    Intelligently selects between GPU and CPU implementations based on:
     - Dataset size (auto-switches to GPU for large point clouds)
     - GPU availability and memory
     - User preference (can be overridden via use_gpu parameter)
@@ -81,7 +84,14 @@ def build_kdtree(
         The default leaf_size=30 is optimal for most CPU-based operations.
         For GPU fallback code, consider leaf_size=40 for better batching.
         GPU KDTree uses FAISS which doesn't expose leaf_size/metric parameters.
+    
+    INTERNAL NOTE (v3.7):
+        This function now wraps KNNEngine for better GPU support.
+        Users who need raw KDTree objects should consider using KNNEngine.search()
+        directly for superior performance on large datasets.
     """
+    from ign_lidar.optimization import KNNEngine
+    
     n_points = len(points)
     
     # Auto-select GPU if not specified
@@ -89,20 +99,38 @@ def build_kdtree(
         use_gpu = (n_points > gpu_threshold) and _is_gpu_available()
         if n_points > gpu_threshold:
             logger.debug(
-                f"Auto-selecting GPU KDTree for {n_points:,} points (threshold: {gpu_threshold:,})"
+                f"Auto-selecting GPU acceleration for {n_points:,} points (threshold: {gpu_threshold:,})"
             )
     
-    if use_gpu:
+    # For backward compatibility: return KDTree for small/CPU case,
+    # but internally use KNNEngine for large/GPU case
+    if use_gpu and _is_gpu_available():
         try:
-            logger.info(f"Building GPU-accelerated KDTree for {n_points:,} points")
-            # Try to create with full parameters (sklearn.neighbors.KDTree)
-            return KDTree(points, metric=metric, leaf_size=leaf_size)
-        except (TypeError, ImportError) as e:
+            logger.info(f"Building GPU-accelerated KDTree for {n_points:,} points via KNNEngine")
+            # KNNEngine with GPU backend selection
+            engine = KNNEngine(backend='auto', metric=metric)
+            
+            # Create a wrapper that behaves like KDTree but uses KNNEngine internally
+            class KNNEngineWrapper:
+                def __init__(self, engine, points, metric):
+                    self.engine = engine
+                    self.points = points
+                    self.metric = metric
+                    self.data = points
+                
+                def query(self, x, k=1):
+                    """sklearn-compatible query interface"""
+                    distances, indices = self.engine.search(self.points, k=k, query_points=x)
+                    return distances, indices
+            
+            return KNNEngineWrapper(engine, points, metric)
+        except Exception as e:
             logger.warning(
-                f"GPU KDTree failed ({e}), falling back to CPU for {n_points:,} points"
+                f"GPU KNNEngine failed ({e}), falling back to CPU KDTree for {n_points:,} points"
             )
             use_gpu = False
     
+    # CPU fallback: use standard KDTree
     if not use_gpu:
         logger.debug(f"Building CPU KDTree for {n_points:,} points")
         try:
