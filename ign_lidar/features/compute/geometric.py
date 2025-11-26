@@ -13,6 +13,7 @@ from ign_lidar.optimization import KDTree  # GPU-accelerated drop-in replacement
 from .eigenvalues import compute_eigenvalue_features
 from .density import compute_density_features
 from .utils import validate_points, handle_nan_inf, compute_covariance_matrix
+from ..utils import build_kdtree  # Use unified build_kdtree with GPU auto-selection
 
 logger = logging.getLogger(__name__)
 
@@ -98,8 +99,8 @@ def extract_geometric_features(
     n_points = len(points)
     logger.debug(f"Computing geometric features for {n_points:,} points")
     
-    # Build spatial index
-    tree = KDTree(points, metric='euclidean', leaf_size=30)
+    # Build spatial index using unified build_kdtree (with GPU auto-selection)
+    tree = build_kdtree(points, metric='euclidean', leaf_size=30)
     
     # Find neighbors
     if radius is not None:
