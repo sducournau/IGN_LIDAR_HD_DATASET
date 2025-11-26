@@ -206,10 +206,11 @@ class TestModuleIntegration:
     
     def test_import_from_gpu_wrapper(self):
         """Test that gpu_wrapper uses GPUManager."""
-        from ign_lidar.optimization.gpu_wrapper import check_gpu_available
+        from ign_lidar.optimization.gpu_wrapper import GPUContext
         
-        result = check_gpu_available()
-        assert isinstance(result, bool)
+        # Test GPUContext which uses GPUManager internally
+        with GPUContext() as gpu:
+            assert isinstance(gpu.available, bool)
 
 
 # Mark all tests as unit tests

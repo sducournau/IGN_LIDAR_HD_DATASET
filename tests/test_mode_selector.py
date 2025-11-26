@@ -47,6 +47,7 @@ class TestModeSelector:
         """Create selector without GPU."""
         return ModeSelector(gpu_memory_gb=0.0, cpu_memory_gb=32.0, prefer_gpu=True)
     
+    @pytest.mark.skipif(not GPU_AVAILABLE, reason="GPU not available in test environment")
     def test_initialization_with_gpu(self, selector_with_gpu):
         """Test selector initialization with GPU available."""
         assert selector_with_gpu.gpu_available is True
@@ -63,6 +64,7 @@ class TestModeSelector:
     
     # Test small clouds (< 500K points)
     
+    @pytest.mark.skipif(not GPU_AVAILABLE, reason="GPU not available in test environment")
     def test_small_cloud_with_gpu(self, selector_with_gpu):
         """Small cloud with GPU available should use GPU."""
         mode = selector_with_gpu.select_mode(num_points=100_000)
@@ -86,6 +88,7 @@ class TestModeSelector:
     
     # Test medium clouds (500K - 5M points)
     
+    @pytest.mark.skipif(not GPU_AVAILABLE, reason="GPU not available in test environment")
     def test_medium_cloud_with_gpu(self, selector_with_gpu):
         """Medium cloud with GPU available should use GPU."""
         mode = selector_with_gpu.select_mode(num_points=2_000_000)
@@ -99,6 +102,7 @@ class TestModeSelector:
     
     # Test large clouds (5M - 10M points)
     
+    @pytest.mark.skipif(not GPU_AVAILABLE, reason="GPU not available in test environment")
     def test_large_cloud_with_gpu(self, selector_with_gpu):
         """Large cloud with GPU available should use GPU or GPU_CHUNKED."""
         mode = selector_with_gpu.select_mode(num_points=7_000_000)
@@ -112,6 +116,7 @@ class TestModeSelector:
     
     # Test very large clouds (> 10M points)
     
+    @pytest.mark.skipif(not GPU_AVAILABLE, reason="GPU not available in test environment")
     def test_very_large_cloud_with_gpu(self, selector_with_gpu):
         """Very large cloud should use GPU_CHUNKED."""
         mode = selector_with_gpu.select_mode(num_points=15_000_000)
@@ -130,6 +135,7 @@ class TestModeSelector:
         mode = selector_with_gpu.select_mode(num_points=1_000_000, force_cpu=True)
         assert mode == ComputationMode.CPU
     
+    @pytest.mark.skipif(not GPU_AVAILABLE, reason="GPU not available in test environment")
     def test_force_gpu(self, selector_with_gpu):
         """Force GPU mode should select GPU or GPU_CHUNKED."""
         mode = selector_with_gpu.select_mode(num_points=1_000_000, force_gpu=True)
@@ -212,6 +218,7 @@ class TestModeSelector:
     
     # Test recommendations
     
+    @pytest.mark.skipif(not GPU_AVAILABLE, reason="GPU not available in test environment")
     def test_get_recommendations(self, selector_with_gpu):
         """Test getting recommendations for a point cloud."""
         recommendations = selector_with_gpu.get_recommendations(num_points=1_000_000)
@@ -295,6 +302,7 @@ class TestModeSelectionIntegration:
             mock.return_value = False
             yield ModeSelector(gpu_memory_gb=0.0, cpu_memory_gb=16.0, prefer_gpu=True)
     
+    @pytest.mark.skipif(not GPU_AVAILABLE, reason="GPU not available in test environment")
     def test_workstation_small_dataset(self, workstation_selector):
         """Workstation processing small dataset."""
         mode = workstation_selector.select_mode(num_points=250_000)
@@ -303,6 +311,7 @@ class TestModeSelectionIntegration:
         recommendations = workstation_selector.get_recommendations(num_points=250_000)
         assert recommendations["memory_utilization_pct"] < 50  # Should be low
     
+    @pytest.mark.skipif(not GPU_AVAILABLE, reason="GPU not available in test environment")
     def test_workstation_large_dataset(self, workstation_selector):
         """Workstation processing large dataset."""
         mode = workstation_selector.select_mode(num_points=20_000_000)
