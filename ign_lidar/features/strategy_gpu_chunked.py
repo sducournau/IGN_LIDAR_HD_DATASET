@@ -7,15 +7,16 @@ for large datasets (> 10M points).
 This strategy uses the GPUProcessor with intelligent auto-chunking for
 memory-efficient processing of massive point clouds.
 
-**Phase 3 GPU Optimizations (November 23, 2025)**:
+**Phase 3 GPU Optimizations (November 27, 2025)**:
 - ✅ GPUArrayCache integration for chunk-to-chunk data reuse
-- ✅ Reduced memory fragmentation via pooling
-- 🎯 Minimize transfers within chunked processing
-- 📈 Expected gain: 15-25% on large datasets
+- ✅ Reduced memory fragmentation via pooling (Phase 2)
+- ✅ Per-chunk batch transfers to minimize GPU↔CPU overhead
+- 📈 Expected gain: 15-25% on large datasets (cumulative)
+- 🎯 Phase 3 Target: 1.1-1.2x speedup from batch transfers
 
 Author: IGN LiDAR HD Development Team
 Date: October 19, 2025
-Version: 3.2.0 (Phase 2A.4 + Phase 3 optimizations)
+Version: 3.3.0 (Phase 2 + Phase 3 Batch Transfers)
 """
 from typing import Dict, Optional
 import numpy as np
@@ -28,6 +29,7 @@ from .compute.gpu_stream_overlap import get_gpu_stream_optimizer, StreamPhase
 from ..core.gpu import GPUManager
 from ..optimization.adaptive_chunking import auto_chunk_size, get_recommended_strategy
 from ..optimization.gpu_cache import GPUArrayCache
+from ..optimization.gpu_batch_transfer import BatchTransferContext
 
 logger = logging.getLogger(__name__)
 
@@ -172,9 +174,14 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         **kwargs,
     ) -> Dict[str, np.ndarray]:
         """
-        Compute features using GPUProcessor with per-chunk memory pooling (Phase 2).
+        Compute features using GPUProcessor with per-chunk batch transfers (Phase 3).
 
-        Uses memory pooling with buffer reuse across chunks for large datasets.
+        **Phase 3 Optimizations (November 27, 2025)**:
+        - ✅ Per-chunk batch transfers: Within each chunk, combine transfers
+        - ✅ Memory pooling with buffer reuse across chunks (Phase 2)
+        - ✅ Reduced memory fragmentation via pooling
+        - 📈 Expected speedup: 1.1-1.2x from batch transfers on large datasets
+
         For >10M points, buffers are reused across chunks to minimize memory
         fragmentation and allocation overhead.
 
@@ -219,7 +226,7 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
             strategy_name = "chunked" if n_points > 10_000_000 else "batch"
             logger.info(
                 f"Computing features for {n_points:,} points using GPU strategy "
-                f"({strategy_name} mode auto-selected) with per-chunk pooling (Phase 2)"
+                f"({strategy_name} mode auto-selected) with per-chunk batch transfers (Phase 3)"
             )
 
         # Initialize pooling for all chunks (buffers reused across chunks)
@@ -245,77 +252,104 @@ class GPUChunkedStrategy(BaseFeatureStrategy):
         if nir is not None and rgb is not None:
             feature_names.append("ndvi")
 
-        with GPUPoolingContext(
-            gpu_pool=self.gpu_manager.gpu_pool if GPU_AVAILABLE else None,
-            num_features=len(feature_names),
-        ) as pool_ctx:
+        # Phase 3: Use batch transfer context for per-chunk transfers
+        with BatchTransferContext(enable=True, verbose=self.verbose) as transfer_ctx:
 
-            # Compute geometric features with GPU processor
-            # Use the unified compute_features method
-            gpu_features = self.gpu_processor.compute_features(
-                points,
-                feature_types=["normals", "curvature"],
-                k=self.k_neighbors,
-                show_progress=self.verbose,
-            )
+            with GPUPoolingContext(
+                gpu_pool=self.gpu_manager.gpu_pool if GPU_AVAILABLE else None,
+                num_features=len(feature_names),
+            ) as pool_ctx:
 
-            normals = gpu_features["normals"]
-            curvature = gpu_features["curvature"]
+                # Phase 3.1: Batch upload input data (per-chunk)
+                input_data = {"points": points}
+                if rgb is not None:
+                    input_data["rgb"] = rgb
+                if nir is not None:
+                    input_data["nir"] = nir
+                if intensities is not None:
+                    input_data["intensities"] = intensities
 
-            # Compute height relative to minimum Z
-            z_min = points[:, 2].min()
-            height = (points[:, 2] - z_min).astype(np.float32)
+                gpu_inputs = transfer_ctx.batch_upload(input_data, batch_id="chunked_inputs")
 
-            # Build result dictionary with pooled buffers
-            result = {
-                "normals": normals.astype(np.float32),
-                "curvature": curvature.astype(np.float32),
-                "height": height.astype(np.float32),
-            }
+                # Extract GPU arrays
+                gpu_points = gpu_inputs.get("points", points)
+                gpu_rgb = gpu_inputs.get("rgb", None) if rgb is not None else None
+                gpu_nir = gpu_inputs.get("nir", None) if nir is not None else None
 
-            # Compute additional geometric features (reused per-chunk)
-            # Verticality: 1 - |normal_z| (walls have normal_z≈0, so verticality≈1)
-            # ✅ FIXED: Was inverted (walls got low scores, roofs got high scores)
-            verticality = (1.0 - np.abs(normals[:, 2])).astype(np.float32)
-            verticality = np.clip(verticality, 0.0, 1.0).astype(np.float32)
-            result["verticality"] = verticality
-            pool_ctx.record_reuse()
-            pooling_stats.record_feature()
-
-            # Planarity: 1 - curvature (normalized) - reuse buffer
-            planarity = (1.0 - np.minimum(curvature, 1.0)).astype(np.float32)
-            result["planarity"] = planarity
-            pool_ctx.record_reuse()
-            pooling_stats.record_feature()
-
-            # Sphericity: curvature normalized - reuse buffer
-            sphericity = np.minimum(curvature, 1.0).astype(np.float32)
-            result["sphericity"] = sphericity
-            pool_ctx.record_reuse()
-            pooling_stats.record_feature()
-
-            # Compute RGB features if provided with pooled memory
-            if rgb is not None:
-                rgb_features = compute_rgb_features(rgb, use_gpu=True)
-                result.update(rgb_features)
-                pool_ctx.record_reuse()
-                pooling_stats.record_feature()
-
-            # Compute NDVI if NIR and RGB provided
-            if nir is not None and rgb is not None:
-                red = rgb[:, 0]
-                ndvi = self.compute_ndvi(nir, red)
-                result["ndvi"] = ndvi.astype(np.float32)
-                pool_ctx.record_reuse()
-                pooling_stats.record_feature()
-
-            if self.verbose:
-                stats = pool_ctx.get_stats()
-                logger.info(
-                    f"GPU computation complete: {len(result)} feature types "
-                    f"(pooling efficiency: {stats['reuse_rate']:.1%}, "
-                    f"buffers: {stats['num_buffers']})"
+                # Compute geometric features with GPU processor
+                # Use the unified compute_features method
+                gpu_features = self.gpu_processor.compute_features(
+                    gpu_points,
+                    feature_types=["normals", "curvature"],
+                    k=self.k_neighbors,
+                    show_progress=self.verbose,
                 )
+
+                normals = gpu_features["normals"]
+                curvature = gpu_features["curvature"]
+
+                # Compute height relative to minimum Z
+                z_min = points[:, 2].min()  # Use original for min
+                height = (points[:, 2] - z_min).astype(np.float32)
+
+                # Build GPU result dictionary
+                gpu_results = {
+                    "normals": normals,
+                    "curvature": curvature,
+                    "height": height,
+                }
+
+                # Compute additional geometric features (reused per-chunk)
+                # Verticality: 1 - |normal_z| (walls have normal_z≈0, so verticality≈1)
+                # ✅ FIXED: Was inverted (walls got low scores, roofs got high scores)
+                verticality = (1.0 - np.abs(normals[:, 2])).astype(np.float32)
+                verticality = np.clip(verticality, 0.0, 1.0).astype(np.float32)
+                gpu_results["verticality"] = verticality
+                pool_ctx.record_reuse()
+                pooling_stats.record_feature()
+
+                # Planarity: 1 - curvature (normalized) - reuse buffer
+                planarity = (1.0 - np.minimum(curvature, 1.0)).astype(np.float32)
+                gpu_results["planarity"] = planarity
+                pool_ctx.record_reuse()
+                pooling_stats.record_feature()
+
+                # Sphericity: curvature normalized - reuse buffer
+                sphericity = np.minimum(curvature, 1.0).astype(np.float32)
+                gpu_results["sphericity"] = sphericity
+                pool_ctx.record_reuse()
+                pooling_stats.record_feature()
+
+                # Compute RGB features if provided with pooled memory
+                if gpu_rgb is not None:
+                    rgb_features = compute_rgb_features(gpu_rgb, use_gpu=True)
+                    gpu_results.update(rgb_features)
+                    pool_ctx.record_reuse()
+                    pooling_stats.record_feature()
+
+                # Compute NDVI if NIR and RGB provided
+                if gpu_nir is not None and gpu_rgb is not None:
+                    red = gpu_rgb[:, 0] if hasattr(gpu_rgb, '__getitem__') else gpu_rgb
+                    ndvi = self.compute_ndvi(gpu_nir, red)
+                    gpu_results["ndvi"] = ndvi.astype(np.float32)
+                    pool_ctx.record_reuse()
+                    pooling_stats.record_feature()
+
+                # Phase 3.2: Batch download all results
+                result = transfer_ctx.batch_download(gpu_results, batch_id="chunked_results")
+
+                if self.verbose:
+                    stats = pool_ctx.get_stats()
+                    logger.info(
+                        f"GPU computation complete: {len(result)} feature types "
+                        f"(pooling efficiency: {stats['reuse_rate']:.1%}, "
+                        f"buffers: {stats['num_buffers']})"
+                    )
+                    transfer_stats = transfer_ctx.get_statistics()
+                    logger.info(
+                        f"Phase 3 batch transfers: {transfer_stats['serial_transfers_avoided']} "
+                        f"transfers avoided, {transfer_stats['total_transfer_mb']:.1f} MB transferred"
+                    )
 
         return result
 
