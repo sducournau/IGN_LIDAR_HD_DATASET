@@ -1,5 +1,5 @@
 # ============================================================================
-# IGN LiDAR HD - Basic GPU Configuration
+# IGN LiDAR HD v3.2+ - Basic GPU Configuration
 # ============================================================================
 # GPU-accelerated processing with LOD2 features.
 # Perfect for: Users with GPU (12GB+ VRAM), medium-large datasets (10-50 tiles)
@@ -11,92 +11,112 @@
 # - No external data sources (works offline)
 #
 # Expected performance: ~30-60 sec per 18M point tile (GPU: RTX 3080+)
-# Requirements: NVIDIA GPU with 12GB+ VRAM, CUDA 11.8+
+# Requirements: NVIDIA GPU with 12GB+ VRAM, CUDA 11.8+, CuPy installed
 # ============================================================================
 
-# Input/Output paths (REQUIRED - modify these)
-input_dir: "/path/to/your/laz/tiles"
-output_dir: "/path/to/output"
+# ============================================================================
+# REQUIRED PARAMETERS
+# ============================================================================
+input_dir: "/path/to/your/laz/tiles" # ⚠️ REQUIRED - modify this
+output_dir: "/path/to/output" # ⚠️ REQUIRED - modify this
 
 # ============================================================================
-# PROCESSOR SETTINGS
+# ESSENTIAL SETTINGS
 # ============================================================================
-processor:
-  # Processing level
-  lod_level: "LOD2" # Simplified building classification
 
-  # What to generate
-  processing_mode: "patches_only" # Only create training patches
+# Classification mode
+mode: "lod2" # LOD2 building classification
 
-  # Hardware (GPU)
-  use_gpu: true # Enable GPU acceleration
-  gpu_device: 0 # GPU device ID
-  gpu_batch_size: 25_000_000 # 25M points (adjust for your VRAM)
-  gpu_memory_target: 0.85 # 85% VRAM utilization
-  vram_limit_gb: 10 # Conservative limit for 12GB GPU
+# Processing mode
+processing_mode: "patches_only" # Only create ML training patches
 
-  # Chunking for large tiles
-  chunk_size: 5_000_000 # 5M points per chunk
+# Hardware (GPU)
+use_gpu: true # Enable GPU acceleration ⚡
+num_workers: 0 # MUST be 0 with GPU (no multiprocessing + CUDA)
 
-  # No parallel workers with GPU
-  num_workers: 0 # GPU + multiprocessing = bad
-
-  # Patch settings
-  patch_size: 50.0 # 50m × 50m patches
-  num_points: 16384 # 16k points per patch
-  overlap: 0.1 # 10% overlap
+# Patch settings
+patch_size: 50.0 # 50m × 50m patches
+num_points: 16384 # 16k points per patch
+patch_overlap: 0.1 # 10% overlap
 
 # ============================================================================
-# PREPROCESSING
-# ============================================================================
-preprocess:
-  enabled: true
-  sor_k: 12
-  sor_std: 2.0
-  ror_radius: 1.0
-  ror_neighbors: 4
-  voxel_enabled: false
-
-# ============================================================================
-# FEATURES (LOD2 WITH GPU ACCELERATION)
+# FEATURE CONFIGURATION (LOD2 + MULTI-SCALE)
 # ============================================================================
 features:
-  # Feature mode
-  mode: "lod2" # ~12 features for building classification
-
-  # Geometric computation
+  feature_set: "standard" # ~12 LOD2 features
   k_neighbors: 30
-  search_radius: 3.0
+  search_radius: null # Auto-calculate
 
-  # Core features
-  compute_normals: true
-  compute_curvature: true
-  compute_height: true
-  compute_geometric: true
-  compute_density: true
+  # Spectral features disabled (offline processing)
+  use_rgb: false
+  use_nir: false
+  compute_ndvi: false
 
-  # Multi-scale artifact suppression (2 scales for speed)
-  multi_scale_computation: true
+  # Multi-scale artifact suppression
+  multi_scale: true
   scales:
-    - name: fine
-      k_neighbors: 30
-      search_radius: 2.0
-      weight: 0.6
+    - fine # Fine details (k=30, r=2.0m)
+    - coarse # Context (k=80, r=4.0m)
 
-    - name: coarse
-      k_neighbors: 80
-      search_radius: 4.0
-      weight: 0.4
+# ============================================================================
+# GPU OPTIMIZATIONS (AUTO-CONFIGURED)
+# ============================================================================
+enable_optimizations: true
+enable_async_io: true # +12-14% performance
+enable_batch_processing: true # +25-30% performance (GPU)
+batch_size: 4 # Process 4 tiles in parallel
+enable_gpu_pooling: true # +8.5% performance (GPU memory pooling)
+gpu_pool_max_size_gb: 4.0 # GPU memory pool size
 
-  # Aggregation settings
-  aggregation_method: "variance_weighted"
-  variance_penalty_factor: 2.0
-  artifact_variance_threshold: 0.15
+print_optimization_stats: true # Show performance gains
 
-  # Disable advanced features
-  compute_cluster_id: false
-  spectral_features: false
+# ============================================================================
+# ADVANCED SETTINGS (OPTIONAL)
+# ============================================================================
+advanced:
+  # Preprocessing (outlier removal)
+  preprocessing:
+    enabled: true
+    sor_k: 12
+    sor_std: 2.0
+    ror_radius: 1.0
+    ror_neighbors: 4
+    voxel_enabled: false
 
+  # Performance tuning (auto-configured, but can override)
+  performance:
+    gpu_batch_size: 25000000 # 25M points per GPU batch (adjust for VRAM)
+    gpu_memory_target: 0.85 # Use 85% of VRAM
+    vram_limit_gb: 10 # Conservative limit for 12GB GPU
+    chunk_size: 5000000 # Chunk large tiles (5M points)
+
+  # Multi-scale advanced
+  multi_scale_advanced:
+    aggregation_method: "variance_weighted"
+    variance_penalty_factor: 2.0
+    artifact_variance_threshold: 0.15
+    reuse_kdtrees_across_scales: true
+    parallel_scale_computation: false # GPU: serial is faster
+
+# ============================================================================
+# USAGE
+# ============================================================================
+# Basic:
+#   ign-lidar-hd process -c examples/quickstart/02_gpu_basic.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output"
+#
+# For 16GB+ VRAM GPU:
+#   ign-lidar-hd process -c examples/quickstart/02_gpu_basic.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output" \
+#     advanced.performance.vram_limit_gb=14 \
+#     advanced.performance.gpu_batch_size=30000000
+#
+# Troubleshooting:
+#   - OOM errors: Reduce gpu_batch_size or vram_limit_gb
+#   - Slow performance: Check GPU utilization (nvidia-smi)
+#   - CUDA errors: Ensure CuPy is installed (conda install -c conda-forge cupy)
 # ============================================================================
 # DATA SOURCES (ALL DISABLED FOR OFFLINE PROCESSING)
 # ============================================================================

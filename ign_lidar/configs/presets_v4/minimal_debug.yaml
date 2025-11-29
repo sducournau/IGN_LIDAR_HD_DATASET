@@ -1,0 +1,172 @@
+# ============================================================================
+# IGN LiDAR HD v4.0 - Preset: Minimal Debug
+# ============================================================================
+# USE CASE: Quick preview, testing, development
+# SPEED: ⚡ FASTEST (2-3× faster than standard)
+#
+# FEATURES:
+#   - Minimal feature set (height, normals, basic planarity)
+#   - Minimal external data sources
+#   - Fast processing for rapid iteration
+#
+# WHEN TO USE:
+#   ✓ Testing new datasets quickly
+#   ✓ Development and debugging
+#   ✓ Quick visual preview of point clouds
+#   ✓ Prototyping new processing workflows
+#   ✓ CI/CD testing
+#
+# USAGE:
+#   ign-lidar-hd process --config-name=presets_v4/minimal_debug \
+#     input_dir=/data/tiles output_dir=/data/output
+#
+# ALTERNATIVES:
+#   - For building modeling → use 'lod2_buildings' preset
+#   - For detailed analysis → use 'lod3_detailed' preset
+#   - For classification → use 'asprs_classification_gpu' preset
+#
+# Package Version: 4.0.0
+# Config Version: 4.0.0
+# Date: November 2025
+# ============================================================================
+
+defaults:
+  - ../base_v4
+  - _self_
+
+config_version: "4.0.0"
+config_name: "minimal_debug"
+config_description: "Minimal feature set for fast debugging and testing"
+
+# ============================================================================
+# ESSENTIAL PARAMETERS (v4.0 flat structure)
+# ============================================================================
+
+# Classification mode
+mode: asprs # Basic ASPRS classification
+
+# Processing mode
+processing_mode: enriched_only # Only enriched LAZ output
+
+# Hardware configuration
+use_gpu: false # CPU for maximum compatibility
+num_workers: 4 # Multi-worker CPU processing
+
+# Patch configuration
+patch_size: 100.0 # Smaller patches for speed
+num_points: 16384 # Standard patch size
+patch_overlap: 0.0 # No overlap for maximum speed
+
+# Architecture
+architecture: pointnet++
+
+# ============================================================================
+# FEATURE CONFIGURATION - Minimal
+# ============================================================================
+features:
+  mode: minimal # Minimal feature set (~8 features)
+  k_neighbors: 20 # Small neighborhood for speed
+  search_radius: null # Auto-calculate
+
+  # Spectral features - disabled for speed
+  use_rgb: false
+  use_nir: false
+  compute_ndvi: false
+
+  # Multi-scale - disabled
+  multi_scale: false
+  scales: null
+
+# ============================================================================
+# OPTIMIZATIONS (v4.0 - Conservative for debugging)
+# ============================================================================
+optimizations:
+  enabled: false # Disable for debugging clarity
+
+  # All optimizations disabled for debugging
+  async_io: false
+  async_workers: 1
+  tile_cache_size: 1
+
+  batch_processing: false
+  batch_size: 1
+
+  gpu_pooling: false
+  gpu_pool_max_size_gb: 1.0
+
+  # Statistics
+  print_stats: true # Keep stats for debugging
+
+# ============================================================================
+# ADVANCED CONFIGURATION - Minimal
+# ============================================================================
+advanced:
+  # Preprocessing - minimal
+  preprocessing:
+    remove_outliers: false # Skip for speed
+    outlier_method: "statistical"
+    outlier_std_ratio: 2.0
+
+  # Ground truth - minimal
+  ground_truth:
+    bd_topo:
+      enabled: false # Skip ground truth for speed
+      buildings: false
+      roads: false
+      vegetation: false
+      water: false
+
+    cadastre:
+      enabled: false
+
+  # Classification - basic
+  classification:
+    ground_method: "auto"
+    ground_buffer: 0.5
+    building_height_min: 2.0
+    building_confidence_threshold: 0.7
+
+  # Performance - conservative
+  performance:
+    max_memory_gb: null
+    chunk_size: 500_000 # Smaller chunks
+    gpu_batch_size: 1_000_000
+    gpu_memory_target: 0.70
+    gpu_streams: 2
+    show_progress: true
+    log_level: "DEBUG" # Debug level for troubleshooting
+
+# ============================================================================
+# DATA SOURCES - None for speed
+# ============================================================================
+data_sources:
+  rgb:
+    enabled: false
+  nir:
+    enabled: false
+  dtm:
+    enabled: false
+
+# ============================================================================
+# OUTPUT CONFIGURATION - Minimal
+# ============================================================================
+output:
+  enriched_laz:
+    compression: true
+    extra_dimensions: []
+
+  save_metadata: true
+  save_statistics: false # Skip stats for speed
+
+# ============================================================================
+# MONITORING - Debug level
+# ============================================================================
+monitoring:
+  enable_profiling: true # Enable profiling for debugging
+  track_memory: true
+  memory_log_interval: 5.0 # More frequent logging
+  enable_checkpoints: false # No checkpoints for debugging
+
+# ============================================================================
+# END OF PRESET
+# ============================================================================

@@ -351,7 +351,9 @@ class LiDARProcessor:
         self.architecture = OmegaConf.select(
             config, "processor.architecture", default="pointnet++"
         )
-        self.output_format = config.processor.output_format
+        self.output_format = OmegaConf.select(
+            config, "output.format", default="npz"
+        )
         self.save_patches = OmegaConf.select(
             config, "output.save_patches", default=False
         )
@@ -877,7 +879,7 @@ class LiDARProcessor:
                     f"Available sections: {list(config.keys())}"
                 )
 
-        required_processor_fields = ["lod_level", "processing_mode", "output_format"]
+        required_processor_fields = ["lod_level", "processing_mode"]
         for field in required_processor_fields:
             if field not in config.processor:
                 raise ValueError(

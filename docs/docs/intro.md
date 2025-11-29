@@ -236,7 +236,7 @@ ign-lidar-hd process --config-file examples/config_training_dataset.yaml \
 ign-lidar-hd process --config-file examples/config_training_dataset.yaml --show-config
 ```
 
-See [configuration examples](/reference/config-examples) for complete workflows.
+See [Configuration v4.0 Guide](configuration-guide-v4.md) for complete workflows and [Migration Guide](migration-guide-v4.md) to upgrade from v3.x.
 
 ---
 
@@ -277,6 +277,8 @@ See [configuration examples](/reference/config-examples) for complete workflows.
 
 - [CLI Commands](/api/cli)
 - [Python API](/api/features)
+- [Configuration v4.0 Guide](configuration-guide-v4.md) ⭐ **NEW**
+- [Migration Guide v3→v4](migration-guide-v4.md)
 - [Configuration Reference](/api/configuration)
 - [Architecture](/architecture)
 

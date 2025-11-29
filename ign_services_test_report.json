@@ -1,0 +1,78 @@
+{
+  "test_date": "2025-11-28T20:50:59.744753",
+  "test_bbox": [
+    650000,
+    6860000,
+    651000,
+    6861000
+  ],
+  "results": [
+    {
+      "service_name": "BD TOPO V3 WFS",
+      "service_type": "WFS",
+      "endpoint": "https://data.geopf.fr/wfs",
+      "status": "success",
+      "http_code": 200,
+      "details": "Capabilities document: 4835265 bytes",
+      "error_message": null,
+      "response_time_ms": 222.786
+    },
+    {
+      "service_name": "BD TOPO Buildings Layer",
+      "service_type": "WFS",
+      "endpoint": "https://data.geopf.fr/wfs",
+      "status": "success",
+      "http_code": 200,
+      "details": "10 features récupérées",
+      "error_message": null,
+      "response_time_ms": 114.04499999999999
+    },
+    {
+      "service_name": "DTM WMS (RGE ALTI / LiDAR HD)",
+      "service_type": "WMS",
+      "endpoint": "https://data.geopf.fr/wms-r/wms",
+      "status": "success",
+      "http_code": 200,
+      "details": "LiDAR HD MNT layer présent; RGE ALTI layer présent",
+      "error_message": null,
+      "response_time_ms": 143.19799999999998
+    },
+    {
+      "service_name": "DTM WMS GetMap",
+      "service_type": "WMS",
+      "endpoint": "https://data.geopf.fr/wms-r/wms",
+      "status": "success",
+      "http_code": 200,
+      "details": "GeoTIFF 40514 bytes, Content-Type: image/geotiff",
+      "error_message": null,
+      "response_time_ms": 404.02700000000004
+    },
+    {
+      "service_name": "RGB Orthophotos WMS",
+      "service_type": "WMS",
+      "endpoint": "https://data.geopf.fr/wms-r",
+      "status": "success",
+      "http_code": 200,
+      "details": "Orthophotos layer présent",
+      "error_message": null,
+      "response_time_ms": 138.326
+    },
+    {
+      "service_name": "BD Forêt V2 WFS",
+      "service_type": "WFS",
+      "endpoint": "https://data.geopf.fr/wfs",
+      "status": "error",
+      "http_code": 400,
+      "details": null,
+      "error_message": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ows:ExceptionReport xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" xmlns:ows=\"http://www.opengis.net/ows/1.1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ",
+      "response_time_ms": 69.545
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "success": 5,
+    "error": 1,
+    "wfs_success": 2,
+    "wms_success": 3
+  }
+}

@@ -1,0 +1,222 @@
+# ============================================================================
+# IGN LiDAR HD v4.0 - Preset: High Quality
+# ============================================================================
+# Purpose: Maximum quality processing with all available features
+#
+# Use Cases:
+# - Production datasets requiring highest quality
+# - Research applications
+# - Detailed architectural analysis
+# - LOD3 preparation and heritage documentation
+# - Publications and official deliverables
+#
+# Features:
+# - All geometric features (~45 features)
+# - All spectral features (RGB, NIR, NDVI)
+# - Multi-scale analysis
+# - Architectural feature detection
+# - Enhanced boundary detection
+# - DTM augmentation (if available)
+#
+# Hardware Requirements:
+# - GPU: 16GB+ VRAM strongly recommended (RTX 4080 or better)
+# - CPU: 8+ cores
+# - RAM: 32GB+
+#
+# Performance: ~15-25 min per 20M point tile (RTX 4080)
+#
+# Usage:
+#   ign-lidar-hd process --config-name=presets_v4/high_quality \
+#     input_dir=/data/tiles output_dir=/data/output
+#
+# Package Version: 4.0.0
+# Config Version: 4.0.0
+# Date: November 2025
+# ============================================================================
+
+defaults:
+  - ../base_v4
+  - _self_
+
+config_version: "4.0.0"
+config_name: "high_quality"
+config_description: "Maximum Quality - All features enabled for production"
+
+# ============================================================================
+# ESSENTIAL PARAMETERS (v4.0 flat structure)
+# ============================================================================
+
+# Classification mode
+mode: lod3 # LOD3 for highest quality
+
+# Processing mode
+processing_mode: both # Both enriched LAZ and patches
+
+# Hardware configuration
+use_gpu: true # GPU strongly recommended
+num_workers: 1 # Single worker for GPU
+
+# Patch configuration
+patch_size: 200.0 # Larger patches for context
+num_points: 65536 # 64K points for maximum detail
+patch_overlap: 0.2 # 20% overlap for seamless results
+
+# Architecture
+architecture: pointnet++ # PointNet++ for best feature extraction
+
+# ============================================================================
+# FEATURE CONFIGURATION - Maximum Quality
+# ============================================================================
+features:
+  mode: full # All available features (~45 features)
+  k_neighbors: 80 # Large neighborhood for quality
+  search_radius: null # Auto-calculate
+
+  # Spectral features - all enabled
+  use_rgb: true # RGB for classification enhancement
+  use_nir: true # NIR for vegetation detection
+  compute_ndvi: true # NDVI for vegetation/non-vegetation
+
+  # Multi-scale - enabled for detail
+  multi_scale: true # Multi-scale geometric analysis
+  scales: ["fine", "medium", "coarse", "very_coarse"] # 4 scales
+
+# ============================================================================
+# OPTIMIZATIONS (v4.0 - Maximum performance)
+# ============================================================================
+optimizations:
+  enabled: true # All optimizations for speed
+
+  # Async I/O
+  async_io: true
+  async_workers: 4 # More workers for high-quality
+  tile_cache_size: 6 # More cache
+
+  # Batch processing
+  batch_processing: true
+  batch_size: 8 # Large batches for GPU efficiency
+
+  # GPU pooling
+  gpu_pooling: true
+  gpu_pool_max_size_gb: 8.0 # Large pool for high-end GPUs
+
+  # Statistics
+  print_stats: true
+
+# ============================================================================
+# ADVANCED CONFIGURATION - High Quality Settings
+# ============================================================================
+advanced:
+  # Preprocessing - Conservative for quality
+  preprocessing:
+    remove_outliers: true
+    outlier_method: "hybrid" # Hybrid method for best results
+    outlier_std_ratio: 3.0 # More permissive to preserve detail
+    outlier_radius: 0.25 # Fine-grained outlier detection
+    outlier_min_neighbors: 10
+
+  # Ground truth - All sources
+  ground_truth:
+    bd_topo:
+      enabled: true
+      buildings: true # All BD TOPO layers
+      roads: true
+      vegetation: true
+      water: true
+      timeout: 120 # Longer timeout for complex queries
+      max_retries: 5 # More retries for reliability
+
+    cadastre:
+      enabled: true # Cadastre for additional validation
+      use_buildings: true
+
+    custom_shapefiles:
+      buildings: null # Can add custom shapefiles
+      roads: null
+      vegetation: null
+
+  # Classification - High quality thresholds
+  classification:
+    ground_method: "auto" # Best method for hardware
+    ground_buffer: 0.2 # Small buffer for precision
+    building_height_min: 2.0
+    building_confidence_threshold: 0.80 # High confidence threshold
+    vegetation_ndvi_threshold: 0.35 # Refined NDVI threshold
+
+  # Performance - High-end GPU settings
+  performance:
+    max_memory_gb: null # Use all available
+    chunk_size: 2_000_000 # Larger chunks
+    gpu_batch_size: 12_000_000 # 12M points (high-end GPU)
+    gpu_memory_target: 0.90 # Aggressive memory usage
+    gpu_streams: 8 # Maximum streams
+    show_progress: true
+    log_level: "INFO"
+
+  # Reclassification - Enable for refinement
+  reclassification:
+    source_classes: null
+    target_classes: null
+    use_ml_model: false
+    model_path: null
+
+# ============================================================================
+# DATA SOURCES - All enabled
+# ============================================================================
+data_sources:
+  # RGB orthophotos
+  rgb:
+    enabled: false # Set to true and provide path
+    directory: null # e.g., "/data/orthophotos/rgb"
+    file_pattern: "*.tif"
+
+  # NIR orthophotos
+  nir:
+    enabled: false # Set to true and provide path
+    directory: null # e.g., "/data/orthophotos/nir"
+    file_pattern: "*.tif"
+
+  # Digital Terrain Model
+  dtm:
+    enabled: false # Set to true and provide path
+    directory: null # e.g., "/data/dtm"
+    file_pattern: "*.tif"
+
+# ============================================================================
+# OUTPUT CONFIGURATION - Full detail
+# ============================================================================
+output:
+  # Enriched LAZ
+  enriched_laz:
+    compression: true
+    extra_dimensions:
+      - "classification_confidence"
+      - "feature_importance"
+      - "boundary_proximity"
+      - "architectural_feature_type"
+      - "multi_scale_descriptor"
+
+  # NPZ patches
+  patches:
+    format: "npz"
+    train_val_split: 0.85 # 85/15 split for quality
+    shuffle: true
+    include_metadata: true
+
+  save_metadata: true
+  save_statistics: true
+
+# ============================================================================
+# MONITORING - Production level
+# ============================================================================
+monitoring:
+  enable_profiling: true # Enable for performance analysis
+  profile_output: "profile_high_quality.json"
+  track_memory: true
+  memory_log_interval: 10.0
+  enable_checkpoints: true # Important for long processing
+  checkpoint_interval: 25 # Frequent checkpoints for safety
+
+# ============================================================================
+# END OF PRESET
+# ============================================================================

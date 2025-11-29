@@ -1,0 +1,182 @@
+# ============================================================================
+# IGN LiDAR HD v3.2+ - Training Fast Configuration (50m patches, GPU optimized)
+# ============================================================================
+# MIGRATED from v3.1 config_training_fast_50m.yaml
+#
+# Optimized configuration for:
+# - Fast GPU training data generation
+# - Building classification with ground truth
+# - RGB/NIR spectral features (NDVI)
+# - Both LAZ enriched tiles AND NPZ training patches
+# - GPU: NVIDIA RTX 4080 (16GB VRAM)
+#
+# Expected performance: ~45-60 sec per 18M point tile (GPU)
+# ============================================================================
+
+# ============================================================================
+# REQUIRED PARAMETERS
+# ============================================================================
+input_dir: "/path/to/your/laz/tiles" # ⚠️ REQUIRED - modify this
+output_dir: "/path/to/output" # ⚠️ REQUIRED - modify this
+
+# ============================================================================
+# PROCESSOR CONFIGURATION
+# ============================================================================
+processor:
+  # Classification mode
+  lod_level: "LOD2" # LOD2 building classification
+
+  # Processing mode
+  processing_mode: "both" # Generate BOTH enriched LAZ tiles AND NPZ patches
+
+  # Hardware (GPU)
+  use_gpu: true # GPU acceleration ⚡
+  num_workers: 0 # MUST be 0 with GPU
+
+  # Patch settings (optimized for training)
+  patch_size: 50.0 # 50m × 50m patches (smaller = more patches)
+  num_points: 32000 # 32k points per patch (good balance)
+  patch_overlap: 0.10 # 10% overlap (5m buffer)
+
+  # Neural network architecture
+  architecture: "hybrid" # Hybrid architecture (PointNet++ + features)
+
+  # Other processor settings
+  skip_existing: false
+  use_strategy_pattern: true
+
+# ============================================================================
+# FEATURE CONFIGURATION (LOD2 + SPECTRAL)
+# ============================================================================
+features:
+  mode: "lod2" # LOD2 feature mode (~12 features)
+  k_neighbors: 30
+  search_radius: 2.5 # 2.5m for accurate local features
+
+  # Spectral features ENABLED (requires external data)
+  use_rgb: true # RGB from IGN orthophotos
+  use_nir: true # Near-Infrared from IRC
+  compute_ndvi: true # NDVI vegetation index
+
+  # Multi-scale disabled for speed
+  multi_scale: false
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  format: "npz" # Output format for patches
+  processing_mode: "both" # Matches processor.processing_mode
+  save_stats: true
+  save_metadata: true
+  compression: null
+
+# ============================================================================
+# PREPROCESSING CONFIGURATION
+# ============================================================================
+preprocess:
+  enabled: true
+  # Less aggressive outlier removal (for speed)
+  sor_k: 12
+  sor_std: 2.5 # More permissive
+  ror_radius: 1.0
+  ror_neighbors: 4 # Reduced from 5
+  voxel_enabled: false
+
+# ============================================================================
+# STITCHING CONFIGURATION
+# ============================================================================
+stitching:
+  enabled: false # Disable for speed in training mode
+
+# ============================================================================
+# GROUND TRUTH CONFIGURATION (BD TOPO)
+# ============================================================================
+ground_truth:
+  enabled: true
+  method: "gpu" # GPU-accelerated ground truth assignment
+  chunk_size: 5000000 # 5M points per chunk
+  cache_dir: null # Auto: output_dir/cache
+  cache_ttl_days: 30
+  cache_compression: true
+  preclassify: true # Classify BEFORE feature computation
+  show_progress: false # Disable progress bars (speed)
+
+  bd_topo:
+    enabled: true
+    path: "./data/ground_truth/BDTOPO/" # Adjust path as needed
+    use_spatial_index: true
+    cache_enabled: true
+
+    features:
+      buildings:
+        enabled: true
+        file: "BATIMENT.shp"
+        facade_optimization: true
+        min_height: 1.5
+        buffer_distance: 0.5
+        assign_cluster_ids: true
+
+      roads:
+        enabled: true
+        file: "TRONCON_DE_ROUTE.shp"
+        buffer_distance: 1.5
+        classification_method: "surface_type"
+        road_width_fallback: 4.0
+
+      vegetation:
+        enabled: false # NDVI is more accurate
+
+      water:
+        enabled: true
+        file: "SURFACE_EAU.shp"
+        buffer_distance: 0.5
+
+      railways:
+        enabled: false
+
+      bridges:
+        enabled: false
+
+# ============================================================================
+# DATA SOURCES (Spectral)
+# ============================================================================
+data_sources:
+  rgb:
+    enabled: true
+    source: "orthophoto"
+    resolution: 0.2 # 20cm resolution
+    cache_enabled: true
+
+  nir:
+    enabled: true
+    source: "irc" # Infrared channel
+    cache_enabled: true
+
+# ============================================================================
+# MONITORING
+# ============================================================================
+monitoring:
+  enable_performance_monitoring: true
+  enable_real_time: true
+  log_level: "INFO"
+# ============================================================================
+# USAGE
+# ============================================================================
+# Basic:
+#   ign-lidar-hd process -c examples/config_training_fast_50m_v3.2.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output" \
+#     ground_truth.bd_topo.path="/data/BDTOPO"
+#
+# Without ground truth (faster):
+#   ign-lidar-hd process -c examples/config_training_fast_50m_v3.2.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output" \
+#     ground_truth.enabled=false
+#
+# Troubleshooting:
+#   - OOM errors: Reduce processor.gpu_batch_size
+#   - Missing BDTOPO: Set ground_truth.enabled=false
+#   - Slow RGB: Disable data_sources.rgb.enabled
+# ============================================================================

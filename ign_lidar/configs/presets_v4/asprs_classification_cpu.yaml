@@ -1,0 +1,179 @@
+# ============================================================================
+# IGN LiDAR HD v4.0 - Preset: ASPRS Classification (CPU)
+# ============================================================================
+# Purpose: Standard ASPRS point cloud classification for CPU-only systems
+#
+# Features:
+# - ASPRS LAS 1.4 standard classes
+# - Balanced quality (k=30)
+# - BD TOPO + Cadastre integration
+# - Optimized for CPU processing
+#
+# Hardware Requirements:
+# - CPU: 8+ cores recommended
+# - RAM: 32GB+ recommended
+#
+# Performance: ~45-60 min per 20M point tile (8+ cores)
+#
+# Usage:
+#   ign-lidar-hd process --config-name=presets_v4/asprs_classification_cpu \
+#     input_dir=/data/tiles output_dir=/data/output
+#
+# Package Version: 4.0.0
+# Config Version: 4.0.0
+# Date: November 2025
+# ============================================================================
+
+defaults:
+  - ../base_v4
+  - _self_
+
+config_version: "4.0.0"
+config_name: "asprs_classification_cpu"
+config_description: "ASPRS Classification for CPU Systems"
+
+# ============================================================================
+# ESSENTIAL PARAMETERS (v4.0 flat structure)
+# ============================================================================
+
+# Classification mode
+mode: asprs # ASPRS LAS 1.4 classification
+
+# Processing mode
+processing_mode: enriched_only # Output enriched LAZ
+
+# Hardware configuration
+use_gpu: false # CPU-only processing
+num_workers: 8 # Multi-core parallelism (adjust for your CPU)
+
+# Patch configuration
+patch_size: 150.0
+num_points: 16384
+patch_overlap: 0.1
+
+# Architecture
+architecture: pointnet++
+
+# ============================================================================
+# FEATURE CONFIGURATION - Balanced for CPU
+# ============================================================================
+features:
+  mode: standard # Standard features for ASPRS
+  k_neighbors: 30 # Balanced quality/performance
+  search_radius: null
+
+  # Spectral features (if available)
+  use_rgb: true # Enable if RGB available
+  use_nir: false # Disable for CPU speed
+  compute_ndvi: false # Skip NDVI for speed
+
+  # Multi-scale - disabled for CPU
+  multi_scale: false
+  scales: null
+
+# ============================================================================
+# OPTIMIZATIONS (v4.0 - CPU optimized)
+# ============================================================================
+optimizations:
+  enabled: true # Enable CPU optimizations
+
+  # Async I/O (helps CPU)
+  async_io: true
+  async_workers: 2
+  tile_cache_size: 3
+
+  # Batch processing (important for CPU)
+  batch_processing: true
+  batch_size: 2 # Smaller batches for CPU
+
+  # GPU pooling - disabled
+  gpu_pooling: false
+  gpu_pool_max_size_gb: 0.0
+
+  # Statistics
+  print_stats: true
+
+# ============================================================================
+# ADVANCED CONFIGURATION
+# ============================================================================
+advanced:
+  # Preprocessing
+  preprocessing:
+    remove_outliers: true
+    outlier_method: "statistical"
+    outlier_std_ratio: 2.0
+
+  # Ground truth - Essential sources
+  ground_truth:
+    bd_topo:
+      enabled: true
+      buildings: true
+      roads: true
+      vegetation: false # Skip for CPU speed
+      water: true
+      timeout: 60
+      max_retries: 3
+
+    cadastre:
+      enabled: true # Cadastre as building proxy
+      use_buildings: true
+
+  # Classification
+  classification:
+    ground_method: "auto" # Will select CPU-optimized method
+    ground_buffer: 0.5
+    building_height_min: 2.0
+    building_confidence_threshold: 0.7
+
+  # Performance - CPU settings
+  performance:
+    max_memory_gb: null # Auto-detect
+    chunk_size: 1_000_000
+    gpu_batch_size: 0 # Not used
+    gpu_memory_target: 0.0 # Not used
+    gpu_streams: 0 # Not used
+    show_progress: true
+    log_level: "INFO"
+
+# ============================================================================
+# DATA SOURCES
+# ============================================================================
+data_sources:
+  rgb:
+    enabled: false # Enable if available
+    directory: null
+    file_pattern: "*.tif"
+
+  nir:
+    enabled: false
+    directory: null
+    file_pattern: "*.tif"
+
+  dtm:
+    enabled: false
+    directory: null
+    file_pattern: "*.tif"
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  enriched_laz:
+    compression: true
+    extra_dimensions: []
+
+  save_metadata: true
+  save_statistics: true
+
+# ============================================================================
+# MONITORING
+# ============================================================================
+monitoring:
+  enable_profiling: false
+  track_memory: true
+  memory_log_interval: 10.0
+  enable_checkpoints: true # Good for long CPU jobs
+  checkpoint_interval: 100
+# ============================================================================
+# END OF PRESET
+# ============================================================================

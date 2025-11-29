@@ -1,0 +1,291 @@
+# ============================================================================
+# IGN LiDAR HD - Base Configuration v4.0
+# ============================================================================
+# Unified, flat configuration structure for v4.0
+# Replaces nested v5.1 structure with simpler, more intuitive layout
+#
+# Philosophy:
+#   - Flat structure for essential parameters (easier to understand)
+#   - Nested structure only for advanced/expert options
+#   - Consistent naming across Python/YAML/CLI
+#   - Smart defaults for 80% of use cases
+#
+# Version: 4.0.0
+# Date: November 2025
+# Package Version: 4.0.0+
+# Migration: Use `ign-lidar-hd migrate-config` to upgrade from v3.x/v5.x
+# ============================================================================
+
+# ============================================================================
+# METADATA
+# ============================================================================
+config_version: "4.0.0"
+config_name: "base"
+config_description: "IGN LiDAR HD v4.0 - Base Configuration (Unified)"
+
+# ============================================================================
+# REQUIRED PARAMETERS
+# ============================================================================
+# Must be specified via CLI, YAML, or code
+input_dir: null # Path to input LAZ/LAS tiles
+output_dir: null # Path for output files
+
+# ============================================================================
+# ESSENTIAL PARAMETERS (Top-level, flat structure)
+# ============================================================================
+# These are the most commonly modified parameters.
+# Kept at top level for ease of use and discoverability.
+
+# Classification mode: asprs, lod2, lod3
+# - asprs: ASPRS/LAS 1.4 classification (ground, buildings, vegetation, etc.)
+# - lod2: Building-focused (walls, roof types, architectural elements)
+# - lod3: Detailed architectural (LOD2 + fine details: chimneys, dormers, etc.)
+mode: lod2
+
+# Processing output mode: patches_only, both, enriched_only, reclassify_only
+# - patches_only: Create NPZ patches for ML training (default)
+# - both: Create both patches and enriched LAZ tiles
+# - enriched_only: Create only enriched LAZ tiles with classifications
+# - reclassify_only: Only update classifications in existing files
+processing_mode: patches_only
+
+# Hardware configuration
+use_gpu: false # Enable GPU acceleration (auto-detects CUDA availability)
+num_workers: 4 # Number of parallel CPU workers (auto-detect: os.cpu_count())
+
+# Patch generation parameters
+patch_size: 150.0 # Patch size in meters (typical: 50-200m)
+num_points: 16384 # Target points per patch (power of 2 recommended)
+patch_overlap: 0.1 # Overlap fraction between patches (0-1, typically 0.1-0.2)
+
+# ML architecture (for dataset generation)
+architecture: pointnet++ # Options: pointnet++, hybrid, octree, transformer, sparse_conv, multi
+
+# ============================================================================
+# FEATURE CONFIGURATION
+# ============================================================================
+# Controls which features are computed for point cloud classification
+features:
+  # Feature mode: minimal, standard, full, custom
+  # - minimal: ~8 features, ultra-fast (height, planarity, verticality)
+  # - standard: ~20 features, recommended (geometric + basic spectral)
+  # - full: ~45 features, complete (includes multi-scale, NDVI, etc.)
+  # - custom: User-defined feature list (specify via feature_list)
+  mode: standard
+
+  # Local neighborhood parameters
+  k_neighbors: 30 # Number of neighbors for local feature computation
+  search_radius: null # Search radius in meters (null = auto-calculate from k_neighbors)
+
+  # Spectral features (requires orthophotos)
+  use_rgb: false # Include RGB color features
+  use_nir: false # Include near-infrared features
+  compute_ndvi: false # Compute NDVI vegetation index (requires RGB + NIR)
+
+  # Multi-scale features (advanced)
+  multi_scale: false # Enable multi-scale feature computation
+  scales: null # Scale names: ['fine', 'medium', 'coarse'] or null for defaults
+
+# ============================================================================
+# OPTIMIZATIONS CONFIGURATION (v3.9+)
+# ============================================================================
+# Phase 4 optimizations for performance improvements
+# Can provide 40-50% overall speedup when enabled
+optimizations:
+  enabled: true # Master switch for all optimizations
+
+  # Async I/O Pipeline (Phase 4.5): +12-14% performance
+  async_io: true # Enable asynchronous I/O for tile loading
+  async_workers: 2 # Number of async I/O worker threads
+  tile_cache_size: 3 # Number of tiles to pre-cache
+
+  # Batch Multi-Tile Processing (Phase 4.4): +25-30% performance
+  batch_processing: true # Enable batch processing of multiple tiles
+  batch_size: 4 # Number of tiles to process in one batch
+
+  # GPU Memory Pooling (Phase 4.3): +8.5% performance
+  gpu_pooling: true # Enable GPU memory pooling (reduces allocation overhead)
+  gpu_pool_max_size_gb: 4.0 # Maximum GPU pool size in gigabytes
+
+  # Statistics
+  print_stats: true # Print optimization performance statistics
+
+# ============================================================================
+# ADVANCED CONFIGURATION (Optional, nested)
+# ============================================================================
+# Expert-level options. Most users should not need to modify these.
+# Keep nested to maintain clean top-level structure.
+advanced:
+  # ──────────────────────────────────────────────────────────────────────
+  # PREPROCESSING
+  # ──────────────────────────────────────────────────────────────────────
+  preprocessing:
+    # Outlier removal
+    remove_outliers: true
+    outlier_method: "statistical" # Options: statistical, radius, hybrid
+    outlier_std_ratio: 2.0 # Standard deviation ratio for statistical method
+    outlier_radius: 0.5 # Radius in meters for radius-based method
+    outlier_min_neighbors: 5 # Minimum neighbors within radius
+
+    # Point filtering
+    min_z: null # Minimum elevation (meters, null = no filter)
+    max_z: null # Maximum elevation (meters, null = no filter)
+    filter_return_types: null # Filter by return type: [1, 2, 3] or null
+
+  # ──────────────────────────────────────────────────────────────────────
+  # GROUND TRUTH DATA SOURCES
+  # ──────────────────────────────────────────────────────────────────────
+  ground_truth:
+    # BD TOPO WFS services (French IGN geodata)
+    bd_topo:
+      enabled: true
+      wfs_url: "https://data.geopf.fr/wfs"
+      buildings: true # Fetch building footprints
+      roads: true # Fetch road networks
+      vegetation: false # Fetch vegetation zones (slower)
+      water: false # Fetch water bodies
+      timeout: 60 # WFS request timeout in seconds
+      max_retries: 3 # Maximum retry attempts
+
+    # Cadastre (French land registry)
+    cadastre:
+      enabled: false
+      wfs_url: "https://data.geopf.fr/wfs/ows?service=WFS"
+      use_buildings: false
+
+    # Custom shapefiles
+    custom_shapefiles:
+      buildings: null # Path to custom building shapefile
+      roads: null # Path to custom road shapefile
+      vegetation: null # Path to custom vegetation shapefile
+
+  # ──────────────────────────────────────────────────────────────────────
+  # CLASSIFICATION FINE-TUNING
+  # ──────────────────────────────────────────────────────────────────────
+  classification:
+    # Ground classification
+    ground_method: "auto" # Options: auto, gpu_chunked, strtree, vectorized
+    ground_buffer: 0.5 # Buffer around ground truth geometries (meters)
+
+    # Building classification
+    building_height_min: 2.0 # Minimum building height (meters)
+    building_confidence_threshold: 0.7 # Classification confidence threshold
+
+    # Vegetation classification
+    vegetation_ndvi_threshold: 0.3 # NDVI threshold for vegetation detection
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PERFORMANCE TUNING
+  # ──────────────────────────────────────────────────────────────────────
+  performance:
+    # Memory management
+    max_memory_gb: null # Maximum memory usage (null = auto-detect)
+    chunk_size: 1_000_000 # Chunk size for large tile processing
+
+    # GPU-specific (when use_gpu=true)
+    gpu_batch_size: 1_000_000 # Points per GPU batch
+    gpu_memory_target: 0.85 # Target GPU memory usage (0.0-1.0)
+    gpu_streams: 4 # Number of concurrent CUDA streams
+
+    # Progress reporting
+    show_progress: true # Show progress bars
+    log_level: "INFO" # Logging level: DEBUG, INFO, WARNING, ERROR
+
+  # ──────────────────────────────────────────────────────────────────────
+  # RECLASSIFICATION (for reclassify_only mode)
+  # ──────────────────────────────────────────────────────────────────────
+  reclassification:
+    source_classes: null # Source classes to reclassify (null = all)
+    target_classes: null # Target classification scheme
+    use_ml_model: false # Use ML model for reclassification
+    model_path: null # Path to trained model (for ML-based reclassification)
+
+# ============================================================================
+# DATA SOURCES (for augmentation and validation)
+# ============================================================================
+data_sources:
+  # RGB orthophotos (for color features)
+  rgb:
+    enabled: false
+    directory: null # Path to RGB orthophoto directory
+    file_pattern: "*.tif" # File pattern for matching orthophotos
+
+  # NIR orthophotos (for infrared features)
+  nir:
+    enabled: false
+    directory: null
+    file_pattern: "*.tif"
+
+  # Digital Terrain Model (DTM)
+  dtm:
+    enabled: false
+    directory: null
+    file_pattern: "*.tif"
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  # Enriched LAZ output (for enriched_only or both modes)
+  enriched_laz:
+    compression: true # Use LAZ compression
+    extra_dimensions: [] # Additional dimensions to include
+
+  # NPZ patches output (for patches_only or both modes)
+  patches:
+    format: "npz" # Output format: npz, hdf5, parquet
+    train_val_split: 0.8 # Train/validation split ratio
+    shuffle: true # Shuffle patches before split
+    include_metadata: true # Include patch metadata (bbox, source file, etc.)
+
+  # Metadata and statistics
+  save_metadata: true # Save processing metadata (config, stats, etc.)
+  save_statistics: true # Save feature statistics (mean, std, min, max)
+
+# ============================================================================
+# MONITORING AND LOGGING
+# ============================================================================
+monitoring:
+  # Performance monitoring
+  enable_profiling: false # Enable detailed performance profiling
+  profile_output: "profile.json" # Profile output file
+
+  # Memory monitoring
+  track_memory: true # Track memory usage during processing
+  memory_log_interval: 10.0 # Memory logging interval (seconds)
+
+  # Checkpointing
+  enable_checkpoints: false # Save processing checkpoints
+  checkpoint_interval: 100 # Checkpoint every N tiles
+
+# ============================================================================
+# OPTIONAL SPATIAL FILTERING
+# ============================================================================
+bbox:
+  xmin: null # Bounding box minimum X (Lambert-93 or WGS84)
+  ymin: null # Bounding box minimum Y
+  xmax: null # Bounding box maximum X
+  ymax: null # Bounding box maximum Y
+
+# Cache directory for temporary files and downloads
+cache_dir: ".cache/ign_lidar"
+
+# ============================================================================
+# HYDRA CONFIGURATION (for composition and overrides)
+# ============================================================================
+defaults:
+  - _self_
+  - override hydra/hydra_logging: colorlog
+  - override hydra/job_logging: colorlog
+
+hydra:
+  job:
+    chdir: false # Don't change working directory
+  run:
+    dir: ${output_dir}/.hydra # Hydra output directory
+  sweep:
+    dir: ${output_dir}/.hydra/multirun # Sweep output directory
+
+# ============================================================================
+# END OF CONFIGURATION
+# ============================================================================

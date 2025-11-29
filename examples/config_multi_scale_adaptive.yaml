@@ -1,0 +1,155 @@
+# ============================================================================
+# IGN LiDAR HD v3.2+ - Multi-Scale Adaptive Configuration
+# ============================================================================
+# Adaptive multi-scale processing with intelligent per-point scale selection
+#
+# Perfect for:
+# - Complex urban geometry with edges and corners
+# - Mixed environments (buildings + vegetation + terrain)
+# - Datasets with artifacts or noise
+# - Edge preservation while maintaining stability
+#
+# Features:
+# - Adaptive scale selection based on local geometry complexity
+# - Automatic artifact suppression
+# - Better edge preservation than variance-weighted
+# - Better stability on planes than weighted average
+#
+# Trade-offs: ~10-20% slower than standard multi-scale
+# ============================================================================
+
+# ============================================================================
+# REQUIRED PARAMETERS
+# ============================================================================
+input_dir: "/path/to/your/laz/tiles" # ⚠️ REQUIRED
+output_dir: "/path/to/output" # ⚠️ REQUIRED
+
+# ============================================================================
+# ESSENTIAL SETTINGS
+# ============================================================================
+mode: "lod2" # LOD2 building classification
+processing_mode: "patches_only" # ML training patches
+use_gpu: true # GPU acceleration (recommended)
+num_workers: 0 # MUST be 0 with GPU
+
+# Patch configuration
+patch_size: 150.0 # 150m patches
+num_points: 16384 # 16k points
+patch_overlap: 0.1
+
+# ============================================================================
+# FEATURE CONFIGURATION - ADAPTIVE MULTI-SCALE
+# ============================================================================
+features:
+  feature_set: "standard" # Standard LOD2 features
+  k_neighbors: 30 # Base neighborhood (overridden by scales)
+  search_radius: 3.0 # Base radius (overridden by scales)
+
+  # Spectral features (optional)
+  use_rgb: false
+  use_nir: false
+  compute_ndvi: false
+
+  # ADAPTIVE MULTI-SCALE
+  # Intelligently selects best scale per point:
+  # - Complex geometry (edges, corners) → fine scales for detail
+  # - Homogeneous regions (planes) → coarse scales for stability
+  # - Artifact-prone areas → down-weighted automatically
+  multi_scale: true
+  scales:
+    - fine # k=20, r=1.0m - Fine details, edges, corners
+    - medium # k=50, r=2.5m - Standard features
+    - coarse # k=100, r=5.0m - Large context, stability
+
+# ============================================================================
+# PHASE 4 OPTIMIZATIONS
+# ============================================================================
+enable_optimizations: true
+enable_async_io: true
+async_workers: 2
+tile_cache_size: 3
+
+enable_batch_processing: true
+batch_size: 4
+
+enable_gpu_pooling: true
+gpu_pool_max_size_gb: 4.0
+
+print_optimization_stats: true
+
+# ============================================================================
+# ADVANCED SETTINGS
+# ============================================================================
+advanced:
+  # Preprocessing (optional)
+  preprocessing:
+    enabled: false # LiDAR HD is already clean
+
+  # Multi-scale advanced configuration
+  multi_scale_advanced:
+    # ADAPTIVE AGGREGATION (key feature)
+    aggregation_method: "adaptive" # Adaptive per-point scale selection
+
+    # Artifact detection and suppression
+    artifact_detection: true
+    artifact_variance_threshold: 0.15
+    artifact_gradient_threshold: 0.10
+    auto_suppress_artifacts: true
+
+    # Adaptive scale selection parameters
+    adaptive_scale_selection: true
+    complexity_threshold: 0.5 # Geometry complexity threshold
+    homogeneity_threshold: 0.8 # Homogeneity threshold for coarse scales
+
+    # Quality vs speed trade-offs
+    variance_penalty_factor: 2.0
+    save_scale_quality_metrics: false # Set true for debugging
+    save_selected_scale: false # Set true to see which scale was used
+
+    # Performance optimization
+    reuse_kdtrees_across_scales: true # Reuse KD-trees (faster)
+    parallel_scale_computation: false # Serial faster for GPU
+    cache_scale_results: true # Cache intermediate results
+
+  # Performance tuning
+  performance:
+    gpu_batch_size: 25000000 # 25M points per GPU batch
+    gpu_memory_target: 0.85 # Use 85% of VRAM
+    vram_limit_gb: 12 # For 16GB GPU
+    chunk_size: 5000000
+# ============================================================================
+# HOW ADAPTIVE AGGREGATION WORKS
+# ============================================================================
+# 1. For each point, compute features at all scales (fine, medium, coarse)
+# 2. Analyze local geometry complexity using planarity/linearity
+# 3. For complex areas (edges, corners):
+#    → Prefer fine scales for detail preservation
+# 4. For homogeneous areas (planes):
+#    → Prefer coarse scales for stability and noise reduction
+# 5. For artifact-prone areas (high variance, gradients):
+#    → Down-weight or exclude problematic scales
+# 6. Weighted combination of selected scales for final features
+#
+# Result: Better edge preservation + better stability + automatic artifact handling
+# ============================================================================
+
+# ============================================================================
+# USAGE
+# ============================================================================
+# Basic:
+#   ign-lidar-hd process -c config_multi_scale_adaptive.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output"
+#
+# With debugging (see which scales are selected):
+#   ign-lidar-hd process -c config_multi_scale_adaptive.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output" \
+#     advanced.multi_scale_advanced.save_selected_scale=true
+#
+# Adjust sensitivity:
+#   ign-lidar-hd process -c config_multi_scale_adaptive.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output" \
+#     advanced.multi_scale_advanced.complexity_threshold=0.7  # More aggressive
+# ============================================================================

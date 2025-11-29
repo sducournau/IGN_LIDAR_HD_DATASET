@@ -29,6 +29,7 @@ from .wfs_fetch_result import (
     RetryConfig,
     validate_cache_file,
 )
+from .wfs_rate_limiter import WFSRateLimiter, CircuitBreakerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -230,6 +231,8 @@ class IGNGroundTruthFetcher:
         verbose: bool = True,
         enable_memory_cache: bool = True,
         cache_size_mb: float = 500,
+        rate_limiter: Optional[WFSRateLimiter] = None,
+        enable_rate_limiting: bool = True,
     ):
         """
         Initialize ground truth fetcher.
@@ -240,6 +243,8 @@ class IGNGroundTruthFetcher:
             verbose: Enable verbose logging (set False for parallel fetching)
             enable_memory_cache: Enable in-memory LRU cache (default: True)
             cache_size_mb: Memory cache size limit in MB (default: 500 MB)
+            rate_limiter: Optional pre-configured rate limiter (shared across instances)
+            enable_rate_limiting: Enable rate limiting and circuit breaker (default: True)
         """
         if not HAS_SPATIAL:
             raise ImportError(
@@ -264,6 +269,27 @@ class IGNGroundTruthFetcher:
         )
         if enable_memory_cache:
             logger.info(f"WFS memory cache enabled ({cache_size_mb} MB limit)")
+        
+        # ⚡ NEW: Phase 4.5+ - WFS Rate Limiting & Circuit Breaker
+        if rate_limiter is not None:
+            # Use shared rate limiter (for multiple fetcher instances)
+            self.rate_limiter = rate_limiter
+            logger.info("Using shared WFS rate limiter")
+        elif enable_rate_limiting:
+            # Create new rate limiter with conservative defaults
+            self.rate_limiter = WFSRateLimiter(
+                requests_per_second=2.0,  # Conservative rate
+                burst_capacity=5,
+                max_concurrent=3,  # Limit parallel requests
+                enable_circuit_breaker=True,
+                circuit_breaker_config=CircuitBreakerConfig(
+                    failure_threshold=5,  # Open circuit after 5 failures
+                    success_threshold=2,  # Close after 2 successes
+                    timeout_seconds=60.0,  # Wait 60s before retry
+                ),
+            )
+        else:
+            self.rate_limiter = None
 
     def fetch_buildings(
         self, bbox: Tuple[float, float, float, float], use_cache: bool = True
@@ -1476,25 +1502,54 @@ class IGNGroundTruthFetcher:
             retry_on_network_error=True,
         )
 
-        # Use centralized retry wrapper
-        result = fetch_with_retry(
-            fetch_fn,
-            retry_config=retry_config,
-            operation_name=f"WFS fetch {layer_name}",
-        )
-
-        # Handle result
-        if result.success:
-            return result.data
-        else:
-            # Log structured error information
-            logger.error(f"WFS fetch failed for {layer_name}: {result.error}")
-            if result.retry_count > 0:
-                logger.debug(
-                    f"Failed after {result.retry_count} retries "
-                    f"({result.elapsed_time:.2f}s total)"
+        # ⚡ NEW: Wrap with rate limiter if enabled (Phase 4.5+)
+        if self.rate_limiter:
+            try:
+                # Execute with rate limiting and circuit breaker
+                result_data = self.rate_limiter.execute(
+                    lambda: fetch_with_retry(
+                        fetch_fn,
+                        retry_config=retry_config,
+                        operation_name=f"WFS fetch {layer_name}",
+                    ).data,
+                    operation_name=f"WFS fetch {layer_name}",
+                    timeout=10.0,  # 10s timeout for rate limiter
                 )
-            return None
+                
+                if result_data is not None:
+                    return result_data
+                else:
+                    # Blocked by rate limiter or circuit breaker
+                    logger.warning(
+                        f"WFS fetch {layer_name} blocked by rate limiter "
+                        f"(circuit breaker or rate limit)"
+                    )
+                    return None
+            
+            except Exception as e:
+                logger.error(f"WFS fetch failed for {layer_name}: {e}")
+                return None
+        
+        else:
+            # Use centralized retry wrapper without rate limiting (legacy)
+            result = fetch_with_retry(
+                fetch_fn,
+                retry_config=retry_config,
+                operation_name=f"WFS fetch {layer_name}",
+            )
+
+            # Handle result
+            if result.success:
+                return result.data
+            else:
+                # Log structured error information
+                logger.error(f"WFS fetch failed for {layer_name}: {result.error}")
+                if result.retry_count > 0:
+                    logger.debug(
+                        f"Failed after {result.retry_count} retries "
+                        f"({result.elapsed_time:.2f}s total)"
+                    )
+                return None
 
     def get_cache_stats(self) -> Optional[Dict[str, Any]]:
         """
@@ -1511,6 +1566,46 @@ class IGNGroundTruthFetcher:
             >>> print(f"Cache hit rate: {stats['hit_rate']:.1%}")
             >>> print(f"Memory used: {stats['memory_mb']:.1f} MB")
         """
+        if self.memory_cache:
+            return self.memory_cache.get_stats()
+        return None
+    
+    def is_wfs_available(self) -> bool:
+        """
+        Check if WFS service is currently available.
+        
+        Returns:
+            True if WFS is available, False if circuit breaker is open
+            
+        Example:
+            >>> fetcher = IGNGroundTruthFetcher()
+            >>> if not fetcher.is_wfs_available():
+            >>>     logger.warning("WFS service unavailable, skipping ground truth")
+            >>>     # Process without ground truth labels
+        """
+        if not self.rate_limiter or not self.rate_limiter.circuit_breaker:
+            return True  # No circuit breaker, assume available
+        
+        return not self.rate_limiter.circuit_breaker.is_open()
+    
+    def get_rate_limiter_stats(self) -> Optional[Dict[str, Any]]:
+        """
+        Get rate limiter and circuit breaker statistics.
+        
+        Returns:
+            Statistics dict with request counts, circuit breaker state, etc.
+            Returns None if rate limiting is disabled.
+            
+        Example:
+            >>> fetcher = IGNGroundTruthFetcher()
+            >>> stats = fetcher.get_rate_limiter_stats()
+            >>> if stats:
+            >>>     print(f"Requests made: {stats['requests_made']}")
+            >>>     print(f"Circuit breaker: {stats['circuit_breaker_state']}")
+        """
+        if self.rate_limiter:
+            return self.rate_limiter.get_stats()
+        return None
         if self.memory_cache is None:
             return None
         return self.memory_cache.get_stats()

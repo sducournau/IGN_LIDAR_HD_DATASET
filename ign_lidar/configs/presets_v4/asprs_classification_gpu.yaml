@@ -1,0 +1,190 @@
+# ============================================================================
+# IGN LiDAR HD v4.0 - Preset: ASPRS Classification (GPU)
+# ============================================================================
+# Purpose: Production ASPRS point cloud classification with GPU acceleration
+#
+# Features:
+# - ASPRS LAS 1.4 standard classes (ground, vegetation, buildings, etc.)
+# - High quality features (k=60)
+# - BD TOPO + optional Cadastre integration
+# - GPU-optimized for RTX 3080+ (12GB+ VRAM)
+#
+# Performance (RTX 4080):
+# - ~30-60s per 20M point tile
+# - GPU utilization >85%
+# - Ground truth: 10-100× faster than CPU
+#
+# Usage:
+#   ign-lidar-hd process --config-name=presets_v4/asprs_classification_gpu \
+#     input_dir=/data/tiles output_dir=/data/output
+#
+# With specific hardware profile:
+#   ign-lidar-hd process --config-name=presets_v4/asprs_classification_gpu \
+#     --config-name=hardware/gpu_rtx4090_24gb \
+#     input_dir=/data/tiles output_dir=/data/output
+#
+# Version: 4.0.0
+# Package Version: 4.0.0
+# Date: November 2025
+# ============================================================================
+
+defaults:
+  - ../base_v4
+  - _self_
+
+config_version: "4.0.0"
+config_name: "asprs_classification_gpu"
+config_description: "ASPRS Classification with GPU Acceleration (Production)"
+
+# ============================================================================
+# ESSENTIAL PARAMETERS (v4.0 flat structure)
+# ============================================================================
+
+# Classification mode
+mode: asprs # ASPRS LAS 1.4 classification
+
+# Processing mode
+processing_mode: enriched_only # Output enriched LAZ with classifications
+
+# Hardware configuration
+use_gpu: true # GPU required for this preset
+num_workers: 1 # Single worker (GPU handles parallelism)
+
+# Patch configuration (not used in enriched_only mode, but defined for consistency)
+patch_size: 150.0
+num_points: 16384
+patch_overlap: 0.1
+
+# Architecture
+architecture: pointnet++
+
+# ============================================================================
+# FEATURE CONFIGURATION - High Quality
+# ============================================================================
+features:
+  mode: full # Full feature set for ASPRS classification
+  k_neighbors: 60 # High quality neighborhood
+  search_radius: null # Auto-calculate
+
+  # Spectral features (enable if available)
+  use_rgb: true # RGB for better classification
+  use_nir: true # NIR for vegetation detection
+  compute_ndvi: true # NDVI for vegetation/non-vegetation separation
+
+  # Multi-scale
+  multi_scale: false
+  scales: null
+
+# ============================================================================
+# OPTIMIZATIONS (v4.0 - Full performance)
+# ============================================================================
+optimizations:
+  enabled: true # All optimizations enabled
+
+  # Async I/O
+  async_io: true
+  async_workers: 2
+  tile_cache_size: 5 # More cache for production
+
+  # Batch processing
+  batch_processing: true
+  batch_size: 6 # Larger batches for production
+
+  # GPU pooling
+  gpu_pooling: true
+  gpu_pool_max_size_gb: 6.0 # More pool for high-end GPUs
+
+  # Statistics
+  print_stats: true
+
+# ============================================================================
+# ADVANCED CONFIGURATION
+# ============================================================================
+advanced:
+  # Preprocessing
+  preprocessing:
+    remove_outliers: true
+    outlier_method: "statistical"
+    outlier_std_ratio: 2.0
+    outlier_radius: 0.5
+    outlier_min_neighbors: 5
+
+  # Ground truth - Full integration
+  ground_truth:
+    bd_topo:
+      enabled: true
+      buildings: true
+      roads: true
+      vegetation: true # Full vegetation for ASPRS
+      water: true # Water bodies for ASPRS
+      timeout: 60
+      max_retries: 3
+
+    cadastre:
+      enabled: true # Use cadastre as building proxy
+      use_buildings: true
+
+  # Classification
+  classification:
+    ground_method: "auto" # GPU-optimized for large datasets
+    ground_buffer: 0.5
+    building_height_min: 2.0
+    building_confidence_threshold: 0.7
+    vegetation_ndvi_threshold: 0.3
+
+  # Performance - High-end GPU settings
+  performance:
+    max_memory_gb: null # Auto-detect
+    chunk_size: 1_000_000
+    gpu_batch_size: 10_000_000 # 10M points for high-end GPUs
+    gpu_memory_target: 0.90 # Aggressive memory usage
+    gpu_streams: 8 # More streams for production
+    show_progress: true
+    log_level: "INFO"
+
+# ============================================================================
+# DATA SOURCES
+# ============================================================================
+data_sources:
+  # RGB orthophotos
+  rgb:
+    enabled: false # Set to true if available
+    directory: null
+    file_pattern: "*.tif"
+
+  # NIR orthophotos
+  nir:
+    enabled: false # Set to true if available
+    directory: null
+    file_pattern: "*.tif"
+
+  # DTM
+  dtm:
+    enabled: false
+    directory: null
+    file_pattern: "*.tif"
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  enriched_laz:
+    compression: true
+    extra_dimensions: ["classification_confidence", "feature_importance"]
+
+  save_metadata: true
+  save_statistics: true
+
+# ============================================================================
+# MONITORING - Production level
+# ============================================================================
+monitoring:
+  enable_profiling: false # Enable for performance analysis
+  track_memory: true
+  memory_log_interval: 10.0
+  enable_checkpoints: true # Enable for long-running jobs
+  checkpoint_interval: 100 # Every 100 tiles
+
+# ============================================================================
+# END OF PRESET
+# ============================================================================

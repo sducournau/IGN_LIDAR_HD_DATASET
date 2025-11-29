@@ -1,0 +1,180 @@
+# ============================================================================
+# IGN LiDAR HD v3.2+ - Modern Configuration Template
+# ============================================================================
+# This is the RECOMMENDED configuration format for v3.2+
+#
+# Changes from v3.1:
+# - ✅ Flat structure (no nested processor/features/preprocess sections)
+# - ✅ Simpler parameter names (mode instead of lod_level)
+# - ✅ Auto-configuration (GPU settings, batch sizes, etc.)
+# - ✅ Phase 4 optimizations built-in
+# - ✅ Feature sets instead of individual flags
+#
+# Migration from v3.1: See https://sducournau.github.io/IGN_LIDAR_HD_DATASET/
+# ============================================================================
+
+# ============================================================================
+# REQUIRED PARAMETERS (must be set by user)
+# ============================================================================
+input_dir: "/path/to/your/laz/tiles" # ⚠️ REQUIRED - Path to input LAZ/LAS files
+output_dir: "/path/to/output" # ⚠️ REQUIRED - Output directory
+
+# ============================================================================
+# ESSENTIAL PARAMETERS (commonly modified, sensible defaults)
+# ============================================================================
+
+# Classification mode: 'asprs', 'lod2', or 'lod3'
+# - asprs: ASPRS standard classification (25 features, 20+ classes)
+# - lod2: Building LOD2 classification (12 features, 15 classes)
+# - lod3: Detailed architectural classification (38 features, 30+ classes)
+mode: "lod2"
+
+# Processing mode: what to generate
+# - patches_only: ML training patches (NPZ/HDF5) - fastest for training
+# - both: Patches + enriched LAZ tiles - complete workflow
+# - enriched_only: Only enriched LAZ tiles - fastest for GIS
+# - reclassify_only: Re-classify existing tiles with ground truth
+processing_mode: "patches_only"
+
+# Hardware configuration
+use_gpu: false # Enable GPU acceleration (requires CUDA + CuPy)
+num_workers: 4 # Number of parallel workers (set to 0 if use_gpu: true)
+
+# Patch configuration (for ML training)
+patch_size: 150.0 # Patch size in meters (50m, 100m, 150m typical)
+num_points: 16384 # Target points per patch (8k, 16k, 32k typical)
+patch_overlap: 0.1 # Overlap ratio between patches (0.0-0.5)
+
+# Neural network architecture (for ML datasets)
+architecture: "pointnet++" # pointnet++, hybrid, octree, transformer, sparse_conv
+
+# ============================================================================
+# PHASE 4 OPTIMIZATIONS (v3.9+) - Auto-enabled
+# ============================================================================
+
+# Master switch for all Phase 4 optimizations (recommended: true)
+enable_optimizations: true
+
+# Async I/O Pipeline: +12-14% performance improvement
+enable_async_io: true
+async_workers: 2 # Number of async I/O workers
+tile_cache_size: 3 # Number of tiles to cache in memory
+
+# Batch Multi-Tile Processing: +25-30% performance improvement
+enable_batch_processing: true
+batch_size: 4 # Number of tiles to process in parallel
+
+# GPU Memory Pooling: +8.5% performance improvement (GPU only)
+enable_gpu_pooling: true
+gpu_pool_max_size_gb: 4.0 # Maximum GPU memory pool size
+
+# Print optimization statistics after processing
+print_optimization_stats: true
+
+# ============================================================================
+# FEATURE CONFIGURATION
+# ============================================================================
+
+features:
+  # Feature set: predefined groups of features
+  # - minimal: Ultra-fast, ~8 features (height, planarity, verticality)
+  # - standard: Recommended, ~20 features (geometric + spectral)
+  # - full: All features, ~45 features (includes multi-scale, NDVI)
+  feature_set: "standard"
+
+  # Neighborhood parameters for local feature computation
+  k_neighbors: 30 # Number of neighbors (20-50 typical)
+  search_radius: null # Search radius in meters (null = auto from k_neighbors)
+
+  # Spectral features (requires external data)
+  use_rgb: false # Include RGB from IGN orthophotos
+  use_nir: false # Include Near-Infrared from IRC
+  compute_ndvi: false # Compute NDVI vegetation index (requires RGB + NIR)
+
+  # Multi-scale feature computation (advanced)
+  multi_scale: false
+  scales: null # e.g., ['fine', 'medium', 'coarse'] or null
+
+# ============================================================================
+# ADVANCED CONFIGURATION (optional, for expert users)
+# ============================================================================
+
+# Uncomment and modify sections as needed
+# advanced:
+#
+#   # Preprocessing (outlier removal)
+#   preprocessing:
+#     enabled: false
+#     sor_k: 12              # Statistical Outlier Removal: neighbors
+#     sor_std: 2.0           # SOR: standard deviation threshold
+#     ror_radius: 1.0        # Radius Outlier Removal: radius in meters
+#     ror_neighbors: 4       # ROR: minimum neighbors
+#     voxel_enabled: false   # Voxel downsampling
+#     voxel_size: 0.1        # Voxel size in meters
+#
+#   # Ground truth from BD TOPO (French IGN database)
+#   ground_truth:
+#     enabled: false
+#     method: "gpu"          # 'gpu' or 'cpu'
+#     chunk_size: 5000000    # Points per chunk
+#     cache_dir: null        # Cache directory (null = auto)
+#     cache_ttl_days: 30
+#     preclassify: true      # Pre-classify points before features
+#
+#     bd_topo:
+#       enabled: false
+#       features:
+#         buildings:
+#           enabled: true
+#           facade_optimization: false
+#           min_height: 1.5
+#           buffer_distance: 0.5
+#         roads:
+#           enabled: true
+#           buffer_distance: 1.5
+#         vegetation:
+#           enabled: false
+#           buffer_distance: 0.0
+#         water:
+#           enabled: false
+#           buffer_distance: 0.5
+#
+#   # Fine-grained classification control
+#   classification:
+#     min_building_area: 20.0
+#     min_building_height: 2.5
+#     facade_buffer: 0.5
+#
+#   # Performance tuning (auto-configured by default)
+#   performance:
+#     gpu_batch_size: 25000000     # GPU: points per batch
+#     gpu_memory_target: 0.85      # GPU: target VRAM utilization
+#     vram_limit_gb: null          # GPU: VRAM limit (null = auto-detect)
+#     chunk_size: 5000000          # CPU: points per chunk
+#     prefetch_factor: 2           # DataLoader prefetch
+#     pin_memory: true             # Pin memory for GPU transfer
+
+# ============================================================================
+# USAGE EXAMPLES
+# ============================================================================
+#
+# Basic usage:
+#   ign-lidar-hd process -c TEMPLATE_v3.2.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output"
+#
+# Override parameters:
+#   ign-lidar-hd process -c TEMPLATE_v3.2.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output" \
+#     use_gpu=true \
+#     num_workers=0 \
+#     mode=asprs
+#
+# Use a preset (simpler):
+#   ign-lidar-hd process \
+#     --preset asprs_production \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output"
+#
+# ============================================================================

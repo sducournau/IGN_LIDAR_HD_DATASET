@@ -89,12 +89,16 @@ class TileOrchestrator:
         
         # Extract commonly used config values
         self.processing_mode = config.processor.processing_mode
-        self.output_format = config.processor.output_format
+        # Fallback: processor.output_format -> output.format -> 'npz'
+        self.output_format = OmegaConf.select(
+            config, "processor.output_format",
+            default=OmegaConf.select(config, "output.format", default="npz")
+        )
         self.include_architectural_style = OmegaConf.select(
             config, "processor.include_architectural_style", default=False
         )
-        self.augment = config.processor.augment
-        self.num_augmentations = config.processor.num_augmentations
+        self.augment = OmegaConf.select(config, "processor.augment", default=False)
+        self.num_augmentations = OmegaConf.select(config, "processor.num_augmentations", default=0)
         
         # Initialize skip checker
         processing_mode = config.processor.processing_mode
@@ -102,10 +106,10 @@ class TileOrchestrator:
         only_enriched = processing_mode == "enriched_only"
         
         self.skip_checker = PatchSkipChecker(
-            output_format=config.processor.output_format,
+            output_format=self.output_format,
             architecture=config.processor.architecture,
-            num_augmentations=config.processor.num_augmentations,
-            augment=config.processor.augment,
+            num_augmentations=self.num_augmentations,
+            augment=self.augment,
             validate_content=True,
             only_enriched_laz=only_enriched,
         )

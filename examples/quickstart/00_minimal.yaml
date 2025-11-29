@@ -1,5 +1,5 @@
 # ============================================================================
-# IGN LiDAR HD - Minimal Quickstart Configuration
+# IGN LiDAR HD v3.2+ - Minimal Quickstart Configuration
 # ============================================================================
 # FASTEST way to get started with IGN LiDAR HD processing.
 # Perfect for: First-time users, testing, small datasets (<5 tiles)
@@ -14,77 +14,73 @@
 # Expected performance: ~5-10 min per 18M point tile (CPU)
 # ============================================================================
 
-# Input/Output paths (REQUIRED - modify these)
-input_dir: "/path/to/your/laz/tiles"
-output_dir: "/path/to/output"
+# ============================================================================
+# REQUIRED PARAMETERS
+# ============================================================================
+input_dir: "/path/to/your/laz/tiles" # ⚠️ REQUIRED - modify this
+output_dir: "/path/to/output" # ⚠️ REQUIRED - modify this
 
 # ============================================================================
-# PROCESSOR SETTINGS
+# ESSENTIAL SETTINGS
 # ============================================================================
-processor:
-  # Processing level
-  lod_level: "LOD2" # Simplified building classification
 
-  # What to generate
-  processing_mode: "patches_only" # Only create training patches
+# Classification mode
+mode: "lod2" # lod2 = Simplified building classification
 
-  # Hardware
-  use_gpu: false # CPU processing (no GPU required)
-  num_workers: 4 # Parallel workers (adjust for your CPU)
+# Processing mode
+processing_mode: "patches_only" # Only create ML training patches
 
-  # Patch settings
-  patch_size: 50.0 # 50m × 50m patches
-  num_points: 8192 # 8k points per patch (smaller = faster)
-  overlap: 0.0 # No overlap (faster)
+# Hardware (CPU)
+use_gpu: false # CPU processing (no GPU required)
+num_workers: 4 # Parallel workers (adjust for your CPU cores)
 
-# ============================================================================
-# PREPROCESSING (DISABLED FOR SPEED)
-# ============================================================================
-preprocess:
-  enabled: false # Skip outlier removal (LiDAR HD is clean)
+# Patch settings (smaller = faster)
+patch_size: 50.0 # 50m × 50m patches
+num_points: 8192 # 8k points per patch (smaller = faster)
+patch_overlap: 0.0 # No overlap (faster processing)
 
 # ============================================================================
-# FEATURES (MINIMAL SET)
+# FEATURE CONFIGURATION (MINIMAL)
 # ============================================================================
 features:
-  # Feature mode
-  mode: "minimal" # ~8 essential features only
+  feature_set: "minimal" # ~8 essential features only (fastest)
+  k_neighbors: 20 # Smaller neighborhood = faster
+  search_radius: null # Auto-calculate from k_neighbors
 
-  # Geometric computation
-  k_neighbors: 30 # Neighborhood size
-  search_radius: 3.0 # 3m search radius
+  # Spectral features disabled (no external data needed)
+  use_rgb: false
+  use_nir: false
+  compute_ndvi: false
 
-  # What to compute (minimal)
-  compute_normals: true
-  compute_curvature: true
-  compute_height: true
-  compute_geometric: false # Disabled for speed
-
-  # Disable everything else
-  multi_scale_computation: false
-  compute_cluster_id: false
-  spectral_features: false
+  # Multi-scale disabled for speed
+  multi_scale: false
 
 # ============================================================================
-# DATA SOURCES (ALL DISABLED)
+# OPTIMIZATIONS (ENABLED BY DEFAULT)
 # ============================================================================
-data_sources:
-  bd_topo:
-    enabled: false # No BD TOPO (external data)
+enable_optimizations: true # Phase 4 optimizations
+enable_async_io: true # Async I/O: +12-14% performance
+enable_batch_processing: false # Disabled for CPU (1 worker effective)
 
-  dtm:
-    enabled: false # No DTM augmentation
-
-  orthophoto:
-    enabled: false # No RGB/NIR spectral data
+# ============================================================================
+# ADVANCED SETTINGS (ALL DISABLED FOR SPEED)
+# ============================================================================
+# Preprocessing disabled (LiDAR HD data is already clean)
+# Ground truth disabled (no external data sources)
+# All handled by not specifying 'advanced:' section
 
 # ============================================================================
 # USAGE
 # ============================================================================
-# ign-lidar-hd process -c examples/quickstart/00_minimal.yaml
+# Basic:
+#   ign-lidar-hd process -c examples/quickstart/00_minimal.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output"
 #
-# Or override paths:
-# ign-lidar-hd process -c examples/quickstart/00_minimal.yaml \
-#   input_dir="/data/tiles" \
-#   output_dir="/data/output"
+# With custom parameters:
+#   ign-lidar-hd process -c examples/quickstart/00_minimal.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output" \
+#     num_workers=8 \
+#     patch_size=100.0
 # ============================================================================

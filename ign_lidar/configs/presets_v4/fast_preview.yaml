@@ -1,0 +1,172 @@
+# ============================================================================
+# IGN LiDAR HD v4.0 - Preset: Fast Preview
+# ============================================================================
+# Purpose: Quick preview processing with minimal features
+#
+# Use Cases:
+# - Quick quality check of new datasets
+# - Testing and validation
+# - Rapid prototyping
+# - Initial data exploration
+# - CI/CD integration testing
+#
+# Trade-offs:
+# - Lower accuracy (but very fast!)
+# - Minimal external data sources
+# - Basic features only
+# - No multi-scale analysis
+#
+# Hardware: Any (CPU or GPU, optimized for CPU)
+# Performance: ~2-3 min per 20M point tile (GPU), ~5-8 min (CPU)
+#
+# Usage:
+#   ign-lidar-hd process --config-name=presets_v4/fast_preview \
+#     input_dir=/data/tiles output_dir=/data/output
+#
+# Package Version: 4.0.0
+# Config Version: 4.0.0
+# Date: November 2025
+# ============================================================================
+
+defaults:
+  - ../base_v4
+  - _self_
+
+config_version: "4.0.0"
+config_name: "fast_preview"
+config_description: "Fast Preview - Minimal features for quick results"
+
+# ============================================================================
+# ESSENTIAL PARAMETERS (v4.0 flat structure)
+# ============================================================================
+
+# Classification mode
+mode: asprs # Basic ASPRS classification
+
+# Processing mode
+processing_mode: enriched_only # Only enriched LAZ output
+
+# Hardware configuration
+use_gpu: false # CPU for maximum compatibility
+num_workers: 8 # Many CPU workers for parallelism
+
+# Patch configuration
+patch_size: 100.0 # Smaller patches for speed
+num_points: 8192 # Smaller patches (8K points)
+patch_overlap: 0.0 # No overlap for maximum speed
+
+# Architecture
+architecture: pointnet++
+
+# ============================================================================
+# FEATURE CONFIGURATION - Minimal for Speed
+# ============================================================================
+features:
+  mode: minimal # Minimal feature set (~8 features)
+  k_neighbors: 10 # Small neighborhood for speed
+  search_radius: null # Auto-calculate
+
+  # Spectral features - all disabled
+  use_rgb: false
+  use_nir: false
+  compute_ndvi: false
+
+  # Multi-scale - disabled
+  multi_scale: false
+  scales: null
+
+# ============================================================================
+# OPTIMIZATIONS (v4.0 - Disabled for simplicity)
+# ============================================================================
+optimizations:
+  enabled: false # Disable for straightforward processing
+
+  # All optimizations disabled
+  async_io: false
+  async_workers: 1
+  tile_cache_size: 1
+
+  batch_processing: false
+  batch_size: 1
+
+  gpu_pooling: false
+  gpu_pool_max_size_gb: 1.0
+
+  # Statistics
+  print_stats: false # Minimal output
+
+# ============================================================================
+# ADVANCED CONFIGURATION - Minimal Settings
+# ============================================================================
+advanced:
+  # Preprocessing - minimal
+  preprocessing:
+    remove_outliers: false # Skip for speed
+    outlier_method: "statistical"
+    outlier_std_ratio: 2.0
+
+  # Ground truth - BD TOPO only (buildings)
+  ground_truth:
+    bd_topo:
+      enabled: true # Minimal BD TOPO
+      buildings: true # Only buildings
+      roads: false # Skip roads
+      vegetation: false # Skip vegetation
+      water: false # Skip water
+      timeout: 30 # Shorter timeout
+      max_retries: 2
+
+    cadastre:
+      enabled: false # Skip cadastre
+
+  # Classification - basic
+  classification:
+    ground_method: "auto"
+    ground_buffer: 0.5
+    building_height_min: 2.0
+    building_confidence_threshold: 0.6 # Lower threshold for speed
+
+  # Performance - conservative
+  performance:
+    max_memory_gb: null
+    chunk_size: 500_000 # Smaller chunks
+    gpu_batch_size: 2_000_000 # Small GPU batches
+    gpu_memory_target: 0.70
+    gpu_streams: 2
+    show_progress: true
+    log_level: "WARNING" # Less verbose
+
+# ============================================================================
+# DATA SOURCES - None for speed
+# ============================================================================
+data_sources:
+  rgb:
+    enabled: false
+  nir:
+    enabled: false
+  dtm:
+    enabled: false
+
+# ============================================================================
+# OUTPUT CONFIGURATION - Minimal
+# ============================================================================
+output:
+  enriched_laz:
+    compression: true
+    extra_dimensions: []
+
+  save_metadata: false # Skip for speed
+  save_statistics: false # Skip for speed
+
+# ============================================================================
+# MONITORING - Minimal
+# ============================================================================
+monitoring:
+  enable_profiling: false
+  track_memory: false # Skip memory tracking
+  memory_log_interval: 30.0
+  enable_checkpoints: false # No checkpoints for fast preview
+
+# ============================================================================
+# END OF PRESET
+# ============================================================================

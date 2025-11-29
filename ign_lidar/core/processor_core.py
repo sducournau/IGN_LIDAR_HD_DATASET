@@ -321,10 +321,12 @@ class ProcessorCore:
         Raises:
             ValueError: If configuration is invalid
         """
-        # Validate output format
-        validated_formats = ConfigValidator.validate_output_format(
-            config.processor.output_format
+        # Validate output format (with fallback)
+        output_format = OmegaConf.select(
+            config, "processor.output_format",
+            default=OmegaConf.select(config, "output.format", default="npz")
         )
+        validated_formats = ConfigValidator.validate_output_format(output_format)
         logger.debug(f"Validated output formats: {validated_formats}")
 
         # Validate processing mode
@@ -429,7 +431,11 @@ class ProcessorCore:
         self.architecture = OmegaConf.select(
             self.config, "processor.architecture", default="pointnet++"
         )
-        self.output_format = self.config.processor.output_format
+        # Fallback: processor.output_format -> output.format -> 'npz'
+        self.output_format = OmegaConf.select(
+            self.config, "processor.output_format",
+            default=OmegaConf.select(self.config, "output.format", default="npz")
+        )
         self.save_patches = OmegaConf.select(
             self.config, "output.save_patches", default=False
         )

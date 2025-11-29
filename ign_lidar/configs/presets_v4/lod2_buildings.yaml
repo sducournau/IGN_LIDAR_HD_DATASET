@@ -1,0 +1,167 @@
+# ============================================================================
+# IGN LiDAR HD v4.0 - Preset: LOD2 Buildings
+# ============================================================================
+# USE CASE: Building modeling, facade detection, roof planes
+# SPEED: 🚀 FAST (efficient for building-focused tasks)
+#
+# FEATURES:
+#   - Geometric features (curvature, planarity, height)
+#   - Architectural feature detection
+#   - Building-focused classification
+#   - Ground truth from BD TOPO
+#
+# WHEN TO USE:
+#   ✓ Building facade detection and modeling
+#   ✓ Roof plane extraction (flat, gable, hip roofs)
+#   ✓ Urban modeling and city digital twins
+#   ✓ Building footprint refinement
+#   ✓ Architectural analysis (coarse level)
+#
+# CLASSIFICATION OUTPUT:
+#   LOD2 Building Classes:
+#     - wall, roof_flat, roof_gable, roof_hip
+#     - chimney, foundation, balcony
+#     - ground, vegetation (low/high), water, other
+#
+# USAGE:
+#   ign-lidar-hd process --config-name=presets_v4/lod2_buildings \
+#     input_dir=/data/tiles output_dir=/data/output
+#
+# ALTERNATIVES:
+#   - For quick preview → use 'minimal_debug' preset
+#   - For detailed architecture → use 'lod3_detailed' preset
+#   - For standard classification → use 'asprs_classification_gpu' preset
+#
+# Package Version: 4.0.0
+# Config Version: 4.0.0
+# Date: November 2025
+# ============================================================================
+
+# Inherit from base v4.0 configuration
+defaults:
+  - ../base_v4
+  - _self_
+
+# Preset metadata
+config_version: "4.0.0"
+config_name: "lod2_buildings"
+config_description: "LOD2 Building Classification - Optimized for architectural modeling"
+
+# ============================================================================
+# ESSENTIAL PARAMETERS (v4.0 flat structure)
+# ============================================================================
+
+# Classification mode
+mode: lod2 # LOD2 building classification
+
+# Processing mode
+processing_mode: enriched_only # Output enriched LAZ files
+
+# Hardware configuration
+use_gpu: true # Enable GPU acceleration
+num_workers: 1 # Single worker for GPU processing
+
+# Patch configuration
+patch_size: 150.0 # 150m patches for urban scenes
+num_points: 32768 # 32K points per patch (balanced)
+patch_overlap: 0.1 # 10% overlap
+
+# Architecture
+architecture: pointnet++ # PointNet++ for building features
+
+# ============================================================================
+# FEATURE CONFIGURATION
+# ============================================================================
+features:
+  mode: standard # Standard features for LOD2
+  k_neighbors: 30 # Balanced neighborhood size
+  search_radius: null # Auto-calculate
+
+  # Spectral features (if available)
+  use_rgb: false # Enable if RGB orthophotos available
+  use_nir: false # Enable if NIR available
+  compute_ndvi: false # NDVI for vegetation separation
+
+  # Multi-scale (optional)
+  multi_scale: false
+  scales: null
+
+# ============================================================================
+# OPTIMIZATIONS (v4.0 - Phase 4 features)
+# ============================================================================
+optimizations:
+  enabled: true # Enable all optimizations
+
+  # Async I/O
+  async_io: true
+  async_workers: 2
+  tile_cache_size: 3
+
+  # Batch processing
+  batch_processing: true
+  batch_size: 4
+
+  # GPU pooling
+  gpu_pooling: true
+  gpu_pool_max_size_gb: 4.0
+
+  # Statistics
+  print_stats: true
+
+# ============================================================================
+# ADVANCED CONFIGURATION
+# ============================================================================
+advanced:
+  # Preprocessing
+  preprocessing:
+    remove_outliers: true
+    outlier_method: "statistical"
+    outlier_std_ratio: 2.0
+
+  # Ground truth
+  ground_truth:
+    bd_topo:
+      enabled: true
+      buildings: true # Essential for LOD2
+      roads: true
+      vegetation: false # Not needed for building-focused
+      water: false
+
+    cadastre:
+      enabled: false # Optional
+
+  # Classification
+  classification:
+    ground_method: "auto" # Auto-select best method
+    building_height_min: 2.0 # Minimum building height
+    building_confidence_threshold: 0.7
+
+  # Performance
+  performance:
+    gpu_batch_size: 8_000_000 # 8M points
+    gpu_memory_target: 0.85 # 85% VRAM
+    gpu_streams: 4 # 4 CUDA streams
+    show_progress: true
+    log_level: "INFO"
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  enriched_laz:
+    compression: true
+    extra_dimensions: []
+
+  save_metadata: true
+  save_statistics: true
+
+# ============================================================================
+# MONITORING
+# ============================================================================
+monitoring:
+  enable_profiling: false
+  track_memory: true
+  memory_log_interval: 10.0
+# ============================================================================
+# END OF PRESET
+# ============================================================================

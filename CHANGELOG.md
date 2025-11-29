@@ -7,6 +7,220 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.0.0] - 2025-11-29 - Configuration v4.0 Harmonization 🎯
+
+**Date**: November 29, 2025  
+**Focus**: Unified configuration architecture, simplified structure, comprehensive presets
+
+### 🎯 Major Release: Configuration v4.0
+
+This major release introduces a **complete redesign of the configuration system** with a unified, flat structure that dramatically improves clarity and ease of use.
+
+### Breaking Changes ⚠️
+
+- **Configuration Structure**: Flattened top-level parameters (removed `processor.*` nesting)
+- **Parameter Renames**:
+  - `processor.lod_level: "LOD2"` → `mode: lod2` (lowercase, top-level)
+  - `features.feature_set` → `features.mode` (consistent naming)
+  - `features.use_infrared` → `features.use_nir` (standard terminology)
+- **New Sections**: Added dedicated `optimizations` section for performance tuning
+
+**Migration**: v3.x configs still work with deprecation warnings. Use `ign-lidar migrate-config` for automatic migration.
+
+### Added ✨
+
+#### Configuration System
+
+- **Unified Flat Structure**: 27% fewer nested levels, essential parameters at top level
+- **7 Comprehensive Presets**: Ready-to-use configurations for common scenarios:
+  - `minimal_debug`: Ultra-fast debugging (8 features)
+  - `fast_preview`: Quick preview with good quality (12 features)
+  - `lod2_buildings`: LOD2 building classification (12 features, **recommended default**)
+  - `lod3_detailed`: Detailed architectural features (38 features)
+  - `asprs_classification_cpu`: CPU-only ASPRS classification
+  - `asprs_classification_gpu`: GPU-accelerated ASPRS classification
+  - `high_quality`: Maximum quality processing (38 features)
+
+#### Migration Tooling
+
+- **`ConfigMigrator` Class** (`ign_lidar/config/migration.py`):
+
+  - Automatic version detection (v3.1, v3.2, v5.1, v4.0)
+  - Dictionary migration with complete transformations
+  - File migration with error handling and backups
+  - `MigrationResult` dataclass with detailed migration info
+
+- **`migrate-config` CLI Command**:
+  - Single file migration: `ign-lidar migrate-config config.yaml`
+  - Batch directory migration: `ign-lidar migrate-config configs/ --batch`
+  - Dry-run preview: `--dry-run`
+  - Verbose output: `-v` with statistics and change tracking
+  - Force overwrite: `--force`
+
+#### Documentation
+
+- **Configuration Guide v4.0** (`docs/configuration-guide-v4.md`):
+
+  - Comprehensive 1000+ line guide
+  - Complete parameter reference
+  - Preset documentation
+  - Best practices and examples
+  - Performance optimization tips
+
+- **Migration Guide v3→v4** (`docs/migration-guide-v4.md`):
+
+  - Step-by-step migration instructions
+  - Automatic vs manual migration
+  - Common scenarios and troubleshooting
+  - Validation procedures
+
+- **Preset Documentation** (`ign_lidar/configs/presets_v4/README.md`):
+  - Detailed preset descriptions
+  - Use case recommendations
+  - Customization examples
+
+### Changed 🔄
+
+#### Configuration Architecture
+
+- **Python Dataclasses** (`ign_lidar/config/config.py`):
+
+  - Added `OptimizationsConfig` dataclass
+  - Renamed `feature_set` → `mode` with backward compatibility
+  - Added `from_legacy_schema()` migration method
+  - Enhanced docstrings with comprehensive examples
+
+- **YAML Structure** (`ign_lidar/configs/base_v4.yaml`):
+  - Flattened essential parameters to top level
+  - Organized into logical sections (essential/features/optimizations/advanced)
+  - Reduced nesting from 3-4 levels to 1-2 levels
+  - Clearer parameter names and grouping
+
+#### Deprecation Warnings
+
+- Enhanced deprecation messages in `schema.py` with:
+  - ASCII box formatting for visibility
+  - Migration instructions and timeline
+  - Links to documentation
+  - Clear action items
+
+### Testing ✅
+
+- **22 Migration Tests** (`tests/test_config_migration.py`):
+  - Version detection tests (v3.1, v3.2, v5.1, v4.0)
+  - Dictionary migration tests
+  - File migration tests
+  - Edge cases and error handling
+  - Parameter mapping validation
+  - All tests passing ✅
+
+### Migration Path 🔄
+
+#### Automatic Migration (Recommended)
+
+```bash
+# Single file
+ign-lidar migrate-config old_config.yaml
+
+# Preview changes
+ign-lidar migrate-config old_config.yaml --dry-run -v
+
+# Batch migration
+ign-lidar migrate-config configs/ --batch
+```
+
+#### Python API
+
+```python
+from ign_lidar.config.migration import ConfigMigrator
+
+migrator = ConfigMigrator(backup=True)
+result = migrator.migrate_file("old_config.yaml", "new_config.yaml")
+
+if result.success:
+    print(f"Migrated: {result.old_version} → {result.new_version}")
+```
+
+#### Manual Migration
+
+See `docs/migration-guide-v4.md` for detailed manual migration steps.
+
+### Backward Compatibility 🔙
+
+- **v3.x configs still work** with deprecation warnings through v4.x
+- **Deprecation timeline**: v3.x support will be removed in v5.0 (Q3 2026)
+- **Gradual migration**: No forced upgrade required immediately
+- **Legacy method**: `Config.from_legacy_schema()` for programmatic migration
+
+### Performance Impact 📊
+
+- **No performance regression**: Migrated configs perform identically to v3.x
+- **Improved defaults**: v4.0 presets include optimized default values
+- **Better optimization organization**: Dedicated `optimizations` section enables easier tuning
+
+### Files Changed
+
+**New Files**:
+
+- `ign_lidar/config/migration.py` (541 lines) - Migration utility
+- `ign_lidar/configs/base_v4.yaml` (341 lines) - Base v4.0 config
+- `ign_lidar/configs/presets_v4/*.yaml` (7 presets) - Comprehensive presets
+- `ign_lidar/configs/presets_v4/README.md` - Preset documentation
+- `tests/test_config_migration.py` (400+ lines) - Migration tests
+- `docs/docs/configuration-guide-v4.md` (1000+ lines) - Config guide
+- `docs/docs/migration-guide-v4.md` (800+ lines) - Migration guide
+
+**Modified Files**:
+
+- `ign_lidar/config/config.py` - Added OptimizationsConfig, migration support
+- `ign_lidar/config/schema.py` - Enhanced deprecation warnings
+- `ign_lidar/cli/commands/migrate_config.py` - Updated for v4.0
+
+### Upgrade Instructions
+
+#### For New Projects
+
+```python
+from ign_lidar import Config
+
+# Use presets (recommended)
+config = Config.preset('lod2_buildings')
+
+# Or customize
+config = Config.preset('lod2_buildings')
+config.patch_size = 100.0
+config.num_points = 32768
+```
+
+#### For Existing Projects
+
+```bash
+# Option 1: Automatic migration
+ign-lidar migrate-config your_config.yaml
+
+# Option 2: Keep using v3.x with warnings (temporary)
+ign-lidar process --config your_old_config.yaml
+# Warning: Configuration v3.x is deprecated...
+
+# Option 3: Switch to preset
+ign-lidar process --preset lod2_buildings --input /data --output /out
+```
+
+### Documentation
+
+- **Configuration Guide**: `docs/configuration-guide-v4.md`
+- **Migration Guide**: `docs/migration-guide-v4.md`
+- **API Reference**: Updated with v4.0 examples
+- **Examples**: See `examples/` for v4.0 configs
+
+### Future Roadmap
+
+- **v4.1**: Enhanced preset system with runtime profiles
+- **v4.2**: Configuration validation CLI tool
+- **v5.0**: Remove v3.x backward compatibility (Q3 2026)
+
+---
+
 ## [3.5.3] - 2025-11-24 - GPU Optimizations & Profiling Integration ⚡
 
 **Date**: November 24, 2025  

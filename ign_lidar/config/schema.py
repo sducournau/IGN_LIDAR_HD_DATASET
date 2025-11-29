@@ -1,36 +1,67 @@
 """
 Structured configuration schema for IGN LiDAR HD.
 
-DEPRECATED: This module is deprecated in v3.2+ in favor of ign_lidar.config.Config
+⚠️  DEPRECATED - WILL BE REMOVED IN v4.0.0 (Q1 2026) ⚠️
 
-The old ProcessorConfig/FeaturesConfig approach has been replaced with a
-Config class that is much simpler to use.
+This module is deprecated in v3.2+ in favor of ign_lidar.config.Config
+and will be COMPLETELY REMOVED in v4.0.0.
 
-Migration Guide:
-    # Old (v3.1, deprecated)
-    from ign_lidar.config.schema import ProcessorConfig, FeaturesConfig
-    processor_config = ProcessorConfig(lod_level='LOD2')
-    features_config = FeaturesConfig(mode='lod2')
+════════════════════════════════════════════════════════════════════════════════
+                            ⚠️  ACTION REQUIRED  ⚠️
+════════════════════════════════════════════════════════════════════════════════
 
-    # New (v3.2+, recommended)
-    from ign_lidar.config import Config
-    config = Config.preset('lod2_buildings')
-    # Or: config = Config(mode='lod2', input_dir='...', output_dir='...')
+You MUST migrate to the new Config system before v4.0.0 (scheduled Q1 2026).
 
-This module will be REMOVED in v4.0.0.
+MIGRATION STEPS:
+    1. Run the automatic migration tool:
+       $ ign-lidar-hd migrate-config your_config.yaml
+    
+    2. Update your Python imports:
+       # OLD (deprecated):
+       from ign_lidar.config.schema import ProcessorConfig, FeaturesConfig
+       
+       # NEW (v4.0):
+       from ign_lidar.config import Config
+    
+    3. Update your code:
+       # OLD:
+       processor_config = ProcessorConfig(lod_level='LOD2')
+       features_config = FeaturesConfig(mode='lod2')
+       
+       # NEW:
+       config = Config.preset('lod2_buildings')
+       # Or: config = Config(mode='lod2', input_dir='...', output_dir='...')
+    
+    4. Test with v3.9 (includes migration tools and backward compatibility)
+    
+    5. Upgrade to v4.0 when ready
 
-For migration help:
-    ign-lidar migrate-config old_config.yaml
+TIMELINE:
+    - NOW (v3.9): Deprecation warnings, migration tool available
+    - Q1 2026 (v4.0.0): schema.py REMOVED (breaking change)
 
-See: https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/migration-v3.1-to-v3.2/
+HELP & RESOURCES:
+    - Migration Guide: https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/migration-v3-to-v4/
+    - Config v4.0 Docs: https://sducournau.github.io/IGN_LIDAR_HD_DATASET/configuration/
+    - GitHub Issues: https://github.com/sducournau/IGN_LIDAR_HD_DATASET/issues
+    - Support: Open a GitHub discussion
+
+════════════════════════════════════════════════════════════════════════════════
 """
 
 import warnings
 
 warnings.warn(
-    "ign_lidar.config.schema is deprecated and will be removed in v4.0.0. "
-    "Use ign_lidar.config.Config instead. "
-    "See migration guide: https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/migration-v3.1-to-v3.2/",
+    "\n" + "=" * 80 + "\n"
+    "⚠️  DEPRECATION WARNING  ⚠️\n\n"
+    "ign_lidar.config.schema will be REMOVED in v4.0.0 (Q1 2026)\n\n"
+    "ACTION REQUIRED: Migrate to ign_lidar.config.Config\n\n"
+    "Quick Migration:\n"
+    "  1. Run: ign-lidar-hd migrate-config your_config.yaml\n"
+    "  2. Update imports: from ign_lidar.config import Config\n"
+    "  3. Use: config = Config.preset('lod2_buildings')\n\n"
+    "See migration guide: https://sducournau.github.io/IGN_LIDAR_HD_DATASET/guides/migration-v3-to-v4/\n"
+    + "=" * 80,
     DeprecationWarning,
     stacklevel=2,
 )

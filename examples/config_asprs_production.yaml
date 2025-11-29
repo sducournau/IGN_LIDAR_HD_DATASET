@@ -1,0 +1,200 @@
+# ============================================================================
+# IGN LiDAR HD v3.2+ - ASPRS Production Configuration
+# ============================================================================
+# Complete production-ready ASPRS classification
+#
+# Features:
+# - ASPRS standard classification (25 features, 20+ classes)
+# - GPU acceleration with Phase 4 optimizations
+# - Full BD TOPO integration (buildings, roads, water, vegetation)
+# - Spectral features (RGB + NIR + NDVI)
+# - DTM augmentation for accurate ground reference
+#
+# Expected Performance: ~45-60 sec per 18M point tile (GPU: RTX 4080+)
+# ============================================================================
+
+# ============================================================================
+# REQUIRED PARAMETERS
+# ============================================================================
+input_dir: "/path/to/your/laz/tiles" # ⚠️ REQUIRED
+output_dir: "/path/to/output" # ⚠️ REQUIRED
+
+# ============================================================================
+# ESSENTIAL SETTINGS
+# ============================================================================
+mode: "asprs" # ASPRS standard classification
+processing_mode: "both" # Generate both patches + enriched LAZ
+use_gpu: true # GPU acceleration
+num_workers: 0 # MUST be 0 with GPU
+
+# Patch configuration
+patch_size: 50.0 # 50m patches for detailed classification
+num_points: 24576 # 24k points (higher quality)
+patch_overlap: 0.1 # 10% overlap
+
+# Architecture
+architecture: "hybrid" # Hybrid architecture for ASPRS
+
+# ============================================================================
+# FEATURE CONFIGURATION - ASPRS FULL
+# ============================================================================
+features:
+  feature_set: "full" # Complete ASPRS feature set (~38 features)
+  k_neighbors: 30
+  search_radius: 3.0
+
+  # Spectral features
+  use_rgb: true # RGB from orthophotos
+  use_nir: true # Near-infrared
+  compute_ndvi: true # NDVI vegetation index
+
+  # Multi-scale for artifact suppression
+  multi_scale: true
+  scales:
+    - fine # k=20, r=1.0m - Fine details
+    - medium # k=50, r=2.5m - Standard features
+    - coarse # k=100, r=5.0m - Context
+
+# ============================================================================
+# PHASE 4 OPTIMIZATIONS (PRODUCTION)
+# ============================================================================
+enable_optimizations: true
+enable_async_io: true # +12-14% performance
+async_workers: 2
+tile_cache_size: 3
+
+enable_batch_processing: true # +25-30% performance
+batch_size: 4 # Process 4 tiles in parallel
+
+enable_gpu_pooling: true # +8.5% performance
+gpu_pool_max_size_gb: 4.0
+
+print_optimization_stats: true # Show performance gains
+
+# ============================================================================
+# ADVANCED SETTINGS
+# ============================================================================
+advanced:
+  # Preprocessing
+  preprocessing:
+    enabled: true
+    sor_k: 12
+    sor_std: 2.0
+    ror_radius: 1.0
+    ror_neighbors: 4
+    voxel_enabled: false
+
+  # Ground Truth from BD TOPO
+  ground_truth:
+    enabled: true
+    method: "gpu"
+    chunk_size: 5000000
+    cache_dir: null # Auto: ~/.ign_lidar/cache
+    cache_ttl_days: 30
+    preclassify: true
+
+    bd_topo:
+      enabled: true
+      path: null # Auto-download from IGN WFS
+      features:
+        buildings:
+          enabled: true
+          facade_optimization: true
+          min_height: 1.5
+          buffer_distance: 0.5
+        roads:
+          enabled: true
+          buffer_distance: 1.5
+          classification_method: "surface_type"
+        vegetation:
+          enabled: true
+          buffer_distance: 0.0
+        water:
+          enabled: true
+          buffer_distance: 0.5
+        railways:
+          enabled: false
+        bridges:
+          enabled: false
+        power_lines:
+          enabled: false
+
+  # DTM Augmentation (accurate ground reference)
+  dtm:
+    enabled: true
+    source: "ign_rge_alti" # IGN RGE ALTI (1m resolution)
+    resolution: 1.0 # 1m resolution
+    cache_enabled: true
+
+  # Multi-scale advanced
+  multi_scale_advanced:
+    aggregation_method: "adaptive" # Best for ASPRS
+    variance_penalty_factor: 2.0
+    artifact_detection: true
+    artifact_variance_threshold: 0.15
+    auto_suppress_artifacts: true
+    adaptive_scale_selection: true
+    complexity_threshold: 0.5
+    homogeneity_threshold: 0.8
+    reuse_kdtrees_across_scales: true
+
+  # Performance tuning
+  performance:
+    gpu_batch_size: 30000000 # 30M points per GPU batch
+    gpu_memory_target: 0.90 # Use 90% of VRAM
+    vram_limit_gb: 14 # For 16GB GPU
+    chunk_size: 5000000 # 5M points per chunk
+    prefetch_factor: 2
+    pin_memory: true
+
+  # Classification thresholds (ASPRS-specific)
+  classification:
+    min_building_area: 20.0
+    min_building_height: 2.5
+    facade_buffer: 0.5
+
+    thresholds:
+      buildings:
+        min_height: 1.5
+        min_verticality: 0.55
+        min_roof_planarity: 0.65
+        max_roof_curvature: 0.20
+      ground:
+        max_height: 0.5
+        min_planarity: 0.75
+        min_horizontality: 0.70
+      vegetation:
+        min_ndvi: 0.3
+        max_planarity: 0.6
+        max_verticality: 0.4
+
+  # Reclassification (refine with ground truth)
+  reclassification:
+    enabled: true
+    confidence_thresholds:
+      building: 0.70
+      ground: 0.75
+      vegetation: 0.65
+      water: 0.80
+      unclassified: 0.50
+# ============================================================================
+# USAGE
+# ============================================================================
+# Basic:
+#   ign-lidar-hd process -c config_asprs_production.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output"
+#
+# With custom BD TOPO path:
+#   ign-lidar-hd process -c config_asprs_production.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output" \
+#     advanced.ground_truth.bd_topo.path="/data/BDTOPO"
+#
+# Adjust for different GPU:
+#   ign-lidar-hd process -c config_asprs_production.yaml \
+#     input_dir="/data/tiles" \
+#     output_dir="/data/output" \
+#     advanced.performance.vram_limit_gb=10 \
+#     batch_size=2
+# ============================================================================

@@ -1,0 +1,212 @@
+# ============================================================================
+# IGN LiDAR HD v4.0 - Preset: LOD3 Detailed
+# ============================================================================
+# USE CASE: Detailed architectural analysis, heritage documentation
+# SPEED: 🏃 MEDIUM (3× slower than minimal, high detail)
+#
+# FEATURES:
+#   - All LOD2 features
+#   - Boundary detection for fine details
+#   - Enhanced architectural feature extraction
+#   - Higher-resolution geometric analysis
+#   - Optional RGB for texture mapping
+#
+# WHEN TO USE:
+#   ✓ Detailed building modeling (chimneys, dormers, balconies)
+#   ✓ Architectural heritage documentation
+#   ✓ High-fidelity city models
+#   ✓ Facade detail extraction
+#   ✓ Research and detailed analysis
+#
+# CLASSIFICATION OUTPUT:
+#   LOD3 Building Classes (15 detailed classes):
+#     - wall, roof_flat, roof_gable, roof_hip
+#     - chimney, dormer, balcony, overhang
+#     - foundation, window_frame, door_frame
+#     - ground, vegetation (low/high), water, other
+#
+# USAGE:
+#   ign-lidar-hd process --config-name=presets_v4/lod3_detailed \
+#     input_dir=/data/tiles output_dir=/data/output
+#
+# ALTERNATIVES:
+#   - For faster building modeling → use 'lod2_buildings' preset
+#   - For standard classification → use 'asprs_classification_gpu' preset
+#
+# Package Version: 4.0.0
+# Config Version: 4.0.0
+# Date: November 2025
+# ============================================================================
+
+defaults:
+  - ../base_v4
+  - _self_
+
+config_version: "4.0.0"
+config_name: "lod3_detailed"
+config_description: "LOD3 Detailed Architectural Classification"
+
+# ============================================================================
+# ESSENTIAL PARAMETERS (v4.0 flat structure)
+# ============================================================================
+
+# Classification mode
+mode: lod3 # LOD3 detailed architectural classification
+
+# Processing mode
+processing_mode: both # Output both enriched LAZ and patches
+
+# Hardware configuration
+use_gpu: true # GPU recommended for LOD3
+num_workers: 1 # Single worker for GPU
+
+# Patch configuration
+patch_size: 150.0 # Standard urban patch size
+num_points: 32768 # 32K points for detailed analysis
+patch_overlap: 0.15 # More overlap for detail preservation
+
+# Architecture
+architecture: pointnet++ # PointNet++ for architectural features
+
+# ============================================================================
+# FEATURE CONFIGURATION - Full Feature Set
+# ============================================================================
+features:
+  mode: full # Full feature set (~45 features)
+  k_neighbors: 40 # Larger neighborhood for detail
+  search_radius: null # Auto-calculate
+
+  # Spectral features (recommended for LOD3)
+  use_rgb: true # RGB for texture and classification
+  use_nir: true # NIR for enhanced detection
+  compute_ndvi: true # NDVI for vegetation masking
+
+  # Multi-scale (important for LOD3 details)
+  multi_scale: true # Enable multi-scale analysis
+  scales: ["fine", "medium", "coarse"] # Three scale levels
+
+# ============================================================================
+# OPTIMIZATIONS (v4.0 - Full performance)
+# ============================================================================
+optimizations:
+  enabled: true # All optimizations for LOD3 speed
+
+  # Async I/O
+  async_io: true
+  async_workers: 2
+  tile_cache_size: 4
+
+  # Batch processing
+  batch_processing: true
+  batch_size: 4
+
+  # GPU pooling
+  gpu_pooling: true
+  gpu_pool_max_size_gb: 5.0 # More memory for detailed processing
+
+  # Statistics
+  print_stats: true
+
+# ============================================================================
+# ADVANCED CONFIGURATION - LOD3 Specific
+# ============================================================================
+advanced:
+  # Preprocessing - Enhanced for detail
+  preprocessing:
+    remove_outliers: true
+    outlier_method: "statistical"
+    outlier_std_ratio: 2.5 # More permissive for detail preservation
+    outlier_radius: 0.3 # Smaller radius for fine details
+    outlier_min_neighbors: 8
+
+  # Ground truth - Full integration
+  ground_truth:
+    bd_topo:
+      enabled: true
+      buildings: true # Essential
+      roads: true
+      vegetation: true # For masking
+      water: true
+      timeout: 90 # More time for complex queries
+      max_retries: 3
+
+    cadastre:
+      enabled: true # Cadastre for building footprints
+      use_buildings: true
+
+  # Classification - Enhanced for LOD3
+  classification:
+    ground_method: "auto"
+    ground_buffer: 0.3 # Smaller buffer for detail
+    building_height_min: 2.0
+    building_confidence_threshold: 0.75 # Higher threshold for quality
+
+  # Performance - High detail settings
+  performance:
+    max_memory_gb: null
+    chunk_size: 1_000_000
+    gpu_batch_size: 8_000_000 # 8M points
+    gpu_memory_target: 0.85
+    gpu_streams: 6 # More streams for complex processing
+    show_progress: true
+    log_level: "INFO"
+
+# ============================================================================
+# DATA SOURCES - Full integration
+# ============================================================================
+data_sources:
+  # RGB orthophotos (recommended for LOD3)
+  rgb:
+    enabled: false # Set to true if available
+    directory: null
+    file_pattern: "*.tif"
+
+  # NIR orthophotos
+  nir:
+    enabled: false # Set to true if available
+    directory: null
+    file_pattern: "*.tif"
+
+  # DTM
+  dtm:
+    enabled: false # Optional for enhanced height normalization
+    directory: null
+    file_pattern: "*.tif"
+
+# ============================================================================
+# OUTPUT CONFIGURATION - Full output
+# ============================================================================
+output:
+  # Enriched LAZ
+  enriched_laz:
+    compression: true
+    extra_dimensions:
+      [
+        "classification_confidence",
+        "boundary_proximity",
+        "architectural_feature",
+      ]
+
+  # NPZ patches
+  patches:
+    format: "npz"
+    train_val_split: 0.8
+    shuffle: true
+    include_metadata: true
+
+  save_metadata: true
+  save_statistics: true
+
+# ============================================================================
+# MONITORING - Detailed tracking
+# ============================================================================
+monitoring:
+  enable_profiling: false
+  track_memory: true
+  memory_log_interval: 10.0
+  enable_checkpoints: true # Important for long LOD3 processing
+  checkpoint_interval: 50 # More frequent checkpoints
+
+# ============================================================================
+# END OF PRESET
+# ============================================================================

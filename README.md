@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/)
 
-**Version 3.6.3** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration Guide](docs/guides/CONFIG_GUIDE.md)
+**Version 3.6.3** | [📚 Full Documentation](https://sducournau.github.io/IGN_LIDAR_HD_DATASET/) | [📖 Documentation Index](DOCUMENTATION.md) | [⚙️ Configuration v4.0 Guide](docs/docs/configuration-guide-v4.md) | [🔄 Migration Guide](docs/docs/migration-guide-v4.md)
 
 ![LoD3 Building Model](https://github.com/sducournau/IGN_LIDAR_HD_DATASET/blob/main/docs/static/img/lod3.png?raw=true)
 
@@ -380,7 +380,7 @@ ign-lidar-hd process --config my_config.yaml
 ✅ **Reproducible**: Configuration files ensure consistent results
 ✅ **Extensible**: Easy to add new features and options
 
-📖 See [Configuration Guide](docs/guides/CONFIG_GUIDE.md) for complete documentation
+📖 See [Configuration v4.0 Guide](docs/docs/configuration-guide-v4.md) for complete documentation | [🔄 Migration from v3.x](docs/docs/migration-guide-v4.md)
 
 ---
 
