@@ -1,0 +1,86 @@
+[
+  {
+    "title": "[Phase 1] Complete Comprehensive Deprecation Audit",
+    "body": "## Task\nComplete comprehensive audit of all deprecated code in preparation for v4.0.0.\n\n## Deliverables\n- [x] Run audit script: `python scripts/audit_deprecations_v4.py`\n- [x] Review deprecation report (416 items found)\n- [ ] Categorize by removal priority\n- [ ] Create removal plan for each high-priority item\n- [ ] Document in V4_IMPLEMENTATION_CHECKLIST.md\n\n## Context\nAutomated audit found:\n- Total: 416 deprecations\n- High Priority: 59 items\n- Files Affected: 74\n\nFull report: `deprecation_audit_report.json`\n\n## Acceptance Criteria\n- All deprecated items documented\n- Removal priority assigned\n- Plan created for systematic removal\n\n## Related\n- Part of Phase 1 (Preparation)\n- Blocks Phase 2 implementation tasks\n- See: VERSION_4.0.0_RELEASE_PLAN.md\n",
+    "labels": [
+      "v4.0",
+      "phase-1",
+      "audit",
+      "documentation"
+    ],
+    "milestone": "v4.0.0",
+    "assignee": ""
+  },
+  {
+    "title": "[Phase 1] Create v3.7.0 Transitional Release",
+    "body": "## Task\nCreate v3.7.0 as final v3.x release with enhanced deprecation warnings.\n\n## Steps\n1. [ ] Create v3.7.0 branch from main\n2. [ ] Add comprehensive deprecation warnings to all deprecated code\n3. [ ] Update deprecation messages with v4.0 timeline\n4. [ ] Add migration guide links to warnings\n5. [ ] Test all deprecation warnings fire correctly\n6. [ ] Update CHANGELOG.md for v3.7.0\n7. [ ] Create release notes\n8. [ ] Tag and release to PyPI\n\n## Enhanced Warnings Needed\n- Configuration v3.x structure warnings\n- FeatureComputer deprecation warning\n- Deprecated normal function warnings\n- Legacy import path warnings\n- GPU helper deprecation warnings\n\n## Timeline\n- Start: Week 3 (Dec 9, 2025)\n- Release: Mid-January 2026\n- Support: Through Q2 2026\n\n## Acceptance Criteria\n- v3.7.0 released to PyPI\n- All deprecated code has clear warnings\n- Migration guide available\n- Community announced\n\n## Related\n- Prepares users for v4.0.0\n- Reduces migration friction\n- See: V4_BREAKING_CHANGES.md\n",
+    "labels": [
+      "v4.0",
+      "phase-1",
+      "release",
+      "v3.7.0"
+    ],
+    "milestone": "v4.0.0",
+    "assignee": ""
+  },
+  {
+    "title": "[Phase 1] Test Config Migration Tool on Real Configs",
+    "body": "## Task\nThoroughly test the config migration tool on 20+ real-world configurations.\n\n## Test Configs Needed\n- [ ] User-submitted configs (collect from issues/discussions)\n- [ ] Example configs from examples/ directory\n- [ ] Preset configs\n- [ ] Edge cases (empty configs, complex nested)\n- [ ] Production configs (sanitized)\n\n## Test Scenarios\n1. Simple LOD2 config\n2. Complex LOD3 config\n3. ASPRS classification config\n4. Multi-scale adaptive config\n5. GPU-enabled configs\n6. CPU-only configs\n7. Configs with custom settings\n8. Configs with deprecated parameters\n\n## Validation\n- [ ] All configs migrate successfully\n- [ ] Output validates against v4.0 schema\n- [ ] No data loss\n- [ ] Warnings for ambiguous cases\n- [ ] Dry-run mode works correctly\n\n## Success Metrics\n- >95% migration success rate\n- <5% requiring manual intervention\n- Clear error messages for failures\n\n## Command\n```bash\nign-lidar migrate-config <config> --dry-run --verbose\n```\n\n## Related\n- Critical for user migration\n- Reduces v4.0 adoption friction\n- See: V4_BREAKING_CHANGES.md\n",
+    "labels": [
+      "v4.0",
+      "phase-1",
+      "testing",
+      "migration"
+    ],
+    "milestone": "v4.0.0",
+    "assignee": ""
+  },
+  {
+    "title": "[Phase 2] Delete schema.py and schema_simplified.py",
+    "body": "## Task\nRemove old configuration files as part of v4.0 finalization.\n\n## Files to Delete\n- `ign_lidar/config/schema.py` (415 lines)\n- `ign_lidar/config/schema_simplified.py` (~300 lines)\n\n## Steps\n1. [ ] Run finalization script: `python scripts/finalize_config_v4.py --dry-run`\n2. [ ] Review planned changes\n3. [ ] Execute deletion: `python scripts/finalize_config_v4.py --execute`\n4. [ ] Update imports in __init__.py\n5. [ ] Remove test cases for old configs\n6. [ ] Update documentation\n\n## Backups\nScript automatically creates .v3backup files before deletion.\n\n## Testing\n- [ ] All tests pass after deletion\n- [ ] No import errors\n- [ ] Config loading works with v4.0 only\n\n## Breaking Change\n\u26a0\ufe0f This is a BREAKING CHANGE\n- All v3.x configs will no longer load\n- Users must migrate before upgrading\n\n## Related\n- Blocks: API stabilization tasks\n- See: V4_BREAKING_CHANGES.md section 1\n",
+    "labels": [
+      "v4.0",
+      "phase-2",
+      "breaking-change",
+      "config"
+    ],
+    "milestone": "v4.0.0",
+    "assignee": ""
+  },
+  {
+    "title": "[Phase 2] Remove FeatureComputer Class",
+    "body": "## Task\nDelete the deprecated FeatureComputer class.\n\n## File to Modify\n- `ign_lidar/features/feature_computer.py`\n\n## Steps\n1. [ ] Delete entire `feature_computer.py` file\n2. [ ] Remove import from `features/__init__.py`\n3. [ ] Update all internal usage to FeatureOrchestrator\n4. [ ] Remove test cases for FeatureComputer\n5. [ ] Update documentation and examples\n\n## Migration Pattern\n```python\n# OLD (v3.x) - REMOVED\nfrom ign_lidar.features import FeatureComputer\ncomputer = FeatureComputer(use_gpu=True)\n\n# NEW (v4.0) - REQUIRED\nfrom ign_lidar.features import FeatureOrchestrator\nfrom ign_lidar import Config\nconfig = Config(use_gpu=True)\norchestrator = FeatureOrchestrator(config)\n```\n\n## Testing\n- [ ] All feature tests pass\n- [ ] No import errors\n- [ ] Documentation updated\n\n## Breaking Change\n\u26a0\ufe0f BREAKING CHANGE\n- FeatureComputer no longer available\n- Users must use FeatureOrchestrator\n\n## Related\n- See: V4_BREAKING_CHANGES.md section 2\n- Deprecation since: v3.7.0\n",
+    "labels": [
+      "v4.0",
+      "phase-2",
+      "breaking-change",
+      "features"
+    ],
+    "milestone": "v4.0.0",
+    "assignee": ""
+  },
+  {
+    "title": "[Phase 2] Remove Deprecated Normal Computation Functions",
+    "body": "## Task\nRemove deprecated normal computation functions from numba_accelerated.py and gpu_processor.py.\n\n## Functions to Remove\nFrom `features/numba_accelerated.py`:\n- `compute_normals_from_eigenvectors()`\n- `compute_normals_from_eigenvectors_numpy()`\n- `compute_normals_from_eigenvectors_numba()`\n\nFrom `features/gpu_processor.py`:\n- `_compute_normals_cpu()`\n\n## Migration Pattern\n```python\n# OLD - REMOVED\nfrom ign_lidar.features.numba_accelerated import compute_normals_from_eigenvectors\nnormals = compute_normals_from_eigenvectors(eigenvectors)\n\n# NEW - REQUIRED\nfrom ign_lidar.features.compute.normals import compute_normals\nnormals = compute_normals(points, k_neighbors=30)\n```\n\n## Steps\n1. [ ] Remove function definitions\n2. [ ] Remove tests for deprecated functions\n3. [ ] Update all internal call sites\n4. [ ] Verify canonical implementations work\n5. [ ] Update documentation\n\n## Testing\n- [ ] All normal computation tests pass\n- [ ] GPU fallback works correctly\n- [ ] No import errors\n\n## Related\n- See: V4_BREAKING_CHANGES.md section 3\n- Canonical API: `features/compute/normals.py`\n",
+    "labels": [
+      "v4.0",
+      "phase-2",
+      "breaking-change",
+      "features"
+    ],
+    "milestone": "v4.0.0",
+    "assignee": ""
+  },
+  {
+    "title": "[Phase 3] Achieve >85% Test Coverage",
+    "body": "## Task\nExpand test suite to achieve >85% code coverage.\n\n## Current Status\n- Coverage: 78%\n- Target: 85%\n- Gap: 7 percentage points\n\n## Areas Needing Tests\n1. [ ] Config v4.0 validation\n2. [ ] Migration tool edge cases\n3. [ ] GPU error handling\n4. [ ] Memory management\n5. [ ] Classification edge cases\n6. [ ] IO operations\n7. [ ] CLI commands\n\n## Test Types Needed\n- Unit tests\n- Integration tests\n- Performance tests\n- Memory leak tests\n- GPU tests (with fallback)\n\n## Success Metrics\n- Coverage >85%\n- All critical paths tested\n- Edge cases covered\n- Performance benchmarks passing\n\n## Commands\n```bash\npytest tests/ -v --cov=ign_lidar --cov-report=html\npytest tests/ -v --cov=ign_lidar --cov-report=term-missing\n```\n\n## Related\n- Required for v4.0 release\n- See: VERSION_4.0.0_RELEASE_PLAN.md\n",
+    "labels": [
+      "v4.0",
+      "phase-3",
+      "testing",
+      "quality"
+    ],
+    "milestone": "v4.0.0",
+    "assignee": ""
+  }
+]
