@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [4.0.0] - 2025-11-29 - Configuration v4.0 Harmonization 🎯
+## [4.0.0] - 2025-12-02 - Configuration v4.0 Harmonization 🎯
 
 **Date**: November 29, 2025  
 **Focus**: Unified configuration architecture, simplified structure, comprehensive presets

@@ -437,7 +437,7 @@ class IGNLiDARMultiArchDataset(Dataset):
         num_workers: int = 4,
         pin_memory: bool = True,
         **kwargs
-    ) -> torch.utils.data.DataLoader:
+    ) -> "torch.utils.data.DataLoader":
         """
         Create a PyTorch DataLoader for this dataset.
         

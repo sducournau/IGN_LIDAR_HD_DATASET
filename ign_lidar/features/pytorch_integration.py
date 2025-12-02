@@ -97,7 +97,7 @@ class TensorConverter:
         array: np.ndarray,
         requires_grad: bool = False,
         non_blocking: bool = True
-    ) -> torch.Tensor:
+    ) -> "torch.Tensor":
         """
         Convert NumPy array to PyTorch tensor.
 
@@ -121,7 +121,7 @@ class TensorConverter:
 
         return tensor
 
-    def tensor_to_numpy(self, tensor: torch.Tensor) -> np.ndarray:
+    def tensor_to_numpy(self, tensor: "torch.Tensor") -> np.ndarray:
         """
         Convert PyTorch tensor to NumPy array.
 
@@ -143,7 +143,7 @@ class TensorConverter:
         self,
         arrays: List[np.ndarray],
         requires_grad: bool = False
-    ) -> List[torch.Tensor]:
+    ) -> List["torch.Tensor"]:
         """
         Convert multiple NumPy arrays to PyTorch tensors.
 
@@ -159,7 +159,7 @@ class TensorConverter:
             for arr in arrays
         ]
 
-    def stack_tensors(self, tensors: List[torch.Tensor]) -> torch.Tensor:
+    def stack_tensors(self, tensors: List["torch.Tensor"]) -> "torch.Tensor":
         """
         Stack multiple tensors into single batch tensor.
 
@@ -186,7 +186,7 @@ class GPUInference:
 
     def __init__(
         self,
-        model: nn.Module,
+        model: "nn.Module",
         batch_size: int = 4096,
         device: str = 'cuda',
         dtype: str = 'float32',
@@ -219,9 +219,9 @@ class GPUInference:
 
     def predict(
         self,
-        features: Union[np.ndarray, torch.Tensor],
+        features: Union[np.ndarray, "torch.Tensor"],
         return_numpy: bool = True
-    ) -> Union[torch.Tensor, np.ndarray]:
+    ) -> Union["torch.Tensor", np.ndarray]:
         """
         Run inference on features.
 
@@ -262,7 +262,7 @@ class GPUInference:
 
     def predict_with_confidence(
         self,
-        features: Union[np.ndarray, torch.Tensor],
+        features: Union[np.ndarray, "torch.Tensor"],
         confidence_threshold: float = 0.7
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -295,7 +295,7 @@ class GPUInference:
 
     def get_embeddings(
         self,
-        features: Union[np.ndarray, torch.Tensor],
+        features: Union[np.ndarray, "torch.Tensor"],
         layer_name: Optional[str] = None
     ) -> np.ndarray:
         """
@@ -332,9 +332,9 @@ class GPUInference:
 
     def _get_intermediate_output(
         self,
-        x: torch.Tensor,
+        x: "torch.Tensor",
         layer_name: str
-    ) -> torch.Tensor:
+    ) -> "torch.Tensor":
         """Get output from intermediate layer."""
         outputs = {}
 
@@ -369,10 +369,10 @@ class ModelLoader:
     @staticmethod
     def load_model(
         model_path: Union[str, Path],
-        model_class: Optional[nn.Module] = None,
+        model_class: Optional["nn.Module"] = None,
         device: str = 'cuda',
         strict: bool = True
-    ) -> nn.Module:
+    ) -> "nn.Module":
         """
         Load PyTorch model from file.
 
@@ -427,9 +427,9 @@ class ModelLoader:
 
     @staticmethod
     def save_model(
-        model: nn.Module,
+        model: "nn.Module",
         output_path: Union[str, Path],
-        optimizer: Optional[torch.optim.Optimizer] = None,
+        optimizer: Optional["torch.optim.Optimizer"] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """

@@ -229,12 +229,12 @@ class DomainAdapter:
     
     def compute_mmd_loss(
         self,
-        source: torch.Tensor,
-        target: torch.Tensor,
+        source: "torch.Tensor",
+        target: "torch.Tensor",
         kernel_mul: float = 2.0,
         kernel_num: int = 5,
         sigma: float = 1.0
-    ) -> torch.Tensor:
+    ) -> "torch.Tensor":
         """
         Compute Maximum Mean Discrepancy (MMD) loss.
         
@@ -281,9 +281,9 @@ class DomainAdapter:
     
     def compute_coral_loss(
         self,
-        source: torch.Tensor,
-        target: torch.Tensor
-    ) -> torch.Tensor:
+        source: "torch.Tensor",
+        target: "torch.Tensor"
+    ) -> "torch.Tensor":
         """
         Compute CORAL (Correlation Alignment) loss.
         
@@ -308,9 +308,9 @@ class DomainAdapter:
     
     def compute_loss(
         self,
-        source: torch.Tensor,
-        target: torch.Tensor
-    ) -> torch.Tensor:
+        source: "torch.Tensor",
+        target: "torch.Tensor"
+    ) -> "torch.Tensor":
         """
         Compute domain adaptation loss.
         
@@ -404,7 +404,7 @@ class ProgressiveUnfreezing:
         for param in self.model.parameters():
             param.requires_grad = True
     
-    def _get_parameter(self, param_name: str) -> Optional[torch.nn.Parameter]:
+    def _get_parameter(self, param_name: str) -> Optional["torch.nn.Parameter"]:
         """Get parameter by name."""
         try:
             return dict(self.model.named_parameters())[param_name]
